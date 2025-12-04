@@ -14,12 +14,12 @@
         <div class="controls-right">
             <select class="filter-category">
                 <option value="">All Category</option>
-                <option value="cabinet">Cabinet</option>
-                <option value="doors">Doors</option>
-                <option value="mirrors">Mirror</option>
-                <option value="partition">Partition</option>
-                <option value="stair-railings">Railings</option>
-                <option value="windows">Window</option>
+                <?php foreach ($categories as $category): 
+                    // Display category name exactly as stored in database - no modifications
+                    $display_name = $category;
+                ?>
+                <option value="<?php echo htmlspecialchars($category); ?>"><?php echo htmlspecialchars($display_name); ?></option>
+                <?php endforeach; ?>
             </select>
 
         </div>
@@ -29,60 +29,44 @@
     <!-- Products Table -->
     <div class="table-container">
         <div class="product-grid">
-            <div class="product-card" data-category="cabinet">
-                <div class="product-image"><img src="/Glassify/assets/img_admin/cabinet.jpg" alt="Cabinet"></div>
-                <p class="product-name">Glass Cabinet</p>
-                <p class="product-price">₱1,100.00</p>
-
+            <?php if (!empty($products)): 
+                foreach ($products as $product): 
+                    // Build image path
+                    $image_path = '';
+                    if ($product->ImageUrl) {
+                        if (strpos($product->ImageUrl, 'http://') === 0 || strpos($product->ImageUrl, 'https://') === 0) {
+                            // Full URL
+                            $image_path = $product->ImageUrl;
+                        } elseif (strpos($product->ImageUrl, 'uploads/') === 0 || strpos($product->ImageUrl, '/uploads/') === 0) {
+                            // Already has uploads path
+                            $image_path = base_url($product->ImageUrl);
+                        } elseif (strpos($product->ImageUrl, 'assets/') === 0 || strpos($product->ImageUrl, '/assets/') === 0) {
+                            // Assets path
+                            $image_path = base_url($product->ImageUrl);
+                        } else {
+                            // Just filename - assume it's in uploads/products/
+                            $image_path = base_url('uploads/products/' . $product->ImageUrl);
+                        }
+                    } else {
+                        // Use a simple data URI as placeholder to avoid 404 errors
+                        $image_path = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                    }
+            ?>
+            <div class="product-card" data-category="<?php echo htmlspecialchars($product->Category); ?>">
+                <div class="product-image">
+                    <img src="<?php echo $image_path; ?>" alt="<?php echo htmlspecialchars($product->ProductName); ?>" onerror="if(this.src.indexOf('data:image') === -1) { this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4='; }">
+                </div>
+                <p class="product-name"><?php echo htmlspecialchars($product->ProductName); ?></p>
+                <p class="product-price">₱<?php echo number_format($product->Price, 2); ?></p>
             </div>
-            <div class="product-card" data-category="shower-enclosure">
-                <div class="product-image"><img src="/Glassify/assets/img_admin/french-shower-enclosure.jpg"
-                        alt="Shower Enclosure"></div>
-                <p class="product-name">French Type Fixed Shower Enclosure</p>
-                <p class="product-price">₱5,200.00</p>
-
+            <?php 
+                endforeach; 
+            else: 
+            ?>
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+                <p>No products found</p>
             </div>
-            <div class="product-card" data-category="doors">
-                <div class="product-image"><img src="/Glassify/assets/img_admin/aluminum-screen.jpg"
-                        alt="Aluminum Screen"></div>
-                <p class="product-name">Aluminum Screen Door</p>
-                <p class="product-price">₱4,100.00</p>
-            </div>
-            <div class="product-card" data-category="cabinet">
-                <div class="product-image"><img src="/Glassify/assets/img_admin/aluminum-cabinet.jpg"
-                        alt="Kitchen Cabinet"></div>
-                <p class="product-name">Aluminum Kitchen Cabinet</p>
-                <p class="product-price">₱3,100.00</p>
-
-            </div>
-            <div class="product-card" data-category="windows">
-                <div class="product-image"><img src="/Glassify/assets/img_admin/sliding-window.jpg"
-                        alt="Sliding Window"></div>
-                <p class="product-name">Sliding Window</p>
-                <p class="product-price">₱2,000.00</p>
-
-            </div>
-            <div class="product-card" data-category="mirrors">
-                <div class="product-image"><img src="/Glassify/assets/img_admin/arched frameless.jpg"
-                        alt="Arched Frameless"></div>
-                <p class="product-name">Arched Frameless</p>
-                <p class="product-price">₱1,200.00</p>
-
-            </div>
-            <div class="product-card" data-category="windows">
-                <div class="product-image"><img src="/Glassify/assets/img_admin/corner-glass.jpg"
-                        alt="Corner Fixed Glass"></div>
-                <p class="product-name">Corner Fixed Glass</p>
-                <p class="product-price">₱10,000.00</p>
-
-            </div>
-            <div class="product-card" data-category="doors">
-                <div class="product-image"><img src="/Glassify/assets/img_admin/french-type-door.jpg"
-                        alt="Sliding Door"></div>
-                <p class="product-name">900 Series French Type Sliding Door</p>
-                <p class="product-price">₱5,000.00</p>
-
-            </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -99,5 +83,4 @@
 </section>
 
 
-<script src="/Glassify/assets/js/admin-sidebar.js"></script>
-<script src="/Glassify/assets/js/product-filter.js"></script>
+<script src="<?php echo base_url('assets/js/sales-js/product-filter.js'); ?>"></script>

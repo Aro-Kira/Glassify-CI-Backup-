@@ -1,0 +1,683 @@
+/*
+ * Montserrat font is loaded via Google Fonts in layout.php
+ * No need for @font-face or @import here
+ */
+
+/* ===== RESET & BASE ===== */
+  * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #f4f6f9;
+    color: #333;
+  }
+  
+  
+  .container {
+    display: flex;
+    min-height: 100vh;
+  }
+  
+  /* ===== MAIN CONTENT ===== */
+  .main-content {
+    margin-left: 220px;       /* match sidebar expanded width */
+    transition: margin-left 0.3s ease;
+    padding: 20px;
+    flex-grow: 1;
+    height: 100vh;
+    overflow-y: auto;
+    font-family: 'DM Sans', sans-serif;
+  }
+  
+  .order-list-section {
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .order-schedule-section {
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .section-header {
+    margin-bottom: 20px;
+  }
+  
+  .section-header h2 {
+    font-size: 45px;
+    font-weight: 700;
+    color: #02455F;
+    margin: 0;
+  }
+  
+  .order-tabs h2{
+    font-size: 32px;
+    font-weight: 700;
+    color: #02455F;
+    margin: 0;
+  }
+  .inventory-stats {
+    display: flex;
+    gap: 35px;
+    flex-wrap: wrap;
+    padding: 12px 10px;
+  }
+  
+  .stat-card {
+    padding: 40px 0;
+    flex: 1 1 150px;
+    text-align: center;
+    border-radius: 25px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.121);
+    transition: transform 0.2s;
+    color: #fff; /* white text for contrast */
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-3px);
+  }
+  
+  .stat-title {
+    font-size: 20px;
+    color: inherit;  /* inherit white */
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+  
+  .stat-value {
+    font-size: 45px;
+    font-weight: 600;
+    color: inherit;
+  }
+  
+  /* 🔹 Different gradient themes */
+  .stat-green {
+    background: linear-gradient(135deg, #00c853, #007a00);
+  }
+  
+  .stat-orange {
+    background: linear-gradient(135deg, #ffa000, #8d5600);
+  }
+  
+  .stat-red {
+    background: linear-gradient(135deg, #ff5252, #b71c1c);
+  }
+  
+  
+  .controls-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+  }
+  
+  .search-bar {
+      display: flex;
+      overflow: hidden;
+      max-width: 500px;
+      width: 100%;
+      gap: 10px;
+  }
+  
+  .search-input {
+      border: 1px solid #828282;
+      padding: 10px 15px;
+      font-size: 1em;
+      flex-grow: 1;
+      border-radius: 5px;
+  }
+  
+  .search-button {
+      background-color: #006494;
+      color: white;
+      border: 1px solid #828282;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background-color 0.3s;
+      border-radius: 5px;
+  }
+  
+  
+  
+  .order-tabs {
+    border-bottom: 1px solid #00000072;
+  
+  }
+  
+  .order-tabs h2 {
+    font-size: 35px;
+    font-weight: 700;
+    margin: 0 0 12px 0;
+    padding-bottom: 6px;
+  
+  }
+  
+  .tab-button {
+    background-color: transparent;
+    border: none;
+    padding: 10px 20px;
+    font-size: 20px;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+  }
+  
+  .tab-button.active {
+    color: #006494;
+    border-bottom: 3px solid #006494;
+  }
+  
+  /* Tables */
+  .table-container {
+    overflow-x: auto;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  }
+  
+  thead th:last-child {
+    text-align: center;
+  }
+  
+  .order-schedule-section table th:nth-child(2) {
+    width: 700px; /* Adjust as needed */
+  }
+  
+  
+  .approve-img {
+      width: 45px;
+      height: 45px;
+      margin-bottom: -10px;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  th, td {
+    padding: 15px;
+    text-align: left;
+  }
+  
+  th {
+    background-color: #006494;
+    font-weight: 600;
+    color: #fff;
+    border: none;
+    font-size: 20px;
+  }
+  
+  td {
+    border-bottom: 1px solid #eee;
+    color: #333;
+    font-size: 16px;
+    position: relative; /* This is crucial for positioning the absolute menu */
+  }
+  
+  tbody tr {
+    background-color: #fff;
+  }
+  
+  tbody tr:hover {
+    background-color: #f8f9fa;
+  }
+  
+  .status-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: 600;
+    display: inline-block;
+    color: white;
+  }
+  
+  .status-badge.completed {
+    background-color: #4CAF50;
+  }
+  
+  .status-badge.pending {
+    background-color: #FF9800;
+  }
+  
+  .status-badge.canceled {
+    background-color: #D70202;
+  }
+  
+  .action-cell {
+    text-align: center;
+    position: relative;
+    font-size: 29px;
+    cursor: pointer;
+  }
+  
+  .action-menu-trigger {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+  }
+  
+  .action-menu.global-action-menu {
+    position: fixed;
+    display: none;
+    /* other styles */
+  }
+  
+  .action-menu img {
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* Removed duplicate - using the one at line 441 */
+  
+  .action-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .action-menu li {
+    border-bottom: 1px solid #eee;
+  }
+  
+  .action-menu li:last-child {
+    border-bottom: none;
+  }
+  
+  .action-menu a {
+    display: block;
+    padding: 10px 16px;
+    text-decoration: none;
+    color: #333;
+  }
+  
+  .action-menu a:hover {
+    background-color: #f0f0f0;
+  }
+  
+  
+  
+  .btn-review {
+    background-color: #0a7ea4;
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+  }
+  
+  .pagination {
+    display: flex;
+    align-items: center;
+    margin-top: 25px;
+    font-size: 0.9em;
+    color: #666;
+    justify-content: flex-end; /* All elements (text, dropdown, controls) will now align to the right */
+    gap: 15px; /* Add spacing between the elements (text, rows-per-page, controls) */
+    margin-bottom: 100px;
+  }
+  
+  .pagination-controls {
+    /* FIX: Remove positioning properties. Flexbox will handle placement. */
+    /* Remove: position: absolute; */
+    /* Remove: right: 0%; */
+    display: flex;
+  }
+  
+  .pagination > span {
+    /* FIX: To make 'Showing 1-10...' appear on the far left, use auto margin. */
+    margin-right: auto;
+    flex-shrink: 0;
+    text-align: left;
+  }
+  
+          .rows-per-page {
+              display: flex;
+              background-color: #006494;
+              align-items: center;
+              border: 1px solid #ccc;
+              border-radius: 6px;
+              overflow: hidden;
+              font-size: 16px;
+              height: 35px;
+              width: fit-content;
+          }
+  
+          /* Blue Left Side: The Label */
+          .rows-per-page label {
+              color: white;
+              padding: 8px 16px;
+              display: flex;
+              align-items: center;
+              height: 100%;
+              margin: 0;
+              white-space: nowrap;
+              font-weight: normal;
+          }
+  
+          /* White Right Side: The Select Dropdown */
+          .rows-per-page select {
+              -webkit-appearance: none;
+              -moz-appearance: none;
+              appearance: none;
+              background-color: white;
+              color: black;
+              border: none;
+              height: 100%;
+              cursor: pointer;
+              padding: 8px 30px 8px 16px;
+              font-size: 16px;
+              outline: none;
+              background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+              background-repeat: no-repeat;
+              background-position: right 8px center;
+              min-width: 60px;
+          }
+  
+          /* Remove focus outline and add hover effects */
+          .rows-per-page select:focus {
+              outline: none;
+          }
+  
+          .rows-per-page select:hover {
+              background-color: #f8f8f8;
+          }
+  
+  /* Pagination Button Styles - (No changes needed) */
+  .pagination-controls button {
+    background-color: #006494;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    color: #fff;
+    min-width: 35px;
+  }
+  
+  .pagination-controls button:first-child {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+  }
+  
+  .pagination-controls button:last-child {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+  }
+  
+  .pagination-controls button.active {
+    background-color: #fff;
+    color: black;
+    border: 1px solid #00000077;
+  }
+  
+  .action-menu {
+    position: fixed;         /* fixed position so it moves with scroll */
+    background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 8px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    z-index: 1000;
+    display: none; /* Hidden by default */
+    min-width: 150px;
+    width: auto;
+  }
+  .hidden {
+    display: none;
+  }
+   
+  .payment-filters {
+    display: flex;
+    align-items: center;
+    background: #f3f6f8;       /* light background */
+    padding: 25px 20px;
+  }
+  
+  .filter-tab {
+    position: relative;
+    font-size: 22px;
+    font-weight: 500;
+    color: #0b4b5f;            /* default text color */
+    padding: 0 30px;           /* spacing between separators */
+    cursor: pointer;
+    transition: color 0.3s;
+  }
+  
+  .filter-tab:first-child {
+    padding-left: 0;           /* no extra space on the far left */
+  }
+  
+  .filter-tab:last-child {
+    padding-right: 0;          /* no extra space on the far right */
+  }
+  
+  .filter-tab:hover {
+    color: #006494;
+  }
+  
+  .filter-tab.active {
+    font-weight: 700;          /* bold */
+    color: #006494;            /* active blue */
+  }
+  
+  /* Add the separator using CSS */
+  .filter-tab:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.5px;
+    height: 20px;
+    background-color: #999;    /* separator color */
+  }
+  
+  
+  .status-badge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: 600;
+    display: inline-block;
+    color: white;
+  }
+  
+  .status-badge.paid {
+    background-color: #4CAF50;
+  }
+  
+  .status-badge.pending {
+    background-color: #FF9800;
+  }
+  
+  .status-badge.overdue {
+    background-color: #D70202;
+  }
+  
+  .status-badge.review {
+    background-color: #006494;
+  }
+  
+  .receipt-btn {
+      background-color: #e3e3e3;
+      border: 1px solid #767272;
+      padding: 5px 29px;
+      border-radius: 10px;
+      
+  }
+  
+  .camera-icon {
+    color: #919090;   /* your desired color */
+  font-size: 19px;
+  }
+  
+  
+  
+  
+  
+  /* Overlay */
+  .popup-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; 
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 999;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  
+  /* Popup */
+  .popup {
+    background: #fff;
+    padding: 20px 25px;
+    width: 350px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .popup h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    font-family: 'DM Sans', sans-serif;
+  }
+  
+  /* Close Button */
+  .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 20px;
+    cursor: pointer;
+    color: #555;
+  }
+  .close-btn:hover {
+    color: #000;
+  }
+  
+  /* Image Preview */
+  .image-preview {
+    background: #ddd;
+    width: 100%;
+    height: 200px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 15px 0;
+  }
+  .image-preview img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    opacity: 0.8;
+  }
+  
+  /* Form Fields */
+  .form-group {
+    margin-bottom: 15px;
+  }
+  .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: bold;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  
+  .input-text {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .price-input {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: center;
+  }
+  
+  .price-input span {
+    position: absolute;
+    left: 10px;
+    font-size: 14px;
+    color: #555;
+    font-family: 'DM Sans', sans-serif;
+    pointer-events: none; /* so it doesn’t block typing */
+  }
+  
+  .price-input .input-text {
+    width: 100%;
+    padding: 8px 8px 8px 24px; /* push text right so it doesn’t overlap ₱ */
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+  }
+  
+  
+  /* Action Buttons */
+  .popup-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  
+  .save-btn,
+  .cancel-btn {
+    padding: 8px 30px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+  }
+  
+  /* Save = Blue */
+  .save-btn {
+    background: #005b82;
+    color: #fff;
+    border: none;
+  }
+  .save-btn:hover {
+    background: #004766;
+  }
+  
+  /* Cancel = White w/ Blue Border */
+  .cancel-btn {
+    background: #fff;
+    color: #005b82;
+    border: 1px solid #005b82;
+  }
+  .cancel-btn:hover {
+    background: #f0f8fc;
+  }
+  

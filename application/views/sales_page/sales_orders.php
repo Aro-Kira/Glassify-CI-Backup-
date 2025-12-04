@@ -1,34 +1,34 @@
 <section id="orders" class="page">
     <div class="dash-tabs">
-        <h2>Order <span class="subtitle">16 Orders found</span></h2>
+        <h2>Order <span class="subtitle"><span id="total-orders-count"><?php echo $total_orders; ?></span> Orders found</span></h2>
     </div>
 
     <div class="order-tabs">
         <div class="tab-links-container">
             <a href="#" class="tab-link active" id="pending-id" data-tab="pending">
-                Pending Review <span class="tab-count">10</span>
+                Pending Review <span class="tab-count" id="pending-count"><?php echo $pending_count; ?></span>
             </a>
 
             <a href="#" class="tab-link" id="awaiting-id" data-tab="awaiting">
-                Awaiting Admin <span class="tab-count">4</span>
+                Awaiting Admin <span class="tab-count" id="awaiting-count"><?php echo $awaiting_count; ?></span>
             </a>
 
             <a href="#" class="tab-link" id="ready-id" data-tab="ready">
-                Ready to Approve <span class="tab-count">2</span>
+                Ready to Approve <span class="tab-count" id="ready-count"><?php echo $ready_count; ?></span>
             </a>
         </div>
-        <div class="order-date">
-            <span>May</span>
-            <span>2025</span>
-        </div>
+        <!-- Date filter disabled as per requirements -->
+        <!-- <div class="order-date" id="order-date-picker" style="cursor: pointer; position: relative; z-index: 1; display: none;">
+            <input type="date" id="date-filter" style="position: absolute; top: 0; left: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; z-index: 2;" />
+            <span id="date-display-month" style="position: relative; z-index: 1; pointer-events: none;"><?php echo date('M'); ?></span>
+            <span id="date-display-year" style="position: relative; z-index: 1; pointer-events: none;"><?php echo date('Y'); ?></span>
+        </div> -->
     </div>
 
-
-
-    <input type="text" placeholder="Search products..." class="search-box">
+    <input type="text" placeholder="Search products..." class="search-box" id="product-search">
 
     <section id="tab-pending" class="order-section active">
-        <table class="order-table">
+        <table class="order-table" id="pending-table">
             <thead>
                 <tr class="order-header">
                     <th>#</th>
@@ -40,32 +40,36 @@
                     <th>Action</th>
                 </tr>
             </thead>
-            <tbody>
-                <tr>
-                    <td>1</td>
-                    <td>#GI001</td>
-                    <td>Tempered Glass</td>
-                    <td>351 Shearwood...</td>
-                    <td>20/03/2025</td>
-                    <td>₱376.00</td>
-                    <td><button class="btn-approve">Request Approval</button></td>
+            <tbody id="pending-tbody">
+                <?php 
+                $pending_orders = array_filter($orders, function($o) { return $o->Status === 'Pending Review'; });
+                $row_num = 1;
+                foreach ($pending_orders as $order): 
+                    $order_id_formatted = '#' . $order->OrderID;
+                    $address = $order->Address ? (strlen($order->Address) > 20 ? substr($order->Address, 0, 20) . '...' : $order->Address) : 'N/A';
+                    $product_name = $order->ProductName ?: 'N/A';
+                ?>
+                <tr data-order-id="<?php echo $order->OrderID; ?>" data-product-name="<?php echo strtolower($product_name); ?>">
+                    <td><?php echo $row_num++; ?></td>
+                    <td><?php echo $order_id_formatted; ?></td>
+                    <td><?php echo $product_name; ?></td>
+                    <td><?php echo $address; ?></td>
+                    <td><?php echo date('d/m/Y', strtotime($order->OrderDate)); ?></td>
+                    <td>₱<?php echo number_format($order->TotalQuotation, 2); ?></td>
+                    <td><button class="btn-approve" data-order-id="<?php echo $order->OrderID; ?>">Request Approval</button></td>
                 </tr>
+                <?php endforeach; ?>
+                <?php if (empty($pending_orders)): ?>
                 <tr>
-                    <td>2</td>
-                    <td>#GI002</td>
-                    <td>Aluminum Frame</td>
-                    <td>6391 Elgin St...</td>
-                    <td>21/03/2025</td>
-                    <td>₱276.00</td>
-                    <td><button class="btn-approve">Request Approval</button></td>
+                    <td colspan="7" style="text-align: center; padding: 20px;">No pending orders found</td>
                 </tr>
+                <?php endif; ?>
             </tbody>
         </table>
-
     </section>
 
     <section id="tab-awaiting" class="order-section">
-        <table class="order-table awaiting">
+        <table class="order-table awaiting" id="awaiting-table">
             <thead>
                 <tr class="order-header">
                     <th>#</th>
@@ -77,42 +81,41 @@
                     <th>Action</th>
                 </tr>
             </thead>
-            <tbody>
-                <tr>
-                    <td>1</td>
-                    <td>#GI003</td>
-                    <td>Sliding Track</td>
-                    <td>8502 Preston...</td>
-                    <td>01/05/2025</td>
-                    <td>₱300.00</td>
+            <tbody id="awaiting-tbody">
+                <?php 
+                $awaiting_orders = array_filter($orders, function($o) { return $o->Status === 'Awaiting Admin'; });
+                $row_num = 1;
+                foreach ($awaiting_orders as $order): 
+                    $order_id_formatted = '#' . $order->OrderID;
+                    $address = $order->Address ? (strlen($order->Address) > 20 ? substr($order->Address, 0, 20) . '...' : $order->Address) : 'N/A';
+                    $product_name = $order->ProductName ?: 'N/A';
+                ?>
+                <tr data-order-id="<?php echo $order->OrderID; ?>" data-product-name="<?php echo strtolower($product_name); ?>">
+                    <td><?php echo $row_num++; ?></td>
+                    <td><?php echo $order_id_formatted; ?></td>
+                    <td><?php echo $product_name; ?></td>
+                    <td><?php echo $address; ?></td>
+                    <td><?php echo date('d/m/Y', strtotime($order->OrderDate)); ?></td>
+                    <td>₱<?php echo number_format($order->TotalQuotation, 2); ?></td>
                     <td>
-                        <button class="btn-view">
-                            <img src="/Glassify/assets/img_admin/search-icon.svg" alt="View Icon" class="button-icon">
+                        <button class="btn-view" data-order-id="<?php echo $order->OrderID; ?>">
+                            <img src="<?php echo base_url('assets/images/img_admin/search-icon.svg'); ?>" alt="View Icon" class="button-icon">
                             View
                         </button>
                     </td>
                 </tr>
+                <?php endforeach; ?>
+                <?php if (empty($awaiting_orders)): ?>
                 <tr>
-                    <td>2</td>
-                    <td>#GI004</td>
-                    <td>Sliding Track</td>
-                    <td>3221 Elana St...</td>
-                    <td>07/05/2025</td>
-                    <td>₱300.00</td>
-                    <td>
-                        <button class="btn-view">
-                            <img src="/Glassify/assets/img_admin/search-icon.svg" alt="View Icon" class="button-icon">
-                            View
-                        </button>
-                    </td>
+                    <td colspan="7" style="text-align: center; padding: 20px;">No awaiting orders found</td>
                 </tr>
+                <?php endif; ?>
             </tbody>
         </table>
-
     </section>
 
     <section id="tab-ready" class="order-section">
-        <table class="order-table ready">
+        <table class="order-table ready" id="ready-table">
             <thead>
                 <tr class="order-header">
                     <th>#</th>
@@ -124,34 +127,56 @@
                     <th>Action</th>
                 </tr>
             </thead>
-            <tbody>
-                <tr>
-                    <td>1</td>
-                    <td>#GI001</td>
-                    <td>Tempered Glass</td>
-                    <td>351 Shearwood...</td>
-                    <td>20/03/2025</td>
-                    <td><span class="status disapproved">Disapproved</span></td>
-                    <td><button class="btn-check">Check</button></td>
+            <tbody id="ready-tbody">
+                <?php 
+                $ready_orders = array_filter($orders, function($o) { 
+                    return $o->Status === 'Ready to Approve'; 
+                });
+                $row_num = 1;
+                foreach ($ready_orders as $order): 
+                    $order_id_formatted = '#' . $order->OrderID;
+                    $address = $order->Address ? (strlen($order->Address) > 20 ? substr($order->Address, 0, 20) . '...' : $order->Address) : 'N/A';
+                    $product_name = $order->ProductName ?: 'N/A';
+                    $status_class = 'ready';
+                ?>
+                <tr data-order-id="<?php echo $order->OrderID; ?>" data-product-name="<?php echo strtolower($product_name); ?>">
+                    <td><?php echo $row_num++; ?></td>
+                    <td><?php echo $order_id_formatted; ?></td>
+                    <td><?php echo $product_name; ?></td>
+                    <td><?php echo $address; ?></td>
+                    <td><?php echo date('d/m/Y', strtotime($order->OrderDate)); ?></td>
+                    <td>
+                        <?php 
+                        // Display "Approved" or "Disapproved" based on AdminStatus from ready_to_approve_orders table
+                        $display_status = 'Pending';
+                        if (isset($order->AdminStatus)) {
+                            // For ready_to_approve_orders, use AdminStatus field
+                            $display_status = $order->AdminStatus === 'Approved' ? 'Approved' : 'Disapproved';
+                        } elseif ($order->Status === 'Ready to Approve' || $order->Status === 'Approved') {
+                            $display_status = 'Approved';
+                        } elseif ($order->Status === 'Disapproved' || $order->Status === 'Rejected') {
+                            $display_status = 'Disapproved';
+                        }
+                        ?>
+                        <span class="status <?php echo strtolower($display_status); ?>"><?php echo $display_status; ?></span>
+                    </td>
+                    <td><button class="btn-check" data-order-id="<?php echo $order->OrderID; ?>">Check</button></td>
                 </tr>
+                <?php endforeach; ?>
+                <?php if (empty($ready_orders)): ?>
                 <tr>
-                    <td>2</td>
-                    <td>#GI002</td>
-                    <td>Handle Set</td>
-                    <td>4517 Washington...</td>
-                    <td>02/04/2025</td>
-                    <td><span class="status approved">Approved</span></td>
-                    <td><button class="btn-check">Check</button></td>
+                    <td colspan="7" style="text-align: center; padding: 20px;">No ready orders found</td>
                 </tr>
+                <?php endif; ?>
             </tbody>
         </table>
     </section>
     <div class="pagination">
-        <span>Showing 1-10 of 255 items</span>
+        <span id="pagination-info">Showing <span id="pagination-start">1</span>-<span id="pagination-end">10</span> of <span id="pagination-total">0</span> items</span>
         <div class="pagination-controls">
-            <button><i class="fas fa-chevron-left"></i></button>
-            <button class="active">1</button>
-            <button><i class="fas fa-chevron-right"></i></button>
+            <button id="prev-page"><i class="fas fa-chevron-left"></i></button>
+            <button class="active" id="current-page">1</button>
+            <button id="next-page"><i class="fas fa-chevron-right"></i></button>
         </div>
     </div>
 </section>
@@ -170,65 +195,74 @@
                 <h4 class="details-title">Order Details</h4>
                 <div class="detail-row">
                     <span class="detail-label">Order ID:</span>
-                    <span class="detail-value">#GI001</span>
+                    <span class="detail-value" id="popup-order-id">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Product:</span>
-                    <span class="detail-value">Tempered Glass Panel</span>
+                    <span class="detail-value" id="popup-product">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Address:</span>
-                    <span class="detail-value">123 Glass St. Manila</span>
+                    <span class="detail-value" id="popup-address">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Date:</span>
-                    <span class="detail-value">30/05/2025</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">Pending</span>
+                    <span class="detail-value" id="popup-date">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Shape:</span>
-                    <span class="detail-value">Rectangle</span>
+                    <span class="detail-value" id="popup-shape">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Dimension:</span>
-                    <span class="detail-value">24", 0", 18", 0"</span>
+                    <span class="detail-value" id="popup-dimension">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Type:</span>
-                    <span class="detail-value">Tempered</span>
+                    <span class="detail-value" id="popup-type">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Thickness:</span>
-                    <span class="detail-value">8mm</span>
+                    <span class="detail-value" id="popup-thickness">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Edge Work:</span>
-                    <span class="detail-value">Flat Polish</span>
+                    <span class="detail-value" id="popup-edgework">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Frame Type:</span>
+                    <span class="detail-value" id="popup-frametype">-</span>
+                </div>
+                <div class="detail-row" id="popup-ledbacklight-row" style="display: none;">
+                    <span class="detail-label">LED Backlight:</span>
+                    <span class="detail-value" id="popup-ledbacklight">-</span>
+                </div>
+                <div class="detail-row" id="popup-dooroperation-row" style="display: none;">
+                    <span class="detail-label">Door Operation:</span>
+                    <span class="detail-value" id="popup-dooroperation">-</span>
+                </div>
+                <div class="detail-row" id="popup-configuration-row" style="display: none;">
+                    <span class="detail-label">Configuration:</span>
+                    <span class="detail-value" id="popup-configuration">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Engraving:</span>
-                    <span class="detail-value">N/A</span>
+                    <span class="detail-value" id="popup-engraving">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">File Attached:</span>
-                    <a href="#" class="detail-value file-link" id="designPdfLink">design.pdf</a>
+                    <a href="#" class="detail-value file-link" id="popup-file-link" target="_blank" style="display: none;">-</a>
+                    <span class="detail-value" id="popup-file-text" style="display: none;">N/A</span>
                 </div>
                 <div class="detail-row total-row">
                     <span class="detail-label">Total Quotation (₱):</span>
-                    <span class="detail-value total-price">3,100</span>
+                    <span class="detail-value total-price" id="popup-total">-</span>
                 </div>
             </div>
 
             <div class="notes-barcode">
                 <h4 class="notes-title">Notes</h4>
-                <textarea class="notes-textarea" placeholder="empty..."></textarea>
-
-                <div class="barcode-container">
-                    <img id="pendingBarcode" alt="Barcode">
-                </div>
+                <textarea class="notes-textarea" placeholder="empty..." id="popup-notes"></textarea>
             </div>
 
         </div>
@@ -242,7 +276,7 @@
 
 <div class="popup-overlay" id="awaitingPopup">
     <div class="popup">
-        <span class="close-btn" id="closePopup">&times;</span>
+        <span class="close-btn" id="closeAwaitingPopup">&times;</span>
 
         <h3 class="popup-title">Awaiting Approval</h3>
 
@@ -252,67 +286,68 @@
                 <h4 class="details-title">Order Details</h4>
                 <div class="detail-row">
                     <span class="detail-label">Order ID:</span>
-                    <span class="detail-value">#GI001</span>
+                    <span class="detail-value" id="awaiting-order-id">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Product:</span>
-                    <span class="detail-value">Tempered Glass Panel</span>
+                    <span class="detail-value" id="awaiting-product">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Address:</span>
-                    <span class="detail-value">123 Glass St. Manila</span>
+                    <span class="detail-value" id="awaiting-address">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Date:</span>
-                    <span class="detail-value">30/05/2025</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">Pending</span>
+                    <span class="detail-value" id="awaiting-date">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Shape:</span>
-                    <span class="detail-value">Rectangle</span>
+                    <span class="detail-value" id="awaiting-shape">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Dimension:</span>
-                    <span class="detail-value">24", 0", 18", 0"</span>
+                    <span class="detail-value" id="awaiting-dimension">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Type:</span>
-                    <span class="detail-value">Tempered</span>
+                    <span class="detail-value" id="awaiting-type">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Thickness:</span>
-                    <span class="detail-value">8mm</span>
+                    <span class="detail-value" id="awaiting-thickness">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Edge Work:</span>
-                    <span class="detail-value">Flat Polish</span>
+                    <span class="detail-value" id="awaiting-edgework">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Frame Type:</span>
+                    <span class="detail-value" id="awaiting-frametype">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Engraving:</span>
-                    <span class="detail-value">N/A</span>
+                    <span class="detail-value" id="awaiting-engraving">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">File Attached:</span>
-                    <a href="#" class="detail-value file-link" id="designPdfLink">design.pdf</a>
+                    <a href="#" class="detail-value file-link" id="awaiting-file-link" target="_blank" style="display: none;">-</a>
+                    <span class="detail-value" id="awaiting-file-text" style="display: none;">N/A</span>
                 </div>
                 <div class="detail-row total-row">
                     <span class="detail-label">Total Quotation (₱):</span>
-                    <span class="detail-value total-price">3,100</span>
+                    <span class="detail-value total-price" id="awaiting-total">-</span>
                 </div>
             </div>
 
             <div class="notes-barcode">
                 <h4 class="notes-title">Notes</h4>
-                <textarea class="notes-textarea" placeholder="empty..."></textarea>
-
-                <div class="barcode-container">
-                    <img id="barcodeAwaitingApproval" alt="Barcode">
-                </div>
+                <textarea class="notes-textarea" placeholder="empty..." id="awaiting-notes" readonly></textarea>
             </div>
 
+        </div>
+
+        <div class="popup-actions approval-actions">
+            <button class="cancel-btn">Close</button>
         </div>
     </div>
 </div>
@@ -329,65 +364,74 @@
                 <h4 class="details-title">Order Details</h4>
                 <div class="detail-row">
                     <span class="detail-label">Order ID:</span>
-                    <span class="detail-value">#GI001</span>
+                    <span class="detail-value" id="approved-order-id">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Product:</span>
-                    <span class="detail-value">Tempered Glass Panel</span>
+                    <span class="detail-value" id="approved-product">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Address:</span>
-                    <span class="detail-value">123 Glass St. Manila</span>
+                    <span class="detail-value" id="approved-address">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Date:</span>
-                    <span class="detail-value">30/05/2025</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">Pending</span>
+                    <span class="detail-value" id="approved-date">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Shape:</span>
-                    <span class="detail-value">Rectangle</span>
+                    <span class="detail-value" id="approved-shape">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Dimension:</span>
-                    <span class="detail-value">24", 0", 18", 0"</span>
+                    <span class="detail-value" id="approved-dimension">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Type:</span>
-                    <span class="detail-value">Tempered</span>
+                    <span class="detail-value" id="approved-type">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Thickness:</span>
-                    <span class="detail-value">8mm</span>
+                    <span class="detail-value" id="approved-thickness">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Edge Work:</span>
-                    <span class="detail-value">Flat Polish</span>
+                    <span class="detail-value" id="approved-edgework">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Frame Type:</span>
+                    <span class="detail-value" id="approved-frametype">-</span>
+                </div>
+                <div class="detail-row" id="approved-ledbacklight-row" style="display: none;">
+                    <span class="detail-label">LED Backlight:</span>
+                    <span class="detail-value" id="approved-ledbacklight">-</span>
+                </div>
+                <div class="detail-row" id="approved-dooroperation-row" style="display: none;">
+                    <span class="detail-label">Door Operation:</span>
+                    <span class="detail-value" id="approved-dooroperation">-</span>
+                </div>
+                <div class="detail-row" id="approved-configuration-row" style="display: none;">
+                    <span class="detail-label">Configuration:</span>
+                    <span class="detail-value" id="approved-configuration">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Engraving:</span>
-                    <span class="detail-value">N/A</span>
+                    <span class="detail-value" id="approved-engraving">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">File Attached:</span>
-                    <a href="#" class="detail-value file-link" id="designPdfLink">design.pdf</a>
+                    <a href="#" class="detail-value file-link" id="approved-file-link" target="_blank" style="display: none;">-</a>
+                    <span class="detail-value" id="approved-file-text" style="display: none;">N/A</span>
                 </div>
                 <div class="detail-row total-row">
                     <span class="detail-label">Total Quotation (₱):</span>
-                    <span class="detail-value total-price">3,100</span>
+                    <span class="detail-value total-price" id="approved-total">-</span>
                 </div>
             </div>
 
             <div class="notes-barcode">
                 <h4 class="notes-title">Notes</h4>
-                <textarea class="notes-textarea" placeholder="empty..."></textarea>
-
-                <div class="barcode-container">
-                    <img id="readyApprovedBarcode" alt="Barcode">
-                </div>
+                <textarea class="notes-textarea" placeholder="empty..." id="approved-notes" readonly></textarea>
             </div>
 
         </div>
@@ -411,65 +455,74 @@
                 <h4 class="details-title">Order Details</h4>
                 <div class="detail-row">
                     <span class="detail-label">Order ID:</span>
-                    <span class="detail-value">#GI001</span>
+                    <span class="detail-value" id="disapproved-order-id">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Product:</span>
-                    <span class="detail-value">Tempered Glass Panel</span>
+                    <span class="detail-value" id="disapproved-product">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Address:</span>
-                    <span class="detail-value">123 Glass St. Manila</span>
+                    <span class="detail-value" id="disapproved-address">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Date:</span>
-                    <span class="detail-value">30/05/2025</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Status:</span>
-                    <span class="detail-value">Pending</span>
+                    <span class="detail-value" id="disapproved-date">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Shape:</span>
-                    <span class="detail-value">Rectangle</span>
+                    <span class="detail-value" id="disapproved-shape">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Dimension:</span>
-                    <span class="detail-value">24", 0", 18", 0"</span>
+                    <span class="detail-value" id="disapproved-dimension">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Type:</span>
-                    <span class="detail-value">Tempered</span>
+                    <span class="detail-value" id="disapproved-type">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Thickness:</span>
-                    <span class="detail-value">8mm</span>
+                    <span class="detail-value" id="disapproved-thickness">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Edge Work:</span>
-                    <span class="detail-value">Flat Polish</span>
+                    <span class="detail-value" id="disapproved-edgework">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Frame Type:</span>
+                    <span class="detail-value" id="disapproved-frametype">-</span>
+                </div>
+                <div class="detail-row" id="disapproved-ledbacklight-row" style="display: none;">
+                    <span class="detail-label">LED Backlight:</span>
+                    <span class="detail-value" id="disapproved-ledbacklight">-</span>
+                </div>
+                <div class="detail-row" id="disapproved-dooroperation-row" style="display: none;">
+                    <span class="detail-label">Door Operation:</span>
+                    <span class="detail-value" id="disapproved-dooroperation">-</span>
+                </div>
+                <div class="detail-row" id="disapproved-configuration-row" style="display: none;">
+                    <span class="detail-label">Configuration:</span>
+                    <span class="detail-value" id="disapproved-configuration">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Engraving:</span>
-                    <span class="detail-value">N/A</span>
+                    <span class="detail-value" id="disapproved-engraving">-</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">File Attached:</span>
-                    <a href="#" class="detail-value file-link" id="designPdfLink">design.pdf</a>
+                    <a href="#" class="detail-value file-link" id="disapproved-file-link" target="_blank" style="display: none;">-</a>
+                    <span class="detail-value" id="disapproved-file-text" style="display: none;">N/A</span>
                 </div>
                 <div class="detail-row total-row">
                     <span class="detail-label">Total Quotation (₱):</span>
-                    <span class="detail-value total-price">3,100</span>
+                    <span class="detail-value total-price" id="disapproved-total">-</span>
                 </div>
             </div>
 
             <div class="notes-barcode">
                 <h4 class="notes-title">Notes</h4>
-                <textarea class="notes-textarea" placeholder="empty..."></textarea>
-
-                <div class="barcode-container">
-                    <img id="barcodeImageDisapproved" alt="Barcode">
-                </div>
+                <textarea class="notes-textarea" placeholder="empty..." id="disapproved-notes" readonly></textarea>
             </div>
 
         </div>
@@ -481,9 +534,14 @@
     </div>
 </div>
 
-<script src="/Glassify/assets/js/sales-order-tabs.js"></script>
-<script src="/Glassify/assets/js/admin-sidebar.js"></script>
-<script src="/Glassify/assets/js/sales-order-approval-btn.js"></script>
-<script src="/Glassify/assets/js/sales-order-check-btn.js"></script>
-<script src="/Glassify/assets/js/sales-order-barcode.js"></script>
-<script src="/Glassify/assets/js/sales-order-view-btn.js"></script>
+<script>
+    const base_url = '<?php echo base_url(); ?>';
+    const ordersData = <?php echo json_encode($orders); ?>;
+</script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-tabs.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-approval-btn.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-check-btn.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-view-btn.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-request-approval-handler.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-approve-handler.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-orders-main.js'); ?>"></script>

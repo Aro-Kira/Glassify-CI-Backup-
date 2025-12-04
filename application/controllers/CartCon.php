@@ -154,6 +154,69 @@ class CartCon extends CI_Controller
         ]);
     }
 
+    // ===================== SAVE BUY NOW CUSTOMIZATION =====================
+    // This method clears existing customization for customer and saves complete order details
+    public function save_buy_now_customization()
+    {
+        $customer_id = $this->session->userdata('customer_id');
+        if (!$customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
+            return;
+        }
+
+        $post = $this->input->post();
+
+        // 1. Clear existing customization data for this customer from all category tables (before order is created)
+        $category_tables = [
+            'mirror_customization',
+            'shower_enclosure_customization',
+            'aluminum_doors_customization',
+            'aluminum_bathroom_doors_customization'
+        ];
+        
+        foreach ($category_tables as $table) {
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->delete($table);
+        }
+
+        // 2. Prepare complete order details
+        $custom_data = [
+            'Customer_ID' => $customer_id,
+            'Product_ID' => $post['product_id'] ?? null,
+            'ProductName' => $post['product_name'] ?? null, // Store product name
+            'Dimensions' => $post['dimensions'] ?? null, // JSON format
+            'GlassShape' => $post['shape'] ?? null,
+            'GlassType' => $post['type'] ?? null,
+            'GlassThickness' => $post['thickness'] ?? null,
+            'EdgeWork' => $post['edge_work'] ?? null,
+            'FrameType' => $post['frame_type'] ?? null,
+            'Engraving' => $post['engraving'] ?? null,
+            'DesignRef' => $post['file_attached'] ?? null,
+            'EstimatePrice' => $post['total_quotation'] ?? 0,
+            'TotalQuotation' => $post['total_quotation'] ?? 0, // Store total quotation
+            'OrderID' => null, // Will be set when order is created
+            'DeliveryAddress' => null, // Will be set when order is created
+            'OrderDate' => null // Will be set when order is created
+        ];
+
+        // 3. Save new customization record
+        $customization_id = $this->Cart_model->save_customization($custom_data);
+
+        if (!$customization_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to save order details']);
+            return;
+        }
+
+        // Store customization ID in session for order creation
+        $this->session->set_userdata('buy_now_customization_id', $customization_id);
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Order details saved',
+            'customization_id' => $customization_id
+        ]);
+    }
+
 
 
 

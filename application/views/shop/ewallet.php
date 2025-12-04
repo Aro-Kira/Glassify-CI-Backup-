@@ -75,13 +75,21 @@
 
             </div>
 
-            <!-- Upload form: posts to ShopCon::ewallet_submit -->
+            <!-- Upload form: posts to ShopCon::waiting_order (which creates order) -->
             <form id="ewalletForm" action="<?php echo site_url('waiting_order'); ?>" method="post"
                 enctype="multipart/form-data">
+                <input type="hidden" name="payment_method" value="ewallet">
                 <?php if ($this->config->item('csrf_protection')): ?>
                     <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>"
                         value="<?php echo $this->security->get_csrf_hash(); ?>">
                 <?php endif; ?>
+                
+                <!-- Hidden fields to pass checkout data (will be populated from sessionStorage) -->
+                <input type="hidden" name="address" id="hidden-address">
+                <input type="hidden" name="city" id="hidden-city">
+                <input type="hidden" name="province" id="hidden-province">
+                <input type="hidden" name="note" id="hidden-note">
+                <input type="hidden" name="total_amount" id="hidden-total">
 
                 <div class="upload-box">
                     <span>*</span>
@@ -126,6 +134,20 @@
         if (!document.getElementById("terms").checked) {
             alert("Please agree to the Terms and Conditions.");
             return;
+        }
+
+        // Get checkout data from sessionStorage (if available)
+        const checkoutData = sessionStorage.getItem('checkout_data');
+        if (checkoutData) {
+            const data = JSON.parse(checkoutData);
+            document.getElementById('hidden-address').value = data.address || '';
+            document.getElementById('hidden-city').value = data.city || '';
+            document.getElementById('hidden-province').value = data.province || '';
+            document.getElementById('hidden-note').value = data.note || '';
+            document.getElementById('hidden-total').value = data.total_amount || document.getElementById('summary-total').textContent.replace(/[₱,]/g, '');
+        } else {
+            // Fallback: get total from page
+            document.getElementById('hidden-total').value = document.getElementById('summary-total').textContent.replace(/[₱,]/g, '');
         }
 
         // Optionally show a loading state here

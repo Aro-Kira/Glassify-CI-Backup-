@@ -2,7 +2,7 @@
 .layout-container {
     display: flex;
     min-height: 100vh;
-    background-color: #f4f6f9;
+    background: transparent;
 }
 
 /* ===== Main Content ===== */

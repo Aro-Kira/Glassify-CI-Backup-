@@ -724,8 +724,10 @@ function showOrderSummary() {
 
     // 3. Update Summary Data
     document.getElementById('sum-shape').textContent = capitalize(currentShape);
-    document.getElementById('sum-dim').textContent =
-        `${currentDimensions.width.value}${currentDimensions.width.unit} x ${currentDimensions.height.value}${currentDimensions.height.unit}`;
+    // Format dimension as "35in x 45in" (width x height, unit attached)
+    const widthStr = `${currentDimensions.width.value}${currentDimensions.width.unit}`;
+    const heightStr = `${currentDimensions.height.value}${currentDimensions.height.unit}`;
+    document.getElementById('sum-dim').textContent = `${widthStr} x ${heightStr}`;
     document.getElementById('sum-type').textContent = capitalize(currentGlassType);
     document.getElementById('sum-thick').textContent = currentThickness;
     document.getElementById('sum-edge').textContent = formatText(currentEdgeWork);
@@ -835,14 +837,7 @@ if (previewLabel && previewModal && zoomedImg) {
 
 
 // --- BUY NOW REDIRECT LOGIC ---
-const buyBtn = document.querySelector('.buy-btn');
-
-if (buyBtn) {
-    buyBtn.addEventListener('click', () => {
-        // Redirects to the WaitingOrder page
-        window.location.href = 'checkout.html';
-    });
-}
+// Moved to buy-now-handler.js to save complete order details first
 
 
 function logOrderSummary() {

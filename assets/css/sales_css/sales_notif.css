@@ -120,53 +120,32 @@ body {
     color: #666;
 }
 
-/* START: New CSS required for notification list styling */
+/* START: Notification list styling - matching image exactly */
 .notifications-list {
     margin-top: 20px;
     background-color: #E8F0F2; 
-    border: 1px solid #ccc;
+    border: none;
     padding: 30px;
-    border-radius: 8px;
+    border-radius: 0;
 }
 
 .notification-item {
     display: flex;
     align-items: flex-start;
     padding: 15px 0;
-    border-bottom: 1px solid #ddd; /* Light grey separator line */
-    
+    border-bottom: 1px solid #02455F; /* Dark blue separator line */
 }
 
-/* Style for the icons to match the image */
+/* Style for the icons - dark blue, matching image */
 .notification-icon {
-    font-size: 30px; 
-    
-    /* FIX 2 (Optional): If you need the icon to occupy a 40px area (e.g., for background/padding) */
-    display: inline-block; /* Allows width/height to be respected */
-    width: 40px;
-    height: 40px; 
-
-    color: #02455F; 
-    margin-right: 30px;
-    
-    /* You might want to center the icon inside the 40px box */
-    text-align: center;
-    line-height: 40px;
-}
-
-/* Using a more generic icon for the Inventory Alert */
-.notification-item:nth-child(1) .notification-icon {
-    /* Using fa-box-open for inventory/product alert */
-    font-family: 'Font Awesome 5 Free';
-    content: '\f49e'; 
-}
-
-/* Using a user/person icon for the other alerts */
-.notification-item:nth-child(2) .notification-icon,
-.notification-item:nth-child(3) .notification-icon {
-    /* Using fa-user-tie or similar professional icon for employee actions */
-    font-family: 'Font Awesome 5 Free';
-    content: '\f508'; 
+    font-size: 24px; 
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    color: #02455F; /* Dark blue */
+    margin-right: 15px;
+    flex-shrink: 0;
+    margin-top: 2px;
 }
 
 .notification-details {
@@ -176,12 +155,42 @@ body {
 .notification-text {
     margin: 0;
     font-size: 16px;
-    color: #333;
-    line-height: 1.5;
+    color: #02455F; /* Dark blue text */
+    line-height: 1.6;
     text-align: left;
+    font-weight: 400;
 }
 
-/* Ensure the last item does not have a bottom border if not desired */
+.notification-text strong {
+    font-weight: 600;
+    color: #02455F; /* Dark blue for title */
+}
+
+/* Empty message styling */
+.notification-item.empty-message {
+    justify-content: center;
+    padding: 30px;
+    border-bottom: none;
+}
+
+.notification-item.empty-message .notification-details {
+    text-align: center;
+}
+
+.notification-item.empty-message .notification-text {
+    color: #666;
+    font-style: italic;
+}
+
+/* Unread notification styling - keep light blue background */
+.notification-item.unread-item {
+    background-color: #f0f8ff;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+/* Ensure the last item does not have a bottom border */
 .notifications-list .notification-item:last-child {
     border-bottom: none;
 }

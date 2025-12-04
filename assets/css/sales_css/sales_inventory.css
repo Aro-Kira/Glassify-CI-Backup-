@@ -1,0 +1,279 @@
+/* Sales Inventory Page Styles */
+* {
+  font-family: 'DM Sans', sans-serif;
+}
+
+.order-list-section {
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.section-header {
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  font-size: 45px;
+  font-weight: 700;
+  color: #02455F;
+  margin: 0;
+}
+
+.inventory-stats {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  padding: 12px 10px;
+  margin-top: 16px;
+}
+
+.stat-card {
+  background-color: #fff;
+  padding: 20px;
+  flex: 1 1 150px;
+  text-align: center;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.121);
+  transition: transform 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+}
+
+.stat-title {
+  font-size: 23px;
+  color: #004d66;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 23px;
+  font-weight: 600;
+  color: #000;
+}
+
+.order-tabs {
+  margin-bottom: 20px;
+}
+
+.order-tabs h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #02455F;
+  margin: 0;
+}
+
+.controls-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 15px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  max-width: 500px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.search-button {
+  padding: 10px 20px;
+  background-color: #02455F;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.3s;
+}
+
+.search-button:hover {
+  background-color: #036b8f;
+}
+
+.table-container {
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead {
+  background-color: #02455F;
+  color: white;
+}
+
+thead th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.2s;
+}
+
+tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+tbody td {
+  padding: 15px;
+  font-size: 16px;
+  color: #333;
+}
+
+/* Status Badges */
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.status-low-stock {
+  background-color: #FF8C00;
+  color: #FFFFFF;
+  border: none;
+}
+
+.status-out-of-stock {
+  background-color: #DC143C;
+  color: #FFFFFF;
+  border: none;
+}
+
+.status-new {
+  background-color: #0066CC;
+  color: #FFFFFF;
+  border: none;
+}
+
+/* Ensure stock number and badge are on same line */
+td:nth-child(5) {
+  white-space: nowrap;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 0;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+#paginationInfo {
+  font-size: 14px;
+  color: #666;
+}
+
+.rows-per-page {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rows-per-page label {
+  font-size: 14px;
+  color: #666;
+}
+
+.rows-per-page select {
+  padding: 5px 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 14px;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.pagination-controls button {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  background-color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-controls button:hover {
+  background-color: #f5f5f5;
+}
+
+.pagination-controls button.active {
+  background-color: #02455F;
+  color: white;
+  border-color: #02455F;
+}
+
+.pagination-controls button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .inventory-stats {
+    flex-direction: column;
+  }
+  
+  .stat-card {
+    flex: 1 1 100%;
+  }
+  
+  .controls-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-bar {
+    max-width: 100%;
+  }
+  
+  .pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+

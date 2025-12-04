@@ -243,12 +243,48 @@
         const ewallet = document.getElementById("ewallet-radio").checked;
         const cod = document.getElementById("COD-radio").checked;
 
+        if (!ewallet && !cod) {
+            alert("Please select a payment method before placing order.");
+            return;
+        }
+
+        // Get form data
+        const formData = {
+            first_name: document.querySelector('input[name="first_name"]').value,
+            last_name: document.querySelector('input[name="last_name"]').value,
+            email: document.querySelector('input[name="email"]').value,
+            phone: document.querySelector('input[name="phone"]').value,
+            address: document.querySelector('input[name="address"]').value,
+            city: document.querySelector('input[name="city"]').value,
+            province: document.querySelector('input[name="province"]').value,
+            country: document.querySelector('input[name="country"]').value,
+            zipcode: document.querySelector('input[name="zipcode"]').value,
+            note: document.querySelector('input[name="note"]').value,
+            payment_method: ewallet ? 'ewallet' : 'cod',
+            total_amount: document.getElementById('summary-total').textContent.replace(/[₱,]/g, '')
+        };
+
+        // Store form data in sessionStorage to pass to next page
+        sessionStorage.setItem('checkout_data', JSON.stringify(formData));
+
         if (ewallet) {
             window.location.href = "<?php echo base_url('paying'); ?>"; // redirect to e-wallet page
         } else if (cod) {
-            window.location.href = "<?php echo base_url('waiting_order'); ?>"; // redirect to COD page
-        } else {
-            alert("Please select a payment method before placing order.");
+            // Submit form data to waiting_order
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = "<?php echo base_url('waiting_order'); ?>";
+            
+            Object.keys(formData).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = formData[key];
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            form.submit();
         }
     });
 </script>

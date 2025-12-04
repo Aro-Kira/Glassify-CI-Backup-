@@ -25,6 +25,9 @@
         <span class="highlight">Sales</span> Access Only.<br>
         Manage <span class="highlight">Users</span>, Orders, and Settings.
       </p>
+      <div class="login-user-icon">
+        <img src="<?php echo base_url('assets/images/img-page/mdi_shield-account.png'); ?>" alt="sales-icon" width="95" height="95">
+      </div>
     </div>
 
     <!-- Right Panel -->
@@ -34,11 +37,10 @@
       <!-- ✅ sales Login Form -->
       <form method="POST" action="<?= base_url('auth/process_role_login/Sales') ?>">
 
- 
-
-
         <?php
         $pending_email = $this->session->tempdata('pending_sales_email');
+        $remember_email_value = isset($remember_email) ? $remember_email : '';
+        $saved_email = $pending_email ?: ($remember_email ?? '');
         ?>
 
         <div class="login-input-group">
@@ -47,7 +49,7 @@
             <img src="<?php echo base_url('assets/images/img-page/ic_outline-email.svg'); ?>" alt="Email Icon"
               class="login-input-icon">
             <input type="email" id="email" name="email" placeholder="Enter your sales email"
-              value="<?= $pending_email ?? '' ?>" required>
+              value="<?= $saved_email ?>" required>
           </div>
         </div>
 
@@ -63,8 +65,8 @@
         <button type="submit" class="login-btn">Login as Sales</button>
 
         <div class="login-options">
-          <label><input type="checkbox"> Remember Me</label>
-          <a href="#">Forgot Password?</a>
+          <label><input type="checkbox" name="remember_me" value="1" <?= (!empty($remember_email)) ? 'checked' : '' ?>> Remember Me</label>
+          <a href="<?php echo base_url('forgot-password/Sales'); ?>">Forgot Password?</a>
         </div>
 
         <p class="login-register">

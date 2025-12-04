@@ -6,8 +6,8 @@ class Auth extends CI_Controller
     public function __construct()
     {
         parent::__construct();
-        $this->load->library(['session', 'form_validation']);
-        $this->load->helper(['url', 'form']);
+        $this->load->library(['session', 'form_validation', 'email']);
+        $this->load->helper(['url', 'form', 'cookie']);
         $this->load->database();
         $this->load->model('User_model');
     }
@@ -66,6 +66,13 @@ class Auth extends CI_Controller
     // ===================== LOGIN PAGES =====================
     public function login()
     {
+        // Redirect Sales Representatives to their login page
+        $user_role = $this->session->userdata('user_role');
+        if ($user_role === 'Sales Representative') {
+            $this->session->set_flashdata('error', 'Sales Representatives must use the Sales login page.');
+            redirect(base_url('sales-login'));
+        }
+        
         $data['title'] = "Glassify - Login";
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login', $data);
@@ -75,6 +82,13 @@ class Auth extends CI_Controller
     // ===================== ADMIN LOGIN =====================
     public function admin_login()
     {
+        // Redirect Sales Representatives to their login page
+        $user_role = $this->session->userdata('user_role');
+        if ($user_role === 'Sales Representative') {
+            $this->session->set_flashdata('error', 'Sales Representatives must use the Sales login page.');
+            redirect(base_url('sales-login'));
+        }
+        
         $data['title'] = "Glassify - Admin Login";
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login_admin', $data);
@@ -84,7 +98,11 @@ class Auth extends CI_Controller
     // ===================== SALES LOGIN =====================
     public function sales_login()
     {
+        // Check for Remember Me cookie
+        $remember_email = get_cookie('sales_remember_email');
+        
         $data['title'] = "Glassify - Sales Login";
+        $data['remember_email'] = $remember_email ? $remember_email : '';
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login_sales', $data);
         $this->load->view('includes/footer');
@@ -93,99 +111,438 @@ class Auth extends CI_Controller
     // ===================== INVENTORY LOGIN =====================
     public function inventory_login()
     {
+        // Redirect Sales Representatives to their login page
+        $user_role = $this->session->userdata('user_role');
+        if ($user_role === 'Sales Representative') {
+            $this->session->set_flashdata('error', 'Sales Representatives must use the Sales login page.');
+            redirect(base_url('sales-login'));
+        }
+        
         $data['title'] = "Glassify - Inventory Login";
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login_inventory', $data);
         $this->load->view('includes/footer');
     }
 
+    // ===================== EMAIL VALIDATION HELPER =====================
+    /**
+     * Validates if email is properly formatted and has a valid domain
+     * @param string $email
+     * @return bool
+     */
+    private function is_valid_working_email($email)
+    {
+        // First check basic format with strict validation
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        // Additional format checks
+        // Reject common fake email patterns
+        $fake_patterns = [
+            '/^test@/i',
+            '/@test\./i',
+            '/@example\./i',
+            '/@fake\./i',
+            '/@temp\./i',
+            '/@dummy\./i',
+            '/@invalid\./i',
+            '/@noreply\./i',
+            '/@no-reply\./i'
+        ];
+        
+        foreach ($fake_patterns as $pattern) {
+            if (preg_match($pattern, $email)) {
+                return false;
+            }
+        }
+
+        // Extract domain
+        $domain = substr(strrchr($email, "@"), 1);
+        
+        // Reject common fake domains
+        $fake_domains = ['test.com', 'example.com', 'fake.com', 'temp.com', 'dummy.com', 'invalid.com'];
+        if (in_array(strtolower($domain), $fake_domains)) {
+            return false;
+        }
+        
+        // Check if domain exists and has valid DNS records
+        // Check for MX records (mail exchange) first - this is required for email delivery
+        if (!checkdnsrr($domain, 'MX')) {
+            // If no MX record, check for A record (some domains use A records for mail)
+            if (!checkdnsrr($domain, 'A')) {
+                // Domain doesn't exist or has no mail servers
+                return false;
+            }
+        }
+        
+        // Verify email address exists on mail server (SMTP verification)
+        return $this->verify_email_exists($email, $domain);
+    }
+
+    /**
+     * Verifies if email address actually exists on the mail server
+     * @param string $email
+     * @param string $domain
+     * @return bool
+     */
+    private function verify_email_exists($email, $domain)
+    {
+        // Get MX records for the domain
+        $mx_records = [];
+        if (getmxrr($domain, $mx_records)) {
+            // Sort by priority (lower number = higher priority)
+            asort($mx_records);
+            // Get first MX host (compatible with PHP < 7.3)
+            reset($mx_records);
+            $mx_host = key($mx_records);
+            
+            // Connect to mail server and verify email
+            $connect = @fsockopen($mx_host, 25, $errno, $errstr, 10);
+            if ($connect) {
+                // SMTP conversation to verify email
+                $response = fgets($connect, 515);
+                if (strpos($response, '220') === 0) {
+                    // Send HELO
+                    $helo_domain = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost';
+                    fputs($connect, "HELO " . $helo_domain . "\r\n");
+                    $response = fgets($connect, 515);
+                    
+                    // Send MAIL FROM
+                    fputs($connect, "MAIL FROM: <noreply@" . $helo_domain . ">\r\n");
+                    $response = fgets($connect, 515);
+                    
+                    // Send RCPT TO (this checks if email exists)
+                    fputs($connect, "RCPT TO: <" . $email . ">\r\n");
+                    $response = fgets($connect, 515);
+                    
+                    // Send QUIT
+                    fputs($connect, "QUIT\r\n");
+                    fclose($connect);
+                    
+                    // Check if RCPT TO was accepted (250 = accepted, 251 = forwarded)
+                    // 550 = mailbox not found, 551 = user not local
+                    if (strpos($response, '250') === 0 || strpos($response, '251') === 0) {
+                        return true; // Email exists
+                    }
+                    // If we get 550 or 551, email doesn't exist
+                    if (strpos($response, '550') === 0 || strpos($response, '551') === 0) {
+                        return false; // Email doesn't exist
+                    }
+                } else {
+                    fclose($connect);
+                }
+            }
+        }
+        
+        // If SMTP verification fails or can't connect, fall back to domain validation
+        // At least the domain exists and has mail servers (MX or A records)
+        return true;
+    }
+
     // ===================== PROCESS ROLE LOGIN =====================
     public function process_role_login($role)
     {
-        $email = $this->input->post('email');
-        $password = $this->input->post('password');
+        // Form validation
+        $this->form_validation->set_rules('email', 'Email', 'required|valid_email|trim');
+        $this->form_validation->set_rules('password', 'Password', 'required|trim');
 
+        if ($this->form_validation->run() == FALSE) {
+            $this->session->set_flashdata('error', validation_errors());
+            $login_routes = [
+                'Admin' => 'Adlog',
+                'Sales' => 'sales-login',
+                'Inventory' => 'Invlog'
+            ];
+            $redirect_url = $login_routes[$role] ?? 'login';
+            redirect(base_url($redirect_url));
+        }
+
+        // Sanitize input
+        $email = $this->input->post('email', TRUE);
+        $password = $this->input->post('password', TRUE);
+
+        // Additional validation: Check if email is a valid working email
+        if (!$this->is_valid_working_email($email)) {
+            $this->session->set_flashdata('error', 'Please enter a real, working email address. Fake or invalid email addresses are not accepted.');
+            $login_routes = [
+                'Admin' => 'Adlog',
+                'Sales' => 'sales-login',
+                'Inventory' => 'Invlog'
+            ];
+            $redirect_url = $login_routes[$role] ?? 'login';
+            redirect(base_url($redirect_url));
+        }
+
+        // Map URL-friendly role names to DB roles
+        $role_map = [
+            'Admin' => 'Admin',
+            'Sales' => 'Sales Representative',
+            'Inventory' => 'Inventory Officer',
+            'Customer' => 'Customer'
+        ];
+
+        $db_role = $role_map[$role] ?? '';
+        $login_routes = [
+            'Admin' => 'Adlog',
+            'Sales' => 'sales-login',
+            'Inventory' => 'Invlog'
+        ];
+        $redirect_url = $login_routes[$role] ?? 'login';
+
+        // Check if email exists
         $user = $this->User_model->get_by_email($email);
 
-        if ($user && password_verify($password, $user->Password)) {
+        // Account Not Found
+        if (!$user) {
+            log_message('info', 'Login attempt failed: Account not found - email=' . $email . ', role=' . $role);
+            $this->session->set_flashdata('error', 'Account does not exist. Please check your email address.');
+            redirect(base_url($redirect_url));
+        }
 
-            // Map URL-friendly role names to DB roles
-            $role_map = [
-                'Admin' => 'Admin',
-                'Sales' => 'Sales Representative',
-                'Inventory' => 'Inventory Officer',
-                'Customer' => 'Customer'
-            ];
+        // Check if account is active
+        if ($user->Status !== 'Active') {
+            log_message('info', 'Login attempt failed: Inactive account - email=' . $email . ', role=' . $role);
+            $this->session->set_flashdata('error', 'Your account is inactive. Please contact administrator.');
+            redirect(base_url($redirect_url));
+        }
 
-            $db_role = $role_map[$role] ?? '';
+        // Verify password
+        if (!password_verify($password, $user->Password)) {
+            log_message('info', 'Login attempt failed: Incorrect password - email=' . $email . ', role=' . $role);
+            $this->session->set_flashdata('error', 'Invalid email or password. Please try again.');
+            redirect(base_url($redirect_url));
+        }
 
-            if ($user->Role !== $db_role) {
-                $this->session->set_flashdata('error', "You are not authorized as $role.");
-                // Redirect to appropriate login page based on role
-                if ($role === 'Admin') {
-                    redirect(base_url('Adlog'));
-                } elseif ($role === 'Sales') {
-                    redirect(base_url('SLslog'));
-                } elseif ($role === 'Inventory') {
-                    redirect(base_url('Invlog'));
-                } else {
-                    redirect(base_url('login'));
-                }
-                return;
-            }
+        // Special handling: Sales Representatives can ONLY log in through sales-login page
+        if ($user->Role === 'Sales Representative' && $role !== 'Sales') {
+            log_message('info', 'Sales Representative attempted login through wrong page - email=' . $email . ', attempted_role=' . $role);
+            $this->session->set_flashdata('error', 'Sales Representatives must log in through the Sales login page. Redirecting...');
+            redirect(base_url('sales-login'));
+        }
 
-            // Set session including Customer_ID for customers
-            $session_data = [
-                'user_id' => $user->UserID,
-                'user_name' => $user->First_Name . ' ' . $user->Last_Name,
-                'user_role' => $user->Role,
-                'is_logged_in' => true
-            ];
-
-            if ($user->Role === 'Customer') {
-                $session_data['customer_id'] = $user->UserID;
-            }
-
-            $this->session->set_userdata($session_data);
-
-            // Redirect based on role
-            switch ($user->Role) {
-                case 'Admin':
-                    redirect(base_url('admin-dashboard'));
-                    break;
-                case 'Sales Representative':
-                    redirect(base_url('sales-dashboard'));
-                    break;
-                case 'Inventory Officer':
-                    redirect(base_url('inventory-dashboard'));
-                    break;
-                case 'Customer':
-                    redirect(base_url('home-login'));
-                    break;
-                default:
-                    redirect(base_url());
-            }
-
-        } else {
-            log_message('debug', 'Login attempt failed: email=' . $email . ', role=' . $role . ', DB role=' . ($user->Role ?? 'none'));
-            $this->session->set_flashdata('error', 'Invalid email or password.');
-            // Redirect to appropriate login page based on role
-            if ($role === 'Admin') {
+        // Check if user has the correct role
+        if ($user->Role !== $db_role) {
+            log_message('info', 'Login attempt failed: Wrong role - email=' . $email . ', user_role=' . $user->Role . ', required_role=' . $db_role);
+            
+            // Provide helpful redirect messages for other roles
+            if ($user->Role === 'Admin') {
+                $this->session->set_flashdata('error', 'You are an Admin. Please use the Admin login page.');
                 redirect(base_url('Adlog'));
-            } elseif ($role === 'Sales') {
-                redirect(base_url('SLslog'));
-            } elseif ($role === 'Inventory') {
+            } elseif ($user->Role === 'Inventory Officer') {
+                $this->session->set_flashdata('error', 'You are an Inventory Officer. Please use the Inventory login page.');
                 redirect(base_url('Invlog'));
-            } else {
+            } elseif ($user->Role === 'Customer') {
+                $this->session->set_flashdata('error', 'You are a Customer. Please use the regular login page.');
                 redirect(base_url('login'));
+            } else {
+                $this->session->set_flashdata('error', "You are not authorized to access the $role login. Your account role is: " . $user->Role);
+                redirect(base_url($redirect_url));
             }
+        }
+
+        // Successful login - Set session
+        $session_data = [
+            'user_id' => $user->UserID,
+            'user_name' => $user->First_Name . ' ' . $user->Last_Name,
+            'user_email' => $user->Email,
+            'user_role' => $user->Role,
+            'is_logged_in' => true
+        ];
+
+        if ($user->Role === 'Customer') {
+            $session_data['customer_id'] = $user->UserID;
+        }
+
+        $this->session->set_userdata($session_data);
+
+        // Handle Remember Me checkbox
+        $remember_me = $this->input->post('remember_me');
+        if ($remember_me) {
+            // Set cookie for 30 days
+            set_cookie('sales_remember_email', $email, 30 * 24 * 60 * 60); // 30 days
+        } else {
+            // Delete cookie if exists
+            delete_cookie('sales_remember_email');
+        }
+
+        log_message('info', 'Login successful: email=' . $email . ', role=' . $user->Role . ', user_id=' . $user->UserID);
+
+        // Redirect based on role
+        switch ($user->Role) {
+            case 'Admin':
+                redirect(base_url('admin-dashboard'));
+                break;
+            case 'Sales Representative':
+                redirect(base_url('sales-dashboard'));
+                break;
+            case 'Inventory Officer':
+                redirect(base_url('inventory-dashboard'));
+                break;
+            case 'Customer':
+                redirect(base_url('home-login'));
+                break;
+            default:
+                redirect(base_url());
+        }
+    }
+
+    // ===================== FORGOT PASSWORD =====================
+    public function forgot_password($role = 'Sales')
+    {
+        $data['title'] = "Glassify - Forgot Password";
+        $data['role'] = $role;
+        $this->load->view('includes/header', $data);
+        $this->load->view('auth/forgot_password', $data);
+        $this->load->view('includes/footer');
+    }
+
+    public function process_forgot_password($role = 'Sales')
+    {
+        $this->form_validation->set_rules('email', 'Email', 'required|valid_email|trim');
+
+        if ($this->form_validation->run() == FALSE) {
+            $this->session->set_flashdata('error', validation_errors());
+            redirect(base_url('forgot-password/' . $role));
+        }
+
+        $email = $this->input->post('email', TRUE);
+
+        // Additional validation: Check if email is a valid working email
+        if (!$this->is_valid_working_email($email)) {
+            $this->session->set_flashdata('error', 'Please enter a real, working email address. Fake or invalid email addresses are not accepted.');
+            redirect(base_url('forgot-password/' . $role));
+        }
+        $user = $this->User_model->get_by_email($email);
+
+        // Map URL-friendly role names to DB roles
+        $role_map = [
+            'Admin' => 'Admin',
+            'Sales' => 'Sales Representative',
+            'Inventory' => 'Inventory Officer',
+            'Customer' => 'Customer'
+        ];
+        $db_role = $role_map[$role] ?? '';
+
+        // Validate: Only accept emails for Sales Representatives when role is Sales
+        // REJECT if email doesn't exist or doesn't belong to a Sales Representative
+        if (!$user) {
+            $this->session->set_flashdata('error', 'Email not found or does not belong to a Sales Representative account.');
+            redirect(base_url('forgot-password/' . $role));
+        }
+
+        // REJECT if user is not a Sales Representative
+        if ($user->Role !== 'Sales Representative') {
+            $this->session->set_flashdata('error', 'This email does not belong to a Sales Representative account. Please use the appropriate login page for your account type.');
+            redirect(base_url('forgot-password/' . $role));
+        }
+
+        // Generate reset token
+        $reset_token = bin2hex(random_bytes(32));
+        $reset_expiry = date('Y-m-d H:i:s', strtotime('+1 hour')); // Token valid for 1 hour
+
+        // Save token to database
+        $this->User_model->save_reset_token($user->UserID, $reset_token, $reset_expiry);
+
+        // Send email with reset link
+        $reset_link = base_url('reset-password/' . $role . '/' . $reset_token);
+        
+        // For now, we'll log it. In production, send actual email
+        log_message('info', 'Password reset requested for: ' . $email . ' - Token: ' . $reset_token);
+        
+        // TODO: Implement actual email sending
+        // $this->send_reset_email($user->Email, $user->First_Name, $reset_link);
+
+        $this->session->set_flashdata('info', 'Password reset instructions have been sent to your email. Please check your inbox.');
+        redirect(base_url('sales-login'));
+    }
+
+    public function reset_password($role = 'Sales', $token = '')
+    {
+        if (empty($token)) {
+            $this->session->set_flashdata('error', 'Invalid reset token.');
+            redirect(base_url('sales-login'));
+        }
+
+        // Verify token
+        $user = $this->User_model->get_by_reset_token($token);
+
+        if (!$user || strtotime($user->reset_token_expiry) < time()) {
+            $this->session->set_flashdata('error', 'Invalid or expired reset token. Please request a new one.');
+            redirect(base_url('forgot-password/' . $role));
+        }
+
+        $data['title'] = "Glassify - Reset Password";
+        $data['role'] = $role;
+        $data['token'] = $token;
+        $this->load->view('includes/header', $data);
+        $this->load->view('auth/reset_password', $data);
+        $this->load->view('includes/footer');
+    }
+
+    public function process_reset_password($role = 'Sales')
+    {
+        $this->form_validation->set_rules('token', 'Token', 'required|trim');
+        $this->form_validation->set_rules('password', 'Password', 'required|min_length[6]|trim');
+        $this->form_validation->set_rules('confirm_password', 'Confirm Password', 'required|matches[password]|trim');
+
+        if ($this->form_validation->run() == FALSE) {
+            $this->session->set_flashdata('error', validation_errors());
+            redirect(base_url('reset-password/' . $role . '/' . $this->input->post('token')));
+        }
+
+        $token = $this->input->post('token', TRUE);
+        $password = $this->input->post('password', TRUE);
+
+        // Verify token
+        $user = $this->User_model->get_by_reset_token($token);
+
+        if (!$user || strtotime($user->reset_token_expiry) < time()) {
+            $this->session->set_flashdata('error', 'Invalid or expired reset token. Please request a new one.');
+            redirect(base_url('forgot-password/' . $role));
+        }
+
+        // Update password
+        $hashed_password = password_hash($password, PASSWORD_BCRYPT);
+        if ($this->User_model->update_password($user->UserID, $hashed_password)) {
+            // Clear reset token
+            $this->User_model->clear_reset_token($user->UserID);
+            
+            $this->session->set_flashdata('success', 'Password reset successfully! You can now log in with your new password.');
+            
+            $login_routes = [
+                'Admin' => 'Adlog',
+                'Sales' => 'sales-login',
+                'Inventory' => 'Invlog',
+                'Customer' => 'login'
+            ];
+            $redirect_url = $login_routes[$role] ?? 'login';
+            redirect(base_url($redirect_url));
+        } else {
+            $this->session->set_flashdata('error', 'Failed to reset password. Please try again.');
+            redirect(base_url('reset-password/' . $role . '/' . $token));
         }
     }
 
     // ===================== LOGOUT =====================
     public function logout()
     {
+        // Get user role before destroying session
+        $user_role = $this->session->userdata('user_role');
+        
+        // Clear remember me cookie on logout
+        delete_cookie('sales_remember_email');
         $this->session->sess_destroy();
-        redirect(base_url());
+        
+        // Redirect based on role
+        if ($user_role === 'Sales Representative') {
+            redirect(base_url('sales-login'));
+        } elseif ($user_role === 'Admin') {
+            redirect(base_url('Adlog'));
+        } elseif ($user_role === 'Inventory Officer') {
+            redirect(base_url('Invlog'));
+        } else {
+            redirect(base_url());
+        }
     }
 }

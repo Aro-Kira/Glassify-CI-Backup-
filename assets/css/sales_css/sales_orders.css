@@ -73,6 +73,8 @@ body {
     justify-content: flex-start; 
     gap: 50px; 
     font-size: 20px;
+    position: relative;
+    z-index: 10;
 }
 
 .order-tabs a {
@@ -83,7 +85,10 @@ body {
     text-align: left; 
     padding-bottom: 5px;
     border-bottom: 3px solid transparent;
-    border-color: #02455F; 
+    border-color: #02455F;
+    position: relative;
+    z-index: 10;
+    cursor: pointer;
 }
 
 .order-tabs a.active {
@@ -132,6 +137,8 @@ a#ready-id.active {
     width: 10%;
     justify-content: center;
     align-items: center;
+    position: relative;
+    z-index: 1;
 }
 
 .search-box {
@@ -537,5 +544,97 @@ tbody td:last-child, thead th:last-child {
   background-color: #fff;
   color: black;
   border: 1px solid #00000077;
+}
+
+/* ===== ADMIN STATUS SECTION ===== */
+.admin-status-section {
+    margin-top: 20px;
+    width: 100%;
+}
+
+.admin-status-badges {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background-color: white;
+    padding: 0;
+}
+
+.admin-status-badge {
+    padding: 10px 20px;
+    border-radius: 50px; /* Pill shape with fully rounded ends */
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    font-family: sans-serif;
+    border: 1px solid;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 0;
+    position: relative;
+}
+
+/* Separator line between badges - thin gray line */
+.admin-status-badge:not(:last-child) {
+    margin-bottom: 8px;
+}
+
+.admin-status-badge:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: #E0E0E0;
+    width: 100%;
+}
+
+.disapproved-badge {
+    background-color: #FEE8E8; /* Light red background - exact match */
+    color: #C82828; /* Dark red text - exact match */
+    border-color: #C82828; /* Dark red border */
+    border-width: 1px;
+    border-style: solid;
+}
+
+.approved-badge {
+    background-color: #E8FEE8; /* Light green background - exact match */
+    color: #28C828; /* Dark green text - exact match */
+    border-color: #28C828; /* Dark green border */
+    border-width: 1px;
+    border-style: solid;
+}
+
+/* Status badges in table */
+.status.approved {
+    background-color: #E8FEE8;
+    color: #28C828;
+    border: 1px solid #28C828;
+    border-radius: 50px;
+    padding: 6px 16px;
+    font-weight: 500;
+}
+
+.status.disapproved {
+    background-color: #FEE8E8;
+    color: #C82828;
+    border: 1px solid #C82828;
+    border-radius: 50px;
+    padding: 6px 16px;
+    font-weight: 500;
+}
+
+/* File link styling - always clickable */
+.detail-value.file-link {
+    color: #0066FF;
+    text-decoration: underline;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.detail-value.file-link:hover {
+    color: #0052CC;
+    text-decoration: underline;
 }
 

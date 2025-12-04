@@ -7,18 +7,17 @@
 
     <div class="inventory-stats">
     <div class="stat-card stat-green">
-        <div class="stat-value">₱67,704</div>
+        <div class="stat-value">₱<?php echo number_format($weekly_sales ?? 0, 2); ?></div>
         <div class="stat-title">Weekly Sales</div>
-        <div class="stat-percent">↑ 18% from last week</div>
     </div>
 
     <div class="stat-card stat-orange">
-        <div class="stat-value" id="statPendingValue">3</div> 
+        <div class="stat-value" id="statPendingValue"><?php echo $pending_count ?? 0; ?></div> 
         <div class="stat-title">Pending Payments</div>
     </div>
 
     <div class="stat-card stat-red">
-        <div class="stat-value" id="statOverdueValue">1</div> 
+        <div class="stat-value" id="statOverdueValue"><?php echo $overdue_count ?? 0; ?></div> 
         <div class="stat-title">Overdue Payments</div>
     </div>
 </div>
@@ -45,79 +44,72 @@
           <th>#</th>
           <th>Order ID</th>
           <th>Customer</th>
+          <th>Product</th>
           <th>Method</th>
           <th>Status</th>
-          <th>Receipt</th>
           <th>Date</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td>1</td>
-          <td>#G1001</td>
-          <td>Calista Flockhart</td>
-          <td><span class="method-gcash">Gcash</span></td>
-          <td><span class="status-badge pending">Pending</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
+        <?php 
+        $row_num = 1;
+        if (!empty($orders)): 
+          foreach ($orders as $order): 
+            $customer_name = trim(($order->First_Name ?? '') . ' ' . ($order->Last_Name ?? ''));
+            $customer_name = $customer_name ?: 'N/A';
+            $order_id_formatted = '#' . $order->OrderID;
+            // Get payment status and method from payment table if available, otherwise from approved_orders
+            $payment_status = isset($order->PaymentStatus) && !empty($order->PaymentStatus) ? $order->PaymentStatus : ($order->PaymentStatus ?? 'Pending');
+            $payment_method = isset($order->PaymentMethod) && !empty($order->PaymentMethod) ? $order->PaymentMethod : ($order->PaymentMethod ?? 'Not Selected');
+            $approved_date = $order->Approved_Date ? date('d/m/Y', strtotime($order->Approved_Date)) : date('d/m/Y', strtotime($order->OrderDate));
+        ?>
+        <tr data-order-id="<?php echo $order->OrderID; ?>" 
+            data-price="<?php echo isset($order->PaymentAmount) ? $order->PaymentAmount : $order->TotalQuotation; ?>" 
+            data-payment-method="<?php echo htmlspecialchars(isset($order->PaymentMethod) ? $order->PaymentMethod : $payment_method); ?>"
+            data-product-image="<?php echo htmlspecialchars($order->ProductImage ?? ''); ?>"
+            data-payment-id="<?php echo isset($order->Payment_ID) ? $order->Payment_ID : ''; ?>">
+          <td><?php echo $row_num++; ?></td>
+          <td><?php echo $order_id_formatted; ?></td>
+          <td><?php echo $customer_name; ?></td>
+          <td><?php echo $order->ProductName ?: 'N/A'; ?></td>
+          <td>
+            <?php if ($payment_method === 'E-Wallet'): ?>
+              <span class="method-gcash">Gcash</span>
+            <?php elseif ($payment_method === 'Cash on Delivery'): ?>
+              <span>Cash</span>
+            <?php else: ?>
+              <span>Not Selected</span>
+            <?php endif; ?>
+          </td>
+          <td>
+            <?php 
+            $status_class = strtolower($payment_status);
+            if ($status_class === 'paid') {
+              echo '<span class="status-badge paid">Paid</span>';
+            } elseif ($status_class === 'failed') {
+              echo '<span class="status-badge overdue">Failed</span>';
+            } else {
+              echo '<span class="status-badge pending">Pending</span>';
+            }
+            ?>
+          </td>
+          <td><?php echo $approved_date; ?></td>
           <td class="action-cell">⋮</td>
         </tr>
+        <?php 
+          endforeach; 
+        else: 
+        ?>
         <tr>
-          <td>2</td>
-          <td>#G1002</td>
-          <td>Jeremy Tan</td>
-          <td>Cash</td>
-          <td><span class="status-badge overdue">Overdue</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
+          <td colspan="8" style="text-align: center; padding: 20px;">No approved orders found</td>
         </tr>
-        <tr>
-          <td>3</td>
-          <td>#G1003</td>
-          <td>David Discaya</td>
-          <td><span class="method-gcash">Gcash</span></td>
-          <td><span class="status-badge pending">Pending</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
-        </tr>
-        <tr>
-          <td>4</td>
-          <td>#G1004</td>
-          <td>Harold Sy</td>
-          <td><span class="method-gcash">Gcash</span></td>
-          <td><span class="status-badge review">Under Review</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
-        </tr>
-        <tr>
-          <td>5</td>
-          <td>#G1005</td>
-          <td>Krishanne Gravidez</td>
-          <td><span class="method-gcash">Gcash</span></td>
-          <td><span class="status-badge paid">Paid</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
-        </tr>
-        <tr>
-          <td>6</td>
-          <td>#G1006</td>
-          <td>Julianne Copiaza</td>
-          <td>Cash</td>
-          <td><span class="status-badge review">Under Review</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
-        </tr>
+        <?php endif; ?>
       </tbody>
     </table>
   </div>
         <div class="pagination">
-          <span>Showing 1-10 of 255 items</span>
+          <span>Showing 1-<?php echo min(10, count($orders ?? [])); ?> of <?php echo count($orders ?? []); ?> items</span>
           <div class="pagination-controls">
             <button><i class="fas fa-chevron-left"></i></button>
             <button class="active">1</button>
@@ -127,7 +119,6 @@
         <div id="actionMenu" class="action-menu hidden">
         <ul>
             <li><a href="#">View Receipt</a></li>
-            <li><a href="#">Mark as Paid</a></li>
             <li><a href="#">Cancel</a></li>
         </ul>
         </div>
@@ -141,7 +132,7 @@
     <!-- Image Preview -->
     <div class="form-group">
       <div class="image-preview">
-        <img src="https://cdn-icons-png.flaticon.com/512/4211/4211763.png" alt="Preview">
+        <img id="popupProductImage" src="" alt="Product Image" style="display: none;">
       </div>
     </div>
 
@@ -176,13 +167,13 @@
       </section>
     </main>
     </div>
-    <script src="/Glassify/assets/js/admin-sidebar.js"></script>
-    <script src="/Glassify/assets/js/payments-action.js"></script>
-    <script src="/Glassify/assets/js/payment-filter.js"></script>
-    <script src="/Glassify/assets/js/view-receipt-payments.js"></script>
+    <script>
+        const base_url = '<?php echo base_url(); ?>';
+    </script>
+    <script src="<?php echo base_url('assets/js/sales-js/payments-action.js'); ?>"></script>
+    <script src="<?php echo base_url('assets/js/sales-js/payment-filter.js'); ?>"></script>
+    <script src="<?php echo base_url('assets/js/sales-js/view-receipt-payments.js'); ?>"></script>
 
-</body>
-</html>
 
 
 

@@ -310,7 +310,7 @@
                         </div>
                         <div class="summary-row">
                             <span class="spec-label">Dimension:</span>
-                            <span class="spec-value" id="sum-dim">45" x 35"</span>
+                            <span class="spec-value" id="sum-dim">35in x 45in</span>
                         </div>
                         <div class="summary-row">
                             <span class="spec-label">Type:</span>
@@ -454,6 +454,7 @@
 
 <script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtocustomization.js'); ?>"></script>
+<script src="<?= base_url('assets/js/2d-functions/buy-now-handler.js'); ?>"></script>
 <!-- <script src="<?= base_url('assets/js/2d-functions/2d_functions.js'); ?>"></script> -->
 
 

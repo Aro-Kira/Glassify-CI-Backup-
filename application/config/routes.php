@@ -115,7 +115,13 @@ $route['auth/process_register'] = 'auth/process_register';
 /*==============Custom URL================*/
 $route['Adlog'] = 'Auth/admin_login';
 $route['SLslog'] = 'Auth/sales_login';
+$route['sales-login'] = 'Auth/sales_login';
 $route['Invlog'] = 'Auth/inventory_login';
+$route['forgot-password/(:any)'] = 'auth/forgot_password/$1';
+$route['forgot-password'] = 'auth/forgot_password/Sales';
+$route['reset-password/(:any)/(:any)'] = 'auth/reset_password/$1/$2';
+$route['auth/process_forgot_password/(:any)'] = 'auth/process_forgot_password/$1';
+$route['auth/process_reset_password/(:any)'] = 'auth/process_reset_password/$1';
 
 /* 
 ======================================
@@ -162,6 +168,15 @@ $route['sales-get-issue-details/(:num)'] = 'SalesCon/get_issue_details_ajax/$1';
 $route['sales-mark-resolved'] = 'SalesCon/mark_resolved_ajax';
 $route['sales-update-priority'] = 'SalesCon/update_priority_ajax';
 $route['sales-get-issue-stats'] = 'SalesCon/get_issue_stats_ajax';
+$route['sales-notif'] = 'SalesCon/sales_notif';
+$route['SalesCon/update_account'] = 'SalesCon/update_account';
+$route['SalesCon/get_order_details'] = 'SalesCon/get_order_details';
+$route['SalesCon/filter_orders_by_date'] = 'SalesCon/filter_orders_by_date';
+$route['SalesCon/get_payment_details'] = 'SalesCon/get_payment_details';
+$route['SalesCon/mark_payment_paid'] = 'SalesCon/mark_payment_paid';
+$route['SalesCon/approve_order'] = 'SalesCon/approve_order';
+$route['SalesCon/disapprove_order'] = 'SalesCon/disapprove_order';
+$route['SalesCon/request_approval'] = 'SalesCon/request_approval';
 
 /* 
 ======================================

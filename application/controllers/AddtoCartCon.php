@@ -30,7 +30,7 @@ class AddtoCartCon extends CI_Controller {
         // For now, static customer ID (replace later)
         $customerID = 1;
 
-        // Insert into customization table
+        // Insert into appropriate customization table based on product category
         $customData = [
             'Product_ID' => $productID,
             'Customer_ID' => $customerID,
@@ -44,8 +44,7 @@ class AddtoCartCon extends CI_Controller {
             'DesignRef' => $design_ref,
             'EstimatePrice' => $estimate_price
         ];
-        $insert_custom = $this->db->insert('customization', $customData);
-        $customID = $this->db->insert_id();
+        $customID = $this->Cart_model->save_customization($customData);
 
         if (!$insert_custom || !$customID) {
             echo json_encode(['success' => false]);
