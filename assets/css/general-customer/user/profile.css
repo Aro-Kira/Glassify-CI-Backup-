@@ -8,6 +8,27 @@ body {
      overflow-x: hidden;
 }
 
+/* Default Save button style */
+.btn-save {
+    background-color: #4CAF50; /* green */
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, opacity 0.3s ease;
+}
+
+/* Disabled state */
+.btn-save:disabled {
+    background-color: #ccc;   /* grey */
+    color: #666;              /* darker text */
+    cursor: not-allowed;
+    opacity: 0.7;             /* slightly faded */
+}
+
+
+
 .account-settings {
   padding: 5rem 20rem;
   background-image:  linear-gradient(to bottom, #02455F 50%, #FFFF 50% );
@@ -128,3 +149,268 @@ body {
 #uploadPhoto {
   display: none; 
 }
+
+/* =========================================================
+   MODERN ADDRESS MODAL (Styled like your screenshot)
+   ========================================================= */
+
+/* Modal Background */
+.modal {
+    display: none;                 /* hidden by default */
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(1px);
+
+    justify-content: center;
+    align-items: center;
+
+    z-index: 9999;
+    padding: 20px;
+}
+
+.modal.show {
+    display: flex;                 /* show modal when "show" class is added */
+}
+
+
+/* Modal Card */
+.modal-content,
+.upload-style-modal {
+    width: 750px;
+    background: #fff;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.18);
+    animation: fadeIn 0.25s ease-out;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.modal-header-bar {
+    background: #024e63;
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.modal-header-bar h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.modal-close {
+    font-size: 26px;
+    cursor: pointer;
+    color: #fff;
+}
+
+/* Body */
+.modal-body {
+    padding: 20px 25px;
+    overflow-y: auto;
+}
+.input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.input-group input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.input-group input:focus {
+    border-color: #4CAF50;
+}
+
+.input-group button {
+    background: #02455F;
+    border: none;
+    color: #fff;
+    width: 38px;
+    height: 38px;
+    margin-left: 8px;
+    border-radius: 25%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.3s, transform 0.2s;
+}
+
+.input-group button svg {
+    width: 18px;
+    height: 18px;
+}
+
+.input-group button:hover {
+    background: #45a049;
+    transform: scale(1.1);
+}
+
+.input-group button:active {
+    transform: scale(0.95);
+}
+
+/* Section Box */
+.block-section {
+    background: #f7fafc;
+    border: 1px solid #e2e8ef;
+    padding: 18px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #02455F;
+    margin-bottom: 12px;
+}
+
+/* Table Wrapper */
+.table-wrapper {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+/* Styled Table */
+.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.styled-table th {
+    background: #eaf3f7;
+    padding: 10px;
+    font-size: 13px;
+    color: #02455F;
+    border-bottom: 2px solid #d8e4eb;
+}
+
+.styled-table td {
+    padding: 10px;
+    border-bottom: 1px solid #e5e9ef;
+    font-size: 13.5px;
+}
+
+.styled-table tr:hover {
+    background: #f0f8fc;
+}
+
+/* Buttons */
+.btn-select {
+    background: #037c9e;
+    color: #fff;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.btn-select:hover {
+    opacity: 0.92;
+}
+
+/* Add Address Form */
+.address-form input {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #cfd6dc;
+    width: 100%;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+/* Add button */
+.btn-add {
+    margin-top: 12px;
+    width: 100%;
+    background: #006f93;
+    color: #fff;
+    padding: 12px;
+    font-size: 14px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-add:hover {
+    opacity: 0.9;
+}
+
+/* Modal Footer */
+.modal-footer {
+    background: #f0f4f7;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-cancel-modal {
+    background: #dadada;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-done {
+    background: #03647f;
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+
+.photo-buttons{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+#changePhotoBtn {
+    background: #03647f;
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+
+#deletePhotoBtn{
+    background: #dadada;
+    color: #c0392b;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+

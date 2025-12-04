@@ -264,3 +264,46 @@ body {
   font-size: 1em;
   width: 100%;
 }
+
+
+
+.cart-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+ border: 1px solid #0f2b46;
+  background-color: #F4F4F4;
+}
+
+
+
+.cart-table th {
+  background: #0f2b46; /* dark blue like screenshot */
+  color: #fff;
+}
+
+.cart-table th, .cart-table td {
+  padding: 10px;
+  text-align: center;
+  border-bottom: 1px solid #ccc;
+}
+
+.cart-table td img {
+  width: 60px;
+  height: auto;
+  border-radius: 5px;
+}
+
+.cart-product-img {
+    width: 60px;       /* Adjust size as needed */
+    height: 60px;
+    object-fit: cover; /* Ensures image keeps aspect ratio */
+    border-radius: 4px; 
+}
+
+#summary-subtotal, 
+#summary-shipping,
+#summary-handling,
+#summary-total{
+    margin-left: -80%;
+} 

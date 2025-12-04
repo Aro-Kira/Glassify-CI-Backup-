@@ -1,4 +1,5 @@
-$(document).on('click', '#add-to-cart-btn', function() {
+$(document).on('click', '#add-to-cart-btn', function () {
+
     let product_id = $(this).data('product-id');
 
     let data = {
@@ -10,32 +11,30 @@ $(document).on('click', '#add-to-cart-btn', function() {
         edge: $('.option-card[data-edge-work].active').data('edge-work'),
         frame: $('.option-card[data-frame-type].active').data('frame-type'),
         engraving: $('#step-3 input').val() || 'None',
-        price: $('#sum-total').text().replace('₱',''),
+        price: $('#sum-total').text().replace('₱', ''),
+        quantity: 1,
         design_ref: ''
     };
 
     $.ajax({
-        url: base_url + "CartCon/add_customized_ajax", // unified URL
+        url: base_url + "CartCon/add_customized_ajax",
         type: "POST",
         data: data,
-        success: function(response) {
-            let res = JSON.parse(response);
+        success: function (res) {
+            let response = JSON.parse(res);
 
-            if(res.status === 'success') {
-                // Show success notification
-                alert('Added to cart! Customization ID: ' + res.customization_id);
+            if (response.status === 'success') {
+                alert("Added to Cart!");
 
-                // Update cart counter dynamically
-                if(res.cart_count !== undefined) {
-                    $('#cart-count').text(res.cart_count);
-                }
+                // Update cart counter
+                $('#cart-count').text(response.cart_count);
             } else {
-                alert('Error: ' + (res.message || 'Could not add to cart'));
-                console.error(res);
+                alert("Error: " + response.message);
             }
         },
-        error: function(xhr, status, error) {
-            console.error('AJAX error:', status, error);
+        error: function () {
+            alert("Server error. Try again.");
         }
     });
+
 });

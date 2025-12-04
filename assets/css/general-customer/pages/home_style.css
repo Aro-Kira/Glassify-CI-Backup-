@@ -34,18 +34,6 @@ h1 {
   margin: 0; /* reset margins */
 }
 
-/* Hero Section */
-.dashboard-hero {
-   background: 
-    linear-gradient(rgba(10, 42, 58, 0.6), rgba(10, 42, 58, 0.6)),
-    url('../img/home_bg.png');
-  background-size: cover;
-  background-position: center;
-  position: relative; /* important */
-  padding: 10%;
-  color: #fff;
-  text-align: center;
-}
 
 .hero-cards {
   display: flex;

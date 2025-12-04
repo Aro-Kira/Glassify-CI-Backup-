@@ -8,7 +8,7 @@ class UserCon extends CI_Controller
     {
         parent::__construct();
         $this->load->model('User_model');
-        $this->load->library(['session', 'upload']);
+        $this->load->library(['session', 'upload', 'form_validation', 'image_lib']);
         $this->load->helper(['url', 'form']);
     }
 
@@ -17,8 +17,7 @@ class UserCon extends CI_Controller
     // =============================
     public function profile()
     {
-        $userID = $this->session->userdata('user_id'); // lowercase
-
+        $userID = $this->session->userdata('user_id');
 
         if (!$userID) {
             show_error('No active user session', 403);
@@ -27,9 +26,10 @@ class UserCon extends CI_Controller
 
         $data['title'] = "Glassify - User Profile";
         $data['user'] = $this->User_model->get_by_id($userID);
+        $data['addresses'] = $this->User_model->get_addresses($userID);
 
+        // Fallback if user not found
         if (!$data['user']) {
-            // fallback if user not found
             $data['user'] = (object) [
                 'First_Name' => '',
                 'Middle_Name' => '',
@@ -40,25 +40,99 @@ class UserCon extends CI_Controller
             ];
         }
 
+        // Fallback if addresses not found
+        foreach (['Shipping', 'Billing'] as $type) {
+            if (!isset($data['addresses'][$type]) || !$data['addresses'][$type]) {
+                $data['addresses'][$type] = (object)[
+                    'AddressLine' => '',
+                    'City' => '',
+                    'Province' => '',
+                    'Country' => '',
+                    'ZipCode' => '',
+                    'Note' => ''
+                ];
+            }
+        }
+
         $this->load->view('includes/header', $data);
         $this->load->view('user/profile', $data);
         $this->load->view('includes/footer');
     }
 
     // =============================
-    // UPDATE PROFILE INFO
+    // ADD NEW ADDRESS (AJAX)
+    // =============================
+    public function add_address()
+{
+    // Require login
+   $userID = $this->session->userdata('user_id');
+
+if (!$userID) {
+    echo json_encode(['success' => false, 'message' => 'Not logged in']);
+    return;
+}
+
+
+    $data = [
+        'UserID'      => $userID,
+        'AddressLine' => $this->input->post('AddressLine', true),
+        'City'        => $this->input->post('City', true),
+        'Province'    => $this->input->post('Province', true),
+        'Country'     => $this->input->post('Country', true),
+        'ZipCode'     => $this->input->post('ZipCode', true),
+        'AddressType' => 'Shipping' // default
+    ];
+
+$this->load->model('User_model');
+
+
+    $insert_id = $this->User_model->add_address($data);
+
+    if ($insert_id) {
+        $full = $data['AddressLine'] . ", " . $data['City'] . ", " . $data['Province'] . ", " . $data['Country'] . ", " . $data['ZipCode'];
+
+        echo json_encode([
+            'success' => true,
+            'address_id' => $insert_id,
+            'full_address' => $full
+        ]);
+    } else {
+        echo json_encode([
+            'success' => false,
+            'message' => 'Failed to save address'
+        ]);
+    }
+}
+
+    // =============================
+    // GET USER ADDRESSES (AJAX)
+    // =============================
+public function get_addresses()
+{
+    $user_id = $this->session->userdata('user_id');
+
+    $this->load->model('User_model');
+    $addresses = $this->User_model->get_user_addresses($user_id);
+
+    echo json_encode([
+        'success' => true,
+        'data' => $addresses
+    ]);
+}
+
+
+
+    // =============================
+    // UPDATE PROFILE + ADDRESS
     // =============================
     public function update_profile()
     {
-        $userID = $this->session->userdata('user_id'); // lowercase
-
-
+        $userID = $this->session->userdata('user_id');
         if (!$userID) {
             return $this->send_response('error', 'No active user session', 403);
         }
 
-        // Validate POST inputs
-        $this->load->library('form_validation');
+        // Validate user info
         $this->form_validation->set_rules('firstname', 'First Name', 'required|trim');
         $this->form_validation->set_rules('lastname', 'Last Name', 'required|trim');
         $this->form_validation->set_rules('email', 'Email', 'required|valid_email|trim');
@@ -68,13 +142,19 @@ class UserCon extends CI_Controller
             return $this->send_response('error', validation_errors(), 400);
         }
 
+        // Prepare user data
         $updateData = [
             'First_Name' => $this->input->post('firstname', TRUE),
             'Middle_Name' => $this->input->post('middlename', TRUE),
             'Last_Name' => $this->input->post('lastname', TRUE),
             'Email' => $this->input->post('email', TRUE),
-            'PhoneNum' => $this->input->post('phone', TRUE),
+            'PhoneNum' => $this->input->post('phone', TRUE)
         ];
+
+        $password = $this->input->post('password', TRUE);
+        if (!empty($password)) {
+            $updateData['Password'] = password_hash($password, PASSWORD_DEFAULT);
+        }
 
         // Handle image upload
         if (!empty($_FILES['image']['name'])) {
@@ -85,9 +165,27 @@ class UserCon extends CI_Controller
             $updateData['ImageUrl'] = $uploadResult['file_path'];
         }
 
-        // Update user
         if (!$this->User_model->update_user($userID, $updateData)) {
             return $this->send_response('error', 'Failed to update profile', 500);
+        }
+
+        // Handle addresses if provided (optional, based on modal selection)
+        $address = $this->input->post('address', TRUE);
+        if ($address) {
+            $shippingData = [
+                'AddressLine' => $this->input->post('address', TRUE),
+                'City' => $this->input->post('city', TRUE),
+                'Province' => $this->input->post('province', TRUE),
+                'Country' => $this->input->post('country', TRUE),
+                'ZipCode' => $this->input->post('zipcode', TRUE),
+                'Note' => $this->input->post('note', TRUE)
+            ];
+
+            $this->User_model->update_address($userID, 'Shipping', $shippingData);
+
+            if ($this->input->post('same')) {
+                $this->User_model->update_address($userID, 'Billing', $shippingData);
+            }
         }
 
         $this->send_response('success', 'Profile updated successfully');
@@ -98,20 +196,16 @@ class UserCon extends CI_Controller
     // =============================
     public function upload_photo()
     {
-        $userID = $this->session->userdata('user_id'); // lowercase
-
-
+        $userID = $this->session->userdata('user_id');
         if (!$userID) {
             return $this->send_response('error', 'No active user session', 403);
         }
 
         $uploadResult = $this->handle_upload('photo', $userID, 'profile_');
-
         if ($uploadResult['status'] === 'error') {
             return $this->send_response('error', $uploadResult['message'], 400);
         }
 
-        // Update user record
         if (!$this->User_model->update_user($userID, ['ImageUrl' => $uploadResult['file_path']])) {
             return $this->send_response('error', 'Failed to save profile photo', 500);
         }
@@ -122,12 +216,11 @@ class UserCon extends CI_Controller
     }
 
     // =============================
-    // UPLOAD HANDLER
+    // HANDLE IMAGE UPLOAD + CROP
     // =============================
     private function handle_upload($field, $userID, $prefix)
     {
-        // Upload configuration
-        $config['upload_path'] = FCPATH . 'uploads/profile/'; // use FCPATH to avoid "path not valid"
+        $config['upload_path'] = FCPATH . 'uploads/profile/';
         $config['allowed_types'] = 'jpg|jpeg|png';
         $config['max_size'] = 2048;
         $config['file_name'] = $prefix . $userID;
@@ -136,21 +229,15 @@ class UserCon extends CI_Controller
         $this->upload->initialize($config);
 
         if (!$this->upload->do_upload($field)) {
-            return [
-                'status' => 'error',
-                'message' => $this->upload->display_errors('', '')
-            ];
+            return ['status' => 'error', 'message' => $this->upload->display_errors('', '')];
         }
 
         $fileData = $this->upload->data();
         $filePath = $fileData['full_path'];
 
-        // -------------------------
-        // Crop to 1:1 (square)
-        // -------------------------
-        $this->load->library('image_lib');
+        // Crop to 1:1 square
         list($width, $height) = getimagesize($filePath);
-        $size = min($width, $height); // pick the smaller dimension
+        $size = min($width, $height);
         $x = ($width - $size) / 2;
         $y = ($height - $size) / 2;
 
@@ -165,22 +252,13 @@ class UserCon extends CI_Controller
         ];
 
         $this->image_lib->initialize($cropConfig);
-
         if (!$this->image_lib->crop()) {
-            return [
-                'status' => 'error',
-                'message' => $this->image_lib->display_errors('', '')
-            ];
+            return ['status' => 'error', 'message' => $this->image_lib->display_errors('', '')];
         }
-
         $this->image_lib->clear();
 
-        return [
-            'status' => 'success',
-            'file_path' => 'uploads/profile/' . $fileData['file_name']
-        ];
+        return ['status' => 'success', 'file_path' => 'uploads/profile/' . $fileData['file_name']];
     }
-
 
     // =============================
     // JSON RESPONSE HELPER

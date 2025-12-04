@@ -44,7 +44,7 @@
 
         <?php if ($this->session->userdata('is_logged_in')): ?>
             <!-- ========== USER-ONLY ICON (TRACK ORDER) ========== -->
-            <a href="<?php echo base_url('track_order'); ?>">
+            <a href="<?php echo base_url('my_purchases'); ?>">
                 <img src="<?php echo base_url('assets/images/img-page/tracking.png'); ?>" alt="Tracking"
                     class="tracking-icon">
             </a>

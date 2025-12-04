@@ -66,17 +66,18 @@
     margin: 73px 10% 0px 10%;
 }
 
+/* Green progress bar - width is dynamic based on --progress-width CSS variable */
 .order-progress::after {
     content: "";
     position: absolute;
     top: 20px;
-    left: 0;
-    right: 0;
+    left: 10%;
     height: 4px;
-    width: 40%;
+    width: calc(var(--progress-width, 0%) * 0.8); /* Scale to fit within the 80% track */
     background: #00a86b;
     z-index: 2;
-    margin: 73px 0px 0px 10%;
+    margin-top: 73px;
+    transition: width 0.5s ease;
 }
 
 .step {
@@ -205,4 +206,22 @@
     color: white;
     padding: 8px;
     border-radius: 4px 4px 0 0;
+}
+
+/* Back button for no order found */
+.btn-back {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 12px 25px;
+    background: #0d3d4d;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-back:hover {
+    background: #1a5a6e;
+    transform: translateX(-3px);
 }

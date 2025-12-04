@@ -1,7 +1,7 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/checkout_style.css'); ?>">
 
 <script>
-  const BASE_URL = "<?= base_url(); ?>";
+    const BASE_URL = "<?= base_url(); ?>";
 </script>
 
 
@@ -40,74 +40,89 @@
     <!-- Content row -->
     <div class="info-container">
         <section class="info-section">
-            <form>
+            <form id="profileForm" method="POST" action="<?= base_url('usercon/update_profile'); ?>">
+                <!-- User Info -->
                 <div class="form-row">
                     <div class="form-group">
                         <label>First Name</label>
-                        <input type="text" name="first_name" title="First Name" placeholder="Enter your first name">
+                        <input type="text" name="firstname" value="<?= htmlspecialchars($user->First_Name) ?>"
+                            placeholder="Enter your first name" required>
                     </div>
                     <div class="form-group">
-                        <label>Last name</label>
-                        <input type="text" name="last_name" title="Last Name" placeholder="Enter your last name">
+                        <label>Last Name</label>
+                        <input type="text" name="lastname" value="<?= htmlspecialchars($user->Last_Name) ?>"
+                            placeholder="Enter your last name" required>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Email address</label>
-                        <input type="email" name="email" title="Email Address" placeholder="Enter your email address">
+                        <input type="email" name="email" value="<?= htmlspecialchars($user->Email) ?>"
+                            placeholder="Enter your email address" required>
                     </div>
                     <div class="form-group">
                         <label>Phone number</label>
-                        <input type="tel" name="phone" title="Phone Number" placeholder="Enter your phone number"
-                            maxlength="11">
+                        <input type="tel" name="phone" value="<?= htmlspecialchars($user->PhoneNum) ?>" maxlength="11"
+                            placeholder="Enter your phone number" required>
                     </div>
                 </div>
 
+                <!-- Shipping Address -->
+                <div class="info-title">
+                    <h3>Shipping Address</h3>
+                </div>
                 <div class="form-row">
                     <div class="form-group full-width">
                         <label>Address line</label>
-                        <input type="text" name="address" title="Address Line" placeholder="Enter your address">
+                        <input type="text" name="address"
+                            value="<?= htmlspecialchars($addresses['Shipping']->AddressLine) ?>"
+                            placeholder="Enter your address" required>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Country</label>
-                        <input type="text" name="country" title="Country" placeholder="Enter your country">
+                        <input type="text" name="country"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Country) ?>"
+                            placeholder="Enter your country" required>
                     </div>
                     <div class="form-group">
                         <label>Zip code</label>
-                        <input type="text" name="zipcode" title="Zip code" placeholder="Enter your zip code">
+                        <input type="text" name="zipcode"
+                            value="<?= htmlspecialchars($addresses['Shipping']->ZipCode) ?>"
+                            placeholder="Enter your zip code" required>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Province</label>
-                        <input type="text" name="province" title="Province" placeholder="Enter your province">
+                        <input type="text" name="province"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Province) ?>"
+                            placeholder="Enter your province" required>
                     </div>
-                </div>
-
-                <div class="form-row">
                     <div class="form-group">
                         <label>City/Municipality</label>
-                        <input type="text" name="city" title="City or Municipality"
-                            placeholder="Enter your city or municipality">
+                        <input type="text" name="city" value="<?= htmlspecialchars($addresses['Shipping']->City) ?>"
+                            placeholder="Enter your city or municipality" required>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group full-width">
                         <label>Note</label>
-                        <input type="text" name="note" title="Note" placeholder="Add a note (optional)">
+                        <input type="text" name="note" value="<?= htmlspecialchars($addresses['Shipping']->Note) ?>"
+                            placeholder="Add a note (optional)">
                     </div>
                 </div>
 
-                <div class="checkbox-row">
-                    <input type="checkbox" id="same" name="same">
-                    <label for="same">Make billing address same as shipping</label>
-                </div>
+                <!-- Billing Address -->
+                <div class="terms"> <input type="checkbox" id="same-billing"> <label for="same-billing"> Make billing address same as shipping
+                       
+                    </label> </div>
+
             </form>
         </section>
 
@@ -148,9 +163,9 @@
             </div>
 
             <div class="terms">
-                <input type="checkbox" id="terms">
-                <label for="terms">
-                    I have read and agree to Glassify’s
+                <input type="checkbox" id="accept-terms">
+                <label for="accept-terms">
+                    I have read and agree to Glassify's
                     <a href="<?php echo base_url('terms_order'); ?>">Terms and Conditions of Purchase</a>
                 </label>
             </div>
@@ -163,42 +178,42 @@
 
 
 <div id="quotationModal" class="modal">
-  <div class="modal-content">
-    <span class="modal-close" id="closeModal">&times;</span>
+    <div class="modal-content">
+        <span class="modal-close" id="closeModal">&times;</span>
 
-    <div class="modal-header">Quotation</div>
-    <p class="quotation-date">Date: <span id="quotation-date"></span></p>
+        <div class="modal-header">Quotation</div>
+        <p class="quotation-date">Date: <span id="quotation-date"></span></p>
 
-    <div class="section-title">Customer Information:</div>
-    <div class="customer-info">
-      <p><strong>Name:</strong> John Doe</p>
-      <p><strong>Address:</strong> 123 Main Street, Anytown, USA</p>
-      <p><strong>Email:</strong> john.doe@example.com</p>
-      <p><strong>Phone:</strong> (123) 456-7890</p>
+        <div class="section-title">Customer Information:</div>
+        <div class="customer-info">
+            <p><strong>Name:</strong> John Doe</p>
+            <p><strong>Address:</strong> 123 Main Street, Anytown, USA</p>
+            <p><strong>Email:</strong> john.doe@example.com</p>
+            <p><strong>Phone:</strong> (123) 456-7890</p>
+        </div>
+
+        <div class="section-title">Quotation Details:</div>
+        <table class="quotation-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Rows will be dynamically generated -->
+            </tbody>
+        </table>
+
+        <div class="quotation-total">
+            <p><strong>Subtotal:</strong> <span id="quote-subtotal">₱0.00</span></p>
+            <p><strong>Shipping Fee:</strong> <span id="quote-shipping">₱0.00</span></p>
+            <p><strong>Handling Fee:</strong> <span id="quote-handling">₱0.00</span></p>
+            <p><strong>Grand Total:</strong> <span id="quote-grandtotal">₱0.00</span></p>
+        </div>
     </div>
-
-    <div class="section-title">Quotation Details:</div>
-    <table class="quotation-table">
-      <thead>
-        <tr>
-          <th>Product</th>
-          <th>Quantity</th>
-          <th>Unit Price</th>
-          <th>Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Rows will be dynamically generated -->
-      </tbody>
-    </table>
-
-    <div class="quotation-total">
-      <p><strong>Subtotal:</strong> <span id="quote-subtotal">₱0.00</span></p>
-      <p><strong>Shipping Fee:</strong> <span id="quote-shipping">₱0.00</span></p>
-      <p><strong>Handling Fee:</strong> <span id="quote-handling">₱0.00</span></p>
-      <p><strong>Grand Total:</strong> <span id="quote-grandtotal">₱0.00</span></p>
-    </div>
-  </div>
 </div>
 
 
@@ -240,11 +255,21 @@
 
     // === Place Order button logic ===
     document.getElementById("placeOrderBtn").addEventListener("click", function () {
+        const btn = this;
         const ewallet = document.getElementById("ewallet-radio").checked;
         const cod = document.getElementById("COD-radio").checked;
+        const termsCheckbox = document.getElementById('accept-terms');
+        const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
 
+        // Validate payment method
         if (!ewallet && !cod) {
             alert("Please select a payment method before placing order.");
+            return;
+        }
+
+        // Validate terms acceptance
+        if (!termsAccepted) {
+            alert("Please accept the Terms and Conditions to proceed.");
             return;
         }
 
@@ -287,4 +312,6 @@
             form.submit();
         }
     });
+
+    
 </script>

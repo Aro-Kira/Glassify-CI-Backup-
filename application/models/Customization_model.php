@@ -3,7 +3,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Customization_model extends CI_Model
 {
-    protected $table = 'customization';
+    protected $table = "customization";
 
     public function __construct() {
         parent::__construct();

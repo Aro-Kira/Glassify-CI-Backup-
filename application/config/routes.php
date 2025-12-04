@@ -99,6 +99,7 @@ $route['wishlist'] = 'ShopCon/wishlist';
 $route['track_order'] = 'ShopCon/order_tracking';
 $route['waiting_order'] = 'ShopCon/waiting_order';
 $route['cartsave'] = 'AddtoCartCon/save';
+$route['my_purchases'] = 'ShopCon/list_products';
 
 /* 
 ======================================

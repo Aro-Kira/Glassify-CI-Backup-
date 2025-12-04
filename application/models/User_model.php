@@ -3,14 +3,17 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class User_model extends CI_Model
 {
-
     private $table = 'user';
+    private $addressTable = 'user_address';
 
     public function __construct()
     {
         parent::__construct();
     }
 
+    // =============================
+    // USER FUNCTIONS
+    // =============================
     public function register($data)
     {
         return $this->db->insert($this->table, $data);
@@ -26,7 +29,6 @@ class User_model extends CI_Model
         return $this->db->get_where($this->table, ['Email' => $email])->row();
     }
 
-    // ✅ REQUIRED BY Auth.php
     public function login($email)
     {
         return $this->get_by_email($email);
@@ -137,5 +139,60 @@ class User_model extends CI_Model
             log_message('warning', 'User_model->update_account: Update query executed but no rows were affected. UserID=' . $user_id . ', Data=' . json_encode($data));
             return false;
         }
+    }
+
+    // =============================
+    // ADDRESS FUNCTIONS
+    // =============================
+    public function get_addresses($userID)
+    {
+        $this->db->where('UserID', $userID);
+        $query = $this->db->get($this->addressTable);
+        $addresses = $query->result();
+
+        $result = [
+            'Shipping' => null,
+            'Billing' => null
+        ];
+
+        foreach ($addresses as $addr) {
+            $result[$addr->AddressType] = $addr;
+        }
+
+        return $result;
+    }
+
+    public function update_address($userID, $addressType, $data)
+    {
+        $this->db->where(['UserID' => $userID, 'AddressType' => $addressType]);
+        $exists = $this->db->count_all_results($this->addressTable, FALSE);
+
+        if ($exists > 0) {
+            return $this->db->update($this->addressTable, $data);
+        } else {
+            $data['UserID'] = $userID;
+            $data['AddressType'] = $addressType;
+            return $this->db->insert($this->addressTable, $data);
+        }
+    }
+
+    // ====================================
+    // ADD NEW ADDRESS (for multiple saved)
+    // ====================================
+    public function add_address($data)
+    {
+        $this->db->insert($this->addressTable, $data);
+        return $this->db->insert_id();
+    }
+
+    // ====================================
+    // GET USER ADDRESSES (for multiple saved)
+    // ====================================
+    public function get_user_addresses($userID)
+    {
+        return $this->db
+            ->where('UserID', $userID)
+            ->get($this->addressTable)
+            ->result();
     }
 }
