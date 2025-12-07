@@ -16,6 +16,7 @@ class Auth extends CI_Controller
     public function register()
     {
         $data['title'] = "Glassify - Register";
+        $data['force_guest_header'] = true; // Force guest header on login/register pages
         $this->load->view('includes/header', $data);
         $this->load->view('auth/register', $data);
         $this->load->view('includes/footer');
@@ -74,6 +75,7 @@ class Auth extends CI_Controller
         }
         
         $data['title'] = "Glassify - Login";
+        $data['force_guest_header'] = true; // Force guest header on login/register pages
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login', $data);
         $this->load->view('includes/footer');
@@ -82,6 +84,11 @@ class Auth extends CI_Controller
     // ===================== ADMIN LOGIN =====================
     public function admin_login()
     {
+        // If a customer is logged in, log them out automatically
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            $this->session->sess_destroy();
+        }
+        
         // Redirect Sales Representatives to their login page
         $user_role = $this->session->userdata('user_role');
         if ($user_role === 'Sales Representative') {
@@ -90,6 +97,7 @@ class Auth extends CI_Controller
         }
         
         $data['title'] = "Glassify - Admin Login";
+        $data['force_guest_header'] = true; // Force guest header on employee login pages
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login_admin', $data);
         $this->load->view('includes/footer');
@@ -98,11 +106,17 @@ class Auth extends CI_Controller
     // ===================== SALES LOGIN =====================
     public function sales_login()
     {
+        // If a customer is logged in, log them out automatically
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            $this->session->sess_destroy();
+        }
+        
         // Check for Remember Me cookie
         $remember_email = get_cookie('sales_remember_email');
         
         $data['title'] = "Glassify - Sales Login";
         $data['remember_email'] = $remember_email ? $remember_email : '';
+        $data['force_guest_header'] = true; // Force guest header on employee login pages
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login_sales', $data);
         $this->load->view('includes/footer');
@@ -111,6 +125,11 @@ class Auth extends CI_Controller
     // ===================== INVENTORY LOGIN =====================
     public function inventory_login()
     {
+        // If a customer is logged in, log them out automatically
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            $this->session->sess_destroy();
+        }
+        
         // Redirect Sales Representatives to their login page
         $user_role = $this->session->userdata('user_role');
         if ($user_role === 'Sales Representative') {
@@ -119,6 +138,7 @@ class Auth extends CI_Controller
         }
         
         $data['title'] = "Glassify - Inventory Login";
+        $data['force_guest_header'] = true; // Force guest header on employee login pages
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login_inventory', $data);
         $this->load->view('includes/footer');
@@ -403,7 +423,15 @@ class Auth extends CI_Controller
 
         if ($this->form_validation->run() == FALSE) {
             $this->session->set_flashdata('error', validation_errors());
-            redirect(base_url('forgot-password/' . $role));
+            // Redirect to appropriate forgot password page based on role
+            $forgot_password_routes = [
+                'Admin' => 'admin-forgot-password',
+                'Sales' => 'sales-forgot-password',
+                'Inventory' => 'inventory-forgot-password',
+                'Customer' => 'forgot-password'
+            ];
+            $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
+            redirect(base_url($redirect_url));
         }
 
         $email = $this->input->post('email', TRUE);
@@ -411,7 +439,15 @@ class Auth extends CI_Controller
         // Additional validation: Check if email is a valid working email
         if (!$this->is_valid_working_email($email)) {
             $this->session->set_flashdata('error', 'Please enter a real, working email address. Fake or invalid email addresses are not accepted.');
-            redirect(base_url('forgot-password/' . $role));
+            // Redirect to appropriate forgot password page based on role
+            $forgot_password_routes = [
+                'Admin' => 'admin-forgot-password',
+                'Sales' => 'sales-forgot-password',
+                'Inventory' => 'inventory-forgot-password',
+                'Customer' => 'forgot-password'
+            ];
+            $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
+            redirect(base_url($redirect_url));
         }
         $user = $this->User_model->get_by_email($email);
 
@@ -424,17 +460,32 @@ class Auth extends CI_Controller
         ];
         $db_role = $role_map[$role] ?? '';
 
-        // Validate: Only accept emails for Sales Representatives when role is Sales
-        // REJECT if email doesn't exist or doesn't belong to a Sales Representative
+        // Validate: Check if email exists
         if (!$user) {
-            $this->session->set_flashdata('error', 'Email not found or does not belong to a Sales Representative account.');
-            redirect(base_url('forgot-password/' . $role));
+            $this->session->set_flashdata('error', 'Email not found in our system.');
+            // Redirect to appropriate forgot password page based on role
+            $forgot_password_routes = [
+                'Admin' => 'admin-forgot-password',
+                'Sales' => 'sales-forgot-password',
+                'Inventory' => 'inventory-forgot-password',
+                'Customer' => 'forgot-password'
+            ];
+            $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
+            redirect(base_url($redirect_url));
         }
 
-        // REJECT if user is not a Sales Representative
-        if ($user->Role !== 'Sales Representative') {
-            $this->session->set_flashdata('error', 'This email does not belong to a Sales Representative account. Please use the appropriate login page for your account type.');
-            redirect(base_url('forgot-password/' . $role));
+        // Validate: Check if user role matches the requested role
+        if ($user->Role !== $db_role) {
+            $this->session->set_flashdata('error', 'This email does not belong to a ' . $role . ' account. Please use the appropriate login page for your account type.');
+            // Redirect to appropriate forgot password page based on role
+            $forgot_password_routes = [
+                'Admin' => 'admin-forgot-password',
+                'Sales' => 'sales-forgot-password',
+                'Inventory' => 'inventory-forgot-password',
+                'Customer' => 'forgot-password'
+            ];
+            $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
+            redirect(base_url($redirect_url));
         }
 
         // Generate reset token
@@ -447,21 +498,43 @@ class Auth extends CI_Controller
         // Send email with reset link
         $reset_link = base_url('reset-password/' . $role . '/' . $reset_token);
         
-        // For now, we'll log it. In production, send actual email
-        log_message('info', 'Password reset requested for: ' . $email . ' - Token: ' . $reset_token);
+        // Send password reset email
+        $email_sent = $this->send_reset_email($user->Email, $user->First_Name, $reset_link, $role);
         
-        // TODO: Implement actual email sending
-        // $this->send_reset_email($user->Email, $user->First_Name, $reset_link);
-
-        $this->session->set_flashdata('info', 'Password reset instructions have been sent to your email. Please check your inbox.');
-        redirect(base_url('sales-login'));
+        if ($email_sent) {
+            log_message('info', 'Password reset email sent successfully to: ' . $email);
+            $this->session->set_flashdata('email_sent', 'Password reset instructions have been sent to your email. Please check your inbox (and spam folder if you don\'t see it).');
+        } else {
+            log_message('error', 'Failed to send password reset email to: ' . $email);
+            // Still show success message to user for security (don't reveal if email exists)
+            $this->session->set_flashdata('email_sent', 'Password reset instructions have been sent to your email. Please check your inbox (and spam folder if you don\'t see it).');
+        }
+        
+        // Redirect back to forgot password page to show success notification
+        $forgot_password_routes = [
+            'Admin' => 'admin-forgot-password',
+            'Sales' => 'sales-forgot-password',
+            'Inventory' => 'inventory-forgot-password',
+            'Customer' => 'forgot-password'
+        ];
+        $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
+        redirect(base_url($redirect_url));
     }
 
     public function reset_password($role = 'Sales', $token = '')
     {
         if (empty($token)) {
             $this->session->set_flashdata('error', 'Invalid reset token.');
-            redirect(base_url('sales-login'));
+            
+            // Redirect to appropriate login page based on role
+            $login_redirect = [
+                'Admin' => 'Adlog',
+                'Sales' => 'sales-login',
+                'Inventory' => 'Invlog',
+                'Customer' => 'login'
+            ];
+            $redirect_url = $login_redirect[$role] ?? 'login';
+            redirect(base_url($redirect_url));
         }
 
         // Verify token
@@ -469,7 +542,15 @@ class Auth extends CI_Controller
 
         if (!$user || strtotime($user->reset_token_expiry) < time()) {
             $this->session->set_flashdata('error', 'Invalid or expired reset token. Please request a new one.');
-            redirect(base_url('forgot-password/' . $role));
+            // Redirect to appropriate forgot password page based on role
+            $forgot_password_routes = [
+                'Admin' => 'admin-forgot-password',
+                'Sales' => 'sales-forgot-password',
+                'Inventory' => 'inventory-forgot-password',
+                'Customer' => 'forgot-password'
+            ];
+            $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
+            redirect(base_url($redirect_url));
         }
 
         $data['title'] = "Glassify - Reset Password";
@@ -488,7 +569,8 @@ class Auth extends CI_Controller
 
         if ($this->form_validation->run() == FALSE) {
             $this->session->set_flashdata('error', validation_errors());
-            redirect(base_url('reset-password/' . $role . '/' . $this->input->post('token')));
+            $token = $this->input->post('token');
+            redirect(base_url('reset-password/' . $role . '/' . $token));
         }
 
         $token = $this->input->post('token', TRUE);
@@ -499,28 +581,167 @@ class Auth extends CI_Controller
 
         if (!$user || strtotime($user->reset_token_expiry) < time()) {
             $this->session->set_flashdata('error', 'Invalid or expired reset token. Please request a new one.');
-            redirect(base_url('forgot-password/' . $role));
+            // Redirect to appropriate forgot password page based on role
+            $forgot_password_routes = [
+                'Admin' => 'admin-forgot-password',
+                'Sales' => 'sales-forgot-password',
+                'Inventory' => 'inventory-forgot-password',
+                'Customer' => 'forgot-password'
+            ];
+            $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
+            redirect(base_url($redirect_url));
         }
 
         // Update password
         $hashed_password = password_hash($password, PASSWORD_BCRYPT);
-        if ($this->User_model->update_password($user->UserID, $hashed_password)) {
-            // Clear reset token
-            $this->User_model->clear_reset_token($user->UserID);
+        
+        // Log password reset attempt
+        log_message('info', 'Password reset attempt for UserID=' . $user->UserID . ', Email=' . $user->Email);
+        
+        // Start database transaction to ensure data integrity
+        $this->db->trans_start();
+        
+        // Update password in database
+        $password_updated = $this->User_model->update_password($user->UserID, $hashed_password);
+        
+        if ($password_updated) {
+            // Clear reset token after successful password update
+            $token_cleared = $this->User_model->clear_reset_token($user->UserID);
             
-            $this->session->set_flashdata('success', 'Password reset successfully! You can now log in with your new password.');
+            // Complete transaction
+            $this->db->trans_complete();
             
-            $login_routes = [
-                'Admin' => 'Adlog',
-                'Sales' => 'sales-login',
-                'Inventory' => 'Invlog',
-                'Customer' => 'login'
-            ];
-            $redirect_url = $login_routes[$role] ?? 'login';
-            redirect(base_url($redirect_url));
+            // Verify transaction was successful
+            if ($this->db->trans_status() === FALSE) {
+                log_message('error', 'Password reset transaction failed for UserID=' . $user->UserID);
+                $this->session->set_flashdata('error', 'Failed to reset password. Database transaction failed. Please try again.');
+                redirect(base_url('reset-password/' . $role . '/' . $token));
+            }
+            
+            // Verify password was actually saved to database by checking the database
+            // This ensures the password update was committed successfully
+            $updated_user = $this->User_model->get_by_id($user->UserID);
+            if ($updated_user) {
+                // Verify the new password matches what we just saved
+                if (password_verify($password, $updated_user->Password)) {
+                    log_message('info', 'Password successfully updated and verified in database for UserID=' . $user->UserID . ', Email=' . $user->Email);
+                    $this->session->set_flashdata('success', 'Password reset successfully! You can now log in with your new password.');
+                    
+                    $login_routes = [
+                        'Admin' => 'Adlog',
+                        'Sales' => 'sales-login',
+                        'Inventory' => 'Invlog',
+                        'Customer' => 'login'
+                    ];
+                    $redirect_url = $login_routes[$role] ?? 'login';
+                    redirect(base_url($redirect_url));
+                } else {
+                    // Password was updated but verification failed - this is unusual but could happen
+                    // Log as warning but still consider it successful since transaction completed
+                    log_message('warning', 'Password update completed but verification check failed for UserID=' . $user->UserID . '. Password may still be updated in database.');
+                    $this->session->set_flashdata('success', 'Password reset completed. You can now log in with your new password.');
+                    
+                    $login_routes = [
+                        'Admin' => 'Adlog',
+                        'Sales' => 'sales-login',
+                        'Inventory' => 'Invlog',
+                        'Customer' => 'login'
+                    ];
+                    $redirect_url = $login_routes[$role] ?? 'login';
+                    redirect(base_url($redirect_url));
+                }
+            } else {
+                // User not found after update - this should not happen
+                log_message('error', 'User not found after password update for UserID=' . $user->UserID);
+                $this->session->set_flashdata('error', 'Password update completed but user verification failed. Please try logging in or contact support.');
+                
+                $login_routes = [
+                    'Admin' => 'Adlog',
+                    'Sales' => 'sales-login',
+                    'Inventory' => 'Invlog',
+                    'Customer' => 'login'
+                ];
+                $redirect_url = $login_routes[$role] ?? 'login';
+                redirect(base_url($redirect_url));
+            }
         } else {
-            $this->session->set_flashdata('error', 'Failed to reset password. Please try again.');
+            // Rollback transaction on failure
+            $this->db->trans_rollback();
+            
+            // Get database error for logging
+            $db_error = $this->db->error();
+            log_message('error', 'Password update failed for UserID=' . $user->UserID . ', Error: ' . json_encode($db_error));
+            
+            $this->session->set_flashdata('error', 'Failed to reset password. Please try again or contact support if the problem persists.');
             redirect(base_url('reset-password/' . $role . '/' . $token));
+        }
+    }
+
+    // ===================== SEND RESET EMAIL =====================
+    /**
+     * Send password reset email to user
+     * 
+     * @param string $user_email User's email address
+     * @param string $first_name User's first name
+     * @param string $reset_link Password reset link with token
+     * @param string $role User role (for email personalization)
+     * @return bool True if email sent successfully, false otherwise
+     */
+    private function send_reset_email($user_email, $first_name, $reset_link, $role = 'Customer')
+    {
+        try {
+            // Load email configuration
+            $this->load->config('email');
+            
+            // Initialize email library with SMTP settings
+            $this->email->initialize([
+                'protocol' => $this->config->item('protocol'),
+                'smtp_host' => $this->config->item('smtp_host'),
+                'smtp_user' => $this->config->item('smtp_user'),
+                'smtp_pass' => $this->config->item('smtp_pass'),
+                'smtp_port' => $this->config->item('smtp_port'),
+                'smtp_crypto' => $this->config->item('smtp_crypto'),
+                'smtp_timeout' => $this->config->item('smtp_timeout'),
+                'mailtype' => 'html',
+                'charset' => 'utf-8',
+                'newline' => "\r\n",
+                'crlf' => "\r\n"
+            ]);
+            
+            // Set email details
+            $this->email->from('glassifytesting@gmail.com', 'Glassify');
+            $this->email->to($user_email);
+            $this->email->subject('Password Reset Request - Glassify');
+            
+            // Prepare email data for view
+            $email_data = [
+                'first_name' => $first_name,
+                'reset_link' => $reset_link,
+                'user_email' => $user_email,
+                'role' => $role
+            ];
+            
+            // Load email template
+            $email_body = $this->load->view('emails/password_reset_email', $email_data, TRUE);
+            
+            // Set email message
+            $this->email->message($email_body);
+            
+            // Send email
+            $result = $this->email->send();
+            
+            if (!$result) {
+                // Log email error for debugging
+                $error = $this->email->print_debugger();
+                log_message('error', 'Email sending failed: ' . $error);
+                return false;
+            }
+            
+            return true;
+            
+        } catch (Exception $e) {
+            log_message('error', 'Exception in send_reset_email: ' . $e->getMessage());
+            return false;
         }
     }
 

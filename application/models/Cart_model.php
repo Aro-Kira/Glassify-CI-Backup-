@@ -41,6 +41,12 @@ class Cart_model extends CI_Model
                 return 'shower_enclosure_customization';
             case 'aluminum doors':
                 return 'aluminum_doors_customization';
+            case 'stair railings':
+                return 'customization'; // Default customization table
+            case 'windows':
+                return 'customization'; // Default customization table
+            case 'glass partition':
+                return 'customization'; // Default customization table
             case 'aluminum and bathroom doors':
                 return 'aluminum_bathroom_doors_customization';
             default:

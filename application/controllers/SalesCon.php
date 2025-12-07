@@ -155,23 +155,33 @@ class SalesCon extends CI_Controller
      */
     private function log_activity($action, $description, $role, $user_id = null, $user_name = null, $related_id = null, $related_type = null)
     {
-        $data = [
-            'Action' => $action,
-            'Description' => $description,
-            'Role' => $role,
-            'UserID' => $user_id,
-            'UserName' => $user_name,
-            'RelatedID' => $related_id,
-            'RelatedType' => $related_type,
-            'Timestamp' => date('Y-m-d H:i:s')
-        ];
-        
-        $this->db->insert('system_activity_log', $data);
-        
-        // Also create notification in sales_notif table
-        $icon = $this->determine_notification_icon($action, $description);
-        $notification_description = $action . ': ' . $description;
-        $this->add_sales_notification($icon, $role, $notification_description, 'Unread', $related_id, $related_type);
+        try {
+            // Check if system_activity_log table exists before inserting
+            if ($this->db->table_exists('system_activity_log')) {
+                $data = [
+                    'Action' => $action,
+                    'Description' => $description,
+                    'Role' => $role,
+                    'UserID' => $user_id,
+                    'UserName' => $user_name,
+                    'RelatedID' => $related_id,
+                    'RelatedType' => $related_type,
+                    'Timestamp' => date('Y-m-d H:i:s')
+                ];
+                
+                $this->db->insert('system_activity_log', $data);
+            }
+            
+            // Also create notification in sales_notif table
+            if ($this->db->table_exists('sales_notif')) {
+                $icon = $this->determine_notification_icon($action, $description);
+                $notification_description = $action . ': ' . $description;
+                $this->add_sales_notification($icon, $role, $notification_description, 'Unread', $related_id, $related_type);
+            }
+        } catch (Exception $e) {
+            // Log error but don't throw exception
+            log_message('error', 'Failed to log activity: ' . $e->getMessage());
+        }
     }
     
     /**
@@ -2069,6 +2079,11 @@ class SalesCon extends CI_Controller
         $sales_rep_id = $this->get_current_sales_rep_id();
         $order_id = $this->input->post('order_id');
         
+        if (!$sales_rep_id) {
+            echo json_encode(['success' => false, 'message' => 'Sales representative ID not found. Please log in again.']);
+            return;
+        }
+        
         if (!$order_id) {
             echo json_encode(['success' => false, 'message' => 'Order ID is required']);
             return;
@@ -2089,31 +2104,54 @@ class SalesCon extends CI_Controller
             
             // Update payment table
             $this->db->where('OrderID', $order_id_numeric);
-            $this->db->update('payment', [
+            $update_payment = $this->db->update('payment', [
                 'Status' => 'Paid',
                 'Payment_Date' => date('Y-m-d H:i:s')
             ]);
             
+            if (!$update_payment) {
+                $error = $this->db->error();
+                throw new Exception('Failed to update payment table: ' . $error['message']);
+            }
+            
             // Update order table PaymentStatus
             $this->db->where('OrderID', $order_id_numeric);
-            $this->db->update('order', [
+            $update_order = $this->db->update('order', [
                 'PaymentStatus' => 'Paid'
             ]);
             
+            if (!$update_order) {
+                $error = $this->db->error();
+                // Log warning but don't fail if order table doesn't have the record
+                log_message('warning', 'Failed to update order table PaymentStatus for OrderID ' . $order_id_numeric . ': ' . $error['message']);
+            }
+            
             // Also update approved_orders table PaymentStatus if it exists
             $order_id_string = 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
-            $this->db->where('OrderID', $order_id_string);
-            $this->db->where('SalesRep_ID', $sales_rep_id);
-            $this->db->update('approved_orders', [
-                'PaymentStatus' => 'Paid'
-            ]);
+            if ($this->db->table_exists('approved_orders')) {
+                $this->db->where('OrderID', $order_id_string);
+                $this->db->where('SalesRep_ID', $sales_rep_id);
+                $update_approved = $this->db->update('approved_orders', [
+                    'PaymentStatus' => 'Paid'
+                ]);
+                
+                if (!$update_approved) {
+                    $error = $this->db->error();
+                    // Log warning but don't fail if approved_orders doesn't have the record
+                    log_message('warning', 'Failed to update approved_orders PaymentStatus for OrderID ' . $order_id_string . ': ' . $error['message']);
+                }
+            }
             
             // Deduct materials from inventory after payment
             // Get product ID from order or approved_orders
             $product_id = null;
-            $this->db->select('Product_ID, ProductName');
-            $this->db->where('OrderID', $order_id_string);
-            $order_info = $this->db->get('approved_orders')->row();
+            if ($this->db->table_exists('approved_orders')) {
+                $this->db->select('Product_ID, ProductName');
+                $this->db->where('OrderID', $order_id_string);
+                $order_info = $this->db->get('approved_orders')->row();
+            } else {
+                $order_info = null;
+            }
             
             if ($order_info && isset($order_info->Product_ID) && $order_info->Product_ID) {
                 $product_id = $order_info->Product_ID;
@@ -2135,14 +2173,19 @@ class SalesCon extends CI_Controller
             }
             
             if ($product_id) {
-                // Deduct materials for this product
-                $deduction_result = $this->Inventory_model->deduct_materials_for_order($order_id_numeric, $product_id, 1);
-                
-                if (!$deduction_result['success']) {
-                    // Log warning if some materials couldn't be deducted
-                    log_message('error', 'Some materials could not be deducted for order ' . $order_id_string . ': ' . json_encode($deduction_result['out_of_stock_items']));
-                } else {
-                    log_message('info', 'Materials deducted successfully for order ' . $order_id_string);
+                // Deduct materials for this product (wrap in try-catch to prevent failure)
+                try {
+                    $deduction_result = $this->Inventory_model->deduct_materials_for_order($order_id_numeric, $product_id, 1);
+                    
+                    if (!$deduction_result['success']) {
+                        // Log warning if some materials couldn't be deducted
+                        log_message('error', 'Some materials could not be deducted for order ' . $order_id_string . ': ' . json_encode($deduction_result['out_of_stock_items']));
+                    } else {
+                        log_message('info', 'Materials deducted successfully for order ' . $order_id_string);
+                    }
+                } catch (Exception $deduct_error) {
+                    // Log the error but don't fail the payment update
+                    log_message('error', 'Failed to deduct materials for order ' . $order_id_string . ': ' . $deduct_error->getMessage());
                 }
             } else {
                 log_message('error', 'Could not find product ID for order ' . $order_id_string . ' - materials not deducted');
@@ -2158,16 +2201,21 @@ class SalesCon extends CI_Controller
             $payment_info = $this->db->get('payment')->row();
             $payment_amount = $payment_info ? $payment_info->Amount : 0;
             
-            // Log activity and create notification
-            $this->log_activity(
-                'Payment Received',
-                "Payment for Order {$order_id_string} (Amount: ₱" . number_format($payment_amount, 2) . ") has been marked as paid by {$sales_rep_name}.",
-                'Sales Representative',
-                $sales_rep_id,
-                $sales_rep_name,
-                $order_id_numeric,
-                'Payment'
-            );
+            // Log activity and create notification (wrap in try-catch to prevent failure)
+            try {
+                $this->log_activity(
+                    'Payment Received',
+                    "Payment for Order {$order_id_string} (Amount: ₱" . number_format($payment_amount, 2) . ") has been marked as paid by {$sales_rep_name}.",
+                    'Sales Representative',
+                    $sales_rep_id,
+                    $sales_rep_name,
+                    $order_id_numeric,
+                    'Payment'
+                );
+            } catch (Exception $log_error) {
+                // Log the error but don't fail the payment update
+                log_message('error', 'Failed to log activity for payment: ' . $log_error->getMessage());
+            }
             
             $this->db->trans_complete();
             
@@ -2183,8 +2231,40 @@ class SalesCon extends CI_Controller
                 'message' => 'Payment marked as paid successfully'
             ]);
         } catch (Exception $e) {
-            log_message('error', 'Error in mark_payment_paid: ' . $e->getMessage());
-            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+            // Rollback transaction if it's still active
+            if ($this->db->trans_status() !== FALSE) {
+                $this->db->trans_rollback();
+            }
+            
+            $error_message = $e->getMessage();
+            $error_trace = $e->getTraceAsString();
+            
+            log_message('error', 'Error in mark_payment_paid: ' . $error_message);
+            log_message('error', 'Stack trace: ' . $error_trace);
+            
+            // Return detailed error in development, generic in production
+            $message = (ENVIRONMENT === 'development') 
+                ? 'Server error: ' . $error_message 
+                : 'An error occurred while processing your request. Please try again.';
+            
+            echo json_encode(['success' => false, 'message' => $message]);
+        } catch (Error $e) {
+            // Catch PHP 7+ errors (fatal errors)
+            if ($this->db->trans_status() !== FALSE) {
+                $this->db->trans_rollback();
+            }
+            
+            $error_message = $e->getMessage();
+            $error_trace = $e->getTraceAsString();
+            
+            log_message('error', 'Fatal error in mark_payment_paid: ' . $error_message);
+            log_message('error', 'Stack trace: ' . $error_trace);
+            
+            $message = (ENVIRONMENT === 'development') 
+                ? 'Fatal error: ' . $error_message 
+                : 'An error occurred while processing your request. Please try again.';
+            
+            echo json_encode(['success' => false, 'message' => $message]);
         }
     }
     

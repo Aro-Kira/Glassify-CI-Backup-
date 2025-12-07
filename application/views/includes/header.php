@@ -9,10 +9,16 @@
     <title><?php echo isset($title) ? $title : "Glassify"; ?></title>
 </head>
 
+<?php 
+// Check if we should force guest header (for employee login pages and customer login/register pages)
+$force_guest = isset($force_guest_header) && $force_guest_header;
+$is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
+?>
+
 <header class="navbar">
     <!-- ========================= LOGO SECTION ========================= -->
     <div class="logo">
-        <a href="<?php echo base_url(); ?>">
+        <a href="<?php echo $is_logged_in ? base_url('home-login') : base_url(); ?>">
             <img src="<?php echo base_url('assets/images/img-page/logo.png'); ?>" alt="GlassWorth Logo">
         </a>
     </div>
@@ -20,7 +26,7 @@
     <!-- ========================= NAVIGATION LINKS ========================= -->
     <nav class="menu">
         <!-- ========== HOME LINK CHANGES BASED ON LOGIN STATUS ========== -->
-        <?php if ($this->session->userdata('is_logged_in')): ?>
+        <?php if ($is_logged_in): ?>
             <!-- When logged in, redirect Home to home-login page -->
             <a href="<?php echo base_url('home-login'); ?>" data-link>Home</a>
         <?php else: ?>
@@ -28,7 +34,7 @@
             <a href="<?php echo base_url(); ?>" data-link>Home</a>
         <?php endif; ?>
 
-        <?php if (!$this->session->userdata('is_logged_in')): ?>
+        <?php if (!$is_logged_in): ?>
             <!-- ========== GUEST-ONLY LINKS ========== -->
             <a href="<?php echo base_url('about'); ?>" data-link>About Us</a>
             <a href="<?php echo base_url('projects'); ?>" data-link>Projects</a>
@@ -41,8 +47,7 @@
 
     <!-- ========================= ICON SECTION ========================= -->
     <div class="icons">
-
-        <?php if ($this->session->userdata('is_logged_in')): ?>
+        <?php if ($is_logged_in): ?>
             <!-- ========== USER-ONLY ICON (TRACK ORDER) ========== -->
             <a href="<?php echo base_url('my_purchases'); ?>">
                 <img src="<?php echo base_url('assets/images/img-page/tracking.png'); ?>" alt="Tracking"
@@ -51,14 +56,14 @@
         <?php endif; ?>
 
         <!-- CART ICON (Requires Login) -->
-        <a href="<?= base_url($this->session->userdata('is_logged_in') ? 'addtocart' : 'login?redirect=addtocart'); ?>"
+        <a href="<?= base_url($is_logged_in ? 'addtocart' : 'login?redirect=addtocart'); ?>"
             class="icon-link">
             <img src="<?= base_url('assets/images/img-page/shopping-cart.png'); ?>" alt="Shopping_cart">
         </a>
 
 
         <!-- WISHLIST ICON (Requires Login) -->
-        <a href="<?= base_url($this->session->userdata('is_logged_in') ? 'wishlist' : 'login?redirect=wishlist'); ?>"
+        <a href="<?= base_url($is_logged_in ? 'wishlist' : 'login?redirect=wishlist'); ?>"
             class="icon-link">
             <img src="<?= base_url('assets/images/img-page/heart.png'); ?>" alt="Wishlist">
         </a>
@@ -67,7 +72,7 @@
 
         <!-- ========== PROFILE / LOGIN ICON (ALWAYS LAST) ========== -->
         <div class="header-dropdown" style="display: inline-block; position: relative;">
-            <?php if ($this->session->userdata('is_logged_in')): ?>
+            <?php if ($is_logged_in): ?>
                 <!-- When logged in: show dropdown with Profile + Logout -->
                 <button class="header-dropbtn" style="background: none; border: none;">
                     <img src="<?php echo base_url('assets/images/img-page/user.png'); ?>" alt="Profile">

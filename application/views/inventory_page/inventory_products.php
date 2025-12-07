@@ -16,12 +16,12 @@
       <div class="controls-right">
         <select class="filter-category">
           <option value="">All Category</option>
-          <option value="cabinet">Cabinet</option>
-          <option value="doors">Doors</option>
-          <option value="mirrors">Mirror</option>
-          <option value="partition">Partition</option>
-          <option value="stair-railings">Railings</option>
-          <option value="windows">Window</option>
+          <option value="Mirrors">Mirrors</option>
+          <option value="Shower Enclosure / Partition">Shower Enclosure / Partition</option>
+          <option value="Aluminum Doors">Aluminum Doors</option>
+          <option value="Stair Railings">Stair Railings</option>
+          <option value="Windows">Windows</option>
+          <option value="Glass Partition">Glass Partition</option>
         </select>
 
       </div>

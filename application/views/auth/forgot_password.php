@@ -6,10 +6,28 @@
   </p>
 <?php endif; ?>
 
-<?php if ($this->session->flashdata('info')): ?>
-  <p style="color: #007bff; text-align:center; margin-bottom:10px;">
-    <?php echo $this->session->flashdata('info'); ?>
-  </p>
+<?php 
+$email_sent = $this->session->flashdata('email_sent');
+if ($email_sent):
+  // Get appropriate login page based on role
+  $login_redirect = [
+    'Admin' => 'Adlog',
+    'Sales' => 'sales-login',
+    'Inventory' => 'Invlog',
+    'Customer' => 'login'
+  ];
+  $redirect_url = $login_redirect[$role] ?? 'login';
+?>
+<script>
+  // Wait for page to fully load before showing alert
+  window.addEventListener('load', function() {
+    // Small delay to ensure page is fully rendered
+    setTimeout(function() {
+      alert('<?php echo addslashes($email_sent); ?>');
+      window.location.href = '<?php echo base_url($redirect_url); ?>';
+    }, 100);
+  });
+</script>
 <?php endif; ?>
 
 <section class="login-section">
@@ -27,7 +45,11 @@
         <span class="highlight">reset instructions</span>.
       </p>
       <div class="login-user-icon">
-        <img src="<?php echo base_url('assets/images/img-page/mdi_shield-account.png'); ?>" alt="reset-icon" width="95" height="95">
+        <?php if ($role === 'Customer'): ?>
+          <img src="<?php echo base_url('assets/images/img-page/mdi_account-outline.svg'); ?>" alt="account-icon">
+        <?php else: ?>
+          <img src="<?php echo base_url('assets/images/img-page/mdi_shield-account.png'); ?>" alt="reset-icon" width="95" height="95">
+        <?php endif; ?>
       </div>
     </div>
 
@@ -52,7 +74,17 @@
         <button type="submit" class="login-btn">Send Reset Link</button>
 
         <p class="login-register">
-          <a href="<?php echo base_url('sales-login'); ?>">← Back to Login</a>
+          <?php
+          // Redirect to appropriate login page based on role
+          $login_redirect = [
+            'Admin' => 'Adlog',
+            'Sales' => 'sales-login',
+            'Inventory' => 'Invlog',
+            'Customer' => 'login'
+          ];
+          $redirect_url = $login_redirect[$role] ?? 'login';
+          ?>
+          <a href="<?php echo base_url($redirect_url); ?>">← Back to Login</a>
         </p>
       </form>
 

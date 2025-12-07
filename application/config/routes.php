@@ -64,6 +64,7 @@ $route['projects'] = 'pages/projects';
 $route['home-login'] = 'pages/home_login';
 $route['quote-request'] = 'pages/process_quote_request';
 $route['test-email'] = 'pages/test_email';
+$route['terms'] = 'pages/terms';
 
 
 /* 
@@ -118,8 +119,14 @@ $route['Adlog'] = 'Auth/admin_login';
 $route['SLslog'] = 'Auth/sales_login';
 $route['sales-login'] = 'Auth/sales_login';
 $route['Invlog'] = 'Auth/inventory_login';
-$route['forgot-password/(:any)'] = 'auth/forgot_password/$1';
-$route['forgot-password'] = 'auth/forgot_password/Sales';
+
+/*==============Forgot Password Routes (Separate for each role)================*/
+$route['forgot-password'] = 'auth/forgot_password/Customer';
+$route['admin-forgot-password'] = 'auth/forgot_password/Admin';
+$route['sales-forgot-password'] = 'auth/forgot_password/Sales';
+$route['inventory-forgot-password'] = 'auth/forgot_password/Inventory';
+
+/*==============Reset Password Routes================*/
 $route['reset-password/(:any)/(:any)'] = 'auth/reset_password/$1/$2';
 $route['auth/process_forgot_password/(:any)'] = 'auth/process_forgot_password/$1';
 $route['auth/process_reset_password/(:any)'] = 'auth/process_reset_password/$1';

@@ -25,6 +25,9 @@
         <span class="highlight">Inventory</span> Access Only.<br>
         Manage <span class="highlight">Products</span>, Stock, and Inventory.
       </p>
+      <div class="login-user-icon">
+        <img src="<?php echo base_url('assets/images/img-page/mdi_shield-account.png'); ?>" alt="sales-icon" width="95" height="95">
+      </div>
     </div>
 
     <!-- Right Panel -->
@@ -61,7 +64,7 @@
 
         <div class="login-options">
           <label><input type="checkbox"> Remember Me</label>
-          <a href="#">Forgot Password?</a>
+          <a href="<?php echo base_url('inventory-forgot-password'); ?>">Forgot Password?</a>
         </div>
 
         <p class="login-register">

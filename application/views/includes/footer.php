@@ -2,6 +2,13 @@
 
 <link rel="stylesheet" href="<?php echo base_url('assets/css/include/footer_style.css'); ?>">
 
+<?php 
+// Check if we should force guest header (for employee login pages and customer login/register pages)
+// Use the same logic as header to ensure consistency
+$force_guest = isset($force_guest_header) && $force_guest_header;
+$is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
+?>
+
 <footer id="contact-footer" class="site-footer">
     <div class="footer-container">
 
@@ -26,11 +33,22 @@
         <div class="footer-section">
             <h3>Quick Links</h3>
             <ul>
-                <li><a href="<?php echo base_url(); ?>">Home</a></li>
-                <li><a href="<?php echo base_url('about'); ?>">About Us</a></li>
-                <li><a href="<?php echo base_url('products'); ?>">Products & Services</a></li>
-                <li><a href="<?php echo base_url('faq'); ?>">FAQ</a></li>
-                <li><a href="<?php echo base_url('projects'); ?>">Project Showcase</a></li>
+                <?php if ($is_logged_in): ?>
+                    <!-- Logged-in customer links (matching header) -->
+                    <li><a href="<?php echo base_url('home-login'); ?>">Home</a></li>
+                    <li><a href="<?php echo base_url('products'); ?>">Products</a></li>
+                    <li><a href="<?php echo base_url('faq'); ?>">FAQ</a></li>
+                    <li><a href="<?php echo base_url('my_purchases'); ?>">Track Order</a></li>
+                    <li><a href="<?php echo base_url('addtocart'); ?>">Cart</a></li>
+                    <li><a href="<?php echo base_url('wishlist'); ?>">Wishlist</a></li>
+                <?php else: ?>
+                    <!-- Guest/public links -->
+                    <li><a href="<?php echo base_url(); ?>">Home</a></li>
+                    <li><a href="<?php echo base_url('about'); ?>">About Us</a></li>
+                    <li><a href="<?php echo base_url('projects'); ?>">Project Showcase</a></li>
+                    <li><a href="<?php echo base_url('products'); ?>">Products & Services</a></li>
+                    <li><a href="<?php echo base_url('faq'); ?>">FAQ</a></li>
+                <?php endif; ?>
             </ul>
         </div>
 

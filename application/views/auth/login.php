@@ -55,7 +55,7 @@
 
         <div class="login-options">
           <label><input type="checkbox"> Remember Me</label>
-          <a href="#">Forgot Password?</a>
+          <a href="<?php echo base_url('forgot-password'); ?>">Forgot Password?</a>
         </div>
 
         <p class="login-register">

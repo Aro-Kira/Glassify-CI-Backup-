@@ -68,20 +68,51 @@ class User_model extends CI_Model
     // Update password
     public function update_password($user_id, $hashed_password)
     {
-        return $this->db->where('UserID', $user_id)
-            ->update($this->table, [
-                'Password' => $hashed_password
-            ]);
+        // Log the update attempt
+        log_message('debug', 'User_model->update_password: Attempting to update password for UserID=' . $user_id);
+        
+        // Perform the update
+        $this->db->where('UserID', $user_id);
+        $result = $this->db->update($this->table, [
+            'Password' => $hashed_password
+        ]);
+        
+        // Get affected rows and error info
+        $affected_rows = $this->db->affected_rows();
+        $db_error = $this->db->error();
+        
+        // Log the result
+        log_message('debug', 'User_model->update_password: Result=' . ($result ? 'true' : 'false') . ', Affected rows=' . $affected_rows);
+        
+        if (!empty($db_error['message'])) {
+            log_message('error', 'User_model->update_password: Database error - ' . $db_error['message']);
+        }
+        
+        // Return true only if update was successful AND at least one row was affected
+        return $result && $affected_rows > 0;
     }
 
     // Clear reset token
     public function clear_reset_token($user_id)
     {
-        return $this->db->where('UserID', $user_id)
-            ->update($this->table, [
-                'reset_token' => NULL,
-                'reset_token_expiry' => NULL
-            ]);
+        log_message('debug', 'User_model->clear_reset_token: Clearing reset token for UserID=' . $user_id);
+        
+        $this->db->where('UserID', $user_id);
+        $result = $this->db->update($this->table, [
+            'reset_token' => NULL,
+            'reset_token_expiry' => NULL
+        ]);
+        
+        $affected_rows = $this->db->affected_rows();
+        $db_error = $this->db->error();
+        
+        log_message('debug', 'User_model->clear_reset_token: Result=' . ($result ? 'true' : 'false') . ', Affected rows=' . $affected_rows);
+        
+        if (!empty($db_error['message'])) {
+            log_message('error', 'User_model->clear_reset_token: Database error - ' . $db_error['message']);
+        }
+        
+        return $result && $affected_rows > 0;
     }
 
     // Update user account information

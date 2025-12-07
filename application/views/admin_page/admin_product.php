@@ -113,27 +113,12 @@
       <label for="productCategory">Category</label>
       <select id="productCategory" class="input-text">
         <option value="" disabled selected>Select category</option>
-        <option value="balcony">Balcony</option>
-        <option value="board">Board</option>
-        <option value="cabinet">Cabinet</option>
-        <option value="doors">Doors</option>
-        <option value="mirrors">Mirrors</option>
-        <option value="partition">Partition</option>
-        <option value="shower-enclosure">Shower Enclosure</option>
-        <option value="sliding-doors">Sliding Doors</option>
-        <option value="sliding-windows">Sliding Windows</option>
-        <option value="stair-railings">Stair Railings</option>
-        <option value="storefront">Storefront</option>
-        <option value="windows">Windows</option>
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label for="productMaterial">Material</label>
-      <select id="productMaterial" class="input-text">
-        <option value="" disabled selected>Select material</option>
-        <option value="aluminum">Aluminum</option>
-        <option value="glass">Glass</option>
+        <option value="Mirrors">Mirrors</option>
+        <option value="Shower Enclosure / Partition">Shower Enclosure / Partition</option>
+        <option value="Aluminum Doors">Aluminum Doors</option>
+        <option value="Stair Railings">Stair Railings</option>
+        <option value="Windows">Windows</option>
+        <option value="Glass Partition">Glass Partition</option>
       </select>
     </div>
 
@@ -183,28 +168,12 @@
       <label for="editProductCategory">Category</label>
       <select id="editProductCategory" class="input-text">
         <option value="" disabled>Select category</option>
-        <option value="balcony">Balcony</option>
-        <option value="board">Board</option>
-        <option value="cabinet">Cabinet</option>
-        <option value="doors">Doors</option>
-        <option value="mirrors">Mirrors</option>
-        <option value="partition">Partition</option>
-        <option value="shower-enclosure">Shower Enclosure</option>
-        <option value="sliding-doors">Sliding Doors</option>
-        <option value="sliding-windows">Sliding Windows</option>
-        <option value="stair-railings">Stair Railings</option>
-        <option value="storefront">Storefront</option>
-        <option value="windows">Windows</option>
-      </select>
-    </div>
-
-    <!-- Material -->
-    <div class="form-group">
-      <label for="editProductMaterial">Material</label>
-      <select id="editProductMaterial" class="input-text">
-        <option value="" disabled>Select material</option>
-        <option value="Aluminum">Aluminum</option>
-        <option value="Glass">Glass</option>
+        <option value="Mirrors">Mirrors</option>
+        <option value="Shower Enclosure / Partition">Shower Enclosure / Partition</option>
+        <option value="Aluminum Doors">Aluminum Doors</option>
+        <option value="Stair Railings">Stair Railings</option>
+        <option value="Windows">Windows</option>
+        <option value="Glass Partition">Glass Partition</option>
       </select>
     </div>
 

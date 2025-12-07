@@ -42,6 +42,14 @@ class Pages extends CI_Controller {
         $this->load->view('includes/footer');
     }
 
+    public function terms() {
+        $data['title'] = "Glassify - Terms and Conditions";
+        $data['force_guest_header'] = true; // Force guest header on terms page
+        $this->load->view('includes/header', $data);
+        $this->load->view('pages/terms', $data);
+        $this->load->view('includes/footer');
+    }
+
     public function process_quote_request() {
         // Load required libraries
         $this->load->library(['form_validation', 'email', 'session']);

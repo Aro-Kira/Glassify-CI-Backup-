@@ -79,10 +79,9 @@
 
                 <div class="register-options">
                     <label>
-                        <input type="checkbox" required> I agree to Glassify’s 
-                        <a href="<?php echo base_url('terms'); ?>">Terms and Conditions</a>
+                        <input type="checkbox" required> I agree to Glassify's 
+                        <a href="<?php echo base_url('terms'); ?>" target="_blank">Terms and Conditions</a>
                     </label>
-                    <a href="#">Need Help?</a>
                 </div>
 
                 <button type="submit" class="register-btn">Sign Up</button>

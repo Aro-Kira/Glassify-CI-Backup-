@@ -66,7 +66,7 @@
 
         <div class="login-options">
           <label><input type="checkbox" name="remember_me" value="1" <?= (!empty($remember_email)) ? 'checked' : '' ?>> Remember Me</label>
-          <a href="<?php echo base_url('forgot-password/Sales'); ?>">Forgot Password?</a>
+          <a href="<?php echo base_url('sales-forgot-password'); ?>">Forgot Password?</a>
         </div>
 
         <p class="login-register">

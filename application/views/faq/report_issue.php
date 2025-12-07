@@ -5,14 +5,14 @@
   <div class="container">
     <!-- Path -->
     <div class="path">
-      <a href="faq.html" class="home" title="Go to FAQ Home">
+      <a href="<?php echo ($this->session->userdata('is_logged_in')) ? base_url('home-login') : base_url(); ?>" class="home" title="Go to Home">
         <svg class="home-icon" fill="currentColor" viewBox="0 0 20 20">
           <path
             d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
         </svg>
       </a>
       <span class="separator">></span>
-      <span class="articles" onclick="window.location.href='faq.html'">All articles</span>
+      <a href="<?php echo base_url('faq'); ?>" class="articles" style="color: #00455A; text-decoration: none; cursor: pointer;">All articles</a>
       <span class="separator">></span>
       <span class="current">Report Issue</span>
     </div>

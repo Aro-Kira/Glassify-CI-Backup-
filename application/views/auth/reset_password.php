@@ -27,7 +27,11 @@
         <span class="highlight">below</span>.
       </p>
       <div class="login-user-icon">
-        <img src="<?php echo base_url('assets/images/img-page/mdi_shield-account.png'); ?>" alt="reset-icon" width="95" height="95">
+        <?php if ($role === 'Customer'): ?>
+          <img src="<?php echo base_url('assets/images/img-page/mdi_account-outline.svg'); ?>" alt="account-icon">
+        <?php else: ?>
+          <img src="<?php echo base_url('assets/images/img-page/mdi_shield-account.png'); ?>" alt="reset-icon" width="95" height="95">
+        <?php endif; ?>
       </div>
     </div>
 
@@ -62,7 +66,17 @@
         <button type="submit" class="login-btn">Reset Password</button>
 
         <p class="login-register">
-          <a href="<?php echo base_url('sales-login'); ?>">← Back to Login</a>
+          <?php
+          // Redirect to appropriate login page based on role
+          $login_redirect = [
+            'Admin' => 'Adlog',
+            'Sales' => 'sales-login',
+            'Inventory' => 'Invlog',
+            'Customer' => 'login'
+          ];
+          $redirect_url = $login_redirect[$role] ?? 'login';
+          ?>
+          <a href="<?php echo base_url($redirect_url); ?>">← Back to Login</a>
         </p>
       </form>
 
