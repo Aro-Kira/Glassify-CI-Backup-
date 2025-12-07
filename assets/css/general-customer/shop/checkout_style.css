@@ -92,18 +92,22 @@ label {
 /* Inputs */
 input[type="text"],
 input[type="email"],
-input[type="tel"] {
+input[type="tel"],
+input[type="date"] {
   padding: 10px;
   border: 1px solid #bbb;
   border-radius: 4px;
   background: #fff;
   font-size: 14px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
-input[type="tel"]:focus {
+input[type="tel"]:focus,
+input[type="date"]:focus {
   outline: none;
   border-color: #0073e6;
   box-shadow: 0 0 4px rgba(0, 115, 230, 0.3);
@@ -241,10 +245,12 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
+  position: relative;
 }
 
 .back-btn{
   margin: 5% 0 0 15%;
+  flex-shrink: 0;
 }
 /* Back button */
 .back-btn a {
@@ -271,7 +277,10 @@ input[type="checkbox"] {
   font-size: 1.1em;
   font-weight: bold;
   color: #888;
-  margin: 5% auto 0px 17%; /* keeps it centered */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 5%;
 }
 
 

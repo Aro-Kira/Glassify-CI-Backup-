@@ -78,3 +78,4 @@ ADD INDEX IF NOT EXISTS `idx_Category` (`Category`);
 -- =====================================================
 SELECT 'Database integration completed successfully!' AS Message;
 
+

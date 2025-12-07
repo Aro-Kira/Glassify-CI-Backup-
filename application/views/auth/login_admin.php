@@ -37,6 +37,8 @@
 
       <?php
       $pending_email = $this->session->tempdata('pending_admin_email');
+      $remember_email_value = isset($remember_email) ? $remember_email : '';
+      $saved_email = $pending_email ?: ($remember_email ?? '');
       ?>
 
       <div class="login-input-group">
@@ -45,7 +47,7 @@
           <img src="<?php echo base_url('assets/images/img-page/ic_outline-email.svg'); ?>" alt="Email Icon"
             class="login-input-icon">
           <input type="email" id="email" name="email" placeholder="Enter your admin email"
-            value="<?= $pending_email ?? '' ?>" required>
+            value="<?= $saved_email ?>" required>
         </div>
       </div>
 
@@ -61,7 +63,7 @@
       <button type="submit" class="login-btn">Login as Admin</button>
 
       <div class="login-options">
-        <label><input type="checkbox"> Remember Me</label>
+        <label><input type="checkbox" name="remember_me" value="1" <?= (!empty($remember_email)) ? 'checked' : '' ?>> Remember Me</label>
         <a href="#">Forgot Password?</a>
       </div>
 
