@@ -32,55 +32,55 @@
     <div class="table-container">
       <div class="product-grid">
         <div class="product-card" data-category="cabinet">
-          <div class="product-image"><img src="/Glassify/assets/img_admin/cabinet.jpg" alt="Cabinet"></div>
+          <div class="product-image"><img src="<?php echo base_url('assets/images/img_admin/cabinet.jpg'); ?>" alt="Cabinet"></div>
           <p class="product-name">Glass Cabinet</p>
           <p class="product-price">₱1,100.00</p>
 
         </div>
         <div class="product-card" data-category="shower-enclosure">
-          <div class="product-image"><img src="/Glassify/assets/img_admin/french-shower-enclosure.jpg"
+          <div class="product-image"><img src="<?php echo base_url('assets/images/img_admin/french-shower-enclosure.jpg'); ?>"
               alt="Shower Enclosure"></div>
           <p class="product-name">French Type Fixed Shower Enclosure</p>
           <p class="product-price">₱5,200.00</p>
 
         </div>
         <div class="product-card" data-category="doors">
-          <div class="product-image"><img src="/Glassify/assets/img_admin/aluminum-screen.jpg" alt="Aluminum Screen">
+          <div class="product-image"><img src="<?php echo base_url('assets/images/img_admin/aluminum-screen.jpg'); ?>" alt="Aluminum Screen">
           </div>
           <p class="product-name">Aluminum Screen Door</p>
           <p class="product-price">₱4,100.00</p>
 
         </div>
         <div class="product-card" data-category="cabinet">
-          <div class="product-image"><img src="/Glassify/assets/img_admin/aluminum-cabinet.jpg" alt="Kitchen Cabinet">
+          <div class="product-image"><img src="<?php echo base_url('assets/images/img_admin/aluminum-cabinet.jpg'); ?>" alt="Kitchen Cabinet">
           </div>
           <p class="product-name">Aluminum Kitchen Cabinet</p>
           <p class="product-price">₱3,100.00</p>
 
         </div>
         <div class="product-card" data-category="windows">
-          <div class="product-image"><img src="/Glassify/assets/img_admin/sliding-window.jpg" alt="Sliding Window">
+          <div class="product-image"><img src="<?php echo base_url('assets/images/img_admin/sliding-window.jpg'); ?>" alt="Sliding Window">
           </div>
           <p class="product-name">Sliding Window</p>
           <p class="product-price">₱2,000.00</p>
 
         </div>
         <div class="product-card" data-category="mirrors">
-          <div class="product-image"><img src="/Glassify/assets/img_admin/arched frameless.jpg" alt="Arched Frameless">
+          <div class="product-image"><img src="<?php echo base_url('assets/images/img_admin/arched frameless.jpg'); ?>" alt="Arched Frameless">
           </div>
           <p class="product-name">Arched Frameless</p>
           <p class="product-price">₱1,200.00</p>
 
         </div>
         <div class="product-card" data-category="windows">
-          <div class="product-image"><img src="/Glassify/assets/img_admin/corner-glass.jpg" alt="Corner Fixed Glass">
+          <div class="product-image"><img src="<?php echo base_url('assets/images/img_admin/corner-glass.jpg'); ?>" alt="Corner Fixed Glass">
           </div>
           <p class="product-name">Corner Fixed Glass</p>
           <p class="product-price">₱10,000.00</p>
 
         </div>
         <div class="product-card" data-category="doors">
-          <div class="product-image"><img src="/Glassify/assets/img_admin/french-type-door.jpg" alt="Sliding Door">
+          <div class="product-image"><img src="<?php echo base_url('assets/images/img_admin/french-type-door.jpg'); ?>" alt="Sliding Door">
           </div>
           <p class="product-name">900 Series French Type Sliding Door</p>
           <p class="product-price">₱5,000.00</p>
@@ -106,6 +106,7 @@
 
 
 
-  <script src="/Glassify/assets/js/admin-sidebar.js"></script>
-  <script src="/Glassify/assets/js/product-popup.js"></script>
-  <script src="/Glassify/assets/js/product-filter.js"></script>
+  <!-- Only load scripts that exist -->
+  <script src="<?php echo base_url('assets/js/includes/sidebar.js'); ?>"></script>
+  <script src="<?php echo base_url('assets/js/admin-js/products.js'); ?>"></script>
+  <script src="<?php echo base_url('assets/js/sales-js/product-filter.js'); ?>"></script>

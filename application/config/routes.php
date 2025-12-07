@@ -171,6 +171,7 @@ $route['sales-update-priority'] = 'SalesCon/update_priority_ajax';
 $route['sales-get-issue-stats'] = 'SalesCon/get_issue_stats_ajax';
 $route['sales-notif'] = 'SalesCon/sales_notif';
 $route['SalesCon/update_account'] = 'SalesCon/update_account';
+$route['AdminCon/update_account'] = 'AdminCon/update_account';
 $route['SalesCon/get_order_details'] = 'SalesCon/get_order_details';
 $route['SalesCon/filter_orders_by_date'] = 'SalesCon/filter_orders_by_date';
 $route['SalesCon/get_payment_details'] = 'SalesCon/get_payment_details';
@@ -191,6 +192,19 @@ $route['inventory-inventory'] = 'InventCon/inventory_inventory';
 $route['inventory-account'] = 'InventCon/inventory_account';
 $route['inventory-reports'] = 'InventCon/inventory_reports';
 $route['inventory-notif'] = 'InventCon/inventory_notif';
+
+/* 
+======================================
+=============Inventory API Routes==============
+======================================
+ */
+$route['api/inventory/get_items'] = 'api/Inventory_api/get_items';
+$route['api/inventory/get_statistics'] = 'api/Inventory_api/get_statistics';
+$route['api/inventory/add_item'] = 'api/Inventory_api/add_item';
+$route['api/inventory/update_item/(:num)'] = 'api/Inventory_api/update_item/$1';
+$route['api/inventory/delete_item/(:num)'] = 'api/Inventory_api/delete_item/$1';
+$route['api/inventory/manage_stock/(:num)'] = 'api/Inventory_api/manage_stock/$1';
+$route['api/inventory/get_activities'] = 'api/Inventory_api/get_activities';
 
 $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;

@@ -76,17 +76,30 @@ body {
 }
 
 .apply-btn,
+.clear-btn,
 .add-appointment-button {
     background-color: #0288d1;
     color: white;
     border: none;
     padding: 10px 20px;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
     justify-content: space-between;
     font-size: 1em;
+    transition: all 0.3s ease;
+}
 
+.clear-btn {
+    background-color: #FDC103;
+    color: white;
+    border-radius: 8px;
+}
+
+.clear-btn:hover {
+    background-color: #DE8400;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(253, 193, 3, 0.3);
 }
 
 .add-appointment-button {
@@ -338,6 +351,12 @@ tbody tr:last-child td {
     background-color: #f9f9f9; /* optional: distinguish empty cells */
 }
 
+/* Day number in calendar cell */
+.calendar td .day-number {
+    font-weight: 600;
+    margin-bottom: 3px;
+}
+
 /* Previous/next month days */
 .calendar td.other-month {
     color: #999; /* dimmed color for days outside current month */
@@ -363,8 +382,12 @@ tbody tr:last-child td {
 }
 
 
-.calendar td .event.orange { background-color: #f2994a; } /* Ocular Visit / Site Visit */
-.calendar td .event.purple { background-color: #C837AB; } /* Measurements */
+/* Calendar event colors for different services */
+.calendar td .event.blue { background-color: #2196F3; }     /* Order Placed */
+.calendar td .event.orange { background-color: #f2994a; } /* Ocular Visit */
+.calendar td .event.purple { background-color: #C837AB; }  /* In Fabrication */
+.calendar td .event.yellow { background-color: #FDC103; }  /* Installed */
+.calendar td .event.green { background-color: #00e676; }   /* Completed */
 .calendar td .event.red { background-color: #eb5757; }     /* Cancelled */
 
 

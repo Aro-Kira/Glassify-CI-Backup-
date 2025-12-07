@@ -20,20 +20,40 @@ $(document).on('click', '#add-to-cart-btn', function () {
         url: base_url + "CartCon/add_customized_ajax",
         type: "POST",
         data: data,
-        success: function (res) {
-            let response = JSON.parse(res);
-
+        dataType: 'json',
+        success: function (response) {
             if (response.status === 'success') {
                 alert("Added to Cart!");
 
                 // Update cart counter
                 $('#cart-count').text(response.cart_count);
             } else {
-                alert("Error: " + response.message);
+                alert("Error: " + (response.message || 'Unknown error occurred'));
             }
         },
-        error: function () {
-            alert("Server error. Try again.");
+        error: function (xhr, status, error) {
+            // Try to parse error response
+            let errorMessage = "Server error. Try again.";
+            
+            if (xhr.responseText) {
+                try {
+                    let errorResponse = JSON.parse(xhr.responseText);
+                    if (errorResponse.message) {
+                        errorMessage = "Error: " + errorResponse.message;
+                    }
+                } catch (e) {
+                    // If not JSON, show status code
+                    errorMessage = "Server error (Status: " + xhr.status + "). Please check browser console for details.";
+                    console.error("AJAX Error:", {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        responseText: xhr.responseText,
+                        error: error
+                    });
+                }
+            }
+            
+            alert(errorMessage);
         }
     });
 

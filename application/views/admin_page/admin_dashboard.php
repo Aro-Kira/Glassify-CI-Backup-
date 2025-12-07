@@ -13,31 +13,21 @@
         <!-- Key Stats -->
         <section class="key-stats">
           <div class="stat-card stat-blue">
-            <div class="stat-value">125</div>
+            <div class="stat-value"><?php echo isset($stats['total_orders_month']) ? number_format($stats['total_orders_month']) : '0'; ?></div>
             <div class="stat-title">Total Order</div>
           </div>
           <div class="stat-card stat-orange">
-            <div class="stat-value">11</div>
+            <div class="stat-value"><?php echo isset($stats['pending_orders']) ? number_format($stats['pending_orders']) : '0'; ?></div>
             <div class="stat-title">Pending Orders</div>
           </div>
           <div class="stat-card stat-green">
-            <div class="stat-value">₱67,704</div>
+            <div class="stat-value">₱<?php echo isset($stats['weekly_sales']) ? number_format($stats['weekly_sales'], 2) : '0.00'; ?></div>
             <div class="stat-title">Weekly Sales</div>
-            <div class="stat-percent">↑ 18% from last week</div>
-          </div>
-        </section>
-
-        <!-- Sales Revenue -->
-        <section class="sales-revenue">
-          <div class="sales-header">
-            <h3>Sales Revenue</h3>
-            <div class="chart-legend">
-              <span class="legend-weekly">Weekly Sales</span>
-              <span class="legend-monthly">Monthly Sales</span>
-            </div>
-          </div>
-          <div class="chart-container">
-            <canvas id="salesChart"></canvas>
+            <?php if (isset($stats['debug_week_start']) && isset($stats['debug_week_end'])): ?>
+              <div style="font-size: 12px; margin-top: 5px; opacity: 0.8;">
+                Week: <?php echo $stats['debug_week_start']; ?> to <?php echo $stats['debug_week_end']; ?>
+              </div>
+            <?php endif; ?>
           </div>
         </section>
 
@@ -200,5 +190,3 @@
         </section>
 
       </div>
-
-  <script src="/Glassify/assets/js/dashboard-chart.js"></script>

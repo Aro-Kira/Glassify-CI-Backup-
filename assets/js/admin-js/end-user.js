@@ -17,13 +17,19 @@ function loadUsers() {
 function renderTable() {
     const tbody = document.querySelector("table tbody");
     tbody.innerHTML = "";
+    
+    if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No customers found</td></tr>';
+        return;
+    }
 
     users.forEach(user => {
         const tr = document.createElement("tr");
         tr.dataset.id = user.id;
+        const fullName = `${user.firstName} ${user.middleInitial ? user.middleInitial + ' ' : ''}${user.lastName}`.trim();
         tr.innerHTML = `
             <td></td>
-            <td>${user.firstName} ${user.middleInitial} ${user.lastName}</td>
+            <td>${fullName}</td>
             <td>${user.email}</td>
             <td>${user.joinedDate}</td>
             <td>${user.lastActive}</td>
@@ -68,12 +74,18 @@ function saveEdit() {
 
     const updatedUser = {
         id: currentEditingRow.id,
-        firstName: document.getElementById("edit-firstName").value,
-        middleInitial: document.getElementById("edit-middleInitial").value,
-        lastName: document.getElementById("edit-lastName").value,
-        email: document.getElementById("edit-email").value,
-        phone: document.getElementById("edit-phone").value
+        firstName: document.getElementById("edit-firstName").value.trim(),
+        middleInitial: document.getElementById("edit-middleInitial").value.trim(),
+        lastName: document.getElementById("edit-lastName").value.trim(),
+        email: document.getElementById("edit-email").value.trim(),
+        phone: document.getElementById("edit-phone").value.trim()
     };
+    
+    // Validation
+    if (!updatedUser.firstName || !updatedUser.lastName || !updatedUser.email) {
+        alert("Please fill all required fields!");
+        return;
+    }
 
     fetch(updateUserUrl, {
         method: "POST",
@@ -83,11 +95,17 @@ function saveEdit() {
         .then(res => res.json())
         .then(res => {
             if (res.success) {
+                alert("User updated successfully!");
                 closePopup();
                 loadUsers();
-            } else alert("Failed to save user.");
+            } else {
+                alert(res.message || "Failed to save user.");
+            }
         })
-        .catch(err => console.error("Failed to update user:", err));
+        .catch(err => {
+            console.error("Failed to update user:", err);
+            alert("Failed to update user. Please try again.");
+        });
 }
 
 // --- DELETE USER ---
@@ -112,11 +130,17 @@ document.querySelector(".popup-delete-confirm").addEventListener("click", () => 
         .then(res => res.json())
         .then(res => {
             if (res.success) {
+                alert("User deactivated successfully!");
                 closeDeletePopup();
                 loadUsers();
-            } else alert("Failed to delete user.");
+            } else {
+                alert(res.message || "Failed to deactivate user.");
+            }
         })
-        .catch(err => console.error("Failed to delete user:", err));
+        .catch(err => {
+            console.error("Failed to delete user:", err);
+            alert("Failed to deactivate user. Please try again.");
+        });
 });
 
 // --- DELETE FROM EDIT POPUP ---

@@ -12,29 +12,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let currentFilter = "all"; // store the current tab filter
     let usersData = []; // users array
-    let currentEditIndex = null;
+    let currentEditId = null; // store current editing user ID
 
-    // --- Load users from PHP JSON ---
+    // Base URL
+    const baseUrl = window.location.origin + '/Glassify-CI';
+
+    // --- Load users from database ---
     async function loadUsers() {
         try {
-            const res = await fetch('/Glassify-CI/EmpCon/get_users');
+            const res = await fetch(baseUrl + '/EmpCon/get_users');
+            if (!res.ok) throw new Error('Failed to fetch users');
             usersData = await res.json();
             renderTable();
         } catch (err) {
             console.error("Error loading users:", err);
-        }
-    }
-
-    // --- Save users to PHP JSON ---
-    async function saveUsersToServer() {
-        try {
-            await fetch('/Glassify-CI/EmpCon/save_users', {
-                method: 'POST',
-                body: JSON.stringify(usersData),
-                headers: { 'Content-Type': 'application/json' }
-            });
-        } catch (err) {
-            console.error("Error saving users:", err);
+            alert("Failed to load employees. Please refresh the page.");
         }
     }
 
@@ -42,21 +34,29 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderTable() {
         const tbody = document.querySelector(".table-container table tbody");
         tbody.innerHTML = "";
-        usersData.forEach((user, idx) => {
+        
+        if (usersData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No employees found</td></tr>';
+            return;
+        }
+        
+        usersData.forEach((user) => {
             const tr = document.createElement("tr");
+            const fullName = `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim();
             tr.innerHTML = `
-                <td>${user.name}</td>
+                <td>${fullName}</td>
                 <td>${user.role}</td>
                 <td>${user.email}</td>
                 <td><span class="status ${user.status.toLowerCase()}"></span>${user.status}</td>
-                <td><i class="fas fa-edit edit-icon"></i></td>
+                <td><i class="fas fa-edit edit-icon" data-id="${user.id}"></i></td>
             `;
             tbody.appendChild(tr);
         });
 
         // Bind edit icons
-        document.querySelectorAll(".edit-icon").forEach((icon, idx) => {
-            icon.addEventListener("click", () => openEditPopup(idx));
+        document.querySelectorAll(".edit-icon").forEach((icon) => {
+            const userId = parseInt(icon.getAttribute('data-id'));
+            icon.addEventListener("click", () => openEditPopup(userId));
         });
 
         filterRows(); // Apply current filter & search
@@ -65,10 +65,22 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Filter/Search ---
     function filterRows() {
         const searchTerm = searchInput.value.toLowerCase().trim();
-        document.querySelectorAll(".table-container table tbody tr").forEach((row, idx) => {
-            const user = usersData[idx];
+        document.querySelectorAll(".table-container table tbody tr").forEach((row) => {
+            const userId = parseInt(row.querySelector('.edit-icon')?.getAttribute('data-id'));
+            if (!userId) {
+                row.style.display = "none";
+                return;
+            }
+            
+            const user = usersData.find(u => u.id === userId);
+            if (!user) {
+                row.style.display = "none";
+                return;
+            }
+            
+            const fullName = `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.toLowerCase().trim();
             const matchesTab = currentFilter === "all" || user.role === currentFilter;
-            const matchesSearch = user.name.toLowerCase().includes(searchTerm) || user.email.toLowerCase().includes(searchTerm);
+            const matchesSearch = fullName.includes(searchTerm) || user.email.toLowerCase().includes(searchTerm);
             row.style.display = (matchesTab && matchesSearch) ? "table-row" : "none";
         });
     }
@@ -100,55 +112,210 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- Open Edit Popup ---
-    function openEditPopup(index) {
-        currentEditIndex = index;
-        const user = usersData[index];
-        editPopup.querySelector('input[type="text"]').value = user.name;
-        editPopup.querySelector('input[type="email"]').value = user.email;
-        editPopup.querySelector('select').value = user.role;
+    function openEditPopup(userId) {
+        const user = usersData.find(u => u.id === userId);
+        if (!user) {
+            alert("User not found");
+            return;
+        }
+        
+        currentEditId = userId;
+        
+        // Find form inputs in edit popup
+        const form = editPopup.querySelector('form');
+        const inputs = form.querySelectorAll('input[type="text"], input[type="email"]');
+        const selects = form.querySelectorAll('select');
+        
+        // Set values - assuming form structure: Full Name, Email, Role, Password, Confirm Password
+        // We'll need to split the name or use separate fields
+        // For now, let's assume the first text input is for full name (we'll need to update the form)
+        if (inputs.length > 0) {
+            inputs[0].value = `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim();
+        }
+        if (inputs.length > 1) {
+            inputs[1].value = user.email;
+        }
+        if (selects.length > 0) {
+            selects[0].value = user.role;
+        }
+        
         editPopup.style.display = "flex";
     }
 
     // --- Add User ---
     document.querySelector("#addUserPopupOverlay .save-btn").addEventListener("click", async () => {
         const popup = addUserPopup;
-        const name = popup.querySelector('input[placeholder="Enter full name"]').value.trim();
-        const email = popup.querySelector('input[placeholder="Enter email address"]').value.trim();
-        const role = popup.querySelector('select').value;
-        const status = "Active";
+        const form = popup.querySelector('form');
+        const inputs = form.querySelectorAll('input');
+        const selects = form.querySelectorAll('select');
+        
+        // Get form values - assuming order: Full Name, Email, Phone, Role, Password, Confirm Password
+        const fullName = inputs[0].value.trim();
+        const email = inputs[1].value.trim();
+        const phone = inputs[2] ? inputs[2].value.trim() : '';
+        const role = selects[0].value;
+        const password = inputs[inputs.length - 2] ? inputs[inputs.length - 2].value : '';
+        const confirmPassword = inputs[inputs.length - 1] ? inputs[inputs.length - 1].value : '';
 
-        if (!name || !email || !role) {
+        if (!fullName || !email || !role || !password) {
             alert("Please fill all required fields!");
             return;
         }
+        
+        if (password !== confirmPassword) {
+            alert("Passwords do not match!");
+            return;
+        }
+        
+        if (password.length < 6) {
+            alert("Password must be at least 6 characters long!");
+            return;
+        }
+        
+        // Split full name into first, middle, last
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts[nameParts.length - 1] || '';
+        const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
 
-        usersData.push({ name, email, role, status });
-        await saveUsersToServer();
-        renderTable();
-        closePopups();
+        const userData = {
+            firstName: firstName,
+            lastName: lastName,
+            middleName: middleName,
+            email: email,
+            phone: phone,
+            role: role,
+            password: password,
+            status: "Active"
+        };
+
+        try {
+            const res = await fetch(baseUrl + '/EmpCon/create_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData)
+            });
+            
+            const result = await res.json();
+            
+            if (result.status === 'success') {
+                alert("Employee created successfully!");
+                closePopups();
+                await loadUsers(); // Reload users
+            } else {
+                alert(result.message || "Failed to create employee");
+            }
+        } catch (err) {
+            console.error("Error creating user:", err);
+            alert("Failed to create employee. Please try again.");
+        }
     });
 
     // --- Save Edit ---
     document.querySelector("#editPopupOverlay .save-btn").addEventListener("click", async () => {
-        if (currentEditIndex === null) return;
+        if (!currentEditId) return;
+        
+        const user = usersData.find(u => u.id === currentEditId);
+        if (!user) {
+            alert("User not found");
+            return;
+        }
+        
         const popup = editPopup;
-        const user = usersData[currentEditIndex];
-        user.name = popup.querySelector('input[type="text"]').value.trim();
-        user.email = popup.querySelector('input[type="email"]').value.trim();
-        user.role = popup.querySelector('select').value;
-        await saveUsersToServer();
-        renderTable();
-        closePopups();
+        const form = popup.querySelector('form');
+        const inputs = form.querySelectorAll('input[type="text"], input[type="email"], input[type="password"]');
+        const selects = form.querySelectorAll('select');
+        
+        // Get form values
+        const fullName = inputs[0].value.trim();
+        const email = inputs[1].value.trim();
+        const role = selects[0].value;
+        const password = inputs[inputs.length - 2] ? inputs[inputs.length - 2].value : '';
+        const confirmPassword = inputs[inputs.length - 1] ? inputs[inputs.length - 1].value : '';
+        
+        if (!fullName || !email || !role) {
+            alert("Please fill all required fields!");
+            return;
+        }
+        
+        if (password && password !== confirmPassword) {
+            alert("Passwords do not match!");
+            return;
+        }
+        
+        // Split full name
+        const nameParts = fullName.split(' ');
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts[nameParts.length - 1] || '';
+        const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+        
+        const updateData = {
+            id: currentEditId,
+            firstName: firstName,
+            lastName: lastName,
+            middleName: middleName,
+            email: email,
+            role: role
+        };
+        
+        if (password) {
+            updateData.password = password;
+        }
+        
+        try {
+            const res = await fetch(baseUrl + '/EmpCon/update_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updateData)
+            });
+            
+            const result = await res.json();
+            
+            if (result.status === 'success') {
+                alert("Employee updated successfully!");
+                closePopups();
+                await loadUsers(); // Reload users
+            } else {
+                alert(result.message || "Failed to update employee");
+            }
+        } catch (err) {
+            console.error("Error updating user:", err);
+            alert("Failed to update employee. Please try again.");
+        }
     });
 
     // --- Delete User ---
     document.querySelector("#editPopupOverlay .delete-btn").addEventListener("click", async () => {
-        if (currentEditIndex === null) return;
-        if (!confirm("Are you sure you want to delete this user?")) return;
-        usersData.splice(currentEditIndex, 1);
-        await saveUsersToServer();
-        renderTable();
-        closePopups();
+        if (!currentEditId) return;
+        
+        const user = usersData.find(u => u.id === currentEditId);
+        if (!user) {
+            alert("User not found");
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to deactivate ${user.firstName} ${user.lastName}?`)) return;
+        
+        try {
+            const res = await fetch(baseUrl + '/EmpCon/delete_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: currentEditId })
+            });
+            
+            const result = await res.json();
+            
+            if (result.status === 'success') {
+                alert("Employee deactivated successfully!");
+                closePopups();
+                await loadUsers(); // Reload users
+            } else {
+                alert(result.message || "Failed to deactivate employee");
+            }
+        } catch (err) {
+            console.error("Error deleting user:", err);
+            alert("Failed to deactivate employee. Please try again.");
+        }
     });
 
     // --- Initialize ---

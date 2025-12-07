@@ -238,10 +238,36 @@ public function checkout()
             $this->load->model('Order_model');
             $this->load->database();
             
-            $customer_id = $this->session->userdata('customer_id');
-            if (!$customer_id) {
+            // Get UserID from session (stored as 'customer_id')
+            $user_id = $this->session->userdata('customer_id');
+            if (!$user_id) {
                 redirect('login');
                 return;
+            }
+            
+            // Get or create Customer_ID from customer table
+            // The session stores UserID, but order table needs Customer_ID
+            $this->db->select('Customer_ID');
+            $this->db->from('customer');
+            $this->db->where('UserID', $user_id);
+            $customer = $this->db->get()->row();
+            
+            if ($customer) {
+                $customer_id = (int)$customer->Customer_ID; // Ensure integer type
+            } else {
+                // Customer record doesn't exist - create it
+                $customer_data = [
+                    'UserID' => (int)$user_id
+                ];
+                $this->db->insert('customer', $customer_data);
+                $customer_id = (int)$this->db->insert_id();
+                
+                if (!$customer_id || $customer_id <= 0) {
+                    log_message('error', 'Failed to create customer record for UserID: ' . $user_id);
+                    $this->session->set_flashdata('error', 'Failed to create customer record. Please contact support.');
+                    redirect('checkout');
+                    return;
+                }
             }
             
             // Get form data (from checkout form or ewallet form)
@@ -312,15 +338,50 @@ public function checkout()
                 }
             }
             
+            // Validate Customer_ID exists in customer table before creating order
+            $this->db->select('Customer_ID');
+            $this->db->from('customer');
+            $this->db->where('Customer_ID', $customer_id);
+            $valid_customer = $this->db->get()->row();
+            
+            if (!$valid_customer) {
+                // Customer_ID doesn't exist - this shouldn't happen, but create it anyway
+                log_message('error', 'Customer_ID ' . $customer_id . ' does not exist in customer table. Attempting to create...');
+                $customer_data = [
+                    'UserID' => $user_id
+                ];
+                $this->db->insert('customer', $customer_data);
+                $customer_id = $this->db->insert_id();
+                
+                if (!$customer_id) {
+                    $this->session->set_flashdata('error', 'Failed to create customer record. Please contact support.');
+                    redirect('checkout');
+                    return;
+                }
+            }
+            
+            // Get preferred installation date
+            $preferred_installation_date = $this->input->post('preferred_installation_date') ?: null;
+            
+            // Combine note and preferred installation date in SpecialInstructions
+            $special_instructions = [];
+            if ($this->input->post('note')) {
+                $special_instructions[] = 'Note: ' . $this->input->post('note');
+            }
+            if ($preferred_installation_date) {
+                $special_instructions[] = 'Preferred Installation Date: ' . date('F j, Y', strtotime($preferred_installation_date));
+            }
+            $special_instructions_text = !empty($special_instructions) ? implode(' | ', $special_instructions) : null;
+            
             // Create order data
             $order_data = [
-                'Customer_ID' => $customer_id,
-                'SalesRep_ID' => $sales_rep_id,
+                'Customer_ID' => (int)$customer_id, // Ensure it's an integer
+                'SalesRep_ID' => (int)$sales_rep_id,
                 'TotalAmount' => $total_amount,
                 'DeliveryAddress' => $delivery_address,
                 'Status' => 'Pending',
                 'PaymentStatus' => ($this->input->post('payment_method') === 'ewallet' && $this->input->post('receipt')) ? 'Pending' : 'Pending',
-                'SpecialInstructions' => $this->input->post('note') ?: null
+                'SpecialInstructions' => $special_instructions_text
             ];
             
             // Handle file upload (payment receipt for ewallet)
@@ -343,41 +404,32 @@ public function checkout()
             }
             
             // Check inventory availability before creating order
-            // Get product ID from customization
-            $product_id = null;
-            $customization_tables = [
-                'mirror_customization',
-                'shower_enclosure_customization',
-                'aluminum_doors_customization',
-                'aluminum_bathroom_doors_customization'
-            ];
+            // Get product IDs from cart items (since we're placing order from cart)
+            $this->load->model('Cart_model');
+            $cart_items = $this->Cart_model->get_cart_items($customer_id);
             
-            foreach ($customization_tables as $table) {
-                $this->db->select('Product_ID');
-                $this->db->from($table);
-                $this->db->where('Customer_ID', $customer_id);
-                $this->db->where('OrderID IS NULL', null, false);
-                $this->db->order_by('Created_Date', 'DESC');
-                $this->db->limit(1);
-                $result = $this->db->get()->row();
-                if ($result) {
-                    $product_id = $result->Product_ID;
-                    break;
-                }
-            }
-            
-            // Check inventory if product ID found
-            if ($product_id) {
+            // Check inventory for each product in cart
+            if (!empty($cart_items)) {
                 $this->load->model('Inventory_model');
-                $inventory_check = $this->Inventory_model->can_manufacture_product($product_id, 1);
+                $all_missing = [];
                 
-                if (!$inventory_check['can_manufacture']) {
+                foreach ($cart_items as $item) {
+                    if (!empty($item->Product_ID)) {
+                        $inventory_check = $this->Inventory_model->can_manufacture_product($item->Product_ID, $item->Quantity);
+                        
+                        if (!$inventory_check['can_manufacture']) {
+                            $missing_items = array_map(function($m) {
+                                return $m['ItemName'];
+                            }, $inventory_check['missing_materials']);
+                            $all_missing = array_merge($all_missing, $missing_items);
+                        }
+                    }
+                }
+                
+                if (!empty($all_missing)) {
                     // Materials are out of stock - prevent order creation
-                    $missing_items = array_map(function($m) {
-                        return $m['ItemName'];
-                    }, $inventory_check['missing_materials']);
-                    
-                    $error_message = "Cannot place order: The following materials are out of stock: " . implode(', ', $missing_items) . ". Please contact sales for assistance.";
+                    $unique_missing = array_unique($all_missing);
+                    $error_message = "Cannot place order: The following materials are out of stock: " . implode(', ', $unique_missing) . ". Please contact sales for assistance.";
                     $this->session->set_flashdata('error', $error_message);
                     redirect('checkout');
                     return;
@@ -509,6 +561,7 @@ public function checkout()
         $country = $this->input->post('country');
         $zipcode = $this->input->post('zipcode');
         $note = $this->input->post('note');
+        $preferred_installation_date = $this->input->post('preferred_installation_date');
 
         // Build delivery address from form if provided
         if (!empty($address)) {
@@ -516,6 +569,16 @@ public function checkout()
                 $address, $city, $province, $country, $zipcode
             ]));
         }
+
+        // Combine note and preferred installation date in SpecialInstructions
+        $special_instructions = [];
+        if ($note) {
+            $special_instructions[] = 'Note: ' . $note;
+        }
+        if ($preferred_installation_date) {
+            $special_instructions[] = 'Preferred Installation Date: ' . date('F j, Y', strtotime($preferred_installation_date));
+        }
+        $special_instructions_text = !empty($special_instructions) ? implode(' | ', $special_instructions) : null;
 
         // Get default sales rep
         $sales_rep_id = $this->Order_model->get_default_sales_rep();
@@ -528,7 +591,7 @@ public function checkout()
             'Status' => 'Pending',
             'PaymentStatus' => 'Pending',
             'DeliveryAddress' => $shipping_address,
-            'SpecialInstructions' => $note
+            'SpecialInstructions' => $special_instructions_text
         ];
 
         // Create order
@@ -573,11 +636,30 @@ public function checkout()
         $data['title'] = "Glassify - My Purchases";
 
         // Check if user is logged in
-        $customer_id = $this->session->userdata('customer_id');
+        $user_id = $this->session->userdata('customer_id'); // Session stores UserID
         
-        if (!$customer_id) {
+        if (!$user_id) {
             // Redirect to login if not logged in
             redirect('login');
+            return;
+        }
+
+        // Convert UserID to Customer_ID (similar to waiting_order)
+        $this->load->database();
+        $this->db->select('Customer_ID');
+        $this->db->from('customer');
+        $this->db->where('UserID', $user_id);
+        $customer = $this->db->get()->row();
+        
+        $customer_id = null;
+        if ($customer) {
+            $customer_id = (int)$customer->Customer_ID;
+        } else {
+            // Customer record doesn't exist - no orders yet
+            $data['order_items'] = [];
+            $this->load->view('includes/header', $data);
+            $this->load->view('shop/list_product', $data);
+            $this->load->view('includes/footer');
             return;
         }
 

@@ -2,7 +2,7 @@
 
 <script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
 
-<body data-customer-id="<?= $this->session->userdata('Customer_ID') ?: '' ?>">
+<body data-customer-id="<?= $this->session->userdata('customer_id') ?: '' ?>">
 
     <div id="upload-modal" class="modal-backdrop hidden-step">
         <div class="modal-content">

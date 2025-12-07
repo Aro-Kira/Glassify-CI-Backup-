@@ -155,7 +155,7 @@
                 <textarea id="message" name="message" placeholder="Message"></textarea>
             </div>
 
-            <button type="submit">Get My Quote</button>
+            <button type="submit">Inquire</button>
         </form>
 
     </div>

@@ -136,7 +136,7 @@ class User_model extends CI_Model
             log_message('info', 'User_model->update_account: Successfully updated ' . $affected_rows . ' row(s) for UserID=' . $user_id);
             return true;
         } else {
-            log_message('warning', 'User_model->update_account: Update query executed but no rows were affected. UserID=' . $user_id . ', Data=' . json_encode($data));
+            log_message('error', 'User_model->update_account: Update query executed but no rows were affected. UserID=' . $user_id . ', Data=' . json_encode($data));
             return false;
         }
     }

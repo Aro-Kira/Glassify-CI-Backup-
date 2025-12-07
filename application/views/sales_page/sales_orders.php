@@ -254,6 +254,10 @@
                     <a href="#" class="detail-value file-link" id="popup-file-link" target="_blank" style="display: none;">-</a>
                     <span class="detail-value" id="popup-file-text" style="display: none;">N/A</span>
                 </div>
+                <div class="detail-row">
+                    <span class="detail-label">Preferred Installation Date:</span>
+                    <span class="detail-value" id="popup-preferred-installation-date">-</span>
+                </div>
                 <div class="detail-row total-row">
                     <span class="detail-label">Total Quotation (₱):</span>
                     <span class="detail-value total-price" id="popup-total">-</span>
@@ -332,6 +336,10 @@
                     <span class="detail-label">File Attached:</span>
                     <a href="#" class="detail-value file-link" id="awaiting-file-link" target="_blank" style="display: none;">-</a>
                     <span class="detail-value" id="awaiting-file-text" style="display: none;">N/A</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Preferred Installation Date:</span>
+                    <span class="detail-value" id="awaiting-preferred-installation-date">-</span>
                 </div>
                 <div class="detail-row total-row">
                     <span class="detail-label">Total Quotation (₱):</span>
@@ -423,6 +431,10 @@
                     <a href="#" class="detail-value file-link" id="approved-file-link" target="_blank" style="display: none;">-</a>
                     <span class="detail-value" id="approved-file-text" style="display: none;">N/A</span>
                 </div>
+                <div class="detail-row">
+                    <span class="detail-label">Preferred Installation Date:</span>
+                    <span class="detail-value" id="approved-preferred-installation-date">-</span>
+                </div>
                 <div class="detail-row total-row">
                     <span class="detail-label">Total Quotation (₱):</span>
                     <span class="detail-value total-price" id="approved-total">-</span>
@@ -513,6 +525,10 @@
                     <span class="detail-label">File Attached:</span>
                     <a href="#" class="detail-value file-link" id="disapproved-file-link" target="_blank" style="display: none;">-</a>
                     <span class="detail-value" id="disapproved-file-text" style="display: none;">N/A</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Preferred Installation Date:</span>
+                    <span class="detail-value" id="disapproved-preferred-installation-date">-</span>
                 </div>
                 <div class="detail-row total-row">
                     <span class="detail-label">Total Quotation (₱):</span>

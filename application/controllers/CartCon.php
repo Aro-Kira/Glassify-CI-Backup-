@@ -100,58 +100,89 @@ class CartCon extends CI_Controller
 
     public function add_customized_ajax()
     {
-        $customer_id = $this->session->userdata('customer_id'); // use customer_id consistently
-        if (!$customer_id) {
-            echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
-            return;
+        // Set JSON header for proper response
+        header('Content-Type: application/json');
+        
+        try {
+            $customer_id = $this->session->userdata('customer_id'); // use customer_id consistently
+            if (!$customer_id) {
+                echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
+                return;
+            }
+
+            $post = $this->input->post();
+
+            // Validate required fields
+            if (empty($post['product_id'])) {
+                echo json_encode(['status' => 'error', 'message' => 'Product ID is required']);
+                return;
+            }
+
+            // 1️⃣ Prepare customization data
+            $custom_data = [
+                'Customer_ID' => $customer_id,
+                'Product_ID' => $post['product_id'] ?? null,
+                'Dimensions' => $post['dimensions'] ?? null,
+                'GlassShape' => $post['shape'] ?? null,
+                'GlassType' => $post['type'] ?? null,
+                'GlassThickness' => $post['thickness'] ?? null,
+                'EdgeWork' => $post['edge'] ?? null,
+                'FrameType' => $post['frame'] ?? null,
+                'Engraving' => $post['engraving'] ?? null,
+                'DesignRef' => $post['design_ref'] ?? null,
+                'EstimatePrice' => $post['price'] ?? 0
+            ];
+
+            // 2️⃣ Save customization
+            $this->load->model('Cart_model');
+            $customization_id = $this->Cart_model->save_customization($custom_data);
+
+            if (!$customization_id) {
+                $db_error = $this->db->error();
+                $error_message = 'Failed to save customization';
+                if (!empty($db_error['message'])) {
+                    $error_message .= ': ' . $db_error['message'];
+                }
+                echo json_encode(['status' => 'error', 'message' => $error_message]);
+                return;
+            }
+
+            // 3️⃣ Add to cart
+            $cart_data = [
+                'Customer_ID' => $customer_id,
+                'Product_ID' => $post['product_id'] ?? null,
+                'CustomizationID' => $customization_id,
+                'Quantity' => $post['quantity'] ?? 1
+            ];
+
+            $this->Cart_model->add_to_cart($cart_data);
+
+            // 4️⃣ Return updated cart info
+            $cart_items = $this->Cart_model->get_cart_items($customer_id);
+            $cart_count = count($cart_items);
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Customized item added to cart',
+                'customization_id' => $customization_id,
+                'cart_count' => $cart_count
+            ]);
+            
+        } catch (Exception $e) {
+            // Log error for debugging
+            log_message('error', 'Add to cart AJAX error: ' . $e->getMessage());
+            
+            // Return error message (hide detailed error in production)
+            $error_msg = 'Server error occurred. Please try again.';
+            if (ENVIRONMENT === 'development') {
+                $error_msg .= ' (' . $e->getMessage() . ')';
+            }
+            
+            echo json_encode([
+                'status' => 'error',
+                'message' => $error_msg
+            ]);
         }
-
-        $post = $this->input->post();
-
-        // 1️⃣ Prepare customization data
-        $custom_data = [
-            'Customer_ID' => $customer_id,
-            'Product_ID' => $post['product_id'] ?? null,
-            'Dimensions' => $post['dimensions'] ?? null,
-            'GlassShape' => $post['shape'] ?? null,
-            'GlassType' => $post['type'] ?? null,
-            'GlassThickness' => $post['thickness'] ?? null,
-            'EdgeWork' => $post['edge'] ?? null,
-            'FrameType' => $post['frame'] ?? null,
-            'Engraving' => $post['engraving'] ?? null,
-            'DesignRef' => $post['design_ref'] ?? null,
-            'EstimatePrice' => $post['price'] ?? 0
-        ];
-
-        // 2️⃣ Save customization
-        $this->load->model('Cart_model');
-        $customization_id = $this->Cart_model->save_customization($custom_data);
-
-        if (!$customization_id) {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to save customization']);
-            return;
-        }
-
-        // 3️⃣ Add to cart
-        $cart_data = [
-            'Customer_ID' => $customer_id,
-            'Product_ID' => $post['product_id'] ?? null,
-            'CustomizationID' => $customization_id,
-            'Quantity' => $post['quantity'] ?? 1
-        ];
-
-        $this->Cart_model->add_to_cart($cart_data);
-
-        // 4️⃣ Return updated cart info
-        $cart_items = $this->Cart_model->get_cart_items($customer_id);
-        $cart_count = count($cart_items);
-
-        echo json_encode([
-            'status' => 'success',
-            'message' => 'Customized item added to cart',
-            'customization_id' => $customization_id,
-            'cart_count' => $cart_count
-        ]);
     }
 
     // ===================== SAVE BUY NOW CUSTOMIZATION =====================
@@ -307,39 +338,103 @@ class CartCon extends CI_Controller
     // ===================== REMOVE ITEM AJAX =====================
    public function remove_ajax()
 {
-    $cart_id = $this->input->post('cart_id');
-    $customer_id = $this->session->userdata('customer_id');
+    header('Content-Type: application/json');
+    
+    try {
+        $cart_id = $this->input->post('cart_id');
+        $customer_id = $this->session->userdata('customer_id');
 
-    if (!$cart_id || !$customer_id) {
-        echo json_encode(['status' => 'error']);
-        return;
+        if (!$customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
+            return;
+        }
+
+        // Handle Cart_ID = 0 by using alternative deletion method
+        if (!$cart_id || $cart_id <= 0) {
+            // Get Product_ID and CustomizationID from POST data as fallback
+            $product_id = $this->input->post('product_id');
+            $customization_id = $this->input->post('customization_id');
+            
+            if (!$product_id) {
+                echo json_encode(['status' => 'error', 'message' => 'Invalid cart item. Please refresh the page and try again.']);
+                return;
+            }
+            
+            // Delete by Customer_ID + Product_ID + CustomizationID combination
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->where('Product_ID', $product_id);
+            if ($customization_id) {
+                $this->db->where('CustomizationID', $customization_id);
+            } else {
+                $this->db->where('CustomizationID IS NULL', null, false);
+            }
+            $cart_item = $this->db->get('cart')->row();
+            
+            if (!$cart_item) {
+                echo json_encode(['status' => 'error', 'message' => 'Cart item not found']);
+                return;
+            }
+            
+            // Delete customization if exists
+            if (!empty($cart_item->CustomizationID)) {
+                $this->load->model('Customization_model');
+                $this->Customization_model->delete_customization(
+                    $cart_item->CustomizationID, 
+                    $cart_item->Product_ID
+                );
+            }
+            
+            // Delete cart item by combination
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->where('Product_ID', $product_id);
+            if ($customization_id) {
+                $this->db->where('CustomizationID', $customization_id);
+            } else {
+                $this->db->where('CustomizationID IS NULL', null, false);
+            }
+            $this->db->delete('cart');
+        } else {
+            // 1. Get cart row first (to retrieve CustomizationID and Product_ID)
+            // Also verify it belongs to the logged-in customer
+            $this->db->where('Cart_ID', $cart_id);
+            $this->db->where('Customer_ID', $customer_id);
+            $cart_item = $this->db->get('cart')->row();
+
+            if (!$cart_item) {
+                echo json_encode(['status' => 'error', 'message' => 'Cart item not found or does not belong to you']);
+                return;
+            }
+
+            // 2. Remove customization if exists (BEFORE removing cart item)
+            if (!empty($cart_item->CustomizationID)) {
+                $this->load->model('Customization_model');
+                // Pass Product_ID so it knows which table to delete from
+                $this->Customization_model->delete_customization(
+                    $cart_item->CustomizationID, 
+                    $cart_item->Product_ID
+                );
+            }
+
+            // 3. Remove the cart item
+            $this->Cart_model->remove_item($cart_id);
+        }
+
+        // 4. Refresh updated cart list
+        $cart_items = $this->Cart_model->get_cart_items($customer_id);
+        $summary = $this->calculate_summary($cart_items);
+
+        echo json_encode([
+            'status'  => 'success',
+            'summary' => $summary
+        ]);
+        
+    } catch (Exception $e) {
+        log_message('error', 'Remove cart item error: ' . $e->getMessage());
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Failed to remove item. Please try again.'
+        ]);
     }
-
-    // 1. Get cart row first (to retrieve CustomizationID)
-    $cart_item = $this->db->where('Cart_ID', $cart_id)->get('cart')->row();
-
-    if (!$cart_item) {
-        echo json_encode(['status' => 'error', 'message' => 'Cart item not found']);
-        return;
-    }
-
-    // 2. Remove the cart item
-    $this->Cart_model->remove_item($cart_id);
-
-    // 3. Remove customization if exists
-    if (!empty($cart_item->CustomizationID)) {
-        $this->load->model('Customization_model');
-        $this->Customization_model->delete_customization($cart_item->CustomizationID);
-    }
-
-    // 4. Refresh updated cart list
-    $cart_items = $this->Cart_model->get_cart_items($customer_id);
-    $summary = $this->calculate_summary($cart_items);
-
-    echo json_encode([
-        'status'  => 'success',
-        'summary' => $summary
-    ]);
 }
 
 
@@ -370,10 +465,18 @@ class CartCon extends CI_Controller
     // 3. Delete all cart items
     $this->db->where('Customer_ID', $customer_id)->delete('cart');
 
-    // 4. Delete all customization entries
+    // 4. Delete all customization entries from all tables
     if (!empty($customization_ids)) {
         $this->load->model('Customization_model');
-        $this->Customization_model->delete_multiple($customization_ids);
+        // Delete each customization individually with its product_id
+        foreach ($cart_items as $item) {
+            if (!empty($item->CustomizationID)) {
+                $this->Customization_model->delete_customization(
+                    $item->CustomizationID,
+                    $item->Product_ID
+                );
+            }
+        }
     }
 
     echo json_encode([

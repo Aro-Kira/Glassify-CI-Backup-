@@ -81,12 +81,6 @@
                     <span>Payments</span>
                 </a>
             </li>
-            <li class="<?php echo (isset($active) && $active == '') ? 'active' : ''; ?>">
-                <a href="<?php echo base_url('admin-settings'); ?>">
-                    <img src="<?php echo base_url('assets/images/img_admin/settings.svg'); ?>" alt="Account">
-                    <span>Settings</span>
-                </a>
-            </li>
         </ul>
     </div>
 </aside>

@@ -6,19 +6,19 @@
     <div class="inventory-stats">
       <div class="stat-card">
         <p class="stat-title">Total Items</p>
-        <p class="stat-value" id="totalItemsCount">6</p>
+        <p class="stat-value" id="totalItemsCount">0</p>
       </div>
       <div class="stat-card">
         <p class="stat-title">Low Stocks Alerts</p>
-        <p class="stat-value" id="lowStockCount">1</p>
+        <p class="stat-value" id="lowStockCount">0</p>
       </div>
       <div class="stat-card">
         <p class="stat-title">New Items</p>
-        <p class="stat-value">1</p>
+        <p class="stat-value" id="newItemsCount">0</p>
       </div>
       <div class="stat-card">
         <p class="stat-title">Recent Requests</p>
-        <p class="stat-value">4</p>
+        <p class="stat-value" id="recentRequestsCount">0</p>
       </div>
     </div>
   </div>
@@ -30,22 +30,21 @@
   <div class="controls-container">
     <div class="filters">
       <!-- Search -->
-      <input type="text" placeholder="Filter by name or item id" class="search-input">
+      <input type="text" id="searchInput" placeholder="Filter by name or item id" class="search-input">
 
       <!-- Category -->
       <label class="filter-label">Category:</label>
-      <select class="filter-select">
+      <select id="categoryFilter" class="filter-select">
         <option value="all">All</option>
         <option value="door">Door</option>
         <option value="mirror">Mirror</option>
         <option value="partition">Partition</option>
         <option value="railings">Railings</option>
         <option value="window">Window</option>
-
       </select>
 
       <!-- Status -->
-      <select class="filter-select">
+      <select id="statusFilter" class="filter-select">
         <option value="">Status</option>
         <option value="in-stock">In Stock</option>
         <option value="low-stock">Low Stock</option>
@@ -54,57 +53,60 @@
     </div>
 
     <!-- Add Button -->
-    <button class="add-btn">+ Add New Item</button>
+    <button class="add-btn" id="addItemBtn">+ Add New Item</button>
   </div>
 
-  <div id="addItemPopup" class="popup-overlay hidden">
+  <div id="addItemPopup" class="popup-overlay">
     <div class="popup">
-      <button class="close-btn">&times;</button>
+      <button class="close-btn" id="closeAddBtn">&times;</button>
       <h3>Add New Inventory Item</h3>
 
-      <div class="form-group">
-        <label>Item Name:</label>
-        <input type="text" class="input-text" placeholder="e.g., Tempered Glass 6mm" required />
-      </div>
+      <form id="addItemForm">
+        <div class="form-group">
+          <label>Item Name:</label>
+          <input type="text" id="itemName" class="input-text" placeholder="e.g., Tempered Glass 6mm" required />
+        </div>
 
-      <div class="form-group">
-        <label>Category:</label>
-        <select class="input-text" required>
-          <option value="" disabled selected>Select Category</option>
-          <option value="all">All</option>
-          <option value="door">Door</option>
-          <option value="mirror">Mirror</option>
-          <option value="partition">Partition</option>
-          <option value="railings">Railings</option>
-          <option value="window">Window</option>
-        </select>
-      </div>
+        <div class="form-group">
+          <label>Category:</label>
+          <select id="itemCategory" class="input-text" required>
+            <option value="" disabled selected>Select Category</option>
+            <option value="door">Door</option>
+            <option value="mirror">Mirror</option>
+            <option value="partition">Partition</option>
+            <option value="railings">Railings</option>
+            <option value="window">Window</option>
+          </select>
+        </div>
 
-      <div class="form-group">
-        <label>Unit of Measure:</label>
-        <select class="input-text" required>
-          <option value="" disabled selected>Select Unit</option>
-          <option value="sqm">sqm</option>
-          <option value="pcs">pcs</option>
-          <option value="sets">sets</option>
-          <option value="meter">meter</option>
-        </select>
-      </div>
+        <div class="form-group">
+          <label>Unit of Measure:</label>
+          <select id="itemUnit" class="input-text" required>
+            <option value="" disabled selected>Select Unit</option>
+            <option value="sqm">sqm</option>
+            <option value="pcs">pcs</option>
+            <option value="sets">sets</option>
+            <option value="meter">meter</option>
+            <option value="sheets">sheets</option>
+            <option value="pieces">pieces</option>
+          </select>
+        </div>
 
-      <div class="form-group">
-        <label>Initial Stock:</label>
-        <input type="number" class="input-text" placeholder="Quantity to add initially" value="0" required />
-      </div>
+        <div class="form-group">
+          <label>Initial Stock:</label>
+          <input type="number" id="initialStock" class="input-text" placeholder="Quantity to add initially" value="0" required />
+        </div>
 
-      <div class="form-group">
-        <label>Min. Threshold:</label>
-        <input type="number" class="input-text" placeholder="Minimum stock level for alert" value="10" />
-      </div>
+        <div class="form-group">
+          <label>Min. Threshold:</label>
+          <input type="number" id="minThreshold" class="input-text" placeholder="Minimum stock level for alert" value="10" />
+        </div>
 
-      <div class="popup-actions">
-        <button class="save-btn">Create Item</button>
-        <button class="cancel-btn">Cancel</button>
-      </div>
+        <div class="popup-actions">
+          <button type="submit" class="save-btn">Create Item</button>
+          <button type="button" class="cancel-btn" id="cancelAddBtn">Cancel</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -123,14 +125,16 @@
         </tr>
       </thead>
       <tbody id="tableBody">
-        <!-- Rows will be injected here by JS -->
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 20px;">Loading items...</td>
+        </tr>
       </tbody>
     </table>
   </div>
 
   <!-- Pagination -->
   <div class="pagination">
-    <span id="paginationInfo">Showing 1-10 of 6 items</span>
+    <span id="paginationInfo">Showing 0 items</span>
     <div class="rows-per-page">
       <label for="rowsPerPageSelect">Rows per page:</label>
       <select id="rowsPerPageSelect">
@@ -140,133 +144,124 @@
       </select>
     </div>
     <div class="pagination-controls">
-      <button><i class="fas fa-chevron-left"></i></button>
-      <button class="active">1</button>
-      <button><i class="fas fa-chevron-right"></i></button>
+      <button id="prevPage"><i class="fas fa-chevron-left"></i></button>
+      <button class="active" id="page1">1</button>
+      <button id="nextPage"><i class="fas fa-chevron-right"></i></button>
     </div>
-
   </div>
 
   <!-- Action menu (reusable) -->
   <div id="actionMenu" class="action-menu hidden">
     <ul>
-      <li><a href="#">Manage Stock</a></li>
-      <li><a href="#">Edit Item</a></li>
-      <li><a href="#">Delete Item</a></li>
+      <li><a href="#" data-action="manage">Manage Stock</a></li>
+      <li><a href="#" data-action="edit">Edit Item</a></li>
+      <li><a href="#" data-action="delete">Delete Item</a></li>
     </ul>
   </div>
 
   <!-- Manage Stock Popup -->
-  <div id="managePopup" class="popup-overlay hidden">
+  <div id="managePopup" class="popup-overlay">
     <div class="popup">
-      <button class="close-btn">&times;</button>
-      <h3>Tempered Glass 6mm</h3>
+      <button class="close-btn" id="closeManageBtn">&times;</button>
+      <h3 id="manageItemName">Item Name</h3>
 
-      <div class="form-group">
-        <label>Current stock:</label>
-        <input type="text" class="input-text" value="3 sheets" readonly />
-      </div>
+      <form id="manageStockForm">
+        <input type="hidden" id="manageItemId" />
+        <div class="form-group">
+          <label>Current stock:</label>
+          <input type="text" id="currentStock" class="input-text" readonly />
+        </div>
 
-      <div class="form-group">
-        <label>Add Stock:</label>
-        <input type="number" class="input-text" placeholder="Quantity" />
-      </div>
+        <div class="form-group">
+          <label>Add Stock:</label>
+          <input type="number" id="addStock" class="input-text" placeholder="Quantity" min="0" />
+        </div>
 
-      <div class="form-group">
-        <label>Remove Stock:</label>
-        <input type="number" class="input-text" placeholder="Quantity" />
-      </div>
+        <div class="form-group">
+          <label>Remove Stock:</label>
+          <input type="number" id="removeStock" class="input-text" placeholder="Quantity" min="0" />
+        </div>
 
-      <div class="form-group">
-        <label>Min. Threshold:</label>
-        <input type="text" class="input-text" value="10 sheets" />
-      </div>
+        <div class="form-group">
+          <label>Min. Threshold:</label>
+          <input type="number" id="manageMinThreshold" class="input-text" />
+        </div>
 
-      <div class="form-group">
-        <label class="section-label">Reason</label>
-        <textarea class="input-text textarea">Increased amount due to demand</textarea>
-      </div>
+        <div class="form-group">
+          <label class="section-label">Reason</label>
+          <textarea id="stockReason" class="input-text textarea" placeholder="Reason for stock change"></textarea>
+        </div>
 
-      <div class="popup-actions">
-        <button class="save-btn">Save Changes</button>
-        <button class="cancel-btn">Cancel</button>
-      </div>
+        <div class="popup-actions">
+          <button type="submit" class="save-btn">Save Changes</button>
+          <button type="button" class="cancel-btn" id="cancelManageBtn">Cancel</button>
+        </div>
+      </form>
     </div>
   </div>
 
   <!-- Edit Item Popup -->
-  <div id="editPopup" class="popup-overlay hidden">
+  <div id="editPopup" class="popup-overlay">
     <div class="popup">
-      <button class="close-btn">&times;</button>
-      <h3>Tempered Glass 6mm</h3>
+      <button class="close-btn" id="closeEditBtn">&times;</button>
+      <h3>Edit Item</h3>
 
-      <div class="form-group">
-        <label>Category:</label>
-        <select class="input-text">
-          <option value="door">Door</option>
-          <option value="mirror">Mirror</option>
-          <option value="partition">Partition</option>
-          <option value="railings">Railings</option>
-          <option value="window">Window</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Unit of Measure:</label>
-        <select class="input-text">
-          <option>mm</option>
-          <option>cm</option>
-          <option>inches</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Status:</label>
-        <select class="input-text">
-          <option>In stock</option>
-          <option>In stock</option>
-
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Item ID:</label>
-        <input type="text" class="input-text" value="GL-001" readonly />
-      </div>
-
-      <div class="form-group">
-        <label class="section-label">Activity Summary</label>
-        <div class="summary-box">
-          <ul>
-            <li>Stock Reduced: - 5 (Damaged during handling)</li>
-            <li>Stock Added: +20 (Delivery received)</li>
-            <li>Threshold Updated: 15 to 25</li>
-          </ul>
+      <form id="editItemForm">
+        <input type="hidden" id="editItemId" />
+        <div class="form-group">
+          <label>Item Name:</label>
+          <input type="text" id="editItemName" class="input-text" required />
         </div>
-      </div>
 
-      <div class="popup-actions">
-        <button class="save-btn">Save Changes</button>
-        <button class="cancel-btn">Cancel</button>
-      </div>
+        <div class="form-group">
+          <label>Category:</label>
+          <select id="editItemCategory" class="input-text">
+            <option value="door">Door</option>
+            <option value="mirror">Mirror</option>
+            <option value="partition">Partition</option>
+            <option value="railings">Railings</option>
+            <option value="window">Window</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Unit of Measure:</label>
+          <select id="editItemUnit" class="input-text">
+            <option value="sqm">sqm</option>
+            <option value="pcs">pcs</option>
+            <option value="sets">sets</option>
+            <option value="meter">meter</option>
+            <option value="sheets">sheets</option>
+            <option value="pieces">pieces</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Item ID:</label>
+          <input type="text" id="editItemCode" class="input-text" readonly />
+        </div>
+
+        <div class="popup-actions">
+          <button type="submit" class="save-btn">Save Changes</button>
+          <button type="button" class="cancel-btn" id="cancelEditBtn">Cancel</button>
+        </div>
+      </form>
     </div>
   </div>
 
   <!-- Delete Item Popup -->
-  <div id="deletePopup" class="popup-overlay hidden">
+  <div id="deletePopup" class="popup-overlay">
     <div class="popup delete-popup">
-      <button class="close-btn">&times;</button>
+      <button class="close-btn" id="closeDeleteBtn">&times;</button>
       <h3><span class="error-icon">!</span> Delete Item?</h3>
 
-      <p><strong>Item ID:</strong> GL-001</p>
-      <p><strong>Item name:</strong> Tempered Glass 6mm</p>
-      <p class="delete-msg">
-        “Are you sure you want to delete Tempered Glass 6mm from the inventory? This action cannot be undone.”
-      </p>
+      <p><strong>Item ID:</strong> <span id="deleteItemCode"></span></p>
+      <p><strong>Item name:</strong> <span id="deleteItemName"></span></p>
+      <p class="delete-msg" id="deleteMessage"></p>
 
       <div class="popup-actions">
-        <button class="delete-btn">Delete Item</button>
-        <button class="cancel-btn">Cancel</button>
+        <button class="delete-btn" id="confirmDeleteBtn">Delete Item</button>
+        <button class="cancel-btn" id="cancelDeleteBtn">Cancel</button>
       </div>
     </div>
   </div>
@@ -287,44 +282,455 @@
           <th>Timestamp</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="activitiesTableBody">
         <tr>
-          <td>Threshold updated</td>
-          <td>Tempered Glass 6mm</td>
-          <td>Min: 15 → 25</td>
-          <td>Increased due to demand</td>
-          <td>5/28/2025 – 09:45 AM</td>
-        </tr>
-        <tr>
-          <td>Stock reduced</td>
-          <td>Mirror Tiles</td>
-          <td>-5 sheets</td>
-          <td>Damaged during handling</td>
-          <td>5/28/2025 – 08:30 AM</td>
-        </tr>
-        <tr>
-          <td>>Stock added</td>
-          <td>Aluminum Frame</td>
-          <td>+20 pieces</td>
-          <td>New delivery from supplier</td>
-          <td>5/27/2025 – 05:12 PM</td>
-        </tr>
-        <tr>
-          <td>Item created</td>
-          <td>Aluminum Frame</td>
-          <td>50 pieces initial</td>
-          <td>System</td>
-          <td>5/27/2025 – 02:15 PM</td>
+          <td colspan="5" style="text-align: center; padding: 20px;">Loading activities...</td>
         </tr>
       </tbody>
     </table>
   </section>
 </section>
 
-<script src="/Glassify/assets/js/order-status.js"></script>
-<script src="/Glassify/assets/js/order-action.js"></script>
-<script src="/Glassify/assets/js/admin-sidebar.js"></script>
-<script src="/Glassify/assets/js/order-popup.js"></script>
-<script src="/Glassify/assets/js/inventory-search-inventory.js"></script>
-<script src="/Glassify/assets/js/inventory-inventory-action1.js"></script>
-<script src="/Glassify/assets/js/inventory-inventory-filter.js"></script>
+<!-- Only load scripts that exist and are needed -->
+<script src="<?php echo base_url('assets/js/order-status.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/includes/sidebar.js'); ?>"></script>
+<!-- Main inventory functionality is in the script below -->
+
+<script>
+// ============================================
+// INVENTORY MANAGEMENT JAVASCRIPT
+// ============================================
+
+(function() {
+    'use strict';
+    
+    // Get base URL from CodeIgniter
+    const baseUrl = '<?php echo base_url(); ?>';
+    let currentItemId = null;
+    let allItems = [];
+    
+    // Helper function to escape HTML
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // Format date
+    function formatDate(dateString) {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
+    
+    // Load statistics from API
+    function loadStatistics() {
+        fetch(baseUrl + 'api/inventory/get_statistics')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data) {
+                    document.getElementById('totalItemsCount').textContent = data.data.totalItems || 0;
+                    document.getElementById('lowStockCount').textContent = data.data.lowStockAlerts || 0;
+                    document.getElementById('newItemsCount').textContent = data.data.newItems || 0;
+                    document.getElementById('recentRequestsCount').textContent = data.data.recentRequests || 0;
+                }
+            })
+            .catch(error => {
+                console.error('Error loading statistics:', error);
+            });
+    }
+    
+    // Load items from API
+    function loadItems() {
+        fetch(baseUrl + 'api/inventory/get_items')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('tableBody');
+                if (!tbody) return;
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    allItems = data.data;
+                    tbody.innerHTML = '';
+                    
+                    data.data.forEach((item, index) => {
+                        const row = document.createElement('tr');
+                        row.setAttribute('data-item-id', item.InventoryItemID || item.item_id);
+                        
+                        // Determine stock display
+                        const stock = item.InStock || item.stock_quantity || 0;
+                        const minThreshold = item.min_threshold || 10;
+                        let stockDisplay = '<span>' + stock + '</span>';
+                        
+                        if (stock === 0) {
+                            stockDisplay += '<span class="badge badge-out-stock">Out of Stock</span>';
+                        } else if (stock < minThreshold) {
+                            stockDisplay += '<span class="badge badge-low-stock">Low Stock</span>';
+                        }
+                        
+                        // Item name
+                        const itemName = item.ItemName || item.name || 'N/A';
+                        const itemCode = item.ItemCode || item.item_code || 'N/A';
+                        const category = item.Category || item.category || 'N/A';
+                        const unit = item.Unit || item.unit || 'N/A';
+                        
+                        row.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td>${escapeHtml(itemCode)}</td>
+                            <td>${escapeHtml(itemName)}</td>
+                            <td>${escapeHtml(category)}</td>
+                            <td>${stockDisplay}</td>
+                            <td>${escapeHtml(unit)}</td>
+                            <td>
+                                <div class="actions-menu">
+                                    <button class="actions-btn" data-item-id="${item.InventoryItemID || item.item_id}">⋮</button>
+                                    <div class="actions-dropdown">
+                                        <a href="#" data-action="manage" data-item-id="${item.InventoryItemID || item.item_id}">Manage Stock</a>
+                                        <a href="#" data-action="edit" data-item-id="${item.InventoryItemID || item.item_id}">Edit Item</a>
+                                        <a href="#" data-action="delete" data-item-id="${item.InventoryItemID || item.item_id}">Delete Item</a>
+                                    </div>
+                                </div>
+                            </td>
+                        `;
+                        
+                        tbody.appendChild(row);
+                    });
+                    
+                    // Update pagination info
+                    document.getElementById('paginationInfo').textContent = `Showing 1-${data.data.length} of ${data.data.length} items`;
+                    
+                    // Attach event listeners
+                    attachActionListeners();
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No items found</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading items:', error);
+                const tbody = document.getElementById('tableBody');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #f44336;">Error loading items</td></tr>';
+                }
+            });
+    }
+    
+    // Load activities from API
+    function loadActivities() {
+        fetch(baseUrl + 'api/inventory/get_activities')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('activitiesTableBody');
+                if (!tbody) return;
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    tbody.innerHTML = '';
+                    
+                    data.data.forEach(activity => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${escapeHtml(activity.action || '')}</td>
+                            <td>${escapeHtml(activity.item_name || '')}</td>
+                            <td>${escapeHtml(activity.change_description || '')}</td>
+                            <td>${escapeHtml(activity.description || '')}</td>
+                            <td>${formatDate(activity.timestamp)}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No activities found</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading activities:', error);
+                const tbody = document.getElementById('activitiesTableBody');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #f44336;">Error loading activities</td></tr>';
+                }
+            });
+    }
+    
+    // Attach action listeners
+    function attachActionListeners() {
+        // Action buttons
+        document.querySelectorAll('.actions-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const menu = this.closest('.actions-menu');
+                const dropdown = menu.querySelector('.actions-dropdown');
+                
+                // Close other menus
+                document.querySelectorAll('.actions-menu').forEach(m => {
+                    if (m !== menu) {
+                        m.classList.remove('active');
+                        m.querySelector('.actions-dropdown').classList.remove('show');
+                    }
+                });
+                
+                menu.classList.toggle('active');
+                dropdown.classList.toggle('show');
+            });
+        });
+        
+        // Action links
+        document.querySelectorAll('.actions-dropdown a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const action = this.getAttribute('data-action');
+                const itemId = this.getAttribute('data-item-id');
+                const row = this.closest('tr');
+                
+                // Close menu
+                this.closest('.actions-menu').classList.remove('active');
+                this.closest('.actions-dropdown').classList.remove('show');
+                
+                if (action === 'manage') {
+                    openManageStock(itemId, row);
+                } else if (action === 'edit') {
+                    openEditItem(itemId, row);
+                } else if (action === 'delete') {
+                    openDeleteItem(itemId, row);
+                }
+            });
+        });
+    }
+    
+    // Open manage stock popup
+    function openManageStock(itemId, row) {
+        const item = allItems.find(i => (i.InventoryItemID || i.item_id) == itemId);
+        if (!item) return;
+        
+        currentItemId = itemId;
+        document.getElementById('manageItemId').value = itemId;
+        document.getElementById('manageItemName').textContent = item.ItemName || item.name;
+        document.getElementById('currentStock').value = `${item.InStock || item.stock_quantity || 0} ${item.Unit || item.unit || ''}`;
+        document.getElementById('manageMinThreshold').value = item.min_threshold || 10;
+        document.getElementById('addStock').value = '';
+        document.getElementById('removeStock').value = '';
+        document.getElementById('stockReason').value = '';
+        
+        document.getElementById('managePopup').classList.add('active');
+    }
+    
+    // Open edit item popup
+    function openEditItem(itemId, row) {
+        const item = allItems.find(i => (i.InventoryItemID || i.item_id) == itemId);
+        if (!item) return;
+        
+        currentItemId = itemId;
+        document.getElementById('editItemId').value = itemId;
+        document.getElementById('editItemName').value = item.ItemName || item.name;
+        document.getElementById('editItemCategory').value = item.Category || item.category;
+        document.getElementById('editItemUnit').value = item.Unit || item.unit;
+        document.getElementById('editItemCode').value = item.ItemCode || item.item_code;
+        
+        document.getElementById('editPopup').classList.add('active');
+    }
+    
+    // Open delete item popup
+    function openDeleteItem(itemId, row) {
+        const item = allItems.find(i => (i.InventoryItemID || i.item_id) == itemId);
+        if (!item) return;
+        
+        currentItemId = itemId;
+        document.getElementById('deleteItemCode').textContent = item.ItemCode || item.item_code;
+        document.getElementById('deleteItemName').textContent = item.ItemName || item.name;
+        document.getElementById('deleteMessage').textContent = `Are you sure you want to delete ${item.ItemName || item.name} from the inventory? This action cannot be undone.`;
+        
+        document.getElementById('deletePopup').classList.add('active');
+    }
+    
+    // Close popups
+    function closePopups() {
+        document.getElementById('addItemPopup').classList.remove('active');
+        document.getElementById('managePopup').classList.remove('active');
+        document.getElementById('editPopup').classList.remove('active');
+        document.getElementById('deletePopup').classList.remove('active');
+    }
+    
+    // Event listeners
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load data
+        loadStatistics();
+        loadItems();
+        loadActivities();
+        
+        // Add item button
+        document.getElementById('addItemBtn').addEventListener('click', function() {
+            document.getElementById('addItemPopup').classList.add('active');
+        });
+        
+        // Close buttons
+        document.getElementById('closeAddBtn').addEventListener('click', closePopups);
+        document.getElementById('cancelAddBtn').addEventListener('click', closePopups);
+        document.getElementById('closeManageBtn').addEventListener('click', closePopups);
+        document.getElementById('cancelManageBtn').addEventListener('click', closePopups);
+        document.getElementById('closeEditBtn').addEventListener('click', closePopups);
+        document.getElementById('cancelEditBtn').addEventListener('click', closePopups);
+        document.getElementById('closeDeleteBtn').addEventListener('click', closePopups);
+        document.getElementById('cancelDeleteBtn').addEventListener('click', closePopups);
+        
+        // Form submissions
+        document.getElementById('addItemForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                itemName: document.getElementById('itemName').value,
+                itemCategory: document.getElementById('itemCategory').value,
+                itemUnit: document.getElementById('itemUnit').value,
+                initialStock: parseInt(document.getElementById('initialStock').value) || 0,
+                minThreshold: parseInt(document.getElementById('minThreshold').value) || 10
+            };
+            
+            fetch(baseUrl + 'api/inventory/add_item', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Item added successfully!');
+                    closePopups();
+                    loadItems();
+                    loadStatistics();
+                    loadActivities();
+                    document.getElementById('addItemForm').reset();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to add item'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error adding item. Please try again.');
+            });
+        });
+        
+        // Manage stock form
+        document.getElementById('manageStockForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                addStock: parseInt(document.getElementById('addStock').value) || 0,
+                removeStock: parseInt(document.getElementById('removeStock').value) || 0,
+                minThreshold: parseInt(document.getElementById('manageMinThreshold').value) || 10,
+                reason: document.getElementById('stockReason').value
+            };
+            
+            fetch(baseUrl + 'api/inventory/manage_stock/' + currentItemId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Stock updated successfully!');
+                    closePopups();
+                    loadItems();
+                    loadStatistics();
+                    loadActivities();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to update stock'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating stock. Please try again.');
+            });
+        });
+        
+        // Edit item form
+        document.getElementById('editItemForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                itemName: document.getElementById('editItemName').value,
+                itemCategory: document.getElementById('editItemCategory').value,
+                itemUnit: document.getElementById('editItemUnit').value
+            };
+            
+            fetch(baseUrl + 'api/inventory/update_item/' + currentItemId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Item updated successfully!');
+                    closePopups();
+                    loadItems();
+                    loadStatistics();
+                    loadActivities();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to update item'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating item. Please try again.');
+            });
+        });
+        
+        // Delete item
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+            if (!currentItemId) return;
+            
+            if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
+                return;
+            }
+            
+            fetch(baseUrl + 'api/inventory/delete_item/' + currentItemId, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Item deleted successfully!');
+                    closePopups();
+                    loadItems();
+                    loadStatistics();
+                    loadActivities();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to delete item'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting item. Please try again.');
+            });
+        });
+        
+        // Click outside to close popups
+        document.querySelectorAll('.popup-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) {
+                    closePopups();
+                }
+            });
+        });
+    });
+    
+    // Auto-refresh every 30 seconds
+    setInterval(function() {
+        loadStatistics();
+        loadActivities();
+    }, 30000);
+    
+})();
+</script>

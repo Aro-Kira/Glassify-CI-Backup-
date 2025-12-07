@@ -1,0 +1,114 @@
+/* Inventory Reports Page Styles */
+
+.report-content {
+    margin-top: 20px;
+}
+
+.report-section {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.controls-container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.filter-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.filter-select,
+.filter-input {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.search-button {
+    padding: 10px 25px;
+    background: #02455F;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.3s;
+}
+
+.search-button:hover {
+    background: #036a8f;
+}
+
+.table-container {
+    overflow-x: auto;
+    margin-top: 20px;
+}
+
+.table-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table-container th {
+    background: #f5f5f5;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #ddd;
+}
+
+.table-container td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.table-container tr:hover {
+    background: #f9f9f9;
+}
+
+.status-in-stock {
+    color: #4caf50;
+    font-weight: bold;
+}
+
+.status-low-stock {
+    color: #ff9800;
+    font-weight: bold;
+}
+
+.status-out-stock {
+    color: #f44336;
+    font-weight: bold;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    background: #02455F;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.3s;
+}
+
+.btn-small:hover {
+    background: #036a8f;
+}
+

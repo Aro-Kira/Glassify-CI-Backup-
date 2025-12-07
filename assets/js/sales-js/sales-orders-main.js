@@ -351,6 +351,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 updatePopupField(prefix + '-configuration', order.Configuration || 'N/A');
                 updatePopupField(prefix + '-total', order.TotalAmount);
                 
+                // Preferred Installation Date - update if field exists
+                const prefDateEl = document.getElementById(prefix + '-preferred-installation-date');
+                if (prefDateEl) {
+                    if (order.PreferredInstallationDate && order.PreferredInstallationDate !== 'N/A') {
+                        prefDateEl.textContent = order.PreferredInstallationDate;
+                    } else {
+                        prefDateEl.textContent = 'N/A';
+                    }
+                }
+                
                 // Conditionally show/hide fields based on product category
                 const category = order.ProductCategory || '';
                 showHideFieldsByCategory(prefix, category, order);

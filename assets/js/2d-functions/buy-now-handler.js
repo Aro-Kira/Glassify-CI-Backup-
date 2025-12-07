@@ -5,8 +5,8 @@ $(document).on('click', '#buy-now-btn', function(e) {
     const productId = $(this).data('product-id');
     const customerId = document.body.getAttribute('data-customer-id');
     
-    if (!customerId) {
-        alert('Please log in to continue');
+    if (!customerId || customerId === '' || customerId === '0') {
+        alert('Please log in to continue with your purchase.');
         window.location.href = base_url + 'login';
         return;
     }
@@ -67,26 +67,51 @@ $(document).on('click', '#buy-now-btn', function(e) {
     };
     
     // Save to customization table (will clear old data and create new record)
+    // Ensure base_url has trailing slash for AJAX URL
+    let ajaxUrl = base_url;
+    if (!ajaxUrl.endsWith('/')) {
+        ajaxUrl += '/';
+    }
+    ajaxUrl += 'CartCon/save_buy_now_customization';
+    
+    console.log('AJAX URL:', ajaxUrl);
+    console.log('Order Data:', orderData);
+    
     $.ajax({
-        url: base_url + 'CartCon/save_buy_now_customization',
+        url: ajaxUrl,
         type: 'POST',
         data: orderData,
+        dataType: 'text', // Expect text response to parse manually
         success: function(response) {
-            const res = JSON.parse(response);
-            if (res.status === 'success') {
-                // Store customization ID in session/localStorage for later order creation
-                if (res.customization_id) {
-                    sessionStorage.setItem('buy_now_customization_id', res.customization_id);
+            try {
+                const res = typeof response === 'string' ? JSON.parse(response) : response;
+                if (res.status === 'success') {
+                    // Store customization ID in session/localStorage for later order creation
+                    if (res.customization_id) {
+                        sessionStorage.setItem('buy_now_customization_id', res.customization_id);
+                    }
+                    // Redirect to checkout (payment route)
+                    // Ensure base_url has trailing slash
+                    let paymentUrl = base_url;
+                    if (!paymentUrl.endsWith('/')) {
+                        paymentUrl += '/';
+                    }
+                    paymentUrl += 'payment';
+                    console.log('Redirecting to:', paymentUrl);
+                    window.location.href = paymentUrl;
+                } else {
+                    alert('Error: ' + (res.message || 'Failed to save order details'));
                 }
-                // Redirect to checkout
-                window.location.href = base_url + 'checkout';
-            } else {
-                alert('Error: ' + (res.message || 'Failed to save order details'));
+            } catch (e) {
+                console.error('Error parsing response:', e, response);
+                alert('Error processing response. Please try again.');
             }
         },
         error: function(xhr, status, error) {
             console.error('AJAX error:', status, error);
-            alert('Error saving order details. Please try again.');
+            console.error('Response:', xhr.responseText);
+            console.error('Status code:', xhr.status);
+            alert('Error saving order details. Please check your connection and try again.');
         }
     });
 });

@@ -97,11 +97,11 @@ class Pages extends CI_Controller {
         ]);
         
         // Send email to all active Sales Representatives
-        $sales_rep_subject = "New Quote Request from " . $first_name . " " . $last_name;
+        $sales_rep_subject = "New Inquiry from " . $first_name . " " . $last_name;
         $sales_rep_body = "
             <html>
             <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
-                <h2 style='color: #083c5d;'>New Quote Request</h2>
+                <h2 style='color: #083c5d;'>New Inquiry</h2>
                 <p><strong>Customer Information:</strong></p>
                 <ul>
                     <li><strong>Name:</strong> " . htmlspecialchars($first_name . " " . $last_name) . "</li>
@@ -139,13 +139,13 @@ class Pages extends CI_Controller {
         }
         
         // Send confirmation email to customer
-        $customer_subject = "Thank you for your quote request - Glassify";
+        $customer_subject = "Thank you for your inquiry - Glassify";
         $customer_body = "
             <html>
             <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
-                <h2 style='color: #083c5d;'>Thank You for Your Quote Request!</h2>
+                <h2 style='color: #083c5d;'>Thank You for Your Inquiry!</h2>
                 <p>Dear " . htmlspecialchars($first_name) . ",</p>
-                <p>We have received your quote request and appreciate your interest in our services.</p>
+                <p>We have received your inquiry and appreciate your interest in our services.</p>
                 <p>Our sales team will review your project requirements and contact you soon at:</p>
                 <ul>
                     <li><strong>Email:</strong> " . htmlspecialchars($email) . "</li>
@@ -181,7 +181,7 @@ class Pages extends CI_Controller {
         }
         
         // Set success message (even if email fails, form submission is successful)
-        $success_msg = 'Thank you! Your quote request has been submitted. We will contact you soon.';
+        $success_msg = 'Thank you! Your inquiry has been submitted. We will contact you soon.';
         
         // In development, show email debug info if email failed
         if (ENVIRONMENT === 'development') {

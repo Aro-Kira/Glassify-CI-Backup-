@@ -36,6 +36,31 @@ class InventCon extends CI_Controller
 
     public function inventory_inventory()
     {
+        $this->load->model('Inventory_model');
+        
+        // Get all inventory items
+        $inventory_items = $this->Inventory_model->get_all_items();
+        
+        // Get statistics
+        $statistics = $this->Inventory_model->get_statistics();
+        
+        // Get recent activities
+        $activities = $this->Inventory_model->get_activities(10);
+        
+        // Get unread notifications
+        $notifications = $this->Inventory_model->get_unread_notifications();
+        
+        // Prepare data for view
+        $data['inventory_items'] = $inventory_items;
+        $data['statistics'] = $statistics;
+        $data['activities'] = $activities;
+        $data['notifications'] = $notifications;
+        $data['total_items'] = $statistics['totalItems'];
+        $data['low_stock_count'] = $statistics['lowStockAlerts'];
+        $data['new_items_count'] = $statistics['newItems'];
+        $data['out_of_stock_count'] = $statistics['outOfStock'];
+        $data['recent_requests'] = $statistics['recentRequests'];
+        
         $data['title'] = "Glassify - Inventory Management";
         $data['active'] = 'inventory';
         $data['content_view'] = 'inventory_page/inventory_inventory';

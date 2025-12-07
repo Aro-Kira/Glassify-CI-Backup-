@@ -118,6 +118,15 @@
                     </div>
                 </div>
 
+                <!-- Preferred Date of Installation -->
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label>Preferred Date of Installation</label>
+                        <input type="date" name="preferred_installation_date" id="preferred_installation_date"
+                            placeholder="Select preferred installation date" required>
+                    </div>
+                </div>
+
                 <!-- Billing Address -->
                 <div class="terms"> <input type="checkbox" id="same-billing"> <label for="same-billing"> Make billing address same as shipping
                        
@@ -253,65 +262,104 @@
         });
     }
 
+    // === Set minimum date for preferred installation date ===
+    const preferredDateInput = document.getElementById("preferred_installation_date");
+    if (preferredDateInput) {
+        // Set minimum date to today
+        const today = new Date().toISOString().split('T')[0];
+        preferredDateInput.setAttribute('min', today);
+    }
+
     // === Place Order button logic ===
     document.getElementById("placeOrderBtn").addEventListener("click", function () {
-        const btn = this;
-        const ewallet = document.getElementById("ewallet-radio").checked;
-        const cod = document.getElementById("COD-radio").checked;
-        const termsCheckbox = document.getElementById('accept-terms');
-        const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
+        try {
+            const btn = this;
+            const ewallet = document.getElementById("ewallet-radio").checked;
+            const cod = document.getElementById("COD-radio").checked;
+            const termsCheckbox = document.getElementById('accept-terms');
+            const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
 
-        // Validate payment method
-        if (!ewallet && !cod) {
-            alert("Please select a payment method before placing order.");
-            return;
-        }
+            console.log('Place Order clicked - E-Wallet:', ewallet, 'COD:', cod, 'Terms:', termsAccepted);
 
-        // Validate terms acceptance
-        if (!termsAccepted) {
-            alert("Please accept the Terms and Conditions to proceed.");
-            return;
-        }
+            // Validate payment method
+            if (!ewallet && !cod) {
+                alert("Please select a payment method before placing order.");
+                return;
+            }
 
-        // Get form data
-        const formData = {
-            first_name: document.querySelector('input[name="first_name"]').value,
-            last_name: document.querySelector('input[name="last_name"]').value,
-            email: document.querySelector('input[name="email"]').value,
-            phone: document.querySelector('input[name="phone"]').value,
-            address: document.querySelector('input[name="address"]').value,
-            city: document.querySelector('input[name="city"]').value,
-            province: document.querySelector('input[name="province"]').value,
-            country: document.querySelector('input[name="country"]').value,
-            zipcode: document.querySelector('input[name="zipcode"]').value,
-            note: document.querySelector('input[name="note"]').value,
-            payment_method: ewallet ? 'ewallet' : 'cod',
-            total_amount: document.getElementById('summary-total').textContent.replace(/[₱,]/g, '')
-        };
+            // Validate terms acceptance
+            if (!termsAccepted) {
+                alert("Please accept the Terms and Conditions to proceed.");
+                return;
+            }
 
-        // Store form data in sessionStorage to pass to next page
-        sessionStorage.setItem('checkout_data', JSON.stringify(formData));
+            // Get form data - using correct field names from the form
+            const formData = {
+                first_name: document.querySelector('input[name="firstname"]')?.value || '',
+                last_name: document.querySelector('input[name="lastname"]')?.value || '',
+                email: document.querySelector('input[name="email"]')?.value || '',
+                phone: document.querySelector('input[name="phone"]')?.value || '',
+                address: document.querySelector('input[name="address"]')?.value || '',
+                city: document.querySelector('input[name="city"]')?.value || '',
+                province: document.querySelector('input[name="province"]')?.value || '',
+                country: document.querySelector('input[name="country"]')?.value || '',
+                zipcode: document.querySelector('input[name="zipcode"]')?.value || '',
+                note: document.querySelector('input[name="note"]')?.value || '',
+                preferred_installation_date: document.querySelector('input[name="preferred_installation_date"]')?.value || '',
+                payment_method: ewallet ? 'ewallet' : 'cod',
+                total_amount: document.getElementById('summary-total')?.textContent.replace(/[₱,]/g, '') || '0'
+            };
 
-        if (ewallet) {
-            window.location.href = "<?php echo base_url('paying'); ?>"; // redirect to e-wallet page
-        } else if (cod) {
-            // Submit form data to waiting_order
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = "<?php echo base_url('waiting_order'); ?>";
-            
-            Object.keys(formData).forEach(key => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = formData[key];
-                form.appendChild(input);
-            });
-            
-            document.body.appendChild(form);
-            form.submit();
+            console.log('Form data:', formData);
+
+            // Validate required fields
+            if (!formData.first_name || !formData.last_name || !formData.email || !formData.phone || 
+                !formData.address || !formData.city || !formData.province || !formData.country || !formData.zipcode) {
+                alert("Please fill in all required shipping information fields.");
+                return;
+            }
+
+            // Validate preferred installation date
+            if (!formData.preferred_installation_date) {
+                alert("Please select a preferred date of installation.");
+                return;
+            }
+
+            // Store form data in sessionStorage to pass to next page
+            try {
+                sessionStorage.setItem('checkout_data', JSON.stringify(formData));
+            } catch (e) {
+                console.error('Error saving to sessionStorage:', e);
+            }
+
+            console.log('Redirecting... E-Wallet:', ewallet, 'COD:', cod);
+
+            if (ewallet) {
+                const payingUrl = "<?php echo base_url('paying'); ?>";
+                console.log('Redirecting to:', payingUrl);
+                window.location.href = payingUrl; // redirect to e-wallet page
+            } else if (cod) {
+                // Submit form data to waiting_order
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = "<?php echo base_url('waiting_order'); ?>";
+                
+                Object.keys(formData).forEach(key => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = key;
+                    input.value = formData[key];
+                    form.appendChild(input);
+                });
+                
+                document.body.appendChild(form);
+                form.submit();
+            }
+        } catch (error) {
+            console.error('Error in Place Order:', error);
+            alert('An error occurred. Please check the console (F12) for details and try again.');
         }
     });
-
     
+
 </script>

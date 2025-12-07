@@ -372,6 +372,9 @@ class SalesCon extends CI_Controller
         $enduser_exists = $this->db->query("SHOW TABLES LIKE 'enduser'")->num_rows() > 0;
         
         if ($enduser_exists) {
+            // Sync customers from user table to enduser table (for new customers)
+            $this->sync_customers_to_enduser();
+            
             // Get total count from enduser table
             $total_customers = $this->db->count_all_results('enduser');
             
@@ -677,6 +680,21 @@ class SalesCon extends CI_Controller
             }
         }
         
+        // Get SpecialInstructions from order table to extract preferred installation date
+        $order_id_numeric = (int)str_replace('GI', '', $order_id_clean);
+        $this->db->select('SpecialInstructions');
+        $this->db->where('OrderID', $order_id_numeric);
+        $order_record = $this->db->get('order')->row();
+        $special_instructions = $order_record ? ($order_record->SpecialInstructions ?? '') : '';
+        
+        // Extract preferred installation date
+        $preferred_installation_date = 'N/A';
+        if (!empty($special_instructions)) {
+            if (preg_match('/Preferred Installation Date:\s*([^|]+)/i', $special_instructions, $matches)) {
+                $preferred_installation_date = trim($matches[1]);
+            }
+        }
+        
         // Build response with ALL data from order_page table (mirrors customization table)
         // Include all fields exactly as stored in database - no modifications
         $response = [
@@ -699,7 +717,9 @@ class SalesCon extends CI_Controller
                 'Configuration' => isset($order->Configuration) ? ($order->Configuration ?: 'N/A') : 'N/A',
                 'FileAttached' => $order->FileAttached ?: 'N/A',
                 'TotalAmount' => number_format($order->TotalQuotation, 2),
-                'FileUrl' => $file_url
+                'FileUrl' => $file_url,
+                'PreferredInstallationDate' => $preferred_installation_date,
+                'SpecialInstructions' => $special_instructions ?: 'N/A'
             ]
         ];
         
@@ -1132,7 +1152,6 @@ class SalesCon extends CI_Controller
         $data['page_css'] = 'sales_css/sales_notif.css';
         $this->load->view('sales_page/layout', $data);
     }
->>>>>>> origin/sales-branch
     
     /**
      * Add notification to sales_notif table
@@ -2121,12 +2140,12 @@ class SalesCon extends CI_Controller
                 
                 if (!$deduction_result['success']) {
                     // Log warning if some materials couldn't be deducted
-                    log_message('warning', 'Some materials could not be deducted for order ' . $order_id_string . ': ' . json_encode($deduction_result['out_of_stock_items']));
+                    log_message('error', 'Some materials could not be deducted for order ' . $order_id_string . ': ' . json_encode($deduction_result['out_of_stock_items']));
                 } else {
                     log_message('info', 'Materials deducted successfully for order ' . $order_id_string);
                 }
             } else {
-                log_message('warning', 'Could not find product ID for order ' . $order_id_string . ' - materials not deducted');
+                log_message('error', 'Could not find product ID for order ' . $order_id_string . ' - materials not deducted');
             }
             
             // Get sales rep name for logging
@@ -2166,6 +2185,50 @@ class SalesCon extends CI_Controller
         } catch (Exception $e) {
             log_message('error', 'Error in mark_payment_paid: ' . $e->getMessage());
             echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Sync customers from user table to enduser table
+     * This ensures new customers appear in the End Users page
+     */
+    private function sync_customers_to_enduser()
+    {
+        // Get all customers from user table
+        $this->db->where('Role', 'Customer');
+        $customers = $this->db->get('user')->result();
+        
+        foreach ($customers as $customer) {
+            // Check if customer already exists in enduser table
+            $this->db->where('UserID', $customer->UserID);
+            $existing = $this->db->get('enduser')->row();
+            
+            if ($existing) {
+                // Update existing record
+                $this->db->where('UserID', $customer->UserID);
+                $this->db->update('enduser', [
+                    'First_Name' => $customer->First_Name,
+                    'Last_Name' => $customer->Last_Name,
+                    'Middle_Name' => $customer->Middle_Name,
+                    'Email' => $customer->Email,
+                    'PhoneNum' => $customer->PhoneNum,
+                    'Status' => $customer->Status,
+                    'Date_Updated' => date('Y-m-d H:i:s')
+                ]);
+            } else {
+                // Insert new record
+                $this->db->insert('enduser', [
+                    'UserID' => $customer->UserID,
+                    'First_Name' => $customer->First_Name,
+                    'Last_Name' => $customer->Last_Name,
+                    'Middle_Name' => $customer->Middle_Name,
+                    'Email' => $customer->Email,
+                    'PhoneNum' => $customer->PhoneNum,
+                    'Status' => $customer->Status,
+                    'Date_Created' => $customer->Date_Created,
+                    'Date_Updated' => $customer->Date_Updated
+                ]);
+            }
         }
     }
 }

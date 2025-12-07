@@ -45,7 +45,10 @@
             <?php foreach ($cart_items as $item): ?>
               <tr class="cart-row">
               <td>
-                  <button class="remove-btn" data-id="<?= $item->Cart_ID ?>">X</button>
+                  <button class="remove-btn" 
+                          data-id="<?= $item->Cart_ID ?>" 
+                          data-product-id="<?= $item->Product_ID ?>"
+                          data-customization-id="<?= $item->CustomizationID ?? '' ?>">X</button>
                 </td>
                 <td>
                   <img src="<?= base_url('uploads/products/' . $item->ImageUrl) ?>" alt="<?= $item->ProductName ?>"

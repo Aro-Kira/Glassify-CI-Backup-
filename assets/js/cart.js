@@ -39,13 +39,52 @@ $(document).ready(function () {
     $(document).on('click', '.remove-btn', function () {
         const btn = $(this);
         const cart_id = btn.data('id');
+        const product_id = btn.data('product-id');
+        const customization_id = btn.data('customization-id');
 
-        $.post(BASE_URL + "CartCon/remove_ajax", { cart_id: cart_id }, function (res) {
-            if (res.status === 'success') {
-                btn.closest('tr').remove();
-                loadSummary(); // always reload summary from server
+        // Prepare data - include fallback identifiers for Cart_ID = 0
+        const postData = { cart_id: cart_id };
+        if (cart_id <= 0 || !cart_id) {
+            // If Cart_ID is invalid, use alternative identifiers
+            postData.product_id = product_id;
+            if (customization_id) {
+                postData.customization_id = customization_id;
             }
-        }, 'json');
+        }
+
+        $.ajax({
+            url: BASE_URL + "CartCon/remove_ajax",
+            type: "POST",
+            data: postData,
+            dataType: 'json',
+            success: function (res) {
+                if (res.status === 'success') {
+                    btn.closest('tr').remove();
+                    loadSummary(); // always reload summary from server
+                } else {
+                    alert("Error: " + (res.message || 'Failed to remove item'));
+                }
+            },
+            error: function (xhr, status, error) {
+                let errorMessage = "Server error. Try again.";
+                if (xhr.responseText) {
+                    try {
+                        let errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse.message) {
+                            errorMessage = "Error: " + errorResponse.message;
+                        }
+                    } catch (e) {
+                        console.error("AJAX Error:", {
+                            status: xhr.status,
+                            statusText: xhr.statusText,
+                            responseText: xhr.responseText,
+                            error: error
+                        });
+                    }
+                }
+                alert(errorMessage);
+            }
+        });
     });
 
     // =============================

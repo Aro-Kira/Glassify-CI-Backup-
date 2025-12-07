@@ -6,6 +6,9 @@ application/cache/*
 application/logs/*
 !application/logs/index.html
 
+application/writable/session/*
+!application/writable/session/.gitkeep
+
 !application/*/.htaccess
 
 composer.lock
