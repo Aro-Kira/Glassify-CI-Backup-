@@ -19,9 +19,11 @@
     </div>
 
     <div class="progress-nav">
-        <div class="step">Cart</div>
+        <div class="step completed">Cart</div>
         <div class="divider"></div>
         <div class="step active">Payment</div>
+        <div class="divider"></div>
+        <div class="step">Approval</div>
         <div class="divider"></div>
         <div class="step">Complete</div>
     </div>

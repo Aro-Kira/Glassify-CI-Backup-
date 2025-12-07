@@ -156,3 +156,74 @@ body {
 .register-options a:hover {
   text-decoration: underline;
 }
+
+/* Password Requirements */
+.password-requirements {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  display: block;
+}
+
+.requirements-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #032C3A;
+  font-size: 0.9rem;
+}
+
+.requirements-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.requirements-list li {
+  margin: 0.4rem 0;
+  display: flex;
+  align-items: center;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.check-icon {
+  display: inline-block;
+  width: 18px;
+  margin-right: 0.5rem;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+/* Password input validation states */
+input.valid {
+  border-color: #28a745;
+  background: #f0fff4;
+}
+
+input.invalid {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
+/* Alert messages */
+.alert {
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.alert-success {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}

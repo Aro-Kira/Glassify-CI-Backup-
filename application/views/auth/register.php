@@ -59,8 +59,17 @@
                 <div class="register-input-group password-group">
                     <label for="password">Password <span class="required">*</span></label>
                     <div class="register-input-row">
-                        <input type="password" name="password" id="password" placeholder="Enter your password" required>
+                        <input type="password" name="password" id="password" placeholder="Enter your password" required minlength="8">
                         <button type="button" class="toggle-password"><i class="fa fa-eye"></i></button>
+                    </div>
+                    <div class="password-requirements" id="passwordRequirements">
+                        <p class="requirements-title">Password must contain:</p>
+                        <ul class="requirements-list">
+                            <li id="req-length"><span class="check-icon">✗</span> At least 8 characters</li>
+                            <li id="req-uppercase"><span class="check-icon">✗</span> One uppercase letter (A-Z)</li>
+                            <li id="req-lowercase"><span class="check-icon">✗</span> One lowercase letter (a-z)</li>
+                            <li id="req-number"><span class="check-icon">✗</span> One number (0-9)</li>
+                        </ul>
                     </div>
                 </div>
 
@@ -104,5 +113,83 @@ document.addEventListener("DOMContentLoaded", function() {
             this.innerHTML = input.type === "password" ? '<i class="fa fa-eye"></i>' : '<i class="fa fa-eye-slash"></i>';
         });
     });
+
+    // Strong Password Validation
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    
+    if (passwordInput) {
+        passwordInput.addEventListener('input', function() {
+            validatePasswordStrength(this.value);
+        });
+
+        // Password requirements are always visible
+
+        // Validate password match
+        if (confirmPasswordInput) {
+            confirmPasswordInput.addEventListener('input', function() {
+                validatePasswordMatch();
+            });
+        }
+    }
+
+    function validatePasswordStrength(password) {
+        const requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password)
+        };
+
+        // Update visual feedback for each requirement
+        updateRequirement('req-length', requirements.length);
+        updateRequirement('req-uppercase', requirements.uppercase);
+        updateRequirement('req-lowercase', requirements.lowercase);
+        updateRequirement('req-number', requirements.number);
+
+        // Check if all requirements are met
+        const allMet = Object.values(requirements).every(req => req === true);
+        
+        if (allMet) {
+            passwordInput.setCustomValidity('');
+            passwordInput.classList.remove('invalid');
+            passwordInput.classList.add('valid');
+        } else {
+            passwordInput.setCustomValidity('Password does not meet all requirements');
+            passwordInput.classList.remove('valid');
+            passwordInput.classList.add('invalid');
+        }
+    }
+
+    function updateRequirement(elementId, isValid) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const icon = element.querySelector('.check-icon');
+            if (isValid) {
+                icon.textContent = '✓';
+                icon.style.color = '#28a745';
+                element.style.color = '#28a745';
+            } else {
+                icon.textContent = '✗';
+                icon.style.color = '#dc3545';
+                element.style.color = '#666';
+            }
+        }
+    }
+
+    function validatePasswordMatch() {
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        
+        if (confirmPassword && password !== confirmPassword) {
+            confirmPasswordInput.setCustomValidity('Passwords do not match');
+            confirmPasswordInput.classList.remove('valid');
+            confirmPasswordInput.classList.add('invalid');
+        } else if (confirmPassword) {
+            confirmPasswordInput.setCustomValidity('');
+            confirmPasswordInput.classList.remove('invalid');
+            confirmPasswordInput.classList.add('valid');
+        }
+    }
 });
 </script>

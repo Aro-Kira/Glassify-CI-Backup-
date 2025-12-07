@@ -28,7 +28,7 @@ class Auth extends CI_Controller
         $this->form_validation->set_rules('first_name', 'First Name', 'required|trim');
         $this->form_validation->set_rules('surname', 'Surname', 'required|trim');
         $this->form_validation->set_rules('email', 'Email', 'required|valid_email|trim');
-        $this->form_validation->set_rules('password', 'Password', 'required|min_length[6]');
+        $this->form_validation->set_rules('password', 'Password', 'required|min_length[8]|callback_strong_password');
         $this->form_validation->set_rules('confirm_password', 'Confirm Password', 'required|matches[password]');
         $this->form_validation->set_rules('phone', 'Phone Number', 'required|trim');
 
@@ -74,8 +74,12 @@ class Auth extends CI_Controller
             redirect(base_url('sales-login'));
         }
         
+        // Check for Remember Me cookie
+        $remember_email = get_cookie('customer_remember_email');
+        
         $data['title'] = "Glassify - Login";
         $data['force_guest_header'] = true; // Force guest header on login/register pages
+        $data['remember_email'] = $remember_email ? $remember_email : '';
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login', $data);
         $this->load->view('includes/footer');
@@ -96,8 +100,12 @@ class Auth extends CI_Controller
             redirect(base_url('sales-login'));
         }
         
+        // Check for Remember Me cookie
+        $remember_email = get_cookie('admin_remember_email');
+        
         $data['title'] = "Glassify - Admin Login";
         $data['force_guest_header'] = true; // Force guest header on employee login pages
+        $data['remember_email'] = $remember_email ? $remember_email : '';
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login_admin', $data);
         $this->load->view('includes/footer');
@@ -137,11 +145,61 @@ class Auth extends CI_Controller
             redirect(base_url('sales-login'));
         }
         
+        // Check for Remember Me cookie
+        $remember_email = get_cookie('inventory_remember_email');
+        
         $data['title'] = "Glassify - Inventory Login";
         $data['force_guest_header'] = true; // Force guest header on employee login pages
+        $data['remember_email'] = $remember_email ? $remember_email : '';
         $this->load->view('includes/header', $data);
         $this->load->view('auth/login_inventory', $data);
         $this->load->view('includes/footer');
+    }
+
+    // ===================== STRONG PASSWORD VALIDATION =====================
+    /**
+     * Custom validation callback for strong password requirements
+     * Password must contain:
+     * - At least 8 characters
+     * - At least one uppercase letter
+     * - At least one lowercase letter
+     * - At least one number
+     */
+    public function strong_password($password)
+    {
+        if (empty($password)) {
+            $this->form_validation->set_message('strong_password', 'The {field} field is required.');
+            return false;
+        }
+
+        $errors = [];
+
+        // Check minimum length (8 characters)
+        if (strlen($password) < 8) {
+            $errors[] = 'at least 8 characters';
+        }
+
+        // Check for uppercase letter
+        if (!preg_match('/[A-Z]/', $password)) {
+            $errors[] = 'one uppercase letter';
+        }
+
+        // Check for lowercase letter
+        if (!preg_match('/[a-z]/', $password)) {
+            $errors[] = 'one lowercase letter';
+        }
+
+        // Check for number
+        if (!preg_match('/[0-9]/', $password)) {
+            $errors[] = 'one number';
+        }
+
+        if (!empty($errors)) {
+            $this->form_validation->set_message('strong_password', 'The {field} must contain ' . implode(', ', $errors) . '.');
+            return false;
+        }
+
+        return true;
     }
 
     // ===================== EMAIL VALIDATION HELPER =====================
@@ -376,14 +434,31 @@ class Auth extends CI_Controller
 
         $this->session->set_userdata($session_data);
 
-        // Handle Remember Me checkbox
+        // Handle Remember Me checkbox - set appropriate cookie based on role
         $remember_me = $this->input->post('remember_me');
-        if ($remember_me) {
+        $cookie_name = '';
+        
+        switch ($user->Role) {
+            case 'Admin':
+                $cookie_name = 'admin_remember_email';
+                break;
+            case 'Sales Representative':
+                $cookie_name = 'sales_remember_email';
+                break;
+            case 'Inventory Officer':
+                $cookie_name = 'inventory_remember_email';
+                break;
+            case 'Customer':
+                $cookie_name = 'customer_remember_email';
+                break;
+        }
+        
+        if ($remember_me && !empty($cookie_name)) {
             // Set cookie for 30 days
-            set_cookie('sales_remember_email', $email, 30 * 24 * 60 * 60); // 30 days
-        } else {
+            set_cookie($cookie_name, $email, 30 * 24 * 60 * 60); // 30 days
+        } else if (!empty($cookie_name)) {
             // Delete cookie if exists
-            delete_cookie('sales_remember_email');
+            delete_cookie($cookie_name);
         }
 
         log_message('info', 'Login successful: email=' . $email . ', role=' . $user->Role . ', user_id=' . $user->UserID);
@@ -751,8 +826,7 @@ class Auth extends CI_Controller
         // Get user role before destroying session
         $user_role = $this->session->userdata('user_role');
         
-        // Clear remember me cookie on logout
-        delete_cookie('sales_remember_email');
+        // Destroy session only - keep remember me cookies so email is still pre-filled on next login
         $this->session->sess_destroy();
         
         // Redirect based on role

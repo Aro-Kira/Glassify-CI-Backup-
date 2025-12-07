@@ -19,6 +19,8 @@
         <div class="divider"></div>
         <div class="step completed">Payment</div>
         <div class="divider"></div>
+        <div class="step completed">Approval</div>
+        <div class="divider"></div>
         <div class="step active">Complete</div>
     </div>
 </div>

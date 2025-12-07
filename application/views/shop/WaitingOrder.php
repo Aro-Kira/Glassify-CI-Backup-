@@ -1,8 +1,27 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/2DModeling_styles.css'); ?>">
+<link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/checkout_style.css'); ?>">
 <script src="<?php echo base_url('assets/js/order_status.js'); ?>"></script>
 <script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
-<div class="breadcrumb-strip">
-    <div class="page-title">Products & Services</div>
+
+<div class="checkout-header">
+    <!-- Back button -->
+    <div class="back-btn">
+        <a href="<?php echo base_url('addtocart'); ?>">
+            <img src="<?php echo base_url('assets/images/img-page/back_button.png'); ?>" alt="Back Icon">
+            <span>Back</span>
+        </a>
+    </div>
+
+    <!-- Progress nav -->
+    <div class="progress-nav">
+        <div class="step completed">Cart</div>
+        <div class="divider"></div>
+        <div class="step completed">Payment</div>
+        <div class="divider"></div>
+        <div class="step active">Approval</div>
+        <div class="divider"></div>
+        <div class="step">Complete</div>
+    </div>
 </div>
 
 <main>

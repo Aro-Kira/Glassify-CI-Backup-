@@ -20,9 +20,11 @@
 
     <!-- Progress nav -->
     <div class="progress-nav">
-        <div class="step">Cart</div>
+        <div class="step completed">Cart</div>
         <div class="divider"></div>
         <div class="step active">Payment</div>
+        <div class="divider"></div>
+        <div class="step">Approval</div>
         <div class="divider"></div>
         <div class="step">Complete</div>
     </div>
@@ -73,11 +75,31 @@
                     <h3>Shipping Address</h3>
                 </div>
                 <div class="form-row">
-                    <div class="form-group full-width">
-                        <label>Address line</label>
-                        <input type="text" name="address"
-                            value="<?= htmlspecialchars($addresses['Shipping']->AddressLine) ?>"
-                            placeholder="Enter your address" required>
+                    <div class="form-group">
+                        <label>Street Name/Number</label>
+                        <input type="text" name="street" id="street"
+                            value="<?= htmlspecialchars($addresses['Shipping']->AddressLine ?? '') ?>"
+                            placeholder="Enter street name or number" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Barangay</label>
+                        <input type="text" name="barangay" id="barangay"
+                            value=""
+                            placeholder="Enter barangay" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>City/Municipality</label>
+                        <input type="text" name="city" value="<?= htmlspecialchars($addresses['Shipping']->City) ?>"
+                            placeholder="Enter your city or municipality" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Province</label>
+                        <input type="text" name="province"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Province) ?>"
+                            placeholder="Enter your province" required>
                     </div>
                 </div>
 
@@ -93,20 +115,6 @@
                         <input type="text" name="zipcode"
                             value="<?= htmlspecialchars($addresses['Shipping']->ZipCode) ?>"
                             placeholder="Enter your zip code" required>
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Province</label>
-                        <input type="text" name="province"
-                            value="<?= htmlspecialchars($addresses['Shipping']->Province) ?>"
-                            placeholder="Enter your province" required>
-                    </div>
-                    <div class="form-group">
-                        <label>City/Municipality</label>
-                        <input type="text" name="city" value="<?= htmlspecialchars($addresses['Shipping']->City) ?>"
-                            placeholder="Enter your city or municipality" required>
                     </div>
                 </div>
 
@@ -195,10 +203,10 @@
 
         <div class="section-title">Customer Information:</div>
         <div class="customer-info">
-            <p><strong>Name:</strong> John Doe</p>
-            <p><strong>Address:</strong> 123 Main Street, Anytown, USA</p>
-            <p><strong>Email:</strong> john.doe@example.com</p>
-            <p><strong>Phone:</strong> (123) 456-7890</p>
+            <p><strong>Name:</strong> <span id="quote-customer-name">-</span></p>
+            <p><strong>Address:</strong> <span id="quote-customer-address">-</span></p>
+            <p><strong>Email:</strong> <span id="quote-customer-email">-</span></p>
+            <p><strong>Phone:</strong> <span id="quote-customer-phone">-</span></p>
         </div>
 
         <div class="section-title">Quotation Details:</div>
@@ -232,7 +240,96 @@
     const openBtn = document.getElementById("openModal");
     const closeBtn = document.getElementById("closeModal");
 
-    openBtn.onclick = () => modal.style.display = "block";
+    // Function to get customer info from form
+    function getCustomerInfo() {
+        const firstname = document.querySelector('input[name="firstname"]')?.value || '';
+        const lastname = document.querySelector('input[name="lastname"]')?.value || '';
+        const email = document.querySelector('input[name="email"]')?.value || '';
+        const phone = document.querySelector('input[name="phone"]')?.value || '';
+        const street = document.querySelector('input[name="street"]')?.value || '';
+        const barangay = document.querySelector('input[name="barangay"]')?.value || '';
+        const city = document.querySelector('input[name="city"]')?.value || '';
+        const province = document.querySelector('input[name="province"]')?.value || '';
+        const country = document.querySelector('input[name="country"]')?.value || '';
+        const zipcode = document.querySelector('input[name="zipcode"]')?.value || '';
+        
+        // Combine street and barangay
+        const addressLine = [street, barangay].filter(part => part.trim() !== '').join(', ');
+        
+        // Build full address
+        const addressParts = [addressLine, city, province, country, zipcode].filter(part => part.trim() !== '');
+        const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : '-';
+        
+        return {
+            name: (firstname + ' ' + lastname).trim() || '-',
+            address: fullAddress,
+            email: email || '-',
+            phone: phone || '-'
+        };
+    }
+
+    // Generate Quotation button - fetch data from database
+    openBtn.onclick = function() {
+        // Get customer info from form
+        const customerInfo = getCustomerInfo();
+        
+        // Update customer info in modal
+        document.getElementById('quote-customer-name').textContent = customerInfo.name;
+        document.getElementById('quote-customer-address').textContent = customerInfo.address;
+        document.getElementById('quote-customer-email').textContent = customerInfo.email;
+        document.getElementById('quote-customer-phone').textContent = customerInfo.phone;
+        
+        // Set current date
+        document.getElementById('quotation-date').textContent = new Date().toLocaleDateString();
+        
+        // Fetch cart data from database
+        fetch(BASE_URL + "CartCon/get_cart_ajax")
+            .then(response => response.json())
+            .then(res => {
+                if (res.status === 'success') {
+                    const tbody = document.querySelector('#quotationModal tbody');
+                    tbody.innerHTML = ''; // Clear existing rows
+                    
+                    let subtotal = 0;
+                    
+                    // Populate table with cart items
+                    res.items.forEach(item => {
+                        const unit_price = Number(item.unit_price) || 0;
+                        const total = Number(item.total) || 0;
+                        
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${item.description || 'N/A'}</td>
+                            <td>${item.quantity || 0}</td>
+                            <td>₱${unit_price.toFixed(2)}</td>
+                            <td>₱${total.toFixed(2)}</td>
+                        `;
+                        tbody.appendChild(row);
+                        subtotal += total;
+                    });
+                    
+                    // Update totals
+                    const shippingFee = res.summary.shipping || 0;
+                    const handlingFee = res.summary.handling || 0;
+                    const grandTotal = subtotal + shippingFee + handlingFee;
+                    
+                    document.getElementById('quote-subtotal').textContent = `₱${subtotal.toFixed(2)}`;
+                    document.getElementById('quote-shipping').textContent = `₱${shippingFee.toFixed(2)}`;
+                    document.getElementById('quote-handling').textContent = `₱${handlingFee.toFixed(2)}`;
+                    document.getElementById('quote-grandtotal').textContent = `₱${grandTotal.toFixed(2)}`;
+                    
+                    // Show modal
+                    modal.style.display = "block";
+                } else {
+                    alert('Failed to load cart data. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching cart data:', error);
+                alert('Error loading quotation. Please try again.');
+            });
+    };
+    
     closeBtn.onclick = () => modal.style.display = "none";
     window.onclick = (event) => {
         if (event.target === modal) {
@@ -294,12 +391,19 @@
             }
 
             // Get form data - using correct field names from the form
+            const street = document.querySelector('input[name="street"]')?.value || '';
+            const barangay = document.querySelector('input[name="barangay"]')?.value || '';
+            // Combine street and barangay into address
+            const address = [street, barangay].filter(part => part.trim() !== '').join(', ');
+            
             const formData = {
                 first_name: document.querySelector('input[name="firstname"]')?.value || '',
                 last_name: document.querySelector('input[name="lastname"]')?.value || '',
                 email: document.querySelector('input[name="email"]')?.value || '',
                 phone: document.querySelector('input[name="phone"]')?.value || '',
-                address: document.querySelector('input[name="address"]')?.value || '',
+                address: address, // Combined street and barangay
+                street: street,
+                barangay: barangay,
                 city: document.querySelector('input[name="city"]')?.value || '',
                 province: document.querySelector('input[name="province"]')?.value || '',
                 country: document.querySelector('input[name="country"]')?.value || '',
@@ -314,8 +418,8 @@
 
             // Validate required fields
             if (!formData.first_name || !formData.last_name || !formData.email || !formData.phone || 
-                !formData.address || !formData.city || !formData.province || !formData.country || !formData.zipcode) {
-                alert("Please fill in all required shipping information fields.");
+                !street || !barangay || !formData.city || !formData.province || !formData.country || !formData.zipcode) {
+                alert("Please fill in all required shipping information fields (including street name and barangay).");
                 return;
             }
 

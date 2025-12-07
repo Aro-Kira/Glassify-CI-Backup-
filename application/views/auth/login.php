@@ -33,12 +33,17 @@
       <!-- ✅ Only ONE form -->
       <form method="POST" action="<?= base_url('auth/process_role_login/Customer') ?>">
 
+        <?php
+        $remember_email_value = isset($remember_email) ? $remember_email : '';
+        ?>
+
         <div class="login-input-group">
           <label for="email">Email Address</label>
           <div class="login-input-row">
             <img src="<?php echo base_url('assets/images/img-page/ic_outline-email.svg'); ?>" alt="Email Icon"
               class="login-input-icon">
-            <input type="email" id="email" name="email" placeholder="Enter your email" required>
+            <input type="email" id="email" name="email" placeholder="Enter your email"
+              value="<?= $remember_email_value ?>" required>
           </div>
         </div>
 
@@ -54,7 +59,7 @@
         <button type="submit" class="login-btn">Login</button>
 
         <div class="login-options">
-          <label><input type="checkbox"> Remember Me</label>
+          <label><input type="checkbox" name="remember_me" value="1" <?= (!empty($remember_email)) ? 'checked' : '' ?>> Remember Me</label>
           <a href="<?php echo base_url('forgot-password'); ?>">Forgot Password?</a>
         </div>
 
