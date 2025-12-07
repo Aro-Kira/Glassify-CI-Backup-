@@ -11,10 +11,71 @@ class Pages extends CI_Controller {
     }
 
     public function home_login() {
+        // Check if user is logged in
+        if (!$this->session->userdata('is_logged_in')) {
+            redirect(base_url());
+        }
+
+        // Load models
+        $this->load->model('Order_model');
+        $this->load->model('User_model');
+        $this->load->model('Product_model');
+
+        $user_id = $this->session->userdata('user_id');
+        
+        // Get user data
+        $data['user'] = $this->User_model->get_by_id($user_id);
+        
+        // Get order statistics
+        $in_progress_statuses = ['Pending', 'Approved', 'In Fabrication', 'Ready for Installation'];
+        $data['orders_in_progress'] = $this->Order_model->count_orders_by_status($user_id, $in_progress_statuses);
+        
+        // Get recent activity (most recent non-completed order)
+        $data['recent_activity'] = $this->Order_model->get_recent_order_activity($user_id);
+        
+        // Get orders for the table
+        $data['orders'] = $this->Order_model->get_customer_orders_with_products($user_id, 10);
+        
+        // Get activity feed (fetch more for expandable list)
+        $data['activity_feed'] = $this->Order_model->get_activity_feed($user_id, 20);
+        
+        // Get last update time
+        $data['last_update'] = $this->Order_model->get_last_update_time($user_id);
+        
+        // Get recommended products
+        $data['recommendations'] = $this->Product_model->get_recommended_products(4);
+        
+        // Get next appointment (placeholder - using order dates for now)
+        $data['next_appointment'] = $this->get_next_appointment($user_id);
+
         $data['title'] = "Glassify - Home";
         $this->load->view('includes/header', $data);
         $this->load->view('pages/home-login', $data);
         $this->load->view('includes/footer');
+    }
+
+    /**
+     * Helper function to get next appointment
+     * Uses order installation dates as appointments for now
+     */
+    private function get_next_appointment($user_id) {
+        $this->load->database();
+        
+        // Get order with upcoming installation (estimated from order date)
+        $this->db->select('
+            o.OrderID,
+            o.OrderDate,
+            o.Status,
+            DATE_ADD(o.OrderDate, INTERVAL 14 DAY) as AppointmentDate
+        ');
+        $this->db->from('`order` o');
+        $this->db->where('o.Customer_ID', $user_id);
+        $this->db->where('o.Status !=', 'Completed');
+        $this->db->where('o.Status !=', 'Cancelled');
+        $this->db->order_by('o.OrderDate', 'DESC');
+        $this->db->limit(1);
+        
+        return $this->db->get()->row();
     }
 
  public function about() {

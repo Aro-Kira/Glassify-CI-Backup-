@@ -101,6 +101,110 @@ h1 {
   margin-bottom: 15px;
 }
 
+/* Dropdown Styles */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.dropbtn {
+  background-color: #04384c;
+  color: white;
+  padding: 10px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.dropbtn:hover {
+  background-color: #053d54;
+}
+
+.filter-icon {
+  font-size: 12px;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+.dropdown-content {
+  display: none;
+  position: absolute;
+  right: 0;
+  background-color: #fff;
+  min-width: 180px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  z-index: 100;
+  overflow: hidden;
+  margin-top: 5px;
+}
+
+.dropdown-content.show {
+  display: block;
+}
+
+.dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.clear-link {
+  color: #5ca8c8;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.clear-link:hover {
+  text-decoration: underline;
+}
+
+.filter-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  text-decoration: none;
+  color: #333;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.filter-option:hover {
+  background-color: #f5f5f5;
+}
+
+.filter-option.active {
+  background-color: #e8f4f8;
+}
+
+.filter-option .checkmark {
+  color: #5ca8c8;
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.filter-option.active .checkmark {
+  opacity: 1;
+}
+
 
 /* Tables */
 .order-progress, .appointment {
@@ -109,6 +213,72 @@ h1 {
   margin: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.see-more-container {
+  text-align: center;
+  margin-top: 15px;
+}
+
+.see-more-link {
+  color: #333;
+  text-decoration: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.see-more-link:hover {
+  text-decoration: underline;
+}
+
+.see-more-link .arrow {
+  font-size: 10px;
+  margin-left: 5px;
+}
+
+/* Appointment table wrapper for scrollable functionality */
+.appointment-table-wrapper {
+  transition: max-height 0.3s ease;
+}
+
+.appointment-table-wrapper.scrollable {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* Custom scrollbar for appointment table */
+.appointment-table-wrapper.scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.appointment-table-wrapper.scrollable::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.appointment-table-wrapper.scrollable::-webkit-scrollbar-thumb {
+  background: #04384c;
+  border-radius: 4px;
+}
+
+.appointment-table-wrapper.scrollable::-webkit-scrollbar-thumb:hover {
+  background: #053d54;
+}
+
+/* Hidden rows in appointment table */
+#appointmentsTable tbody tr.hidden-row {
+  display: none;
+}
+
+/* Sticky header for scrollable appointment table */
+.appointment-table-wrapper.scrollable #appointmentsTable thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.appointment-table-wrapper.scrollable #appointmentsTable thead th {
+  background: #04384c;
 }
 table {
   width: 100%;
@@ -129,19 +299,66 @@ tbody tr:hover {
   background: #f1f7fb;
 }
 
+/* Product cell with thumbnail */
+.product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.product-thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.view-details {
+  color: #04384c;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.view-details:hover {
+  text-decoration: underline;
+}
+
 /* Status Tags */
 .status {
-  padding: 4px 10px;
-  border-radius: 16px;
-  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
   color: #fff;
-  font-weight: bold;
+  font-weight: 600;
+  display: inline-block;
+  text-align: center;
+  min-width: 80px;
 }
-.status.in-progress { background: orange; }
-.status.completed { background: green; }
-.status.confirmed { background: green; }
-.status.pending { background: orange; }
-.status.cancelled { background: red; }
+.status.in-progress { 
+  background: #FF9800; 
+  color: #fff;
+}
+.status.approved { 
+  background: #FF9800; 
+  color: #fff;
+}
+.status.completed { 
+  background: #28a745; 
+  color: #fff;
+}
+.status.confirmed { 
+  background: #28a745; 
+  color: #fff;
+}
+.status.pending { 
+  background: #FF9800; 
+  color: #fff;
+}
+.status.cancelled { 
+  background: #dc3545; 
+  color: #fff;
+}
 
 /* Activity Feed */
 .activity-feed {
@@ -164,6 +381,35 @@ tbody tr:hover {
   margin: 10px 0 20px;
 }
 
+.activity-list-container {
+  transition: max-height 0.3s ease;
+}
+
+.activity-list-container.scrollable {
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+/* Custom scrollbar for activity feed */
+.activity-list-container.scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.activity-list-container.scrollable::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.activity-list-container.scrollable::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.activity-list-container.scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
 .activity-feed ul {
   list-style: none;
   padding: 0;
@@ -175,6 +421,14 @@ tbody tr:hover {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 20px;
+}
+
+.activity-feed li.hidden-item {
+  display: none;
+}
+
+.activity-feed li.visible-item {
+  display: flex;
 }
 
 .activity-text {
@@ -210,10 +464,21 @@ tbody tr:hover {
   font-size: 0.9rem;
   color: #ddd;
   cursor: pointer;
+  transition: color 0.2s;
+}
+
+.read-all:hover {
+  color: #fff;
 }
 
 .read-all .arrow {
   font-size: 0.8rem;
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.read-all.expanded .arrow {
+  transform: rotate(180deg);
 }
 
 
@@ -226,14 +491,28 @@ tbody tr:hover {
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   font-family: 'Montserrat', sans-serif;
 }
-.recommendations h2 {
+.recommendations .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
 }
-
+.recommendations .section-header h2 {
+  margin: 0;
+}
+.recommendations .section-header .see-more {
+  color: #04384c;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+.recommendations .section-header .see-more:hover {
+  text-decoration: underline;
+}
 
 .recommendation-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 20px;
 }
 .recommendation-card {
@@ -244,36 +523,54 @@ tbody tr:hover {
   text-align: center;
   padding: 20px 15px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-  width: auto;
-  height: 550px;
+  height: 450px;
+  display: flex;
+  flex-direction: column;
 }
 .recommendation-card img {
   width: 100%;
-  height: 400px;
+  height: 300px;
   object-fit: cover;
   border-radius: 11px;
-  display: block; /* ensures no inline spacing */
+  display: block;
 }
 .recommendation-card h3 {
-  margin: 25px 20% 10px;
-  font-size: 17pt;
+  margin: 20px 10px 10px;
+  font-size: 14pt;
   font-family: 'Montserrat', sans-serif;
-  font-weight: 100;
-  width: 60%;
-
+  font-weight: 500;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .recommendation-card button {
   font-family: 'Montserrat', sans-serif;
-  font-weight: 100;
-  font-size: 14pt;
-  width: 100%;        /* make button same width as image */
+  font-weight: 600;
+  font-size: 12pt;
+  width: 100%;
   background: #f7b500;
   border: none;
-  padding: 12px 0;    /* only vertical padding */
-  border-radius: 8px; /* match image corners a bit */
+  padding: 12px 0;
+  border-radius: 8px;
   cursor: pointer;
-  margin: 10px 0 50px;   /* space from heading */
+  color: #000;
 }
 .recommendation-card button:hover {
   background: #e09c00;
+}
+
+/* Responsive for recommendations */
+@media (max-width: 1024px) {
+  .recommendation-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .recommendation-card {
+    height: auto;
+  }
+}
+@media (max-width: 600px) {
+  .recommendation-grid {
+    grid-template-columns: 1fr;
+  }
 }

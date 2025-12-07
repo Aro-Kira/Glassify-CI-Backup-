@@ -66,7 +66,7 @@
                 <?php if ($product): ?>
                     <div class="product-info">
                         <img src="<?= base_url('uploads/products/' . $product->ImageUrl) ?>"
-                            alt="<?= $product->ProductName ?>">
+                            alt="<?= $product->ProductName ?>" class="main-product-image">
                     </div>
                 <?php endif; ?>
 
@@ -80,7 +80,7 @@
 
             <div class="diagram-container">
                 <div id="konva-container" class="konva-wrapper"></div>
-                <div class="preview-label">2D Preview</div>
+                <div class="preview-label" style="cursor: pointer;">2D Preview <span style="font-size: 0.8em;">(Click to enlarge)</span></div>
             </div>
             <button class="upload-btn" id="open-modal-btn">
                 Upload a File
@@ -105,7 +105,7 @@
 
                     <p id="standard-subtitle" class="subtitle hidden-step">Start building today!</p>
                 </div>
-                <button class="wishlist-btn">
+                <button class="wishlist-btn" id="add-to-wishlist-btn" data-product-id="<?= $product->Product_ID ?>" title="Add to Wishlist">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2">
                         <path
                             d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
@@ -120,13 +120,44 @@
             </div>
 
             <div class="price-box" id="price-box">
-                <span class="price-label">Estimated Price</span>
-
-
-                <?php if ($product): ?>
-                    <span class="price-value">Price: ₱<?= number_format($product->Price, 2) ?></span>
-                <?php endif; ?>
-
+                <div class="price-main">
+                    <span class="price-label">Estimated Price</span>
+                    <span class="price-value" id="total-price">₱0.00</span>
+                </div>
+                <div class="price-breakdown" id="price-breakdown">
+                    <div class="breakdown-toggle" id="breakdown-toggle">
+                        <span>View Price Breakdown</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </div>
+                    <div class="breakdown-details hidden-step" id="breakdown-details">
+                        <div class="breakdown-row">
+                            <span>Base Area Cost:</span>
+                            <span id="cost-area">₱0.00</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Shape (<span id="label-shape">Rectangle</span>):</span>
+                            <span id="cost-shape">+₱0.00</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Glass Type (<span id="label-type">Tempered</span>):</span>
+                            <span id="cost-type">+₱0.00</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Thickness (<span id="label-thickness">5mm</span>):</span>
+                            <span id="cost-thickness">+₱0.00</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Frame (<span id="label-frame">Vinyl</span>):</span>
+                            <span id="cost-frame">+₱0.00</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Edge Work (<span id="label-edge">Flat Polish</span>):</span>
+                            <span id="cost-edge">+₱0.00</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div id="custom-wrapper">
@@ -299,34 +330,61 @@
             <div id="summary-wrapper" class="hidden-step">
                 <h2 class="summary-title">Review your order</h2>
 
+                <!-- Design Preview Section -->
+                <div class="design-preview-section">
+                    <h3 class="design-preview-title">Your Custom Design</h3>
+                    <div class="design-preview-container">
+                        <img id="design-preview-img" src="" alt="Custom Design Preview">
+                    </div>
+                    <p class="design-preview-note">This design layout will be saved with your order for quotation and invoice purposes.</p>
+                </div>
+
                 <div class="summary-table-container">
                     <div class="summary-header">
-                        Estimated Price
+                        Price Breakdown
                     </div>
                     <div class="summary-content">
                         <div class="summary-row">
                             <span class="spec-label">Shape:</span>
-                            <span class="spec-value" id="sum-shape">Rectangle</span>
+                            <span class="spec-value">
+                                <span id="sum-shape">Rectangle</span>
+                                <span class="price-addon" id="sum-shape-price"></span>
+                            </span>
                         </div>
                         <div class="summary-row">
                             <span class="spec-label">Dimension:</span>
-                            <span class="spec-value" id="sum-dim">35in x 45in</span>
+                            <span class="spec-value">
+                                <span id="sum-dim">45" x 35"</span>
+                                <span class="price-addon" id="sum-dim-price"></span>
+                            </span>
                         </div>
                         <div class="summary-row">
                             <span class="spec-label">Type:</span>
-                            <span class="spec-value" id="sum-type">Tempered</span>
+                            <span class="spec-value">
+                                <span id="sum-type">Tempered</span>
+                                <span class="price-addon" id="sum-type-price"></span>
+                            </span>
                         </div>
                         <div class="summary-row">
                             <span class="spec-label">Thickness:</span>
-                            <span class="spec-value" id="sum-thick">5mm</span>
+                            <span class="spec-value">
+                                <span id="sum-thick">5mm</span>
+                                <span class="price-addon" id="sum-thick-price"></span>
+                            </span>
                         </div>
                         <div class="summary-row">
                             <span class="spec-label">Edge Work:</span>
-                            <span class="spec-value" id="sum-edge">Flat Polish</span>
+                            <span class="spec-value">
+                                <span id="sum-edge">Flat Polish</span>
+                                <span class="price-addon" id="sum-edge-price"></span>
+                            </span>
                         </div>
                         <div class="summary-row">
                             <span class="spec-label">Frame Type:</span>
-                            <span class="spec-value" id="sum-frame">Vinyl</span>
+                            <span class="spec-value">
+                                <span id="sum-frame">Vinyl</span>
+                                <span class="price-addon" id="sum-frame-price"></span>
+                            </span>
                         </div>
                         <div class="summary-row">
                             <span class="spec-label">Engraving:</span>
@@ -351,7 +409,7 @@
                         Add to Cart
                     </button>
 
-                    <button class="buy-btn" id="buy-now-btn" data-product-id='<?= $product_id ?>'>
+                    <button class="buy-btn" id="buy-now-btn" data-product-id="<?= $product->Product_ID ?>">
                         Buy Now
                     </button>
 
@@ -365,6 +423,24 @@
                 </div>
 
 
+            </div>
+
+            <!-- Preview Modal for enlarged Konva canvas -->
+            <div id="preview-modal" class="modal-backdrop hidden-step">
+                <div class="preview-modal-content">
+                    <button class="preview-close-btn" id="preview-close-btn">&times;</button>
+                    <img id="zoomed-preview-img" src="" alt="Design Preview">
+                    <div class="preview-modal-actions">
+                        <button class="download-design-btn" id="download-design-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Download Design
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
@@ -454,8 +530,7 @@
 
 <script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtocustomization.js'); ?>"></script>
-<script src="<?= base_url('assets/js/2d-functions/buy-now-handler.js'); ?>"></script>
-<!-- <script src="<?= base_url('assets/js/2d-functions/2d_functions.js'); ?>"></script> -->
+<script src="<?= base_url('assets/js/2d-functions/addtowishlist.js'); ?>"></script>
 
 
 

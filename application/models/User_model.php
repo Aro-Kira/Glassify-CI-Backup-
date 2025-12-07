@@ -14,9 +14,38 @@ class User_model extends CI_Model
     // =============================
     // USER FUNCTIONS
     // =============================
+    /**
+     * Register new user with transaction handling
+     * Auto-creates customer record if Role is 'Customer'
+     */
     public function register($data)
     {
-        return $this->db->insert($this->table, $data);
+        $this->db->trans_start();
+        
+        // Insert user
+        $result = $this->db->insert($this->table, $data);
+        $user_id = $this->db->insert_id();
+        
+        // If user is a Customer, create corresponding customer record
+        if ($result && $user_id && isset($data['Role']) && $data['Role'] === 'Customer') {
+            // Check if customer record already exists
+            $this->db->where('UserID', $user_id);
+            $existing_customer = $this->db->get('customer')->row();
+            
+            if (!$existing_customer) {
+                // Create customer record
+                $this->db->insert('customer', ['UserID' => $user_id]);
+                log_message('info', 'Auto-created customer record for UserID: ' . $user_id);
+            }
+        }
+        
+        $this->db->trans_complete();
+        
+        if ($this->db->trans_status() === FALSE) {
+            return false;
+        }
+        
+        return $user_id;
     }
 
     public function email_exists($email)
@@ -34,10 +63,9 @@ class User_model extends CI_Model
         return $this->get_by_email($email);
     }
 
-    // Get user by ID
-    public function get_by_id($user_id)
+    public function get_by_id($id)
     {
-        return $this->db->get_where($this->table, ['UserID' => $user_id])->row();
+        return $this->db->where('UserID', $id)->get($this->table)->row();
     }
 
     // Update user (alias for backward compatibility)

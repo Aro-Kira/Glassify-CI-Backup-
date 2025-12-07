@@ -42,7 +42,10 @@
             </thead>
             <tbody id="pending-tbody">
                 <?php 
-                $pending_orders = array_filter($orders, function($o) { return $o->Status === 'Pending Review'; });
+                // Filter orders with 'Pending Review' status (including normalized 'Pending')
+                $pending_orders = array_filter($orders, function($o) { 
+                    return $o->Status === 'Pending Review' || $o->Status === 'Pending'; 
+                });
                 $row_num = 1;
                 foreach ($pending_orders as $order): 
                     $order_id_formatted = '#' . $order->OrderID;

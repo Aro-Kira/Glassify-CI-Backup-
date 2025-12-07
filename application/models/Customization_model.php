@@ -11,13 +11,11 @@ class Customization_model extends CI_Model
     }
 
     /**
-     * Get the appropriate customization table based on product category
+     * Get the unified customization table (optimized schema uses single table)
      */
-    private function get_table($product_id) {
-        if (!$product_id) {
-            return $this->table; // Fallback to old table
-        }
-        return $this->Cart_model->get_customization_table($product_id);
+    private function get_table($product_id = null) {
+        // Optimized schema uses unified customization table
+        return $this->table;
     }
 
     public function add_customization($data) {
@@ -47,59 +45,26 @@ class Customization_model extends CI_Model
     }
     
     /**
-     * Delete customization by searching all customization tables
+     * Delete customization from unified customization table
      * Used as fallback when product_id is not known
      */
     public function delete_customization_from_any_table($customization_id) {
-        $tables = [
-            'mirror_customization',
-            'shower_enclosure_customization',
-            'aluminum_doors_customization',
-            'aluminum_bathroom_doors_customization',
-            'customization' // old table as fallback
-        ];
+        // Optimized schema uses unified customization table
+        $this->db->where('CustomizationID', $customization_id);
+        $this->db->delete($this->table);
         
-        foreach ($tables as $table) {
-            $this->db->where('CustomizationID', $customization_id);
-            $this->db->delete($table);
-            
-            // Check if deletion was successful (affected_rows > 0)
-            if ($this->db->affected_rows() > 0) {
-                return true;
-            }
-        }
-        
-        return false; // Not found in any table
+        // Check if deletion was successful (affected_rows > 0)
+        return $this->db->affected_rows() > 0;
     }
 
     public function delete_multiple($ids = [], $product_id = null)
     {
         if (empty($ids)) return false;
         
-        if ($product_id) {
-            // We know the product, so we know which table to use
-            $table = $this->get_table($product_id);
-            $this->db->where_in('CustomizationID', $ids);
-            return $this->db->delete($table);
-        } else {
-            // Product ID not provided - delete from all possible tables
-            $tables = [
-                'mirror_customization',
-                'shower_enclosure_customization',
-                'aluminum_doors_customization',
-                'aluminum_bathroom_doors_customization',
-                'customization' // old table as fallback
-            ];
-            
-            $deleted_count = 0;
-            foreach ($tables as $table) {
-                $this->db->where_in('CustomizationID', $ids);
-                $this->db->delete($table);
-                $deleted_count += $this->db->affected_rows();
-            }
-            
-            return $deleted_count > 0;
-        }
+        // Optimized schema uses unified customization table
+        $table = $this->get_table($product_id);
+        $this->db->where_in('CustomizationID', $ids);
+        return $this->db->delete($table);
     }
     
     /**

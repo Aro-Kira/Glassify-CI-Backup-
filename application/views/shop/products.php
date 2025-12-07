@@ -23,12 +23,25 @@
 
       <div class="filter-group">
         <h4>Category</h4>
-        <label><input type="checkbox" value="Mirrors"> Mirrors</label>
-        <label><input type="checkbox" value="Shower Enclosure / Partition"> Shower Enclosure / Partition</label>
-        <label><input type="checkbox" value="Aluminum Doors"> Aluminum Doors</label>
-        <label><input type="checkbox" value="Stair Railings"> Stair Railings</label>
-        <label><input type="checkbox" value="Windows"> Windows</label>
-        <label><input type="checkbox" value="Glass Partition"> Glass Partition</label>
+        <label><input type="checkbox" value="balcony"> Balcony</label>
+        <label><input type="checkbox" value="board"> Board</label>
+        <label><input type="checkbox" value="cabinet"> Cabinet</label>
+        <label><input type="checkbox" value="doors"> Doors</label>
+        <label><input type="checkbox" value="mirrors"> Mirrors</label>
+        <label><input type="checkbox" value="partition"> Partition</label>
+        <label><input type="checkbox" value="shower-enclosure"> Shower Enclosure</label>
+        <label><input type="checkbox" value="sliding-doors"> Sliding Doors</label>
+        <label><input type="checkbox" value="sliding-windows"> Sliding Windows</label>
+        <label><input type="checkbox" value="stair-railings"> Stair Railings</label>
+        <label><input type="checkbox" value="storefront"> Storefront</label>
+        <label><input type="checkbox" value="windows"> Windows</label>
+      </div>
+
+
+      <div class="filter-group">
+        <h4>Material</h4>
+        <label><input type="checkbox" value="Glass"> Glass</label>
+        <label><input type="checkbox" value="Aluminum"> Aluminum</label>
       </div>
 
       <div class="filter-group">

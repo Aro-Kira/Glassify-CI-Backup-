@@ -1,4 +1,4 @@
-<link rel="stylesheet" href="<?= base_url('assets/css/admin-style.css'); ?>">
+<link rel="stylesheet" href="<?= base_url('assets/css/admin_css/admin_product.css'); ?>">
 <script src="<?= base_url('assets/js/admin-js/products.js'); ?>"></script>
 
 
@@ -123,6 +123,15 @@
     </div>
 
     <div class="form-group">
+      <label for="productMaterial">Material</label>
+      <select id="productMaterial" class="input-text">
+        <option value="" disabled selected>Select material</option>
+        <option value="Glass">Glass</option>
+        <option value="Aluminum">Aluminum</option>
+      </select>
+    </div>
+
+    <div class="form-group">
       <label for="productPrice">Price</label>
       <div class="price-input">
         <span>₱</span>
@@ -174,6 +183,16 @@
         <option value="Stair Railings">Stair Railings</option>
         <option value="Windows">Windows</option>
         <option value="Glass Partition">Glass Partition</option>
+      </select>
+    </div>
+
+    <!-- Material -->
+    <div class="form-group">
+      <label for="editProductMaterial">Material</label>
+      <select id="editProductMaterial" class="input-text">
+        <option value="" disabled>Select material</option>
+        <option value="Glass">Glass</option>
+        <option value="Aluminum">Aluminum</option>
       </select>
     </div>
 

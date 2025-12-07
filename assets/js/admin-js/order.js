@@ -87,6 +87,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         orders.forEach((order, index) => {
             const tr = document.createElement('tr');
+            // Store status in data attribute for action menu filtering
             tr.innerHTML = `
                 <td>${(currentPage - 1) * itemsPerPage + index + 1}</td>
                 <td>${order.order_id}</td>
@@ -95,7 +96,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 <td>${order.date}</td>
                 <td>₱${parseFloat(order.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                 <td><span class="status-badge ${order.status_class}">${order.status}</span></td>
-                <td class="action-cell" data-order-id="${order.order_id}">⋮</td>
+                <td class="action-cell" data-order-id="${order.order_id}" data-order-status="${order.status}">⋮</td>
             `;
             tbody.appendChild(tr);
         });
@@ -267,11 +268,62 @@ document.addEventListener('DOMContentLoaded', async function () {
             newCell.addEventListener('click', e => {
                 e.stopPropagation();
                 currentOrderId = newCell.getAttribute('data-order-id');
+                const orderStatus = newCell.getAttribute('data-order-status') || '';
+                
+                // Show/hide menu items based on order status
+                updateActionMenuForStatus(orderStatus);
+                
                 const rect = newCell.getBoundingClientRect();
                 actionMenu.style.top = `${window.scrollY + rect.bottom}px`;
                 actionMenu.style.left = `${window.scrollX + rect.left}px`;
                 actionMenu.style.display = 'block';
             });
+        });
+    }
+    
+    // Update action menu items based on order status
+    function updateActionMenuForStatus(status) {
+        if (!actionMenu) return;
+        
+        const menuItems = actionMenu.querySelectorAll('li');
+        menuItems.forEach(item => {
+            const actionText = item.textContent.trim();
+            
+            // Always show View
+            if (actionText === 'View') {
+                item.style.display = 'block';
+                return;
+            }
+            
+            // Show Complete only for orders that can be completed
+            if (actionText === 'Complete') {
+                const canComplete = ['Approved', 'In Fabrication', 'Ready for Installation'].some(s => 
+                    status.toLowerCase().includes(s.toLowerCase())
+                );
+                item.style.display = canComplete ? 'block' : 'none';
+                
+                // If hidden and status is "Awaiting Admin", add a tooltip message
+                if (!canComplete && status.toLowerCase().includes('awaiting admin')) {
+                    item.title = 'This order must be approved in the "Order Schedule Approval" section first';
+                }
+                return;
+            }
+            
+            // Show Cancel for orders that can be cancelled
+            if (actionText === 'Cancel') {
+                const canCancel = !['Completed', 'Cancelled'].some(s => 
+                    status.toLowerCase().includes(s.toLowerCase())
+                );
+                item.style.display = canCancel ? 'block' : 'none';
+                return;
+            }
+            
+            // Show Delete (if needed)
+            if (actionText === 'Delete') {
+                // Only show delete for cancelled or completed orders (or implement as needed)
+                item.style.display = 'block';
+                return;
+            }
         });
     }
 
@@ -287,6 +339,8 @@ document.addEventListener('DOMContentLoaded', async function () {
             const action = e.target.textContent.trim();
             if (action === 'View' && currentOrderId) {
                 loadOrderDetails(currentOrderId);
+            } else if (action === 'Complete' && currentOrderId) {
+                completeOrder(currentOrderId);
             }
             actionMenu.style.display = 'none';
         });
@@ -298,18 +352,24 @@ document.addEventListener('DOMContentLoaded', async function () {
     async function loadOrderDetails(orderId) {
         try {
             const response = await fetch(getOrderDetailsUrl + '?order_id=' + encodeURIComponent(orderId));
-            if (!response.ok) throw new Error("Network response was not ok");
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             
             const data = await response.json();
+            console.log('Order details response:', data); // Debug log
+            
             if (data.success && data.order) {
                 displayOrderDetails(data.order);
                 if (popup) popup.style.display = 'flex';
             } else {
-                alert(data.message || 'Failed to load order details');
+                const errorMsg = data.message || 'Failed to load order details';
+                console.error('Order details error:', errorMsg, data);
+                alert(errorMsg);
             }
         } catch (error) {
             console.error("Error loading order details:", error);
-            alert('Failed to load order details. Please try again.');
+            alert('Failed to load order details. Please check the console for details and try again.');
         }
     }
 
@@ -330,7 +390,19 @@ document.addEventListener('DOMContentLoaded', async function () {
         // File attached
         const fileAttached = document.getElementById('popup-file-attached');
         if (order.file_attached && order.file_attached !== 'N/A') {
-            fileAttached.innerHTML = `<a href="${baseUrl}/uploads/${order.file_attached}" target="_blank">${order.file_attached}</a>`;
+            // Use file_url from backend if available (already includes full path), otherwise construct from file_attached
+            let fileUrl = order.file_url;
+            if (!fileUrl && order.file_attached) {
+                // Backend didn't provide file_url, construct it
+                if (order.file_attached.startsWith('uploads/')) {
+                    fileUrl = baseUrl + order.file_attached;
+                } else {
+                    fileUrl = baseUrl + 'uploads/' + order.file_attached;
+                }
+            }
+            // Get just the filename for display
+            const fileName = (order.file_attached.includes('/') ? order.file_attached.split('/').pop() : order.file_attached);
+            fileAttached.innerHTML = `<a href="${fileUrl}" target="_blank">${fileName}</a>`;
         } else {
             fileAttached.textContent = 'N/A';
         }
@@ -438,20 +510,139 @@ document.addEventListener('DOMContentLoaded', async function () {
     // ======================
     async function loadApprovalOrderDetails(orderId) {
         try {
-            const response = await fetch(getApprovalOrderDetailsUrl + '?order_id=' + encodeURIComponent(orderId));
-            if (!response.ok) throw new Error("Network response was not ok");
+            // Validate orderId
+            if (!orderId) {
+                console.error('loadApprovalOrderDetails: orderId is required');
+                alert('Error: Order ID is missing. Please try again.');
+                return;
+            }
+
+            // Validate URL is defined
+            if (typeof getApprovalOrderDetailsUrl === 'undefined') {
+                console.error('loadApprovalOrderDetails: getApprovalOrderDetailsUrl is not defined');
+                alert('Error: API endpoint configuration is missing. Please refresh the page.');
+                return;
+            }
+
+            const url = getApprovalOrderDetailsUrl + '?order_id=' + encodeURIComponent(orderId);
+            console.log('Fetching approval order details from:', url);
+
+            const response = await fetch(url);
             
-            const data = await response.json();
+            // Log response details for debugging
+            console.log('Response status:', response.status, response.statusText);
+            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+            // Check if response is ok
+            if (!response.ok) {
+                // Clone the response so we can read it multiple times if needed
+                const responseClone = response.clone();
+                
+                // Try to get error message from response
+                let errorMessage = `Server error (${response.status}): ${response.statusText}`;
+                let errorData = null;
+                
+                try {
+                    // Try to parse as JSON first
+                    try {
+                        errorData = await response.json();
+                        if (errorData && errorData.message) {
+                            errorMessage = errorData.message;
+                        } else if (errorData && errorData.error) {
+                            errorMessage = errorData.error;
+                        }
+                        console.log('Error response JSON:', errorData);
+                    } catch (jsonError) {
+                        // If JSON parsing fails, try text
+                        console.log('JSON parse failed, trying text...');
+                        const responseText = await responseClone.text();
+                        console.log('Error response text:', responseText.substring(0, 500));
+                        
+                        // Try to parse as JSON from text
+                        try {
+                            errorData = JSON.parse(responseText);
+                            if (errorData && errorData.message) {
+                                errorMessage = errorData.message;
+                            }
+                        } catch (parseError) {
+                            // If still not JSON, use the text directly (truncated)
+                            if (responseText && responseText.length > 0) {
+                                errorMessage += '\n\nResponse: ' + responseText.substring(0, 500);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error reading error response:', e);
+                }
+                
+                console.error('loadApprovalOrderDetails - Server error:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    message: errorMessage,
+                    errorData: errorData,
+                    url: url
+                });
+                
+                // Show user-friendly error message
+                const userMessage = errorData && errorData.message 
+                    ? errorData.message 
+                    : `Failed to load order details.\n\nError: ${errorMessage}\n\nPlease check the browser console for more details.`;
+                
+                alert(userMessage);
+                return;
+            }
+            
+            // Parse JSON response
+            let data;
+            try {
+                const responseText = await response.text();
+                console.log('Response text:', responseText.substring(0, 500)); // Log first 500 chars
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('loadApprovalOrderDetails - JSON parse error:', parseError);
+                console.error('Response was not valid JSON');
+                alert('Error: Server returned invalid data. Please check the console for details.');
+                return;
+            }
+            
+            // Validate response structure
+            if (!data) {
+                console.error('loadApprovalOrderDetails - Empty response data');
+                alert('Error: Server returned empty response. Please try again.');
+                return;
+            }
+
+            console.log('Order details response:', data);
+
             if (data.success && data.order) {
                 currentApprovalOrderId = orderId;
                 displayApprovalOrderDetails(data.order);
-                if (approvalPopup) approvalPopup.style.display = 'flex';
+                if (approvalPopup) {
+                    approvalPopup.style.display = 'flex';
+                } else {
+                    console.error('Approval popup element not found');
+                    alert('Error: Approval popup element is missing from the page.');
+                }
             } else {
-                alert(data.message || 'Failed to load order details');
+                const errorMsg = data.message || 'Failed to load order details. The order may not exist or you may not have permission to view it.';
+                console.error('loadApprovalOrderDetails - API returned error:', errorMsg);
+                alert(errorMsg);
             }
         } catch (error) {
+            // Handle network errors and other exceptions
             console.error("Error loading approval order details:", error);
-            alert('Failed to load order details. Please try again.');
+            console.error("Error stack:", error.stack);
+            
+            let userMessage = 'Failed to load order details. ';
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                userMessage += 'Network error: Could not connect to the server. Please check your internet connection.';
+            } else if (error.message) {
+                userMessage += error.message;
+            } else {
+                userMessage += 'An unexpected error occurred. Please try again.';
+            }
+            
+            alert(userMessage + '\n\nCheck the browser console for more details.');
         }
     }
 
@@ -475,7 +666,19 @@ document.addEventListener('DOMContentLoaded', async function () {
         // File attached
         const fileAttached = document.getElementById('approval-file-attached');
         if (order.file_attached && order.file_attached !== 'N/A') {
-            fileAttached.innerHTML = `<a href="${baseUrl}/uploads/${order.file_attached}" target="_blank">${order.file_attached}</a>`;
+            // Use file_url from backend if available (already includes full path), otherwise construct from file_attached
+            let fileUrl = order.file_url;
+            if (!fileUrl && order.file_attached) {
+                // Backend didn't provide file_url, construct it
+                if (order.file_attached.startsWith('uploads/')) {
+                    fileUrl = baseUrl + order.file_attached;
+                } else {
+                    fileUrl = baseUrl + 'uploads/' + order.file_attached;
+                }
+            }
+            // Get just the filename for display
+            const fileName = (order.file_attached.includes('/') ? order.file_attached.split('/').pop() : order.file_attached);
+            fileAttached.innerHTML = `<a href="${fileUrl}" target="_blank">${fileName}</a>`;
         } else {
             fileAttached.textContent = 'N/A';
         }
@@ -608,7 +811,58 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     // ======================
-    // 1️⃣4️⃣ Initial Load
+    // 1️⃣4️⃣ Complete Order
+    // ======================
+    async function completeOrder(orderId) {
+        if (!orderId) {
+            alert('No order selected');
+            return;
+        }
+
+        // Get the order status from the action cell
+        const actionCell = document.querySelector(`.action-cell[data-order-id="${orderId}"]`);
+        const orderStatus = actionCell ? actionCell.getAttribute('data-order-status') : '';
+        
+        // Check if order is in "Awaiting Admin" status
+        if (orderStatus && orderStatus.toLowerCase().includes('awaiting admin')) {
+            alert('This order is awaiting admin approval. Please approve it in the "Order Schedule Approval" section below first.');
+            return;
+        }
+
+        if (!confirm('Are you sure you want to mark this order as completed?')) {
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('order_id', orderId);
+
+            const response = await fetch(completeOrderUrl, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert(data.message || 'Order marked as completed successfully!');
+                loadOrders(); // Reload orders to reflect the status change
+            } else {
+                // Show helpful message if order can't be completed
+                if (data.message && data.message.includes('cannot be completed')) {
+                    alert(data.message + '\n\nNote: Orders in "Awaiting Admin" status must be approved in the "Order Schedule Approval" section first.');
+                } else {
+                    alert(data.message || 'Failed to complete order');
+                }
+            }
+        } catch (error) {
+            console.error("Error completing order:", error);
+            alert('Failed to complete order. Please try again.');
+        }
+    }
+
+    // ======================
+    // 1️⃣5️⃣ Initial Load
     // ======================
     loadOrders();
     loadApprovalOrders();

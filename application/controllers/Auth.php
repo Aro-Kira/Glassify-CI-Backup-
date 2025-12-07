@@ -429,7 +429,17 @@ class Auth extends CI_Controller
         ];
 
         if ($user->Role === 'Customer') {
-            $session_data['customer_id'] = $user->UserID;
+            // Get or create Customer_ID from customer table
+            $this->load->model('Customer_model');
+            $customer_id = $this->Customer_model->get_customer_id($user->UserID);
+            
+            if ($customer_id) {
+                $session_data['customer_id'] = $customer_id;
+            } else {
+                // Fallback: use UserID if customer record creation failed
+                log_message('warning', 'Failed to get Customer_ID for UserID: ' . $user->UserID . ', using UserID as fallback');
+                $session_data['customer_id'] = $user->UserID;
+            }
         }
 
         $this->session->set_userdata($session_data);

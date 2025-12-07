@@ -11,7 +11,7 @@
         <table class="purchase-table">
             <thead>
                 <tr>
-                    <th>Products</th>
+                    <th>Image</th>
                     <th>Product</th>
                     <th>Price</th>
                     <th>Quantity</th>

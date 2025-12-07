@@ -209,12 +209,10 @@ main {
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  position: relative;
 }
 
 .back-btn {
   margin: 5% 0 0 15%;
-  flex-shrink: 0;
 }
 
 .back-btn a {
@@ -239,10 +237,8 @@ main {
   font-size: 1.1em;
   font-weight: bold;
   color: #888;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 5%;
+  margin: 5% auto 0px 17%;
+  /* keeps it centered */
 }
 
 

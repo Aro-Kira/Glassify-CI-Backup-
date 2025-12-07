@@ -92,22 +92,18 @@ label {
 /* Inputs */
 input[type="text"],
 input[type="email"],
-input[type="tel"],
-input[type="date"] {
+input[type="tel"] {
   padding: 10px;
   border: 1px solid #bbb;
   border-radius: 4px;
   background: #fff;
   font-size: 14px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
-  width: 100%;
-  box-sizing: border-box;
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
-input[type="tel"]:focus,
-input[type="date"]:focus {
+input[type="tel"]:focus {
   outline: none;
   border-color: #0073e6;
   box-shadow: 0 0 4px rgba(0, 115, 230, 0.3);
@@ -245,12 +241,10 @@ input[type="checkbox"] {
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
-  position: relative;
 }
 
 .back-btn{
   margin: 5% 0 0 15%;
-  flex-shrink: 0;
 }
 /* Back button */
 .back-btn a {
@@ -277,10 +271,7 @@ input[type="checkbox"] {
   font-size: 1.1em;
   font-weight: bold;
   color: #888;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 5%;
+  margin: 5% auto 0px 17%; /* keeps it centered */
 }
 
 
@@ -304,6 +295,10 @@ input[type="checkbox"] {
   color: goldenrod;
 }
 
+.progress-nav .step.completed {
+  color: #22c55e;
+}
+
 .progress-nav .divider {
   height: 2px;
   width: 100px;
@@ -311,79 +306,886 @@ input[type="checkbox"] {
 }
 
 
- /* Modal Styles */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      overflow: auto;
-      background: rgba(0, 0, 0, 0.6);
-    }
+/* ===================== QUOTATION MODAL STYLES ===================== */
 
-    .modal-content {
-      background: #fff;
-      margin: 5% auto;
-      padding: 20px;
-      border-radius: 8px;
-      width: 70%;
-      max-width: 800px;
-      box-shadow: 0px 5px 15px rgba(0,0,0,0.3);
-    }
+/* Modal Overlay */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
 
-    .modal-header {
-      text-align: center;
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 20px;
-    }
+.modal.show {
+  display: block;
+  animation: fadeIn 0.2s ease;
+}
 
-    .modal-close {
-      float: right;
-      font-size: 24px;
-      cursor: pointer;
-      color: #333;
-    }
+.modal.show .modal-content {
+  animation: slideIn 0.3s ease;
+}
 
-    .section-title {
-      font-weight: bold;
-      margin-top: 20px;
-      margin-bottom: 10px;
-      font-size: 16px;
-    }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
-    .customer-info p {
-      margin: 4px 0;
-    }
+@keyframes slideIn {
+  from { 
+    opacity: 0;
+    transform: translateY(-20px) scale(0.98);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
-    .quotation-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
 
-    .quotation-table th, .quotation-table td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: center;
-    }
+/* Modal Content */
+.modal-content {
+  position: relative;
+  background: #fff;
+  width: 90%;
+  max-width: 750px;
+  max-height: 90vh;
+  margin: 3vh auto;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+  z-index: 1;
+}
 
-    .quotation-table th {
-      background: #f2f2f2;
-    }
+/* Modal Close Button */
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 20px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 10;
+}
 
-    .quotation-total {
-      text-align: right;
-      margin-top: 10px;
-    }
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
 
-    .quotation-total p {
-      margin: 4px 0;
-    }
+/* Modal Header */
+.modal-header {
+  background: linear-gradient(135deg, #0f2b46 0%, #1a4670 100%);
+  color: #fff;
+  padding: 20px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-    .quotation-total strong {
-      font-weight: bold;
-    }
+.modal-header h2 {
+  font-size: 1.3em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.quotation-date {
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Modal Body */
+.modal-body {
+  padding: 28px;
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+/* Customer Info Bar */
+.customer-info-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.customer-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.customer-detail.full-width {
+  grid-column: 1 / -1;
+}
+
+.customer-detail .label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  font-weight: 500;
+}
+
+.customer-detail .value {
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Quotation Table */
+.table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 24px;
+}
+
+.quotation-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.quotation-table th {
+  background: #0f2b46;
+  color: #fff;
+  padding: 12px 10px;
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  text-align: left;
+}
+
+.quotation-table th:nth-child(3),
+.quotation-table th:nth-child(4),
+.quotation-table th:nth-child(5) {
+  text-align: center;
+}
+
+.quotation-table td {
+  padding: 12px 10px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+  color: #444;
+}
+
+.quotation-table td:nth-child(3),
+.quotation-table td:nth-child(4),
+.quotation-table td:nth-child(5) {
+  text-align: center;
+}
+
+/* Customization column */
+.quotation-table td:nth-child(2) {
+  font-size: 11px;
+  color: #666;
+  max-width: 180px;
+  line-height: 1.5;
+}
+
+.quotation-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.quotation-table tbody tr:hover {
+  background: #fafafa;
+}
+
+/* Section Title */
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f2b46;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #0f2b46;
+}
+
+/* Totals Box */
+.totals-box {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.total-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.total-line span:last-child {
+  font-weight: 500;
+  color: #333;
+}
+
+.total-line.grand {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #ddd;
+  font-size: 15px;
+}
+
+.total-line.grand span {
+  font-weight: 600;
+  color: #0f2b46;
+}
+
+.total-line.grand span:last-child {
+  color: #c9a227;
+  font-size: 17px;
+}
+
+/* Modal Footer */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 28px;
+  background: #f8f9fa;
+  border-top: 1px solid #eee;
+}
+
+.btn-close,
+.btn-print {
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn-close {
+  background: #fff;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.btn-close:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+.btn-print {
+  background: #0f2b46;
+  color: #fff;
+}
+
+.btn-print:hover {
+  background: #163a5c;
+}
+
+/* ===================== DESIGN LAYOUTS SECTION ===================== */
+
+.designs-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.designs-section .section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f2b46;
+  margin: 0 0 4px 0;
+  padding: 0;
+  border: none;
+}
+
+.designs-note {
+  font-size: 11px;
+  color: #888;
+  margin: 0 0 16px 0;
+}
+
+.designs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.design-card {
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.design-card-header {
+  background: #f8f9fa;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.design-number {
+  font-weight: 600;
+  font-size: 12px;
+  color: #0f2b46;
+  display: block;
+}
+
+.design-product {
+  font-size: 11px;
+  color: #666;
+}
+
+.design-card-image {
+  padding: 12px;
+  background: #fafafa;
+  text-align: center;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.design-card-image img {
+  max-width: 100%;
+  max-height: 100px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: white;
+}
+
+.design-card-specs {
+  padding: 8px 12px;
+  font-size: 10px;
+  color: #666;
+  border-top: 1px solid #eee;
+  background: #fff;
+  line-height: 1.5;
+}
+
+/* Customization cell in quotation table */
+.customization-cell {
+  font-size: 11px;
+  color: #555;
+  max-width: 180px;
+  line-height: 1.4;
+}
+
+/* ===================== RESPONSIVE STYLES ===================== */
+
+@media (max-width: 768px) {
+  .modal-content {
+    width: 95%;
+    margin: 3% auto;
+  }
+  
+  .modal-header {
+    padding: 16px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .modal-body {
+    padding: 20px 16px;
+  }
+  
+  .customer-info-bar {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  
+  .modal-footer {
+    padding: 12px 16px;
+  }
+  
+  .btn-close,
+  .btn-print {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+  
+  .designs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .customization-cell {
+    max-width: 120px;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-info-bar {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+  }
+  
+  .btn-close,
+  .btn-print {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .designs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===================== ORDER CONFIRMATION MODAL STYLES ===================== */
+
+#orderConfirmModal .modal-header {
+  background: linear-gradient(135deg, #0f2b46 0%, #1a4670 100%);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+#orderConfirmModal .modal-subtitle {
+  font-size: 0.85em;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 400;
+}
+
+/* Confirm Sections */
+.confirm-section {
+  margin-bottom: 24px;
+}
+
+.confirm-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f2b46;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirm-section-title .icon {
+  font-size: 16px;
+}
+
+/* Info Grid */
+.confirm-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.confirm-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.confirm-info-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.confirm-info-item .info-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  font-weight: 500;
+}
+
+.confirm-info-item .info-value {
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
+}
+
+/* Payment Badge */
+.payment-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.payment-badge.ewallet {
+  background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.payment-badge.cod {
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+  color: #f57c00;
+  border: 1px solid #ffe082;
+}
+
+.payment-badge .payment-icon {
+  font-size: 18px;
+}
+
+/* Items Table */
+.confirm-items-container {
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.confirm-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.confirm-items-table thead {
+  background: #0f2b46;
+}
+
+.confirm-items-table th {
+  padding: 12px 10px;
+  color: #fff;
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  text-align: left;
+}
+
+.confirm-items-table th:nth-child(3),
+.confirm-items-table th:nth-child(4) {
+  text-align: center;
+}
+
+.confirm-items-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid #eee;
+  vertical-align: middle;
+}
+
+.confirm-items-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.confirm-items-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.product-cell {
+  min-width: 150px;
+}
+
+.product-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.product-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #eee;
+  background: #f8f8f8;
+}
+
+.product-name {
+  font-weight: 500;
+  color: #333;
+  font-size: 13px;
+}
+
+.details-cell {
+  font-size: 11px;
+  color: #666;
+  max-width: 150px;
+  line-height: 1.4;
+}
+
+.qty-cell {
+  text-align: center;
+  font-weight: 600;
+  color: #0f2b46;
+}
+
+.price-cell {
+  text-align: center;
+  font-weight: 600;
+  color: #333;
+}
+
+.no-items {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Totals Section */
+.confirm-totals {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.confirm-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.confirm-total-row span:last-child {
+  font-weight: 500;
+  color: #333;
+}
+
+.confirm-total-row.grand-total {
+  margin-top: 12px;
+  padding-top: 16px;
+  border-top: 2px solid #0f2b46;
+  font-size: 16px;
+}
+
+.confirm-total-row.grand-total span {
+  font-weight: 700;
+  color: #0f2b46;
+}
+
+.confirm-total-row.grand-total span:last-child {
+  color: #c9a227;
+  font-size: 20px;
+}
+
+/* Modal Footer for Confirm Modal */
+.confirm-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.btn-cancel {
+  padding: 14px 28px;
+  background: #fff;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background: #f5f5f5;
+  border-color: #ccc;
+}
+
+.btn-confirm-order {
+  padding: 14px 32px;
+  background: linear-gradient(135deg, #c9a227 0%, #d4af37 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(201, 162, 39, 0.3);
+}
+
+.btn-confirm-order:hover {
+  background: linear-gradient(135deg, #b8941f 0%, #c9a227 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(201, 162, 39, 0.4);
+}
+
+.btn-confirm-order:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-confirm-order .btn-icon {
+  font-size: 16px;
+}
+
+/* Responsive for Confirm Modal */
+@media (max-width: 768px) {
+  .confirm-info-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  
+  .confirm-footer {
+    flex-direction: column-reverse;
+  }
+  
+  .btn-cancel,
+  .btn-confirm-order {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .product-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  .product-thumb {
+    width: 35px;
+    height: 35px;
+  }
+}
+
+@media (max-width: 480px) {
+  .confirm-info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .confirm-items-table {
+    font-size: 11px;
+  }
+  
+  .confirm-items-table th,
+  .confirm-items-table td {
+    padding: 8px 6px;
+  }
+  
+  .details-cell {
+    display: none;
+  }
+}
+
+/* ===================== PRINT STYLES FOR QUOTATION ===================== */
+
+@media print {
+  /* Hide everything except the quotation modal */
+  body * {
+    visibility: hidden;
+  }
+  
+  #quotationModal,
+  #quotationModal * {
+    visibility: visible;
+  }
+  
+  #quotationModal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white;
+  }
+  
+  .modal-overlay {
+    display: none !important;
+  }
+  
+  .modal-content {
+    box-shadow: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+  
+  .modal-close,
+  .modal-footer {
+    display: none !important;
+  }
+  
+  .modal-header {
+    background: #0f2b46 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color: white !important;
+  }
+  
+  .modal-body {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  
+  .customer-info-bar {
+    background: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .quotation-table th {
+    background: #0f2b46 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color: white !important;
+  }
+  
+  .quotation-table th,
+  .quotation-table td {
+    border: 1px solid #ddd !important;
+  }
+  
+  .totals-box {
+    background: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    page-break-inside: avoid;
+  }
+  
+  /* Ensure design images print properly */
+  .designs-section {
+    page-break-inside: avoid;
+    margin-top: 20px !important;
+  }
+  
+  .design-card {
+    page-break-inside: avoid;
+    border: 1px solid #ddd !important;
+  }
+  
+  .design-card-image {
+    background: white !important;
+  }
+  
+  .design-card-image img {
+    max-height: 100px !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .designs-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+}

@@ -35,6 +35,31 @@ class SalesCon extends CI_Controller
         return $this->session->userdata('user_id');
     }
 
+    /**
+     * Helper function to convert order ID from various formats to numeric
+     * Handles: GI001, #GI001, #1, 1, etc.
+     * 
+     * @param string|int $order_id Order ID in any format
+     * @return array ['numeric' => int, 'formatted' => string] - Numeric ID and formatted string (GI001)
+     */
+    private function parse_order_id($order_id)
+    {
+        // Remove # prefix if present
+        $order_id_clean = str_replace('#', '', (string)$order_id);
+        $order_id_clean = str_replace('GI', '', $order_id_clean);
+        $order_id_numeric_part = ltrim($order_id_clean, '0');
+        if (empty($order_id_numeric_part)) {
+            $order_id_numeric_part = '1';
+        }
+        $order_id_numeric = (int)$order_id_numeric_part;
+        $order_id_formatted = 'GI' . str_pad($order_id_numeric_part, 3, '0', STR_PAD_LEFT);
+        
+        return [
+            'numeric' => $order_id_numeric,
+            'formatted' => $order_id_formatted
+        ];
+    }
+
     // Dashboard - Show statistics for this Sales Rep only
     public function sales_dashboard()
     {
@@ -45,49 +70,47 @@ class SalesCon extends CI_Controller
         $today = date('Y-m-d');
         $total_orders_today = 0;
         
-        // Count from pending_review_orders
+        // Count from unified order table with different statuses
         $this->db->where('SalesRep_ID', $sales_rep_id);
         $this->db->where('DATE(OrderDate)', $today);
-        $total_orders_today += $this->db->count_all_results('pending_review_orders');
+        $this->db->where('Status', 'Pending Review');
+        $total_orders_today += $this->db->count_all_results('`order`');
         
-        // Count from awaiting_admin_orders
         $this->db->where('SalesRep_ID', $sales_rep_id);
         $this->db->where('DATE(OrderDate)', $today);
-        $total_orders_today += $this->db->count_all_results('awaiting_admin_orders');
+        $this->db->where('Status', 'Awaiting Admin');
+        $total_orders_today += $this->db->count_all_results('`order`');
         
-        // Count from ready_to_approve_orders
         $this->db->where('SalesRep_ID', $sales_rep_id);
         $this->db->where('DATE(OrderDate)', $today);
-        $total_orders_today += $this->db->count_all_results('ready_to_approve_orders');
+        $this->db->where('Status', 'Ready to Approve');
+        $total_orders_today += $this->db->count_all_results('`order`');
         
-        // Count from approved_orders
         $this->db->where('SalesRep_ID', $sales_rep_id);
         $this->db->where('DATE(OrderDate)', $today);
-        $total_orders_today += $this->db->count_all_results('approved_orders');
+        $this->db->where('Status', 'Approved');
+        $total_orders_today += $this->db->count_all_results('`order`');
         
-        // Get total orders needing approval (from pending_review_orders)
+        // Get total orders needing approval (Status = 'Pending Review')
         $this->db->where('SalesRep_ID', $sales_rep_id);
-        $needs_approval_count = $this->db->count_all_results('pending_review_orders');
+        $this->db->where('Status', 'Pending Review');
+        $needs_approval_count = $this->db->count_all_results('`order`');
         
         // Get total payments with "Under Review" status
         // "Under Review" typically means payments with Status = 'Pending' that need verification
         // First, get all approved orders for this sales rep
         $this->db->select('OrderID');
-        $this->db->from('approved_orders');
+        $this->db->from('`order`');
         $this->db->where('SalesRep_ID', $sales_rep_id);
+        $this->db->where('Status', 'Approved');
         $approved_order_ids = $this->db->get()->result();
         
         $under_review_count = 0;
         if (!empty($approved_order_ids)) {
-            // Extract numeric OrderIDs
+            // Extract numeric OrderIDs (OrderID is already numeric in unified table)
             $numeric_order_ids = [];
             foreach ($approved_order_ids as $order) {
-                $order_id_clean = str_replace(['#GI', '#', 'GI'], '', $order->OrderID);
-                $order_id_clean = ltrim($order_id_clean, '0');
-                if (empty($order_id_clean)) {
-                    $order_id_clean = '1';
-                }
-                $numeric_order_ids[] = (int)$order_id_clean;
+                $numeric_order_ids[] = (int)$order->OrderID;
             }
             
             if (!empty($numeric_order_ids)) {
@@ -229,19 +252,22 @@ class SalesCon extends CI_Controller
     {
         $activities = [];
         
-        // Get recent orders
-        $this->db->select('OrderID, OrderDate, Customer_ID');
-        $this->db->from('pending_review_orders');
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->order_by('OrderDate', 'DESC');
+        // Get recent orders from unified order table
+        $this->db->select('o.OrderID, o.OrderDate, o.Customer_ID');
+        $this->db->from('`order` o');
+        $this->db->where('o.SalesRep_ID', $sales_rep_id);
+        $this->db->where('o.Status', 'Pending Review');
+        $this->db->order_by('o.OrderDate', 'DESC');
         $this->db->limit(3);
         $recent_orders = $this->db->get()->result();
         
         foreach ($recent_orders as $order) {
-            // Get customer name
-            $this->db->select('First_Name, Last_Name');
-            $this->db->where('UserID', $order->Customer_ID);
-            $customer = $this->db->get('user')->row();
+            // Get customer name via customer table
+            $this->db->select('u.First_Name, u.Last_Name');
+            $this->db->from('customer c');
+            $this->db->join('user u', 'u.UserID = c.UserID', 'left');
+            $this->db->where('c.Customer_ID', $order->Customer_ID);
+            $customer = $this->db->get()->row();
             $customer_name = ($customer ? trim($customer->First_Name . ' ' . $customer->Last_Name) : 'Customer') ?: 'Customer';
             
             $order_id_formatted = '#' . $order->OrderID;
@@ -306,13 +332,24 @@ class SalesCon extends CI_Controller
         $sales_rep_id = $this->get_current_sales_rep_id();
         
         // Get approved orders for this sales rep with payment data
-        // Note: payment table uses numeric OrderID, so we need to extract numeric part from approved_orders.OrderID
+        // Note: payment table uses numeric OrderID, which matches order.OrderID in unified table
         $this->db->select('
-            approved_orders.*,
+            o.OrderID,
+            o.OrderNumber,
+            o.Customer_ID,
+            o.SalesRep_ID,
+            o.OrderDate,
+            o.TotalAmount as TotalQuotation,
+            o.Status,
+            o.PaymentStatus,
+            o.PaymentMethod,
+            o.Approved_Date,
+            o.DeliveryAddress as Address,
             user.First_Name,
             user.Last_Name,
             user.Email,
             product.ImageUrl as ProductImage,
+            product.ProductName,
             payment.Payment_ID,
             payment.Amount as PaymentAmount,
             payment.Payment_Date,
@@ -322,23 +359,27 @@ class SalesCon extends CI_Controller
             payment.ProductName as PaymentProductName,
             payment.PaymentMethod as PaymentMethod
         ');
-        $this->db->from('approved_orders');
-        $this->db->join('user', 'user.UserID = approved_orders.Customer_ID', 'left');
-        $this->db->join('product', 'product.ProductName = approved_orders.ProductName', 'left');
-        // Join payment: extract numeric part from OrderID (GI001 -> 1)
-        $this->db->join('payment', "payment.OrderID = CAST(SUBSTRING(approved_orders.OrderID, 3) AS UNSIGNED)", 'left', false);
-        $this->db->where('approved_orders.SalesRep_ID', $sales_rep_id);
-        $this->db->order_by('approved_orders.Approved_Date', 'DESC');
+        $this->db->from('`order` o');
+        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+        $this->db->join('user', 'user.UserID = c.UserID', 'left');
+        $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+        $this->db->join('product', 'product.Product_ID = oi.Product_ID', 'left');
+        $this->db->join('payment', 'payment.OrderID = o.OrderID', 'left');
+        $this->db->where('o.SalesRep_ID', $sales_rep_id);
+        $this->db->where('o.Status', 'Approved');
+        $this->db->order_by('o.Approved_Date', 'DESC');
+        $this->db->group_by('o.OrderID'); // Group to avoid duplicates from multiple order_items
         $orders = $this->db->get()->result();
         
         // Calculate weekly sales (last 7 days)
         $week_start = date('Y-m-d', strtotime('-7 days'));
-        $this->db->select_sum('TotalQuotation');
-        $this->db->from('approved_orders');
+        $this->db->select_sum('TotalAmount');
+        $this->db->from('`order`');
         $this->db->where('SalesRep_ID', $sales_rep_id);
+        $this->db->where('Status', 'Approved');
         $this->db->where('Approved_Date >=', $week_start);
         $weekly_sales_result = $this->db->get()->row();
-        $weekly_sales = $weekly_sales_result->TotalQuotation ?? 0;
+        $weekly_sales = $weekly_sales_result->TotalAmount ?? 0;
         
         // Count pending and overdue payments
         $pending_count = 0;
@@ -452,93 +493,89 @@ class SalesCon extends CI_Controller
     {
         $sales_rep_id = $this->get_current_sales_rep_id();
         
-        // Get orders from each status table
-        // Pending Review orders
-        $this->db->select('
-            OrderID,
-            ProductName,
-            Address,
-            OrderDate,
-            Shape,
-            Dimension,
-            Type,
-            Thickness,
-            EdgeWork,
-            FrameType,
-            Engraving,
-            FileAttached,
-            TotalQuotation,
-            Customer_ID,
-            SalesRep_ID
-        ');
-        $this->db->from('pending_review_orders');
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->order_by('OrderDate', 'DESC');
-        $pending_orders = $this->db->get()->result();
-        foreach ($pending_orders as $order) {
-            $order->Status = 'Pending Review';
+        // Load Order_model
+        $this->load->model('Order_model');
+        
+        // Get all orders for this sales rep (will filter to relevant statuses)
+        $all_orders = $this->Order_model->get_sales_rep_orders($sales_rep_id);
+        
+        // Debug: Log if no orders found
+        if (empty($all_orders)) {
+            log_message('debug', 'Sales Orders: No orders found for SalesRep_ID: ' . $sales_rep_id);
         }
         
-        // Awaiting Admin orders
-        $this->db->select('
-            OrderID,
-            ProductName,
-            Address,
-            OrderDate,
-            Shape,
-            Dimension,
-            Type,
-            Thickness,
-            EdgeWork,
-            FrameType,
-            Engraving,
-            FileAttached,
-            TotalQuotation,
-            Customer_ID,
-            SalesRep_ID
-        ');
-        $this->db->from('awaiting_admin_orders');
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->order_by('OrderDate', 'DESC');
-        $awaiting_orders = $this->db->get()->result();
-        foreach ($awaiting_orders as $order) {
-            $order->Status = 'Awaiting Admin';
+        // Define the three relevant statuses for this page
+        $relevant_statuses = ['Pending Review', 'Awaiting Admin', 'Ready to Approve'];
+        
+        // Transform orders and filter to only relevant statuses
+        $orders = [];
+        foreach ($all_orders as $order) {
+            $order_status = $order->Status ?? 'Pending Review';
+            
+            // Handle empty string status (treat as 'Pending Review')
+            if (empty($order_status) || trim($order_status) === '') {
+                $order_status = 'Pending Review';
+            }
+            
+            // Normalize old 'Pending' status to 'Pending Review' for backward compatibility
+            if ($order_status === 'Pending') {
+                $order_status = 'Pending Review';
+            }
+            
+            // Only include orders with the three relevant statuses
+            if (!in_array($order_status, $relevant_statuses)) {
+                continue;
+            }
+            
+            $orders[] = (object)[
+                'OrderID' => $order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT),
+                'ProductName' => $order->ProductName ?? 'N/A',
+                'Address' => $order->DeliveryAddress ?? 'N/A',
+                'OrderDate' => $order->OrderDate ?? date('Y-m-d H:i:s'),
+                'Shape' => $order->GlassShape ?? '',
+                'Dimension' => $order->Dimensions ?? '',
+                'Type' => $order->GlassType ?? '',
+                'Thickness' => $order->GlassThickness ?? '',
+                'EdgeWork' => $order->EdgeWork ?? '',
+                'FrameType' => $order->FrameType ?? '',
+                'Engraving' => $order->Engraving ?? '',
+                'FileAttached' => $order->DesignRef ?? null,
+                'TotalQuotation' => $order->TotalAmount ?? 0,
+                'Customer_ID' => $order->Customer_ID ?? 0,
+                'SalesRep_ID' => $order->SalesRep_ID ?? $sales_rep_id,
+                'Status' => $order_status
+            ];
         }
         
-        // Ready to Approve orders
-        $this->db->select('
-            OrderID,
-            ProductName,
-            Address,
-            OrderDate,
-            Shape,
-            Dimension,
-            Type,
-            Thickness,
-            EdgeWork,
-            FrameType,
-            Engraving,
-            FileAttached,
-            TotalQuotation,
-            Customer_ID,
-            SalesRep_ID,
-            AdminStatus
-        ');
-        $this->db->from('ready_to_approve_orders');
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->order_by('OrderDate', 'DESC');
-        $ready_orders = $this->db->get()->result();
-        foreach ($ready_orders as $order) {
-            $order->Status = 'Ready to Approve';
+        // For Ready to Approve orders, get AdminStatus from ready_to_approve_orders
+        $ready_orders = $this->Order_model->get_ready_to_approve_orders($sales_rep_id);
+        
+        // Create a map for faster lookup by OrderNumber
+        $ready_orders_map = [];
+        foreach ($ready_orders as $ready_order) {
+            $order_id_formatted = $ready_order->OrderNumber ?? 'GI' . str_pad($ready_order->OrderID, 3, '0', STR_PAD_LEFT);
+            $ready_orders_map[$order_id_formatted] = $ready_order;
         }
         
-        // Combine all orders
-        $orders = array_merge($pending_orders, $awaiting_orders, $ready_orders);
+        // Match orders and add AdminStatus
+        foreach ($orders as &$order_item) {
+            if (isset($ready_orders_map[$order_item->OrderID])) {
+                $ready_order = $ready_orders_map[$order_item->OrderID];
+                $order_item->AdminStatus = $ready_order->AdminStatus ?? null;
+                $order_item->AdminNotes = $ready_order->AdminNotes ?? null;
+            }
+        }
         
-        // Count orders by status
-        $pending_count = count(array_filter($orders, function($o) { return $o->Status === 'Pending Review'; }));
-        $awaiting_count = count(array_filter($orders, function($o) { return $o->Status === 'Awaiting Admin'; }));
-        $ready_count = count(array_filter($orders, function($o) { return $o->Status === 'Ready to Approve'; }));
+        // Count orders by status (also handle legacy 'Pending' status)
+        $pending_count = $this->Order_model->count_sales_rep_orders_by_status($sales_rep_id, 'Pending Review');
+        // Also count old 'Pending' status for backward compatibility
+        $pending_legacy = $this->db->where('SalesRep_ID', $sales_rep_id)
+                                   ->where('Status', 'Pending')
+                                   ->count_all_results('order');
+        $pending_count += $pending_legacy;
+        
+        $awaiting_count = $this->Order_model->count_sales_rep_orders_by_status($sales_rep_id, 'Awaiting Admin');
+        $ready_count = $this->Order_model->count_sales_rep_orders_by_status($sales_rep_id, 'Ready to Approve');
         
         $data['orders'] = $orders;
         $data['total_orders'] = count($orders);
@@ -555,7 +592,7 @@ class SalesCon extends CI_Controller
     }
     
     // AJAX endpoint to get order details for popup
-    // This method ALWAYS fetches fresh data from the database - no caching
+    // Uses Order_model->get_order_details_for_popup()
     public function get_order_details()
     {
         // Disable query caching to ensure fresh data
@@ -566,6 +603,8 @@ class SalesCon extends CI_Controller
         $this->output->set_header('Pragma: no-cache');
         $this->output->set_header('Expires: 0');
         
+        header('Content-Type: application/json');
+        
         $sales_rep_id = $this->get_current_sales_rep_id();
         $order_id = $this->input->post('order_id');
         
@@ -574,174 +613,112 @@ class SalesCon extends CI_Controller
             return;
         }
         
-        // Clean and format OrderID
-        // OrderID from database is in format: GI006, GI001, etc.
-        // Button passes: GI006 (from data-order-id attribute)
-        $order_id_clean = trim($order_id);
+        // Load Order_model
+        $this->load->model('Order_model');
         
-        // Remove # prefix if present
-        $order_id_clean = str_replace('#', '', $order_id_clean);
+        // Parse order ID to get numeric version for logging
+        $order_id_parsed = $this->parse_order_id($order_id);
+        $order_id_numeric = $order_id_parsed['numeric'];
         
-        // If it doesn't start with GI, add it
-        if (strpos($order_id_clean, 'GI') !== 0) {
-            // Extract numeric part if it's just a number
-            $numeric_part = preg_replace('/[^0-9]/', '', $order_id_clean);
-            if ($numeric_part) {
-                $order_id_clean = 'GI' . str_pad($numeric_part, 3, '0', STR_PAD_LEFT);
-            } else {
-                $order_id_clean = 'GI' . str_pad($order_id_clean, 3, '0', STR_PAD_LEFT);
-            }
-        } else {
-            // Ensure it's in the correct format (GI + 3 digits)
-            $numeric_part = preg_replace('/[^0-9]/', '', $order_id_clean);
-            if ($numeric_part) {
-                $order_id_clean = 'GI' . str_pad($numeric_part, 3, '0', STR_PAD_LEFT);
-            }
-        }
-        
-        // Try to find order in status-specific tables
-        $order = null;
-        
-        // Check pending_review_orders
-        $this->db->select('*');
-        $this->db->from('pending_review_orders');
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $order = $this->db->get()->row();
-        
-        // Check awaiting_admin_orders
-        if (!$order) {
-            $this->db->select('*');
-            $this->db->from('awaiting_admin_orders');
-            $this->db->where('OrderID', $order_id_clean);
-            $this->db->where('SalesRep_ID', $sales_rep_id);
-            $order = $this->db->get()->row();
-        }
-        
-        // Check ready_to_approve_orders
-        if (!$order) {
-            $this->db->select('*');
-            $this->db->from('ready_to_approve_orders');
-            $this->db->where('OrderID', $order_id_clean);
-            $this->db->where('SalesRep_ID', $sales_rep_id);
-            $order = $this->db->get()->row();
-        }
-        
-        // Get AdminNotes if order is from ready_to_approve_orders
-        $admin_notes = '';
-        if ($order && isset($order->AdminNotes)) {
-            $admin_notes = $order->AdminNotes;
-        }
-        
-        // Fallback to order_page if not found in status tables
-        if (!$order) {
-            $this->db->select('*');
-            $this->db->from('order_page');
-            $this->db->where('OrderID', $order_id_clean);
-            $this->db->where('SalesRep_ID', $sales_rep_id);
-            $order = $this->db->get()->row();
-        }
+        // Pass the original order_id to the model - it can handle both numeric and OrderNumber format
+        // The model will try both OrderID (numeric) and OrderNumber (GI001 format)
+        $order = $this->Order_model->get_order_details_for_popup($order_id);
         
         if (!$order) {
-            echo json_encode(['success' => false, 'message' => 'Order not found']);
-            return;
-        }
-        
-        // Format date
-        $date_formatted = 'N/A';
-        if ($order->OrderDate) {
-            $date_formatted = date('d/m/Y', strtotime($order->OrderDate));
-        }
-        
-        // Build file URL if file exists - check multiple possible locations
-        $file_url = null;
-        if ($order->FileAttached && $order->FileAttached !== 'N/A') {
-            // Try different possible file paths
-            $possible_paths = [
-                'uploads/' . $order->FileAttached,
-                'uploads/payments/' . $order->FileAttached,
-                'assets/files/' . $order->FileAttached,
-                $order->FileAttached // If it's already a full path
-            ];
-            
-            // Check if file exists in any of these locations
-            foreach ($possible_paths as $path) {
-                $full_path = FCPATH . $path;
-                if (file_exists($full_path)) {
-                    $file_url = base_url($path);
-                    break;
+            // Try to get basic order info to see if it exists at all
+            // Try by numeric ID first
+            $basic_order = $this->Order_model->get_order($order_id_numeric);
+            // If not found, try by OrderNumber
+            if (!$basic_order && is_string($order_id)) {
+                $this->db->where('OrderNumber', $order_id);
+                $basic_order = $this->db->get('`order`')->row();
+                if ($basic_order) {
+                    $order_id_numeric = $basic_order->OrderID;
                 }
             }
             
-            // If no file found, still provide a URL for clicking (might be external or not yet uploaded)
-            if (!$file_url) {
-                $file_url = base_url('uploads/' . $order->FileAttached);
+            if ($basic_order) {
+                log_message('error', 'SalesCon::get_order_details - Order exists but get_order_details_for_popup returned null. OrderID: ' . $order_id . ' (numeric: ' . $order_id_numeric . ')');
+                // Order exists but query failed - might be missing order_items or customer data
+                // Return basic order info
+                $order = $basic_order;
+                // Get order items separately
+                $order_items = $this->Order_model->get_order_customizations($order_id_numeric);
+                if (!empty($order_items)) {
+                    $first_item = $order_items[0];
+                    $order->ProductName = $first_item->ProductName ?? 'N/A';
+                    $order->GlassShape = $first_item->GlassShape ?? '';
+                    $order->Dimensions = $first_item->Dimensions ?? '';
+                    $order->GlassType = $first_item->GlassType ?? '';
+                    $order->GlassThickness = $first_item->GlassThickness ?? '';
+                    $order->EdgeWork = $first_item->EdgeWork ?? '';
+                    $order->FrameType = $first_item->FrameType ?? '';
+                    $order->Engraving = $first_item->Engraving ?? '';
+                    $order->DesignRef = $first_item->DesignRef ?? null;
+                }
+                // Get customer info
+                $order_with_customer = $this->Order_model->get_order_with_customer($order_id_numeric);
+                if ($order_with_customer) {
+                    $order->First_Name = $order_with_customer->First_Name ?? '';
+                    $order->Last_Name = $order_with_customer->Last_Name ?? '';
+                    $order->Email = $order_with_customer->Email ?? '';
+                    $order->PhoneNum = $order_with_customer->PhoneNum ?? '';
+                }
+            } else {
+                // Order doesn't exist at all
+                log_message('error', 'SalesCon::get_order_details - Order not found in database. OrderID: ' . $order_id . ' (numeric: ' . $order_id_numeric . ')');
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Order not found',
+                    'debug' => [
+                        'input_order_id' => $order_id,
+                        'parsed_numeric' => $order_id_numeric
+                    ]
+                ]);
+                return;
             }
         }
         
-        // Get product category from product table
-        $product_category = 'N/A';
-        if (isset($order->ProductName) && !empty($order->ProductName)) {
-            $this->db->select('Category');
-            $this->db->where('ProductName', $order->ProductName);
-            $product = $this->db->get('product')->row();
-            if ($product) {
-                $product_category = $product->Category;
-            }
+        // Verify order belongs to this sales rep
+        if ($order->SalesRep_ID != $sales_rep_id) {
+            echo json_encode(['success' => false, 'message' => 'Order does not belong to this sales representative']);
+            return;
         }
         
-        // Get SpecialInstructions from order table to extract preferred installation date
-        $order_id_numeric = (int)str_replace('GI', '', $order_id_clean);
-        $this->db->select('SpecialInstructions');
-        $this->db->where('OrderID', $order_id_numeric);
-        $order_record = $this->db->get('order')->row();
-        $special_instructions = $order_record ? ($order_record->SpecialInstructions ?? '') : '';
+        // Format response to match view expectations (JavaScript expects specific field names)
+        $order_date = $order->OrderDate ?? date('Y-m-d H:i:s');
+        $formatted_date = date('d/m/Y', strtotime($order_date));
         
-        // Extract preferred installation date
-        $preferred_installation_date = 'N/A';
-        if (!empty($special_instructions)) {
-            if (preg_match('/Preferred Installation Date:\s*([^|]+)/i', $special_instructions, $matches)) {
-                $preferred_installation_date = trim($matches[1]);
-            }
-        }
-        
-        // Build response with ALL data from order_page table (mirrors customization table)
-        // Include all fields exactly as stored in database - no modifications
         $response = [
             'success' => true,
             'order' => [
-                'OrderID' => '#' . $order->OrderID,
-                'ProductName' => $order->ProductName ?: 'N/A',
-                'ProductCategory' => $product_category,
-                'Address' => $order->Address ?: 'N/A',
-                'Date' => $date_formatted,
-                'Shape' => isset($order->Shape) ? ($order->Shape ?: 'N/A') : 'N/A',
-                'Dimensions' => isset($order->Dimension) ? ($order->Dimension ?: 'N/A') : 'N/A',
-                'Type' => isset($order->Type) ? ($order->Type ?: 'N/A') : 'N/A',
-                'Thickness' => isset($order->Thickness) ? ($order->Thickness ?: 'N/A') : 'N/A',
-                'EdgeWork' => isset($order->EdgeWork) ? ($order->EdgeWork ?: 'N/A') : 'N/A',
-                'FrameType' => isset($order->FrameType) ? ($order->FrameType ?: 'N/A') : 'N/A',
-                'Engraving' => isset($order->Engraving) ? ($order->Engraving ?: 'N/A') : 'N/A',
-                'LEDBacklight' => isset($order->LEDBacklight) ? ($order->LEDBacklight ?: 'N/A') : 'N/A',
-                'DoorOperation' => isset($order->DoorOperation) ? ($order->DoorOperation ?: 'N/A') : 'N/A',
-                'Configuration' => isset($order->Configuration) ? ($order->Configuration ?: 'N/A') : 'N/A',
-                'FileAttached' => $order->FileAttached ?: 'N/A',
-                'TotalAmount' => number_format($order->TotalQuotation, 2),
-                'FileUrl' => $file_url,
-                'PreferredInstallationDate' => $preferred_installation_date,
-                'SpecialInstructions' => $special_instructions ?: 'N/A'
+                'OrderID' => $order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT),
+                'ProductName' => $order->ProductName ?? 'N/A',
+                'Address' => $order->DeliveryAddress ?? 'N/A',
+                'Date' => $formatted_date, // JavaScript expects 'Date' not 'OrderDate'
+                'OrderDate' => $order_date, // Keep for backward compatibility
+                'Shape' => $order->GlassShape ?? 'N/A', // JavaScript expects 'Shape' not 'GlassShape'
+                'Dimension' => $order->Dimensions ?? 'N/A',
+                'Dimensions' => $order->Dimensions ?? 'N/A', // Keep both for compatibility
+                'Type' => $order->GlassType ?? 'N/A', // JavaScript expects 'Type' not 'GlassType'
+                'Thickness' => $order->GlassThickness ?? 'N/A', // JavaScript expects 'Thickness' not 'GlassThickness'
+                'EdgeWork' => $order->EdgeWork ?? 'N/A',
+                'FrameType' => $order->FrameType ?? 'N/A',
+                'Engraving' => $order->Engraving ?? 'N/A',
+                'FileAttached' => $order->DesignRef ?? null,
+                'FileUrl' => $order->DesignRef ? base_url($order->DesignRef) : null,
+                'TotalQuotation' => $order->TotalAmount ?? 0,
+                'TotalAmount' => number_format($order->TotalAmount ?? 0, 2), // JavaScript expects 'TotalAmount' formatted
+                'Customer_ID' => $order->Customer_ID ?? 0,
+                'SalesRep_ID' => $order->SalesRep_ID ?? $sales_rep_id,
+                'Status' => $order->Status ?? 'Pending Review',
+                'First_Name' => $order->First_Name ?? '',
+                'Last_Name' => $order->Last_Name ?? '',
+                'Email' => $order->Email ?? '',
+                'PhoneNum' => $order->PhoneNum ?? '',
+                'PreferredInstallationDate' => $this->extract_preferred_installation_date($order->SpecialInstructions ?? '') ?? 'N/A'
             ]
         ];
-        
-        // Include AdminNotes if available (for disapproved orders from ready_to_approve_orders)
-        if (isset($order->AdminNotes) && !empty($order->AdminNotes)) {
-            $response['order']['AdminNotes'] = $order->AdminNotes;
-        }
-        
-        // Include AdminStatus if available (for ready_to_approve_orders)
-        if (isset($order->AdminStatus)) {
-            $response['order']['AdminStatus'] = $order->AdminStatus;
-        }
         
         echo json_encode($response);
     }
@@ -1446,353 +1423,12 @@ class SalesCon extends CI_Controller
     
     /**
      * Approve order (final approval by Sales Rep)
+     * Uses Order_model->sales_rep_final_approve()
      * Moves order from ready_to_approve_orders to approved_orders
      * Notifies customer and makes order available for payment
      */
     public function approve_order()
     {
-        $sales_rep_id = $this->get_current_sales_rep_id();
-        $order_id = $this->input->post('order_id');
-        
-        if (!$order_id) {
-            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
-            return;
-        }
-        
-        // Remove # prefix if present and extract numeric part
-        $order_id_clean = str_replace('#GI', '', $order_id);
-        $order_id_clean = str_replace('#', '', $order_id_clean);
-        $order_id_clean = str_replace('GI', '', $order_id_clean);
-        $order_id_numeric_part = ltrim($order_id_clean, '0');
-        if (empty($order_id_numeric_part)) {
-            $order_id_numeric_part = '1';
-        }
-        $order_id_clean = 'GI' . str_pad($order_id_numeric_part, 3, '0', STR_PAD_LEFT);
-        $order_id_numeric = (int)$order_id_numeric_part;
-        
-        // Start transaction
-        $this->db->trans_start();
-        
-        // Get order from ready_to_approve_orders
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $order = $this->db->get('ready_to_approve_orders')->row();
-        
-        if (!$order) {
-            $this->db->trans_rollback();
-            echo json_encode(['success' => false, 'message' => 'Order not found in ready to approve']);
-            return;
-        }
-        
-        // Insert into approved_orders
-        $approved_data = [
-            'OrderID' => $order->OrderID,
-            'ProductName' => $order->ProductName,
-            'Address' => $order->Address,
-            'OrderDate' => $order->OrderDate,
-            'Shape' => $order->Shape,
-            'Dimension' => $order->Dimension,
-            'Type' => $order->Type,
-            'Thickness' => $order->Thickness,
-            'EdgeWork' => $order->EdgeWork,
-            'FrameType' => $order->FrameType,
-            'Engraving' => $order->Engraving,
-            'FileAttached' => $order->FileAttached,
-            'TotalQuotation' => $order->TotalQuotation,
-            'Customer_ID' => $order->Customer_ID,
-            'SalesRep_ID' => $order->SalesRep_ID,
-            'ApprovedBy_SalesRep_ID' => $sales_rep_id,
-            'Approved_Date' => date('Y-m-d H:i:s'),
-            'CustomerNotified' => 0, // Will be set to 1 after notification is sent
-            'PaymentStatus' => 'Pending'
-        ];
-        
-        $this->db->insert('approved_orders', $approved_data);
-        
-        // Create payment record in payment table
-        // Use the already extracted numeric OrderID
-        
-        // Check if order exists in order table, if not create it
-        $this->db->where('OrderID', $order_id_numeric);
-        $existing_order = $this->db->get('order')->row();
-        
-        if (!$existing_order) {
-            // Create order record
-            $order_data = [
-                'OrderID' => $order_id_numeric,
-                'Customer_ID' => $order->Customer_ID,
-                'SalesRep_ID' => $order->SalesRep_ID,
-                'OrderDate' => $order->OrderDate,
-                'TotalAmount' => $order->TotalQuotation,
-                'Status' => 'Approved',
-                'PaymentStatus' => 'Pending',
-                'DeliveryAddress' => $order->Address
-            ];
-            $insert_order = $this->db->insert('order', $order_data);
-            if (!$insert_order) {
-                $error = $this->db->error();
-                log_message('error', 'Failed to create order record. OrderID: ' . $order_id_numeric . ', Error: ' . json_encode($error));
-                $this->db->trans_rollback();
-                echo json_encode(['success' => false, 'message' => 'Failed to create order record: ' . $error['message']]);
-                return;
-            }
-        }
-        
-        // Get customer name for payment record
-        $this->db->select('First_Name, Last_Name');
-        $this->db->where('UserID', $order->Customer_ID);
-        $customer = $this->db->get('user')->row();
-        $customer_name = '';
-        if ($customer) {
-            $customer_name = trim(($customer->First_Name ?? '') . ' ' . ($customer->Last_Name ?? ''));
-        }
-        
-        // Check if payment record already exists for this order
-        $this->db->where('OrderID', $order_id_numeric);
-        $existing_payment = $this->db->get('payment')->row();
-        
-        if (!$existing_payment) {
-            // Create payment record with customer name, product name, and payment method
-            $payment_data = [
-                'OrderID' => $order_id_numeric,
-                'CustomerName' => $customer_name,
-                'ProductName' => $order->ProductName,
-                'PaymentMethod' => $order->PaymentMethod ?? null,
-                'Amount' => $order->TotalQuotation,
-                'Payment_Date' => date('Y-m-d H:i:s'),
-                'Transaction_ID' => null,
-                'Status' => 'Pending'
-            ];
-            $insert_payment = $this->db->insert('payment', $payment_data);
-            if (!$insert_payment) {
-                $error = $this->db->error();
-                log_message('error', 'Failed to create payment record. OrderID: ' . $order_id_numeric . ', Error: ' . json_encode($error));
-                $this->db->trans_rollback();
-                echo json_encode(['success' => false, 'message' => 'Failed to create payment record: ' . $error['message']]);
-                return;
-            } else {
-                log_message('info', 'Payment record created successfully. OrderID: ' . $order_id_numeric . ', Amount: ' . $order->TotalQuotation);
-            }
-        } else {
-            // Update existing payment record with customer name, product, and method if missing
-            $update_data = [];
-            if (empty($existing_payment->CustomerName)) {
-                $update_data['CustomerName'] = $customer_name;
-            }
-            if (empty($existing_payment->ProductName)) {
-                $update_data['ProductName'] = $order->ProductName;
-            }
-            if (empty($existing_payment->PaymentMethod) && !empty($order->PaymentMethod)) {
-                $update_data['PaymentMethod'] = $order->PaymentMethod;
-            }
-            if (!empty($update_data)) {
-                $this->db->where('OrderID', $order_id_numeric);
-                $this->db->update('payment', $update_data);
-            }
-            log_message('info', 'Payment record already exists for OrderID: ' . $order_id_numeric);
-        }
-        
-        // Delete from ready_to_approve_orders
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->delete('ready_to_approve_orders');
-        
-        // Also remove from order_page if exists
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->delete('order_page');
-        
-        // Complete transaction
-        $this->db->trans_complete();
-        
-        if ($this->db->trans_status() === FALSE) {
-            echo json_encode(['success' => false, 'message' => 'Failed to approve order']);
-            return;
-        }
-        
-        // Send notification to customer
-        $this->notify_customer_approved($order->Customer_ID, $order_id_clean, $order->TotalQuotation);
-        
-        // Get sales rep name for logging
-        $sales_rep = $this->User_model->get_by_id($sales_rep_id);
-        $sales_rep_name = $sales_rep ? trim($sales_rep->First_Name . ' ' . $sales_rep->Last_Name) : 'Sales Representative';
-        
-        // Log activity and create notification
-        $this->log_activity(
-            'Order Approved',
-            "Order {$order_id_clean} has been approved by {$sales_rep_name}. Customer can now proceed with payment.",
-            'Sales Representative',
-            $sales_rep_id,
-            $sales_rep_name,
-            $order_id_numeric,
-            'Order'
-        );
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Order approved successfully. Customer has been notified and can proceed with payment.',
-            'order_id' => $order_id_clean
-        ]);
-    }
-    
-    /**
-     * Disapprove order (by Sales Rep at any stage)
-     * Moves order to disapproved_orders, cancels it, and notifies customer
-     */
-    public function disapprove_order()
-    {
-        $sales_rep_id = $this->get_current_sales_rep_id();
-        $order_id = $this->input->post('order_id');
-        $reason = $this->input->post('reason') ?: 'Order disapproved by Sales Representative';
-        
-        if (!$order_id) {
-            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
-            return;
-        }
-        
-        // Remove # prefix if present
-        $order_id_clean = str_replace('#GI', '', $order_id);
-        $order_id_clean = str_replace('#', '', $order_id_clean);
-        $order_id_clean = ltrim($order_id_clean, '0');
-        $order_id_clean = 'GI' . str_pad($order_id_clean, 3, '0', STR_PAD_LEFT);
-        
-        // Start transaction
-        $this->db->trans_start();
-        
-        // Try to find order in any status table
-        $order = null;
-        $source_table = null;
-        
-        // Check pending_review_orders
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $order = $this->db->get('pending_review_orders')->row();
-        if ($order) {
-            $source_table = 'pending_review_orders';
-        }
-        
-        // Check awaiting_admin_orders
-        if (!$order) {
-            $this->db->where('OrderID', $order_id_clean);
-            $this->db->where('SalesRep_ID', $sales_rep_id);
-            $order = $this->db->get('awaiting_admin_orders')->row();
-            if ($order) {
-                $source_table = 'awaiting_admin_orders';
-            }
-        }
-        
-        // Check ready_to_approve_orders
-        if (!$order) {
-            $this->db->where('OrderID', $order_id_clean);
-            $this->db->where('SalesRep_ID', $sales_rep_id);
-            $order = $this->db->get('ready_to_approve_orders')->row();
-            if ($order) {
-                $source_table = 'ready_to_approve_orders';
-            }
-        }
-        
-        if (!$order) {
-            $this->db->trans_rollback();
-            echo json_encode(['success' => false, 'message' => 'Order not found']);
-            return;
-        }
-        
-        // Check if this was already disapproved by Admin
-        $was_admin_disapproved = false;
-        $admin_notes = '';
-        if (isset($order->AdminStatus) && $order->AdminStatus === 'Disapproved') {
-            $was_admin_disapproved = true;
-            $admin_notes = isset($order->AdminNotes) ? $order->AdminNotes : '';
-            // Combine admin reason with sales rep's reason if provided
-            if ($admin_notes && $reason !== 'Order disapproved by Sales Representative') {
-                $reason = 'Admin Reason: ' . $admin_notes . ' | Sales Rep Finalization: ' . $reason;
-            } elseif ($admin_notes) {
-                $reason = 'Admin Reason: ' . $admin_notes . ' | Finalized by Sales Representative';
-            }
-        }
-        
-        // Insert into disapproved_orders
-        $disapproved_data = [
-            'OrderID' => $order->OrderID,
-            'ProductName' => $order->ProductName,
-            'Address' => $order->Address,
-            'OrderDate' => $order->OrderDate,
-            'Shape' => $order->Shape,
-            'Dimension' => $order->Dimension,
-            'Type' => $order->Type,
-            'Thickness' => $order->Thickness,
-            'EdgeWork' => $order->EdgeWork,
-            'FrameType' => $order->FrameType,
-            'Engraving' => $order->Engraving,
-            'FileAttached' => $order->FileAttached,
-            'TotalQuotation' => $order->TotalQuotation,
-            'Customer_ID' => $order->Customer_ID,
-            'SalesRep_ID' => $order->SalesRep_ID,
-            'DisapprovedBy' => $was_admin_disapproved ? 'Admin' : 'Sales Rep',
-            'DisapprovedBy_ID' => $was_admin_disapproved ? null : $sales_rep_id,
-            'DisapprovalReason' => $reason,
-            'Disapproved_Date' => date('Y-m-d H:i:s'),
-            'CustomerNotified' => 0, // Will be set to 1 after notification is sent
-        ];
-        
-        $this->db->insert('disapproved_orders', $disapproved_data);
-        
-        // Delete from source table
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->delete($source_table);
-        
-        // Also remove from order_page if exists
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->delete('order_page');
-        
-        // Complete transaction
-        $this->db->trans_complete();
-        
-        if ($this->db->trans_status() === FALSE) {
-            echo json_encode(['success' => false, 'message' => 'Failed to disapprove order']);
-            return;
-        }
-        
-        // Send notification to customer
-        $this->notify_customer_disapproved($order->Customer_ID, $order_id_clean, $reason);
-        
-        // Update notification status in disapproved_orders
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->update('disapproved_orders', [
-            'CustomerNotified' => 1,
-            'CustomerNotified_Date' => date('Y-m-d H:i:s')
-        ]);
-        
-        // Get sales rep name for logging
-        $sales_rep = $this->User_model->get_by_id($sales_rep_id);
-        $sales_rep_name = $sales_rep ? trim($sales_rep->First_Name . ' ' . $sales_rep->Last_Name) : 'Sales Representative';
-        
-        // Log activity and create notification
-        $this->log_activity(
-            'Order Disapproved',
-            "Order {$order_id_clean} has been disapproved by {$sales_rep_name}. Reason: {$reason}",
-            'Sales Representative',
-            $sales_rep_id,
-            $sales_rep_name,
-            $order_id_numeric,
-            'Order'
-        );
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Order disapproved and cancelled. Customer has been notified immediately.',
-            'order_id' => $order_id_clean
-        ]);
-    }
-    
-    /**
-     * Request approval - moves order from pending_review_orders to awaiting_admin_orders
-     */
-    public function request_approval()
-    {
-        // Set JSON header
         header('Content-Type: application/json');
         
         $sales_rep_id = $this->get_current_sales_rep_id();
@@ -1803,97 +1439,114 @@ class SalesCon extends CI_Controller
             return;
         }
         
-        // Remove # prefix if present and extract numeric part
-        $order_id_clean = str_replace('#GI', '', $order_id);
-        $order_id_clean = str_replace('#', '', $order_id_clean);
-        $order_id_clean = str_replace('GI', '', $order_id_clean);
-        $order_id_numeric_part = ltrim($order_id_clean, '0');
-        if (empty($order_id_numeric_part)) {
-            $order_id_numeric_part = '1';
-        }
-        $order_id_clean = 'GI' . str_pad($order_id_numeric_part, 3, '0', STR_PAD_LEFT);
-        $order_id_numeric = (int)$order_id_numeric_part;
+        // Load Order_model
+        $this->load->model('Order_model');
         
-        // Start transaction
-        $this->db->trans_start();
+        // Parse order ID - remove # prefix
+        $order_id_clean = str_replace('#', '', $order_id);
         
-        // Get order from pending_review_orders
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $order = $this->db->get('pending_review_orders')->row();
+        // Look up the order by OrderNumber or OrderID to get the actual numeric OrderID
+        $order = $this->Order_model->get_order($order_id_clean);
         
         if (!$order) {
-            $this->db->trans_rollback();
-            echo json_encode(['success' => false, 'message' => 'Order not found in pending review']);
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
             return;
         }
         
-        // Insert into awaiting_admin_orders
-        $awaiting_data = [
-            'OrderID' => $order->OrderID,
-            'ProductName' => $order->ProductName,
-            'Address' => $order->Address,
-            'OrderDate' => $order->OrderDate,
-            'Shape' => $order->Shape,
-            'Dimension' => $order->Dimension,
-            'Type' => $order->Type,
-            'Thickness' => $order->Thickness,
-            'EdgeWork' => $order->EdgeWork,
-            'FrameType' => $order->FrameType,
-            'Engraving' => $order->Engraving,
-            'FileAttached' => $order->FileAttached,
-            'TotalQuotation' => $order->TotalQuotation,
-            'Customer_ID' => $order->Customer_ID,
-            'SalesRep_ID' => $order->SalesRep_ID,
-            'RequestedBy_SalesRep_ID' => $sales_rep_id,
-            'Requested_Date' => date('Y-m-d H:i:s')
-        ];
+        // Use the actual numeric OrderID from the database
+        $order_id_numeric = $order->OrderID;
+        $order_id_formatted = $order->OrderNumber ?? 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
         
-        $this->db->insert('awaiting_admin_orders', $awaiting_data);
+        // Use Order_model function
+        $result = $this->Order_model->sales_rep_final_approve($order_id_numeric, $sales_rep_id);
         
-        // Delete from pending_review_orders
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->delete('pending_review_orders');
+        if ($result['success']) {
+            $result['order_id'] = $order_id_formatted;
+        }
         
-        // Update order_page status
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->where('SalesRep_ID', $sales_rep_id);
-        $this->db->update('order_page', ['Status' => 'Awaiting Admin']);
+        echo json_encode($result);
+    }
+    
+    /**
+     * Disapprove order (by Sales Rep at any stage)
+     * Uses Order_model->sales_rep_final_disapprove()
+     * Moves order to disapproved_orders, cancels it, and notifies customer
+     */
+    public function disapprove_order()
+    {
+        header('Content-Type: application/json');
         
-        // Complete transaction
-        $this->db->trans_complete();
+        $sales_rep_id = $this->get_current_sales_rep_id();
+        $order_id = $this->input->post('order_id');
+        $reason = $this->input->post('reason') ?: '';
         
-        if ($this->db->trans_status() === FALSE) {
-            echo json_encode(['success' => false, 'message' => 'Failed to request approval']);
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
             return;
         }
         
-        // Get sales rep name for logging
-        $sales_rep = $this->User_model->get_by_id($sales_rep_id);
-        $sales_rep_name = $sales_rep ? trim($sales_rep->First_Name . ' ' . $sales_rep->Last_Name) : 'Sales Representative';
+        // Load Order_model
+        $this->load->model('Order_model');
         
-        // Log activity and create notification (wrap in try-catch to prevent breaking the request)
-        try {
-            $this->log_activity(
-                'Approval Requested',
-                "Order {$order_id_clean} approval has been requested by {$sales_rep_name}. Order is now awaiting admin review.",
-                'Sales Representative',
-                $sales_rep_id,
-                $sales_rep_name,
-                $order_id_numeric,
-                'Order'
-            );
-        } catch (Exception $e) {
-            // Log error but don't break the request
-            log_message('error', 'Failed to log activity for request_approval: ' . $e->getMessage());
+        // Parse order ID - remove # prefix
+        $order_id_clean = str_replace('#', '', $order_id);
+        
+        // Look up the order by OrderNumber or OrderID to get the actual numeric OrderID
+        $order = $this->Order_model->get_order($order_id_clean);
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            return;
         }
         
-        echo json_encode([
-            'success' => true,
-            'message' => 'Approval requested. Order is now awaiting admin review.',
-            'order_id' => $order_id_clean
-        ]);
+        // Use the actual numeric OrderID from the database
+        $order_id_numeric = $order->OrderID;
+        $order_id_formatted = $order->OrderNumber ?? 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
+        
+        // Use Order_model function
+        $result = $this->Order_model->sales_rep_final_disapprove($order_id_numeric, $sales_rep_id, $reason);
+        
+        if ($result['success']) {
+            $result['order_id'] = $order_id_formatted;
+        }
+        
+        echo json_encode($result);
+    }
+    
+    /**
+     * Request approval - moves order from pending_review_orders to awaiting_admin_orders
+     * Uses Order_model->request_admin_approval()
+     */
+    public function request_approval()
+    {
+        // Set JSON header
+        header('Content-Type: application/json');
+        
+        $sales_rep_id = $this->get_current_sales_rep_id();
+        $order_id = $this->input->post('order_id');
+        $notes = $this->input->post('notes') ?: '';
+        
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+            return;
+        }
+        
+        // Load Order_model
+        $this->load->model('Order_model');
+        
+        // Pass the original order_id to the model - it can handle both numeric and OrderNumber format
+        // The model will try both OrderID (numeric) and OrderNumber (GI001 format)
+        $result = $this->Order_model->request_admin_approval($order_id, $sales_rep_id, $notes);
+        
+        // Parse for response formatting
+        $order_id_parsed = $this->parse_order_id($order_id);
+        $order_id_formatted = $order_id_parsed['formatted'];
+        
+        if ($result['success']) {
+            $result['order_id'] = $order_id_formatted;
+        }
+        
+        echo json_encode($result);
     }
     
     /**
@@ -2002,11 +1655,16 @@ class SalesCon extends CI_Controller
             $payment = $this->db->get('payment')->row();
             
             if (!$payment) {
-                // If payment record doesn't exist, get from approved_orders
-                $order_id_string = 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
-                $this->db->where('OrderID', $order_id_string);
-                $this->db->where('SalesRep_ID', $sales_rep_id);
-                $order = $this->db->get('approved_orders')->row();
+                // If payment record doesn't exist, get from unified order table
+                $this->db->select('o.*, p.ProductName');
+                $this->db->from('`order` o');
+                $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+                $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+                $this->db->where('o.OrderID', $order_id_numeric);
+                $this->db->where('o.SalesRep_ID', $sales_rep_id);
+                $this->db->where('o.Status', 'Approved');
+                $this->db->group_by('o.OrderID');
+                $order = $this->db->get()->row();
                 
                 if (!$order) {
                     echo json_encode(['success' => false, 'message' => 'Order not found']);
@@ -2014,9 +1672,11 @@ class SalesCon extends CI_Controller
                 }
                 
                 // Get customer name
-                $this->db->select('First_Name, Last_Name');
-                $this->db->where('UserID', $order->Customer_ID);
-                $customer = $this->db->get('user')->row();
+                $this->db->select('u.First_Name, u.Last_Name');
+                $this->db->from('customer c');
+                $this->db->join('user u', 'u.UserID = c.UserID', 'left');
+                $this->db->where('c.Customer_ID', $order->Customer_ID);
+                $customer = $this->db->get()->row();
                 $customer_name = '';
                 if ($customer) {
                     $customer_name = trim(($customer->First_Name ?? '') . ' ' . ($customer->Last_Name ?? ''));
@@ -2031,9 +1691,9 @@ class SalesCon extends CI_Controller
                     'success' => true,
                     'data' => [
                         'customer_name' => $customer_name,
-                        'product_name' => $order->ProductName,
+                        'product_name' => $order->ProductName ?? 'N/A',
                         'product_image' => $product ? ($product->ImageUrl ?? '') : '',
-                        'amount' => $order->TotalQuotation,
+                        'amount' => $order->TotalAmount,
                         'payment_method' => $order->PaymentMethod ?? 'Not Selected'
                     ]
                 ]);
@@ -2102,28 +1762,13 @@ class SalesCon extends CI_Controller
             // Start transaction
             $this->db->trans_start();
             
-            // Update payment table
-            $this->db->where('OrderID', $order_id_numeric);
-            $update_payment = $this->db->update('payment', [
-                'Status' => 'Paid',
-                'Payment_Date' => date('Y-m-d H:i:s')
-            ]);
+            // Update payment status using Order_model transaction function
+            $this->load->model('Order_model');
+            $update_result = $this->Order_model->update_payment_status($order_id_numeric, 'Paid');
             
-            if (!$update_payment) {
+            if (!$update_result) {
                 $error = $this->db->error();
-                throw new Exception('Failed to update payment table: ' . $error['message']);
-            }
-            
-            // Update order table PaymentStatus
-            $this->db->where('OrderID', $order_id_numeric);
-            $update_order = $this->db->update('order', [
-                'PaymentStatus' => 'Paid'
-            ]);
-            
-            if (!$update_order) {
-                $error = $this->db->error();
-                // Log warning but don't fail if order table doesn't have the record
-                log_message('warning', 'Failed to update order table PaymentStatus for OrderID ' . $order_id_numeric . ': ' . $error['message']);
+                throw new Exception('Failed to update payment status: ' . $error['message']);
             }
             
             // Also update approved_orders table PaymentStatus if it exists
@@ -2143,31 +1788,31 @@ class SalesCon extends CI_Controller
             }
             
             // Deduct materials from inventory after payment
-            // Get product ID from order or approved_orders
+            // Get product ID from unified order table via order_items
             $product_id = null;
-            if ($this->db->table_exists('approved_orders')) {
-                $this->db->select('Product_ID, ProductName');
-                $this->db->where('OrderID', $order_id_string);
-                $order_info = $this->db->get('approved_orders')->row();
-            } else {
-                $order_info = null;
-            }
+            $this->db->select('oi.Product_ID');
+            $this->db->from('order_items oi');
+            $this->db->where('oi.OrderID', $order_id_numeric);
+            $this->db->limit(1);
+            $order_item = $this->db->get()->row();
             
-            if ($order_info && isset($order_info->Product_ID) && $order_info->Product_ID) {
-                $product_id = $order_info->Product_ID;
+            if ($order_item && isset($order_item->Product_ID) && $order_item->Product_ID) {
+                $product_id = $order_item->Product_ID;
             } else {
-                // Try to get from order_page
-                $this->db->select('ProductName');
-                $this->db->where('OrderID', $order_id_string);
-                $order_page_info = $this->db->get('order_page')->row();
-                
-                if ($order_page_info && $order_page_info->ProductName) {
-                    // Get product ID from product name
-                    $this->db->select('Product_ID');
-                    $this->db->where('ProductName', $order_page_info->ProductName);
-                    $product = $this->db->get('product')->row();
-                    if ($product) {
-                        $product_id = $product->Product_ID;
+                // Fallback: Try to get from order_page if it exists
+                if ($this->db->table_exists('order_page')) {
+                    $this->db->select('ProductName');
+                    $this->db->where('OrderID', $order_id_string);
+                    $order_page_info = $this->db->get('order_page')->row();
+                    
+                    if ($order_page_info && $order_page_info->ProductName) {
+                        // Get product ID from product name
+                        $this->db->select('Product_ID');
+                        $this->db->where('ProductName', $order_page_info->ProductName);
+                        $product = $this->db->get('product')->row();
+                        if ($product) {
+                            $product_id = $product->Product_ID;
+                        }
                     }
                 }
             }
@@ -2310,5 +1955,34 @@ class SalesCon extends CI_Controller
                 ]);
             }
         }
+    }
+
+    /**
+     * Extract preferred installation date from special instructions
+     * 
+     * @param string $special_instructions Special instructions text
+     * @return string|null Date in Y-m-d format or null
+     */
+    private function extract_preferred_installation_date($special_instructions)
+    {
+        if (empty($special_instructions)) {
+            return null;
+        }
+        
+        // Look for "Preferred Installation Date: [date]" pattern
+        if (preg_match('/Preferred Installation Date:\s*([^|]+)/i', $special_instructions, $matches)) {
+            $date_str = trim($matches[1]);
+            // Try to parse the date (format: "F j, Y" like "January 15, 2025")
+            $parsed_date = date_parse($date_str);
+            if ($parsed_date && $parsed_date['error_count'] == 0) {
+                // Reconstruct date in Y-m-d format
+                $year = $parsed_date['year'];
+                $month = str_pad($parsed_date['month'], 2, '0', STR_PAD_LEFT);
+                $day = str_pad($parsed_date['day'], 2, '0', STR_PAD_LEFT);
+                return $year . '-' . $month . '-' . $day;
+            }
+        }
+        
+        return null;
     }
 }

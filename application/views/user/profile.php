@@ -58,7 +58,7 @@
 
             <!-- Right: Profile Image -->
             <section class="settings-photo">
-                <img src="<?= isset($user->ImageUrl) ? base_url($user->ImageUrl) : base_url('assets/img/pfp.png') ?>"
+                <img src="<?= isset($user->ImageUrl) && !empty($user->ImageUrl) ? base_url($user->ImageUrl) : base_url('assets/images/img-page/pfp.png') ?>"
                     class="profile-img" id="profilePreview">
 
                 <div class="photo-buttons">
@@ -357,6 +357,10 @@
             $("#changePhotoBtn").click(() => $("#uploadPhoto").click());
 
             $("#uploadPhoto").change(function () {
+                if (!this.files || !this.files[0]) {
+                    return;
+                }
+
                 const fd = new FormData();
                 fd.append("photo", this.files[0]);
 
@@ -372,8 +376,18 @@
                             $("#profilePreview").attr("src", res.image);
                             alert("Photo updated!");
                         } else {
-                            alert(res.message);
+                            alert(res.message || "Failed to upload photo");
                         }
+                    },
+                    error: function (xhr, status, error) {
+                        let errorMsg = "Error uploading photo. ";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg += xhr.responseJSON.message;
+                        } else {
+                            errorMsg += error || "Please try again.";
+                        }
+                        alert(errorMsg);
+                        console.error("Upload error:", xhr.responseText);
                     }
                 });
             });

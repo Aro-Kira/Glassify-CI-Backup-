@@ -7,6 +7,7 @@
   const getApprovalOrderDetailsUrl = "<?php echo base_url('AdminCon/get_approval_order_details'); ?>";
   const approveOrderUrl = "<?php echo base_url('AdminCon/approve_order_admin'); ?>";
   const disapproveOrderUrl = "<?php echo base_url('AdminCon/disapprove_order_admin'); ?>";
+  const completeOrderUrl = "<?php echo base_url('AdminCon/complete_order'); ?>";
 </script>
 
 <script src="<?php echo base_url('assets/js/admin-js/order.js'); ?>"></script>
@@ -94,10 +95,10 @@
   </div>
   <div id="actionMenu" class="action-menu hidden">
     <ul>
-      <li><a href="#">View</a></li>
-      <li><a href="#">Complete</a></li>
-      <li><a href="#">Cancel</a></li>
-      <li><a href="#">Delete</a></li>
+      <li><a>View</a></li>
+      <li><a>Complete</a></li>
+      <li><a>Cancel</a></li>
+      <li><a>Delete</a></li>
     </ul>
   </div>
 

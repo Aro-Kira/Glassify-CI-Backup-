@@ -445,12 +445,17 @@ tbody tr:hover {
     /* Popup */
     .popup {
       background: #fff;
-      padding: 20px 25px;
-      width: 400px;
+      padding: 25px 30px;
+      width: 500px;
+      max-width: 90vw;
+      max-height: 90vh;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       position: relative;
       animation: fadeIn 0.3s ease-in-out;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
     }
 
     @keyframes fadeIn {
@@ -460,10 +465,12 @@ tbody tr:hover {
 
     .popup h3 {
       margin-top: 0;
-      margin-bottom: 15px;
-      font-size: 18px;
+      margin-bottom: 20px;
+      font-size: 24px;
       font-weight: bold;
       text-align: center;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e0e0e0;
     }
 
     /* Close Button */
@@ -478,26 +485,41 @@ tbody tr:hover {
     .popup .close-btn:hover {
       color: #000;
     }
-.popup h3 {
-    font-family: 'DM Sans', sans-serif;
-    font-size: 24px;
-}
     /* Order details table */
     .order-details {
       width: 100%;
       border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+
+    .order-details tbody tr {
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .order-details tbody tr:last-child {
+      border-bottom: none;
     }
 
     .order-details td {
-      padding: 6px 4px;
+      padding: 12px 8px;
       vertical-align: top;
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
     }
 
     .order-details td:first-child {
-      font-weight: bold;
-      width: 40%;
+      font-weight: 600;
+      width: 45%;
+      min-width: 180px;
+      color: #333;
+      padding-right: 15px;
+    }
+
+    .order-details td:last-child {
+      color: #555;
+      word-wrap: break-word;
+      padding-left: 10px;
     }
 
     .order-details a {
@@ -510,15 +532,19 @@ tbody tr:hover {
 
     /* Export button */
     .export-btn {
-      margin-top: 15px;
+      margin-top: 0;
       background: #006494;
       color: #fff;
-      padding: 8px 15px;
+      padding: 10px 20px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
       display: block;
-
+      font-size: 14px;
+      font-weight: 500;
+      font-family: 'DM Sans', sans-serif;
+      transition: background-color 0.3s;
+      width: 100%;
     }
     .export-btn:hover {
       background: #01547b;
@@ -546,12 +572,115 @@ tbody tr:hover {
 
 .barcode {
   display: flex;
-  justify-content: center; /* Centers horizontally */
-  align-items: center;     /* Centers vertically (if height is set) */
-  margin-top: 10px;        /* Optional spacing */
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 25px 0 20px 0;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
 }
 
 .barcode img {
   height: 50px;
   width: auto;
+  margin-bottom: 8px;
+}
+
+.barcode span,
+.barcode p {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-top: 5px;
+  text-align: center;
+}
+
+/* Approval Popup Styles - Wider popup for approval form */
+#approvalPopup .popup {
+  width: 500px;
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Form Groups for Approval Popup */
+.approval-actions .form-group {
+  margin-bottom: 15px;
+}
+
+.approval-actions .form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  color: #02455F;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.approval-actions .form-group textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  resize: vertical;
+  min-height: 80px;
+  box-sizing: border-box;
+}
+
+.approval-actions .form-group textarea::placeholder {
+  color: #999;
+}
+
+/* Popup Actions Buttons */
+.popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.approval-actions .popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+/* Disapprove Button */
+.disapprove-btn {
+  background: #F7363F;
+  color: #fff;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  transition: background-color 0.3s;
+}
+
+.disapprove-btn:hover {
+  background: #d02a32;
+}
+
+/* Cancel Button */
+.cancel-btn {
+  background: #9A9A9A;
+  color: #fff;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  transition: background-color 0.3s;
+}
+
+.cancel-btn:hover {
+  background: #7a7a7a;
 }

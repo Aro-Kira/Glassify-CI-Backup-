@@ -138,8 +138,10 @@ function setupProductPopups() {
 
   addSaveBtn?.addEventListener("click", () => {
     let name = addNameInput.value.trim();
-    let category = document.getElementById("productCategory").value;
-    let material = document.getElementById("productMaterial").value;
+    let categoryEl = document.getElementById("productCategory");
+    let materialEl = document.getElementById("productMaterial");
+    let category = categoryEl ? categoryEl.value : '';
+    let material = materialEl ? materialEl.value : '';
     let price = addPriceInput.value;
     let img = addImageInput.files[0];
 
@@ -181,8 +183,10 @@ productGrid.addEventListener("click", e => {
     const category = productBeingEdited.dataset.category;
     const material = productBeingEdited.dataset.material;
 
-    document.getElementById("editProductCategory").value = category;
-    document.getElementById("editProductMaterial").value = material;
+    const editCategoryEl = document.getElementById("editProductCategory");
+    const editMaterialEl = document.getElementById("editProductMaterial");
+    if (editCategoryEl) editCategoryEl.value = category || '';
+    if (editMaterialEl) editMaterialEl.value = material || '';
 
     editPopup.style.display = "flex";
     return;
@@ -213,8 +217,10 @@ editSaveBtn?.addEventListener("click", () => {
   let formData = new FormData();
   formData.append("name", editNameInput.value);
   formData.append("price", editPriceInput.value);
-  formData.append("category", document.getElementById("editProductCategory").value);
-  formData.append("material", document.getElementById("editProductMaterial").value);
+  const editCategoryEl = document.getElementById("editProductCategory");
+  const editMaterialEl = document.getElementById("editProductMaterial");
+  formData.append("category", editCategoryEl ? editCategoryEl.value : '');
+  formData.append("material", editMaterialEl ? editMaterialEl.value : '');
 
   if (editImageInput.files[0]) {
     formData.append("productImage", editImageInput.files[0]);

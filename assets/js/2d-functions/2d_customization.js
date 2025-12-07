@@ -593,56 +593,75 @@ function deleteFile(e) {
     if (uploadedFiles.length === 0) uploadedFilesContainer.innerHTML = '<p class="placeholder-text">No files uploaded yet.</p>';
 }
 
-// ... (Keep your existing imports and state variables) ...
-
 // --- PRICING LOGIC (Philippines Context) ---
+// Price per square inch based on product base price
+const BASE_PRICE_PER_SQ_IN = productBasePrice / 100; // Convert base price to per sq inch rate
+
 const pricingDatabase = {
-    baseRatePerSqIn: productBasePrice, // Approx ₱2.5 per square inch base price
-    multipliers: {
-        // Shapes (Complexity)
-        'rectangle': 1.0,
-        'square': 1.2,
-        'triangle': 1.3, // More cutting waste
-        'pentagon': 1.4,
-
-        // Glass Types
-        'tempered': 1.2,  // Standard + 20%
-        'laminated': 1.4, // Safety + 40%
-        'double': 1.5,    // Insulated + 50%
-        'low-e': 1.35,    // Coating + 35%
-        'tinted': 1.15,   // Tint + 15%
-        'frosted': 1.1,   // Sandblast + 10%
-
-        // Thickness
-        '3mm': 0.9,
-        '5mm': 1.0, // Base
-        '6mm': 1.1,
-        '8mm': 1.25,
-        '10mm': 1.4,
-        '12mm': 1.6,
-
-        // Frame
-        'vinyl': 1.0,
-        'aluminum': 1.2,
-        'wood': 1.6 // Real wood is expensive
-    },
-
-    // Flat fees (in Pesos)
-    extras: {
-        edge: {
-            'flat-polish': 0,
-            'metered': 200,
-            'beveled': 500, // Expensive process
-            'seamed': 100
+    baseRatePerSqIn: BASE_PRICE_PER_SQ_IN,
+    
+    // Price additions (in Pesos) for each option
+    prices: {
+        // Shapes - Additional cost based on cutting complexity
+        shapes: {
+            'rectangle': { multiplier: 1.0, label: 'Rectangle', desc: 'Standard' },
+            'square': { multiplier: 1.05, label: 'Square', desc: '+5%' },
+            'triangle': { multiplier: 1.15, label: 'Triangle', desc: '+15%' },
+            'pentagon': { multiplier: 1.25, label: 'Pentagon', desc: '+25%' }
+        },
+        
+        // Glass Types - Price per sq inch multiplier
+        glassTypes: {
+            'tempered': { multiplier: 1.0, label: 'Tempered', desc: 'Standard Safety' },
+            'laminated': { multiplier: 1.35, label: 'Laminated', desc: '+35%' },
+            'double': { multiplier: 1.5, label: 'Double Pane', desc: '+50%' },
+            'low-e': { multiplier: 1.4, label: 'Low-E', desc: '+40%' },
+            'tinted': { multiplier: 1.2, label: 'Tinted', desc: '+20%' },
+            'frosted': { multiplier: 1.15, label: 'Frosted', desc: '+15%' }
+        },
+        
+        // Thickness - Additional price per mm above 3mm
+        thickness: {
+            '3mm': { multiplier: 0.85, label: '3mm', desc: '-15%' },
+            '5mm': { multiplier: 1.0, label: '5mm', desc: 'Standard' },
+            '6mm': { multiplier: 1.1, label: '6mm', desc: '+10%' },
+            '8mm': { multiplier: 1.25, label: '8mm', desc: '+25%' },
+            '10mm': { multiplier: 1.4, label: '10mm', desc: '+40%' },
+            '12mm': { multiplier: 1.6, label: '12mm', desc: '+60%' }
+        },
+        
+        // Frame Types - Fixed price additions
+        frames: {
+            'vinyl': { price: 0, multiplier: 1.0, label: 'Vinyl', desc: 'Included' },
+            'aluminum': { price: 350, multiplier: 1.15, label: 'Aluminum', desc: '+₱350' },
+            'wood': { price: 800, multiplier: 1.35, label: 'Wood', desc: '+₱800' }
+        },
+        
+        // Edge Work - Fixed price additions
+        edges: {
+            'flat-polish': { price: 0, label: 'Flat Polish', desc: 'Included' },
+            'metered': { price: 250, label: 'Metered', desc: '+₱250' },
+            'beveled': { price: 550, label: 'Beveled', desc: '+₱550' },
+            'seamed': { price: 150, label: 'Seamed', desc: '+₱150' }
         }
-    }
+    },
+    
+    minimumPrice: 1500 // Minimum order price
+};
+
+// Store calculated price breakdown
+let priceBreakdown = {
+    baseArea: 0,
+    shapeAddon: 0,
+    typeAddon: 0,
+    thicknessAddon: 0,
+    frameAddon: 0,
+    edgeAddon: 0,
+    total: 0
 };
 
 function calculateTotal() {
     // 1. Convert dimensions to Inches for calculation
-    // If unit is cm/mm, convert to inches. (Simplified: We assume values are stored correctly or converted)
-    // For this demo, we assume the numeric value stored in 'currentDimensions' matches the 'unit'.
-
     let h_in = currentDimensions.height.value;
     let w_in = currentDimensions.width.value;
     const unit = currentDimensions.height.unit;
@@ -652,57 +671,153 @@ function calculateTotal() {
 
     const areaSqIn = h_in * w_in;
 
-    // 2. Get Multipliers
-    const shapeMult = pricingDatabase.multipliers[currentShape] || 1;
-    const typeMult = pricingDatabase.multipliers[currentGlassType] || 1;
-    const thickMult = pricingDatabase.multipliers[currentThickness] || 1;
-    const frameMult = pricingDatabase.multipliers[currentFrameType] || 1;
+    // 2. Calculate base area cost
+    const baseAreaCost = areaSqIn * pricingDatabase.baseRatePerSqIn;
+    priceBreakdown.baseArea = baseAreaCost;
 
-    // 3. Calculate Base Material Cost
-    let materialCost = areaSqIn * pricingDatabase.baseRatePerSqIn;
+    // 3. Get multipliers and calculate addons
+    const shapeData = pricingDatabase.prices.shapes[currentShape] || pricingDatabase.prices.shapes['rectangle'];
+    const typeData = pricingDatabase.prices.glassTypes[currentGlassType] || pricingDatabase.prices.glassTypes['tempered'];
+    const thickData = pricingDatabase.prices.thickness[currentThickness] || pricingDatabase.prices.thickness['5mm'];
+    const frameData = pricingDatabase.prices.frames[currentFrameType] || pricingDatabase.prices.frames['vinyl'];
+    const edgeData = pricingDatabase.prices.edges[currentEdgeWork] || pricingDatabase.prices.edges['flat-polish'];
 
-    // Apply multipliers
-    materialCost = materialCost * shapeMult * typeMult * thickMult * frameMult;
+    // Calculate individual addon costs
+    priceBreakdown.shapeAddon = baseAreaCost * (shapeData.multiplier - 1);
+    priceBreakdown.typeAddon = baseAreaCost * (typeData.multiplier - 1);
+    priceBreakdown.thicknessAddon = baseAreaCost * (thickData.multiplier - 1);
+    priceBreakdown.frameAddon = frameData.price + (baseAreaCost * (frameData.multiplier - 1));
+    priceBreakdown.edgeAddon = edgeData.price;
 
-    // 4. Add Flat Fees
-    const edgeFee = pricingDatabase.extras.edge[currentEdgeWork] || 0;
+    // 4. Calculate total
+    let total = baseAreaCost * shapeData.multiplier * typeData.multiplier * thickData.multiplier * frameData.multiplier;
+    total += frameData.price + edgeData.price;
 
-    let total = materialCost + edgeFee;
+    // Apply minimum price constraint
+    if (total < pricingDatabase.minimumPrice) {
+        total = pricingDatabase.minimumPrice;
+    }
 
-    // Minimum order price constraint (e.g., nothing below ₱1,500)
-    if (total < 1500) total = 1500;
-
+    priceBreakdown.total = total;
     return total;
 }
 
-// --- REAL-TIME PRICE UPDATE ---
-function updateRealTimePriceDisplay() {
-    // 1. Get the calculated total from your existing logic
-    const total = calculateTotal();
-
-    // 2. Format it to Philippines Peso
-    const formatter = new Intl.NumberFormat('en-PH', {
+// Format price in PHP
+function formatPrice(amount) {
+    return new Intl.NumberFormat('en-PH', {
         style: 'currency',
         currency: 'PHP',
-    });
+        minimumFractionDigits: 2
+    }).format(amount);
+}
 
-    // 3. Update the DOM element
-    const priceValue = document.querySelector('#price-box .price-value');
+// --- REAL-TIME PRICE UPDATE WITH BREAKDOWN ---
+function updateRealTimePriceDisplay() {
+    // 1. Calculate total (also updates priceBreakdown)
+    const total = calculateTotal();
+
+    // 2. Update main price display
+    const priceValue = document.getElementById('total-price');
     if (priceValue) {
-        priceValue.textContent = formatter.format(total);
+        priceValue.textContent = formatPrice(total);
+    }
+
+    // 3. Update breakdown details
+    updatePriceBreakdown();
+}
+
+function updatePriceBreakdown() {
+    // Get pricing data
+    const shapeData = pricingDatabase.prices.shapes[currentShape];
+    const typeData = pricingDatabase.prices.glassTypes[currentGlassType];
+    const thickData = pricingDatabase.prices.thickness[currentThickness];
+    const frameData = pricingDatabase.prices.frames[currentFrameType];
+    const edgeData = pricingDatabase.prices.edges[currentEdgeWork];
+
+    // Update base area cost
+    const costArea = document.getElementById('cost-area');
+    if (costArea) costArea.textContent = formatPrice(priceBreakdown.baseArea);
+
+    // Update shape
+    const labelShape = document.getElementById('label-shape');
+    const costShape = document.getElementById('cost-shape');
+    if (labelShape) labelShape.textContent = shapeData.label;
+    if (costShape) {
+        costShape.textContent = priceBreakdown.shapeAddon > 0 
+            ? '+' + formatPrice(priceBreakdown.shapeAddon) 
+            : 'Included';
+    }
+
+    // Update glass type
+    const labelType = document.getElementById('label-type');
+    const costType = document.getElementById('cost-type');
+    if (labelType) labelType.textContent = typeData.label;
+    if (costType) {
+        costType.textContent = priceBreakdown.typeAddon > 0 
+            ? '+' + formatPrice(priceBreakdown.typeAddon) 
+            : 'Standard';
+    }
+
+    // Update thickness
+    const labelThickness = document.getElementById('label-thickness');
+    const costThickness = document.getElementById('cost-thickness');
+    if (labelThickness) labelThickness.textContent = thickData.label;
+    if (costThickness) {
+        if (priceBreakdown.thicknessAddon > 0) {
+            costThickness.textContent = '+' + formatPrice(priceBreakdown.thicknessAddon);
+        } else if (priceBreakdown.thicknessAddon < 0) {
+            costThickness.textContent = formatPrice(priceBreakdown.thicknessAddon);
+        } else {
+            costThickness.textContent = 'Standard';
+        }
+    }
+
+    // Update frame
+    const labelFrame = document.getElementById('label-frame');
+    const costFrame = document.getElementById('cost-frame');
+    if (labelFrame) labelFrame.textContent = frameData.label;
+    if (costFrame) {
+        costFrame.textContent = priceBreakdown.frameAddon > 0 
+            ? '+' + formatPrice(priceBreakdown.frameAddon) 
+            : 'Included';
+    }
+
+    // Update edge work
+    const labelEdge = document.getElementById('label-edge');
+    const costEdge = document.getElementById('cost-edge');
+    if (labelEdge) labelEdge.textContent = edgeData.label;
+    if (costEdge) {
+        costEdge.textContent = priceBreakdown.edgeAddon > 0 
+            ? '+' + formatPrice(priceBreakdown.edgeAddon) 
+            : 'Included';
     }
 }
 
-console.log("Initial Price Display:");
-const total = calculateTotal();
-console.log("Total Price (PHP):", total);
-console.log("Current Dimensions:", currentDimensions);
-console.log("Shape Multiplier:", pricingDatabase.multipliers[currentShape]);
-console.log("Glass Type Multiplier:", pricingDatabase.multipliers[currentGlassType]);
-console.log("Thickness Multiplier:", pricingDatabase.multipliers[currentThickness]);
-console.log("Frame Multiplier:", pricingDatabase.multipliers[currentFrameType]);
-console.log("Edge Fee:", pricingDatabase.extras.edge[currentEdgeWork]);
-console.log("Base Rate per Sq In:", pricingDatabase.baseRatePerSqIn);
+// Toggle price breakdown visibility
+const breakdownToggle = document.getElementById('breakdown-toggle');
+const breakdownDetails = document.getElementById('breakdown-details');
+
+if (breakdownToggle && breakdownDetails) {
+    breakdownToggle.addEventListener('click', () => {
+        breakdownDetails.classList.toggle('hidden-step');
+        breakdownToggle.classList.toggle('active');
+    });
+}
+
+console.log("Pricing system initialized with base rate:", pricingDatabase.baseRatePerSqIn);
+
+// --- KONVA IMAGE EXPORT FUNCTIONS ---
+
+// Generate high-quality image from Konva stage
+function getKonvaImageData(pixelRatio = 3) {
+    return stage.toDataURL({ 
+        pixelRatio: pixelRatio,
+        mimeType: 'image/png'
+    });
+}
+
+// Store the design image data globally for cart submission
+let currentDesignImageData = null;
 
 // --- SUMMARY VIEW LOGIC ---
 
@@ -714,7 +829,7 @@ function showOrderSummary() {
     document.querySelector('.build-toggle').classList.add('hidden-step');
     document.getElementById('standard-subtitle').classList.add('hidden-step');
 
-    // --- NEW: Hide Related Products & Testimonials ---
+    // --- Hide Related Products & Testimonials ---
     document.getElementById('related-products-section').classList.add('hidden-step');
     document.getElementById('testimonials-section').classList.add('hidden-step');
 
@@ -722,31 +837,85 @@ function showOrderSummary() {
     const summaryWrapper = document.getElementById('summary-wrapper');
     summaryWrapper.classList.remove('hidden-step');
 
-    // 3. Update Summary Data
-    document.getElementById('sum-shape').textContent = capitalize(currentShape);
-    // Format dimension as "35in x 45in" (width x height, unit attached)
-    const widthStr = `${currentDimensions.width.value}${currentDimensions.width.unit}`;
-    const heightStr = `${currentDimensions.height.value}${currentDimensions.height.unit}`;
-    document.getElementById('sum-dim').textContent = `${widthStr} x ${heightStr}`;
-    document.getElementById('sum-type').textContent = capitalize(currentGlassType);
-    document.getElementById('sum-thick').textContent = currentThickness;
-    document.getElementById('sum-edge').textContent = formatText(currentEdgeWork);
-    document.getElementById('sum-frame').textContent = capitalize(currentFrameType);
+    // 3. Generate and display design preview image
+    currentDesignImageData = getKonvaImageData(3);
+    const designPreviewImg = document.getElementById('design-preview-img');
+    if (designPreviewImg) {
+        designPreviewImg.src = currentDesignImageData;
+    }
 
-    // Check for engraving text
+    // 4. Update Summary Data with price breakdown
+    const shapeData = pricingDatabase.prices.shapes[currentShape];
+    const typeData = pricingDatabase.prices.glassTypes[currentGlassType];
+    const thickData = pricingDatabase.prices.thickness[currentThickness];
+    const frameData = pricingDatabase.prices.frames[currentFrameType];
+    const edgeData = pricingDatabase.prices.edges[currentEdgeWork];
+
+    // Shape
+    document.getElementById('sum-shape').textContent = shapeData.label;
+    const sumShapePrice = document.getElementById('sum-shape-price');
+    if (sumShapePrice) {
+        sumShapePrice.textContent = priceBreakdown.shapeAddon > 0 
+            ? '+' + formatPrice(priceBreakdown.shapeAddon) 
+            : shapeData.desc;
+    }
+
+    // Dimensions
+    document.getElementById('sum-dim').textContent =
+        `${currentDimensions.width.value}${currentDimensions.width.unit} × ${currentDimensions.height.value}${currentDimensions.height.unit}`;
+    const sumDimPrice = document.getElementById('sum-dim-price');
+    if (sumDimPrice) {
+        sumDimPrice.textContent = 'Base: ' + formatPrice(priceBreakdown.baseArea);
+    }
+
+    // Glass Type
+    document.getElementById('sum-type').textContent = typeData.label;
+    const sumTypePrice = document.getElementById('sum-type-price');
+    if (sumTypePrice) {
+        sumTypePrice.textContent = priceBreakdown.typeAddon > 0 
+            ? '+' + formatPrice(priceBreakdown.typeAddon)
+            : typeData.desc;
+    }
+
+    // Thickness
+    document.getElementById('sum-thick').textContent = thickData.label;
+    const sumThickPrice = document.getElementById('sum-thick-price');
+    if (sumThickPrice) {
+        if (priceBreakdown.thicknessAddon !== 0) {
+            sumThickPrice.textContent = (priceBreakdown.thicknessAddon > 0 ? '+' : '') + formatPrice(priceBreakdown.thicknessAddon);
+        } else {
+            sumThickPrice.textContent = thickData.desc;
+        }
+    }
+
+    // Edge Work
+    document.getElementById('sum-edge').textContent = edgeData.label;
+    const sumEdgePrice = document.getElementById('sum-edge-price');
+    if (sumEdgePrice) {
+        sumEdgePrice.textContent = priceBreakdown.edgeAddon > 0 
+            ? '+' + formatPrice(priceBreakdown.edgeAddon)
+            : edgeData.desc;
+    }
+
+    // Frame Type
+    document.getElementById('sum-frame').textContent = frameData.label;
+    const sumFramePrice = document.getElementById('sum-frame-price');
+    if (sumFramePrice) {
+        sumFramePrice.textContent = priceBreakdown.frameAddon > 0 
+            ? '+' + formatPrice(priceBreakdown.frameAddon)
+            : frameData.desc;
+    }
+
+    // Engraving
     const engravingInput = document.querySelector('#step-3 .engraving-section input');
     const engravingText = engravingInput ? engravingInput.value : '';
     document.getElementById('sum-engrave').textContent = engravingText || 'None';
 
-    // 4. Update Price
+    // 5. Update Total Price
     const totalPrice = calculateTotal();
-    const formatter = new Intl.NumberFormat('en-PH', {
-        style: 'currency',
-        currency: 'PHP',
-    });
-    document.getElementById('sum-total').textContent = formatter.format(totalPrice);
+    document.getElementById('sum-total').textContent = formatPrice(totalPrice);
 
-    // 5. Update Breadcrumbs
+    // 6. Update Breadcrumbs
     crumbMain.innerText = 'Review Order';
     crumbMain.classList.add('active');
     removeCrumb('crumb-step2');
@@ -810,34 +979,73 @@ document.getElementById('edit-order-btn').addEventListener('click', editConfigur
 const previewLabel = document.querySelector('.preview-label');
 const previewModal = document.getElementById('preview-modal');
 const zoomedImg = document.getElementById('zoomed-preview-img');
+const previewCloseBtn = document.getElementById('preview-close-btn');
+const downloadDesignBtn = document.getElementById('download-design-btn');
 
 // Check if elements exist to avoid errors
 if (previewLabel && previewModal && zoomedImg) {
     // Open Modal
     previewLabel.addEventListener('click', () => {
-        // 1. Generate a high-quality image from the Konva Stage
-        // pixelRatio: 3 ensures it looks crisp even when zoomed in
-        const dataUrl = stage.toDataURL({ pixelRatio: 3 });
-
-        // 2. Set the image source
+        // Generate a high-quality image from the Konva Stage
+        const dataUrl = getKonvaImageData(3);
         zoomedImg.src = dataUrl;
-
-        // 3. Show the modal
         previewModal.classList.remove('hidden-step');
     });
 
     // Close Modal (Click Outside)
     previewModal.addEventListener('click', (e) => {
-        // Only close if clicking the backdrop (not the image itself)
         if (e.target === previewModal) {
             previewModal.classList.add('hidden-step');
         }
     });
+
+    // Close button
+    if (previewCloseBtn) {
+        previewCloseBtn.addEventListener('click', () => {
+            previewModal.classList.add('hidden-step');
+        });
+    }
+
+    // Download button
+    if (downloadDesignBtn) {
+        downloadDesignBtn.addEventListener('click', () => {
+            downloadDesign();
+        });
+    }
 }
+
+// Download design image function
+function downloadDesign() {
+    const dataUrl = getKonvaImageData(4); // Higher quality for download
+    const link = document.createElement('a');
+    link.download = `glassify-design-${Date.now()}.png`;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Make design image data accessible globally for cart submission
+window.getDesignImageData = function() {
+    return currentDesignImageData || getKonvaImageData(3);
+};
+
+// Get current customization state for cart
+window.getCustomizationState = function() {
+    return {
+        shape: currentShape,
+        glassType: currentGlassType,
+        thickness: currentThickness,
+        edgeWork: currentEdgeWork,
+        frameType: currentFrameType,
+        dimensions: currentDimensions,
+        priceBreakdown: priceBreakdown
+    };
+};
 
 
 // --- BUY NOW REDIRECT LOGIC ---
-// Moved to buy-now-handler.js to save complete order details first
+// Handler moved to addtocustomization.js for proper AJAX handling
 
 
 function logOrderSummary() {

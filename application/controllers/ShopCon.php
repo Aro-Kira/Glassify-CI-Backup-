@@ -103,9 +103,139 @@ public function checkout()
     public function ewallet()
     {
         $data['title'] = "Glassify - Payment";
+        
+        // Get pending order data from session
+        $data['pending_summary'] = $this->session->userdata('pending_order_summary');
+        $data['pending_cart_ids'] = $this->session->userdata('pending_cart_ids');
+        
+        // Log session data for debugging
+        log_message('debug', 'Ewallet Page - Session Data: ' . json_encode([
+            'pending_summary' => $data['pending_summary'],
+            'pending_cart_ids' => $data['pending_cart_ids'],
+            'all_session_keys' => array_keys($this->session->all_userdata())
+        ]));
+        
+        // Check if we have valid pending order data (with actual values)
+        $has_valid_order = false;
+        if (is_array($data['pending_summary']) && 
+            isset($data['pending_summary']['total']) && 
+            $data['pending_summary']['total'] > 0) {
+            $has_valid_order = true;
+        }
+        
+        log_message('debug', 'Ewallet Page - Has valid order: ' . ($has_valid_order ? 'YES' : 'NO'));
+        
+        // If no valid pending order, redirect back to checkout
+        if (!$has_valid_order) {
+            log_message('error', 'Ewallet Page - Redirecting: No valid pending order');
+            $this->session->set_flashdata('error', 'No pending order found. Please place an order first.');
+            redirect('payment');
+            return;
+        }
+        
         $this->load->view('includes/header', $data);
         $this->load->view('shop/ewallet', $data);
         $this->load->view('includes/footer');
+    }
+
+    /**
+     * Submit E-Wallet Payment - Create order after payment receipt is uploaded
+     */
+    public function submit_ewallet_payment()
+    {
+        // Check if user is logged in
+        $customer_id = $this->session->userdata('customer_id');
+        if (!$customer_id) {
+            $this->session->set_flashdata('error', 'Please log in to complete payment.');
+            redirect('login');
+            return;
+        }
+
+        // Get pending order data from session
+        $order_data = $this->session->userdata('pending_order_data');
+        $selected_cart_ids = $this->session->userdata('pending_cart_ids');
+
+        if (empty($order_data)) {
+            $this->session->set_flashdata('error', 'No pending order found. Please try again.');
+            redirect('payment');
+            return;
+        }
+
+        // Handle file upload
+        $config['upload_path'] = './uploads/receipts/';
+        $config['allowed_types'] = 'gif|jpg|jpeg|png|pdf';
+        $config['max_size'] = 5120; // 5MB
+        $config['file_name'] = 'receipt_' . $customer_id . '_' . time();
+
+        // Create upload directory if not exists
+        if (!is_dir($config['upload_path'])) {
+            mkdir($config['upload_path'], 0755, true);
+        }
+
+        $this->load->library('upload', $config);
+
+        if (!$this->upload->do_upload('receipt')) {
+            $this->session->set_flashdata('error', 'Failed to upload receipt: ' . $this->upload->display_errors('', ''));
+            redirect('paying');
+            return;
+        }
+
+        $upload_data = $this->upload->data();
+        $receipt_path = 'uploads/receipts/' . $upload_data['file_name'];
+
+        // Load models
+        $this->load->model('Cart_model');
+        $this->load->model('Order_model');
+
+        // Now create the order
+        $order_id = $this->Order_model->create_order($order_data);
+
+        if (!$order_id) {
+            $this->session->set_flashdata('error', 'Failed to create order. Please try again.');
+            redirect('paying');
+            return;
+        }
+
+        // Get cart items for order customizations
+        $cart_items = $this->Cart_model->get_cart_items($customer_id);
+        
+        // Filter to only selected items
+        if (!empty($selected_cart_ids)) {
+            $selected_ids = array_filter(array_map('intval', explode(',', $selected_cart_ids)));
+            if (!empty($selected_ids)) {
+                $cart_items = array_filter($cart_items, function($item) use ($selected_ids) {
+                    return in_array($item->Cart_ID, $selected_ids);
+                });
+                $cart_items = array_values($cart_items);
+            }
+        }
+
+        // Save order customizations
+        $this->Order_model->save_order_customizations($order_id, $cart_items);
+
+        // Save payment receipt reference
+        $this->Order_model->save_payment_receipt($order_id, $receipt_path, $order_data['TotalAmount']);
+
+        // Store order info in session for complete page
+        $this->session->set_userdata([
+            'last_order_id' => $order_id,
+            'last_order_total' => $order_data['TotalAmount'],
+            'last_payment_method' => 'E-Wallet'
+        ]);
+
+        // Remove selected items from cart
+        if (!empty($selected_cart_ids)) {
+            $selected_ids = array_filter(array_map('intval', explode(',', $selected_cart_ids)));
+            foreach ($selected_ids as $cart_id) {
+                $this->Cart_model->remove_item($cart_id);
+            }
+        }
+
+        // Clear pending order data from session
+        $this->session->unset_userdata(['pending_order_data', 'pending_cart_ids', 'pending_order_summary']);
+
+        // Redirect to order complete page
+        redirect('complete');
     }
     public function complete()
     {
@@ -157,14 +287,6 @@ public function checkout()
         $this->load->view('includes/footer');
     }
 
-    public function wishlist()
-    {
-        $data['title'] = "Glassify - Wishlist";
-        $this->load->view('includes/header', $data);
-        $this->load->view('shop/wishlist', $data);
-        $this->load->view('includes/footer');
-    }
-
     public function order_tracking()
     {
         $data['title'] = "Glassify - Order Tracking";
@@ -205,8 +327,8 @@ public function checkout()
                 // Get payment info
                 $data['payment'] = $this->Order_model->get_order_payment($order_id);
 
-                // Get progress steps based on status
-                $data['progress'] = $this->Order_model->get_order_progress($data['order']->Status);
+                // Get progress steps based on status (pass order_id to check appointments table)
+                $data['progress'] = $this->Order_model->get_order_progress($data['order']->Status, $order_id);
 
                 // Get customer addresses
                 $customer_id = $data['order']->Customer_ID;
@@ -221,6 +343,105 @@ public function checkout()
         $this->load->view('includes/header', $data);
         $this->load->view('shop/order_tracking', $data);
         $this->load->view('includes/footer');
+    }
+
+    /**
+     * AJAX endpoint to get real-time order progress updates
+     * Used for polling to sync appointment changes
+     */
+    public function get_order_progress_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        $order_id = $this->input->get('order_id');
+        
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID required']);
+            return;
+        }
+        
+        // Load models
+        $this->load->model('Order_model');
+        
+        // Get order details
+        $order = $this->Order_model->get_order_tracking_details($order_id);
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+        
+        // Get progress steps
+        $progress = $this->Order_model->get_order_progress($order->Status, $order_id);
+        
+        // Calculate progress percentage (include in-progress steps so line connects)
+        // The line should extend to the highest completed or in-progress step
+        $progress_percent = 0;
+        if ($progress['order_placed'] === 'completed' || $progress['order_placed'] === 'in_progress') {
+            $progress_percent = 0;
+        }
+        // Extend line to in-progress or completed steps
+        if ($progress['ocular_visit'] === 'completed' || $progress['ocular_visit'] === 'in_progress') {
+            $progress_percent = 25;
+        }
+        if ($progress['in_fabrication'] === 'completed' || $progress['in_fabrication'] === 'in_progress') {
+            $progress_percent = 50;
+        }
+        if ($progress['installed'] === 'completed' || $progress['installed'] === 'in_progress') {
+            $progress_percent = 75;
+        }
+        if ($progress['completed'] === 'completed' || $progress['completed'] === 'in_progress') {
+            $progress_percent = 100;
+        }
+        
+        // Ensure line extends fully to in-progress steps by checking if previous steps are completed
+        // If a step is in progress, all previous steps should be completed for proper line display
+        if ($progress['installed'] === 'in_progress') {
+            // If installed is in progress, fabrication and ocular should be completed
+            if ($progress['in_fabrication'] !== 'completed') $progress['in_fabrication'] = 'completed';
+            if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
+            $progress_percent = 75; // Ensure line extends to installed step
+        }
+        if ($progress['completed'] === 'in_progress') {
+            // If completed is in progress, all previous should be completed
+            if ($progress['installed'] !== 'completed') $progress['installed'] = 'completed';
+            if ($progress['in_fabrication'] !== 'completed') $progress['in_fabrication'] = 'completed';
+            if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
+            $progress_percent = 100; // Ensure line extends to completed step
+        }
+        if ($progress['in_fabrication'] === 'in_progress') {
+            // If fabrication is in progress, ocular should be completed
+            if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
+            $progress_percent = 50; // Ensure line extends to fabrication step
+        }
+        
+        // Check if any step is in progress (for progress bar color)
+        $has_in_progress = false;
+        foreach ($progress as $step_status) {
+            if ($step_status === 'in_progress') {
+                $has_in_progress = true;
+                break;
+            }
+        }
+        
+        // Format dates for display
+        $formatted_dates = [
+            'ocular_date' => $order->OcularDate ? date('M j, Y', strtotime($order->OcularDate)) : null,
+            'fabrication_date' => $order->FabricationDate ? date('M j, Y', strtotime($order->FabricationDate)) : null,
+            'installation_date' => $order->InstallationDate ? date('M j, Y', strtotime($order->InstallationDate)) : null,
+            'estimated_delivery' => $order->EstimatedDelivery ? date('M j, Y', strtotime($order->EstimatedDelivery)) : null
+        ];
+        
+        echo json_encode([
+            'success' => true,
+            'order_status' => $order->Status,
+            'progress' => $progress,
+            'progress_percent' => $progress_percent,
+            'has_in_progress' => $has_in_progress,
+            'dates' => $formatted_dates,
+            'order_date' => $order->OrderDate ? date('M j, Y', strtotime($order->OrderDate)) : null,
+            'order_time' => $order->OrderDate ? date('g:i A', strtotime($order->OrderDate)) : null
+        ]);
     }
 
     public function terms_order()
@@ -299,39 +520,13 @@ public function checkout()
             } elseif ($this->session->userdata('order_total')) {
                 $total_amount = floatval($this->session->userdata('order_total'));
             } else {
-                // Get from category-specific customization tables (most recent for this customer)
-                $this->load->model('Cart_model');
-                $customization_tables = [
-                    'mirror_customization',
-                    'shower_enclosure_customization',
-                    'aluminum_doors_customization',
-                    'aluminum_bathroom_doors_customization'
-                ];
-                
-                $custom = null;
-                foreach ($customization_tables as $table) {
-                    $this->db->select('EstimatePrice');
-                    $this->db->from($table);
-                    $this->db->where('Customer_ID', $customer_id);
-                    $this->db->order_by('Created_Date', 'DESC');
-                    $this->db->limit(1);
-                    $result = $this->db->get()->row();
-                    if ($result) {
-                        $custom = $result;
-                        break;
-                    }
-                }
-                
-                // Fallback to old customization table
-                if (!$custom) {
-                    $this->db->select('TotalQuotation, EstimatePrice');
-                    $this->db->from('customization');
-                    $this->db->where('Customer_ID', $customer_id);
-                    $this->db->where('OrderID IS NULL', null, false);
-                    $this->db->order_by('Created_Date', 'DESC');
-                    $this->db->limit(1);
-                    $custom = $this->db->get()->row();
-                }
+                // Get from unified customization table (most recent for this customer)
+                $this->db->select('EstimatePrice');
+                $this->db->from('customization');
+                $this->db->where('Customer_ID', $customer_id);
+                $this->db->order_by('CreatedAt', 'DESC');
+                $this->db->limit(1);
+                $custom = $this->db->get()->row();
                 
                 if ($custom) {
                     $total_amount = floatval($custom->TotalQuotation ?? $custom->EstimatePrice ?? 0);
@@ -366,12 +561,13 @@ public function checkout()
             // Combine note and preferred installation date in SpecialInstructions
             $special_instructions = [];
             if ($this->input->post('note')) {
-                $special_instructions[] = 'Note: ' . $this->input->post('note');
+                $special_instructions[] = trim($this->input->post('note'));
             }
             if ($preferred_installation_date) {
-                $special_instructions[] = 'Preferred Installation Date: ' . date('F j, Y', strtotime($preferred_installation_date));
+                $formatted_date = date('F j, Y', strtotime($preferred_installation_date));
+                $special_instructions[] = 'Preferred Installation Date: ' . $formatted_date;
             }
-            $special_instructions_text = !empty($special_instructions) ? implode(' | ', $special_instructions) : null;
+            $special_instructions_text = !empty($special_instructions) ? implode("\n", $special_instructions) : null;
             
             // Create order data
             $order_data = [
@@ -379,9 +575,10 @@ public function checkout()
                 'SalesRep_ID' => (int)$sales_rep_id,
                 'TotalAmount' => $total_amount,
                 'DeliveryAddress' => $delivery_address,
-                'Status' => 'Pending',
+                'Status' => 'Pending Review',
                 'PaymentStatus' => ($this->input->post('payment_method') === 'ewallet' && $this->input->post('receipt')) ? 'Pending' : 'Pending',
-                'SpecialInstructions' => $special_instructions_text
+                'SpecialInstructions' => $special_instructions_text,
+                'PreferredInstallationDate' => !empty($preferred_installation_date) ? $preferred_installation_date : null
             ];
             
             // Handle file upload (payment receipt for ewallet)
@@ -479,8 +676,14 @@ public function checkout()
         // Set JSON response header
         header('Content-Type: application/json');
 
+        // Initialize log array for debugging
+        $debug_log = [];
+        $debug_log['timestamp'] = date('Y-m-d H:i:s');
+
         // Check if user is logged in
         $customer_id = $this->session->userdata('customer_id');
+        $debug_log['customer_id'] = $customer_id;
+        
         if (!$customer_id) {
             echo json_encode([
                 'status' => 'error',
@@ -492,6 +695,11 @@ public function checkout()
         // Get POST data
         $payment_method = $this->input->post('payment_method');
         $terms_accepted = $this->input->post('terms_accepted');
+        $selected_cart_ids = $this->input->post('selected_cart_ids');
+        
+        $debug_log['payment_method'] = $payment_method;
+        $debug_log['terms_accepted'] = $terms_accepted;
+        $debug_log['selected_cart_ids'] = $selected_cart_ids;
 
         // Validate payment method
         if (empty($payment_method)) {
@@ -518,25 +726,71 @@ public function checkout()
 
         // Get cart items
         $cart_items = $this->Cart_model->get_cart_items($customer_id);
+        $debug_log['cart_items_count_before_filter'] = count($cart_items);
+        $debug_log['cart_items_raw'] = array_map(function($item) {
+            return [
+                'Cart_ID' => $item->Cart_ID ?? 'N/A',
+                'Product_ID' => $item->Product_ID ?? 'N/A',
+                'Quantity' => $item->Quantity ?? 0,
+                'EstimatePrice' => $item->EstimatePrice ?? 'N/A',
+                'Price' => $item->Price ?? 'N/A'
+            ];
+        }, $cart_items);
+        
+        // Filter to only selected items if IDs provided
+        if (!empty($selected_cart_ids)) {
+            $selected_ids = array_filter(array_map('intval', explode(',', $selected_cart_ids)));
+            $debug_log['selected_ids_parsed'] = $selected_ids;
+            
+            if (!empty($selected_ids)) {
+                $cart_items = array_filter($cart_items, function($item) use ($selected_ids) {
+                    return in_array($item->Cart_ID, $selected_ids);
+                });
+                // Re-index array
+                $cart_items = array_values($cart_items);
+            }
+        }
+        
+        $debug_log['cart_items_count_after_filter'] = count($cart_items);
+
         if (empty($cart_items)) {
+            $debug_log['error'] = 'No items after filter';
+            log_message('error', 'Place Order Debug: ' . json_encode($debug_log));
+            
             echo json_encode([
                 'status' => 'error',
-                'message' => 'Your cart is empty.'
+                'message' => 'No items selected for checkout.',
+                'debug' => $debug_log
             ]);
             return;
         }
 
-        // Calculate totals
+        // Calculate totals for selected items only
         $subtotal = 0;
         $total_items = 0;
         foreach ($cart_items as $item) {
             $price = $item->EstimatePrice ?? $item->Price ?? 0;
+            $debug_log['item_prices'][] = [
+                'Cart_ID' => $item->Cart_ID,
+                'EstimatePrice' => $item->EstimatePrice ?? 'null',
+                'Price' => $item->Price ?? 'null',
+                'used_price' => $price,
+                'Quantity' => $item->Quantity
+            ];
             $subtotal += $price * $item->Quantity;
             $total_items += $item->Quantity;
         }
         $shipping = $total_items * 25;
         $handling = $total_items * 10;
         $total_amount = $subtotal + $shipping + $handling;
+        
+        $debug_log['calculated_totals'] = [
+            'subtotal' => $subtotal,
+            'total_items' => $total_items,
+            'shipping' => $shipping,
+            'handling' => $handling,
+            'total_amount' => $total_amount
+        ];
 
         // Get shipping address
         $addresses = $this->User_model->get_addresses($customer_id);
@@ -554,6 +808,7 @@ public function checkout()
 
         // Get form data for shipping info update (optional)
         $firstname = $this->input->post('firstname');
+        $middlename = $this->input->post('middlename'); // Middle name from form
         $lastname = $this->input->post('lastname');
         $address = $this->input->post('address');
         $city = $this->input->post('city');
@@ -570,31 +825,86 @@ public function checkout()
             ]));
         }
 
-        // Combine note and preferred installation date in SpecialInstructions
-        $special_instructions = [];
-        if ($note) {
-            $special_instructions[] = 'Note: ' . $note;
-        }
-        if ($preferred_installation_date) {
-            $special_instructions[] = 'Preferred Installation Date: ' . date('F j, Y', strtotime($preferred_installation_date));
-        }
-        $special_instructions_text = !empty($special_instructions) ? implode(' | ', $special_instructions) : null;
-
         // Get default sales rep
         $sales_rep_id = $this->Order_model->get_default_sales_rep();
+
+        // Prepare special instructions (combine note and preferred installation date)
+        $special_instructions = [];
+        if (!empty($note)) {
+            $special_instructions[] = trim($note);
+        }
+        if (!empty($preferred_installation_date)) {
+            $formatted_date = date('F j, Y', strtotime($preferred_installation_date));
+            $special_instructions[] = 'Preferred Installation Date: ' . $formatted_date;
+        }
+        $special_instructions_text = !empty($special_instructions) ? implode("\n", $special_instructions) : null;
 
         // Prepare order data
         $order_data = [
             'Customer_ID' => $customer_id,
             'SalesRep_ID' => $sales_rep_id,
             'TotalAmount' => $total_amount,
-            'Status' => 'Pending',
+            'Status' => 'Pending Review',
             'PaymentStatus' => 'Pending',
+            'PaymentMethod' => $payment_method, // Explicitly set PaymentMethod
             'DeliveryAddress' => $shipping_address,
-            'SpecialInstructions' => $special_instructions_text
+            'SpecialInstructions' => $special_instructions_text,
+            'PreferredInstallationDate' => !empty($preferred_installation_date) ? $preferred_installation_date : null
         ];
 
-        // Create order
+        // For E-Wallet: Store order data in session and redirect to payment page
+        // Don't create order yet - wait for payment submission
+        if ($payment_method === 'E-Wallet') {
+            // Validate we have actual items with value
+            if ($total_items <= 0 || $total_amount <= 0) {
+                $debug_log['error'] = 'Invalid order amount';
+                log_message('error', 'Place Order Debug: ' . json_encode($debug_log));
+                
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Invalid order amount. Please try again.',
+                    'debug' => $debug_log
+                ]);
+                return;
+            }
+
+            // Prepare summary data
+            $summary_data = [
+                'items' => $total_items,
+                'subtotal' => $subtotal,
+                'shipping' => $shipping,
+                'handling' => $handling,
+                'total' => $total_amount
+            ];
+            
+            $debug_log['summary_to_store'] = $summary_data;
+
+            // Store pending order data in session (cart items remain intact)
+            $this->session->set_userdata('pending_order_data', $order_data);
+            $this->session->set_userdata('pending_cart_ids', $selected_cart_ids);
+            $this->session->set_userdata('pending_order_summary', $summary_data);
+            $this->session->set_userdata('last_payment_method', $payment_method);
+            
+            // Verify session was stored
+            $stored_summary = $this->session->userdata('pending_order_summary');
+            $debug_log['session_verification'] = [
+                'stored_successfully' => !empty($stored_summary),
+                'stored_data' => $stored_summary
+            ];
+            
+            // Log to file
+            log_message('debug', 'E-Wallet Order - Session stored: ' . json_encode($debug_log));
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Redirecting to payment...',
+                'redirect_url' => base_url('paying'),
+                'debug' => $debug_log
+            ]);
+            return;
+        }
+
+        // For COD: Create order immediately
         $order_id = $this->Order_model->create_order($order_data);
 
         if (!$order_id) {
@@ -605,29 +915,32 @@ public function checkout()
             return;
         }
 
-        // Save order customizations from cart items
+        // Save order customizations from selected cart items only
         $this->Order_model->save_order_customizations($order_id, $cart_items);
 
-        // Store order info in session for payment/complete page
+        // Store order info in session for complete page
         $this->session->set_userdata([
             'last_order_id' => $order_id,
             'last_order_total' => $total_amount,
             'last_payment_method' => $payment_method
         ]);
 
-        // Clear cart after successful order
-        $this->Cart_model->clear_cart($customer_id);
-
-        // Determine redirect URL based on payment method
-        $redirect_url = ($payment_method === 'E-Wallet') 
-            ? base_url('paying') 
-            : base_url('complete');
+        // Remove only the selected items from cart (not entire cart)
+        if (!empty($selected_cart_ids)) {
+            $selected_ids = array_filter(array_map('intval', explode(',', $selected_cart_ids)));
+            foreach ($selected_ids as $cart_id) {
+                $this->Cart_model->remove_item($cart_id);
+            }
+        } else {
+            // If no selection specified, clear entire cart (fallback)
+            $this->Cart_model->clear_cart($customer_id);
+        }
 
         echo json_encode([
             'status' => 'success',
             'message' => 'Order placed successfully!',
             'order_id' => $order_id,
-            'redirect_url' => $redirect_url
+            'redirect_url' => base_url('complete')
         ]);
     }
 
@@ -636,30 +949,11 @@ public function checkout()
         $data['title'] = "Glassify - My Purchases";
 
         // Check if user is logged in
-        $user_id = $this->session->userdata('customer_id'); // Session stores UserID
+        $customer_id = $this->session->userdata('customer_id');
         
-        if (!$user_id) {
+        if (!$customer_id) {
             // Redirect to login if not logged in
             redirect('login');
-            return;
-        }
-
-        // Convert UserID to Customer_ID (similar to waiting_order)
-        $this->load->database();
-        $this->db->select('Customer_ID');
-        $this->db->from('customer');
-        $this->db->where('UserID', $user_id);
-        $customer = $this->db->get()->row();
-        
-        $customer_id = null;
-        if ($customer) {
-            $customer_id = (int)$customer->Customer_ID;
-        } else {
-            // Customer record doesn't exist - no orders yet
-            $data['order_items'] = [];
-            $this->load->view('includes/header', $data);
-            $this->load->view('shop/list_product', $data);
-            $this->load->view('includes/footer');
             return;
         }
 
