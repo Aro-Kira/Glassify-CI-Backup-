@@ -124,7 +124,7 @@
   <div class="cards">
     <div class="card">
       <div class="avatar">
-        <img src="https://via.placeholder.com/80x80.png?text=👤" alt="User avatar">
+        <img src="<?php echo base_url('assets/images/img-page/user-icon-testimonials.png'); ?>" alt="User avatar">
       </div>
       <h3>Jandoc Jun</h3>
       <p class="date">May 06, 2025</p>
@@ -137,7 +137,7 @@
 
     <div class="card">
       <div class="avatar">
-        <img src="https://via.placeholder.com/80x80.png?text=👩" alt="User avatar">
+        <img src="<?php echo base_url('assets/images/img-page/user-icon-testimonials.png'); ?>" alt="User avatar">
       </div>
       <h3>Anne Cruz</h3>
       <p class="date">October 30, 2022</p>
@@ -150,7 +150,7 @@
 
     <div class="card">
       <div class="avatar">
-        <img src="https://via.placeholder.com/80x80.png?text=👨" alt="User avatar">
+        <img src="<?php echo base_url('assets/images/img-page/user-icon-testimonials.png'); ?>" alt="User avatar">
       </div>
       <h3>Francis Medina</h3>
       <p class="date">February 09, 2022</p>
