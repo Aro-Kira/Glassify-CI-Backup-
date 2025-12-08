@@ -11,6 +11,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const popupTitle = document.getElementById("popupTitle");
   const popupInput = document.getElementById("popupInput");
   const editForm = document.getElementById("editForm");
+  const currentPasswordGroup = document.getElementById("currentPasswordGroup");
+  const popupCurrentPassword = document.getElementById("popupCurrentPassword");
+  const newPasswordGroup = document.getElementById("newPasswordGroup");
+  const popupNewPassword = document.getElementById("popupNewPassword");
   const confirmPasswordGroup = document.getElementById("confirmPasswordGroup");
   const popupConfirmPassword = document.getElementById("popupConfirmPassword");
 
@@ -77,13 +81,32 @@ document.addEventListener("DOMContentLoaded", () => {
       if (label.toLowerCase().includes("password")) {
         popupInput.value = ""; // Clear for password
         popupInput.type = "password";
-        popupInput.placeholder = "Enter new password";
-        popupConfirmPassword.value = ""; // Clear confirm password
-        confirmPasswordGroup.style.display = "block"; // Show confirm password field
+        popupInput.placeholder = "Enter your current password first";
+        popupInput.style.display = "none"; // Hide the main input for password
+        
+        // Show current password field, hide new password fields initially
+        currentPasswordGroup.style.display = "block";
+        newPasswordGroup.style.display = "block";
+        confirmPasswordGroup.style.display = "block";
+        
+        // Clear all password fields
+        popupCurrentPassword.value = "";
+        popupNewPassword.value = "";
+        popupConfirmPassword.value = "";
+        
+        // Disable new password fields until current password is entered
+        popupNewPassword.disabled = true;
+        popupConfirmPassword.disabled = true;
+        
+        // Focus on current password field
+        setTimeout(() => popupCurrentPassword.focus(), 100);
       } else {
         popupInput.value = input.value;
         popupInput.type = "text";
         popupInput.placeholder = "";
+        popupInput.style.display = "block"; // Show the main input for non-password fields
+        currentPasswordGroup.style.display = "none"; // Hide current password field
+        newPasswordGroup.style.display = "none"; // Hide new password field
         confirmPasswordGroup.style.display = "none"; // Hide confirm password field
       }
 
@@ -132,13 +155,32 @@ document.addEventListener("DOMContentLoaded", () => {
           if (labelText.toLowerCase().includes("password")) {
             popupInput.value = "";
             popupInput.type = "password";
-            popupInput.placeholder = "Enter new password";
-            popupConfirmPassword.value = "";
+            popupInput.placeholder = "Enter your current password first";
+            popupInput.style.display = "none"; // Hide the main input for password
+            
+            // Show current password field, hide new password fields initially
+            currentPasswordGroup.style.display = "block";
+            newPasswordGroup.style.display = "block";
             confirmPasswordGroup.style.display = "block";
+            
+            // Clear all password fields
+            popupCurrentPassword.value = "";
+            popupNewPassword.value = "";
+            popupConfirmPassword.value = "";
+            
+            // Disable new password fields until current password is entered
+            popupNewPassword.disabled = true;
+            popupConfirmPassword.disabled = true;
+            
+            // Focus on current password field
+            setTimeout(() => popupCurrentPassword.focus(), 100);
           } else {
             popupInput.value = input.value;
             popupInput.type = "text";
             popupInput.placeholder = "";
+            popupInput.style.display = "block"; // Show the main input for non-password fields
+            currentPasswordGroup.style.display = "none";
+            newPasswordGroup.style.display = "none";
             confirmPasswordGroup.style.display = "none";
           }
 
@@ -150,6 +192,22 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   console.log('Event delegation for edit icons attached');
 
+  // Enable new password fields when current password is entered
+  if (popupCurrentPassword) {
+    popupCurrentPassword.addEventListener("input", () => {
+      const currentPassword = popupCurrentPassword.value.trim();
+      if (currentPassword.length > 0) {
+        popupNewPassword.disabled = false;
+        popupConfirmPassword.disabled = false;
+      } else {
+        popupNewPassword.disabled = true;
+        popupConfirmPassword.disabled = true;
+        popupNewPassword.value = "";
+        popupConfirmPassword.value = "";
+      }
+    });
+  }
+
   // Close popup
   [closeBtn, cancelBtn].forEach(btn => {
     btn.addEventListener("click", () => {
@@ -157,8 +215,14 @@ document.addEventListener("DOMContentLoaded", () => {
       activeInput = null;
       activeField = null;
       popupInput.value = "";
-      popupConfirmPassword.value = "";
+      if (popupCurrentPassword) popupCurrentPassword.value = "";
+      if (popupNewPassword) popupNewPassword.value = "";
+      if (popupConfirmPassword) popupConfirmPassword.value = "";
+      currentPasswordGroup.style.display = "none";
+      newPasswordGroup.style.display = "none";
       confirmPasswordGroup.style.display = "none";
+      if (popupNewPassword) popupNewPassword.disabled = true;
+      if (popupConfirmPassword) popupConfirmPassword.disabled = true;
     });
   });
 
@@ -176,7 +240,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     let newValue = popupInput.value.trim();
-    const confirmPassword = popupConfirmPassword.value.trim();
+    const currentPassword = popupCurrentPassword ? popupCurrentPassword.value.trim() : "";
+    const newPassword = popupNewPassword ? popupNewPassword.value.trim() : "";
+    const confirmPassword = popupConfirmPassword ? popupConfirmPassword.value.trim() : "";
     
     // Check if value actually changed (client-side check)
     const currentValue = activeInput.value;
@@ -187,16 +253,36 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Validate based on field type
     if (activeField === 'Password') {
-      if (newValue.length < 6) {
-        alert("Password must be at least 6 characters long.");
-        popupInput.focus();
+      // Require current password
+      if (!currentPassword) {
+        alert("Please enter your current password first.");
+        if (popupCurrentPassword) popupCurrentPassword.focus();
         return;
       }
-      if (newValue !== confirmPassword) {
-        alert("Passwords do not match. Please try again.");
-        popupConfirmPassword.focus();
+      
+      // Require new password
+      if (!newPassword) {
+        alert("Please enter a new password.");
+        if (popupNewPassword) popupNewPassword.focus();
         return;
       }
+      
+      // Validate new password length
+      if (newPassword.length < 6) {
+        alert("New password must be at least 6 characters long.");
+        if (popupNewPassword) popupNewPassword.focus();
+        return;
+      }
+      
+      // Validate password match
+      if (newPassword !== confirmPassword) {
+        alert("New passwords do not match. Please try again.");
+        if (popupConfirmPassword) popupConfirmPassword.focus();
+        return;
+      }
+      
+      // Use new password as the value to send
+      newValue = newPassword;
     } else if (activeField === 'PhoneNum') {
       // Validate phone number format (digits only, 10-13 characters)
       const phoneRegex = /^[0-9]{10,13}$/;
@@ -269,6 +355,11 @@ document.addEventListener("DOMContentLoaded", () => {
     formData.append('field', activeField);
     formData.append('value', newValue);
     
+    // Include current password if changing password
+    if (activeField === 'Password' && currentPassword) {
+      formData.append('current_password', currentPassword);
+    }
+    
     console.log('FormData created, field:', activeField, 'value length:', newValue.length);
 
     // Construct API URL (matching pattern used in other JS files)
@@ -335,8 +426,14 @@ document.addEventListener("DOMContentLoaded", () => {
           alert("Account updated successfully!");
           popup.style.display = "none";
           popupInput.value = "";
-          popupConfirmPassword.value = "";
+          if (popupCurrentPassword) popupCurrentPassword.value = "";
+          if (popupNewPassword) popupNewPassword.value = "";
+          if (popupConfirmPassword) popupConfirmPassword.value = "";
+          currentPasswordGroup.style.display = "none";
+          newPasswordGroup.style.display = "none";
           confirmPasswordGroup.style.display = "none";
+          if (popupNewPassword) popupNewPassword.disabled = true;
+          if (popupConfirmPassword) popupConfirmPassword.disabled = true;
           activeInput = null;
           activeField = null;
         }
@@ -418,8 +515,14 @@ document.addEventListener("DOMContentLoaded", () => {
       activeInput = null;
       activeField = null;
       popupInput.value = "";
-      popupConfirmPassword.value = "";
+      if (popupCurrentPassword) popupCurrentPassword.value = "";
+      if (popupNewPassword) popupNewPassword.value = "";
+      if (popupConfirmPassword) popupConfirmPassword.value = "";
+      currentPasswordGroup.style.display = "none";
+      newPasswordGroup.style.display = "none";
       confirmPasswordGroup.style.display = "none";
+      if (popupNewPassword) popupNewPassword.disabled = true;
+      if (popupConfirmPassword) popupConfirmPassword.disabled = true;
     }
   });
   

@@ -1372,6 +1372,7 @@ class SalesCon extends CI_Controller
         // Get POST data
         $field = $this->input->post('field');
         $value = $this->input->post('value');
+        $current_password = $this->input->post('current_password');
         
         // Also try raw input in case POST isn't working
         if (empty($field)) {
@@ -1380,6 +1381,7 @@ class SalesCon extends CI_Controller
             if (!empty($parsed['field'])) {
                 $field = $parsed['field'];
                 $value = $parsed['value'] ?? '';
+                $current_password = $parsed['current_password'] ?? '';
             }
         }
 
@@ -1408,15 +1410,43 @@ class SalesCon extends CI_Controller
             return;
         }
 
+        // Get current user early (needed for password verification and change detection)
+        $this->load->model('User_model');
+        $current_user = $this->User_model->get_by_id($user_id);
+        if (!$current_user) {
+            echo json_encode(['success' => false, 'message' => 'User account not found']);
+            return;
+        }
+
         // Prepare update data
         $update_data = [];
 
-        // Handle password separately (needs hashing)
+        // Handle password separately (needs hashing and current password verification)
         if ($field === 'Password') {
-            if (empty($value) || strlen($value) < 6) {
-                echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters']);
+            // Require current password for password changes
+            if (empty($current_password)) {
+                echo json_encode(['success' => false, 'message' => 'Current password is required to change password']);
                 return;
             }
+            
+            // Verify current password
+            if (!password_verify($current_password, $current_user->Password)) {
+                echo json_encode(['success' => false, 'message' => 'Current password is incorrect']);
+                return;
+            }
+            
+            // Validate new password
+            if (empty($value) || strlen($value) < 6) {
+                echo json_encode(['success' => false, 'message' => 'New password must be at least 6 characters']);
+                return;
+            }
+            
+            // Check if new password is different from current password
+            if (password_verify($value, $current_user->Password)) {
+                echo json_encode(['success' => false, 'message' => 'New password must be different from the current password']);
+                return;
+            }
+            
             $update_data['Password'] = password_hash($value, PASSWORD_BCRYPT);
         } else {
             // Trim and validate other fields
@@ -1471,22 +1501,11 @@ class SalesCon extends CI_Controller
         }
 
         // Check if value actually changed (prevent unnecessary updates)
-        $current_user = $this->User_model->get_by_id($user_id);
-        if (!$current_user) {
-            echo json_encode(['success' => false, 'message' => 'User account not found']);
-            return;
-        }
-
-        // Check if the new value is different from current value
+        // Note: current_user was already fetched above for password verification
         $current_value = $current_user->$field ?? '';
         
         if ($field === 'Password') {
-            // For password, we always update (can't compare hashes)
-            // But verify the new password is different from old one by checking if it verifies
-            if (!empty($current_value) && password_verify($value, $current_value)) {
-                echo json_encode(['success' => false, 'message' => 'New password must be different from the current password.']);
-                return;
-            }
+            // Password verification already done above, skip duplicate check
         } else {
             // For other fields, compare trimmed values
             $current_trimmed = trim($current_value);
