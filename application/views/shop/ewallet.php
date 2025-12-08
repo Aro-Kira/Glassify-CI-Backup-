@@ -93,7 +93,7 @@ if (!empty($pending_cart_ids)) {
             </div>
 
             <!-- Upload form: posts to ShopCon::submit_ewallet_payment -->
-            <form id="ewalletForm" action="<?php echo site_url('shopcon/submit_ewallet_payment'); ?>" method="post"
+            <form id="ewalletForm" action="<?php echo base_url('shopcon/submit_ewallet_payment'); ?>" method="post"
                 enctype="multipart/form-data">
                 <?php if ($this->config->item('csrf_protection')): ?>
                     <input type="hidden" name="<?php echo $this->security->get_csrf_token_name(); ?>"
@@ -110,7 +110,7 @@ if (!empty($pending_cart_ids)) {
                 <button type="button" class="payment-btn" onclick="submitPayment()">Send Payment</button>
 
                 <div class="terms">
-                    <input type="checkbox" id="terms">
+                    <input type="checkbox" id="terms" name="terms">
                     <label for="terms">
                         I have read and agree to Glassify's
                         <a href="<?php echo site_url('terms_order'); ?>">Terms and Conditions of Purchase</a>

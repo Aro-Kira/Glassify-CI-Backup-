@@ -1,0 +1,194 @@
+application/controllers/InventCon.php:29: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:32: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:36: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:39: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:42: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:45: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:61: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:64: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:70: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/InventCon.php:73: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/InventCon.php:79: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:82: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:91: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:137: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:140: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:145: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:148: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:160: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:176: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:201: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:222: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:234: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/InventCon.php:239: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/InventCon.php:248: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:252: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:254: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:259: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/InventCon.php:273: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/InventCon.php:304: trailing whitespace.
+[32m+[m[41m    [m
+application/controllers/InventCon.php:311: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:314: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:320: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:323: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:326: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:338: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/InventCon.php:343: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/InventCon.php:351: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/InventCon.php:363: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/ProductCon.php:70: trailing whitespace.
+[32m+[m[41m    [m
+application/controllers/ProductCon.php:73: trailing whitespace.
+[32m+[m[41m    [m
+application/controllers/ProductCon.php:75: trailing whitespace.
+[32m+[m[41m    [m
+application/controllers/ProductCon.php:83: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/ProductCon.php:93: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/ProductCon.php:105: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/ProductCon.php:110: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/ProductCon.php:113: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/ProductCon.php:118: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/ProductCon.php:122: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/ProductCon.php:128: trailing whitespace.
+[32m+[m[41m                [m
+application/controllers/ProductCon.php:131: trailing whitespace.
+[32m+[m[41m                [m
+application/controllers/ProductCon.php:141: trailing whitespace.
+[32m+[m[41m                    [m
+application/controllers/ProductCon.php:143: trailing whitespace.
+[32m+[m[32m                    if ($material_enum === 'Glass' &&[m[41m [m
+application/controllers/ProductCon.php:144: trailing whitespace.
+[32m+[m[32m                        (stripos($inventory_item->Category, 'Aluminum') !== false ||[m[41m [m
+application/controllers/ProductCon.php:150: trailing whitespace.
+[32m+[m[41m            [m
+application/controllers/ProductCon.php:158: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/ProductCon.php:165: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/ProductCon.php:172: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/ProductCon.php:182: trailing whitespace.
+[32m+[m[41m    [m
+application/controllers/ProductCon.php:206: trailing whitespace.
+[32m+[m[41m    [m
+application/controllers/ProductCon.php:211: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/ProductCon.php:222: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/SalesCon.php:1038: trailing whitespace.
+[32m+[m[41m        [m
+application/controllers/SalesCon.php:1044: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Inventory_model.php:112: trailing whitespace.
+[32m+[m[41m            [m
+application/models/Inventory_model.php:124: trailing whitespace.
+[32m+[m[41m            [m
+application/models/Inventory_model.php:133: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Inventory_model.php:150: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Inventory_model.php:157: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Inventory_model.php:160: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Inventory_model.php:165: trailing whitespace.
+[32m+[m[41m            [m
+application/models/Inventory_model.php:167: trailing whitespace.
+[32m+[m[41m            [m
+application/models/Inventory_model.php:171: trailing whitespace.
+[32m+[m[41m            [m
+application/models/Inventory_model.php:177: trailing whitespace.
+[32m+[m[41m            [m
+application/models/Inventory_model.php:183: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Inventory_model.php:191: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Inventory_model.php:195: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Inventory_model.php:198: trailing whitespace.
+[32m+[m[41m    [m
+application/models/Product_model.php:45: trailing whitespace.
+[32m+[m[41m    [m
+application/models/Product_model.php:50: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Product_model.php:57: trailing whitespace.
+[32m+[m[41m        [m
+application/models/Product_model.php:61: trailing whitespace.
+[32m+[m[41m    [m
+application/views/inventory_page/inventory_dashboard.php:55: trailing whitespace.
+[32m+[m[32m                  <?php[m[41m [m
+application/views/inventory_page/inventory_inventory.php:742: trailing whitespace.
+[32m+[m[41m        [m
+application/views/inventory_page/inventory_products.php:29: trailing whitespace.
+[32m+[m[32m      <?php if (!empty($products)):[m[41m [m
+application/views/inventory_page/inventory_products.php:30: trailing whitespace.
+[32m+[m[32m        foreach ($products as $product):[m[41m [m
+application/views/inventory_page/inventory_products.php:51: trailing whitespace.
+[32m+[m[32m          <img src="<?= $image_path; ?>" alt="<?= htmlspecialchars($product->ProductName); ?>"[m[41m [m
+application/views/inventory_page/inventory_products.php:79: trailing whitespace.
+[32m+[m[32m      <?php[m[41m [m
+application/views/inventory_page/inventory_products.php:80: trailing whitespace.
+[32m+[m[32m        endforeach;[m[41m [m
+application/views/inventory_page/inventory_products.php:81: trailing whitespace.
+[32m+[m[32m      else:[m[41m [m
+application/views/inventory_page/inventory_products.php:148: trailing whitespace.
+[32m+[m[41m      [m
+application/views/inventory_page/inventory_products.php:153: trailing whitespace.
+[32m+[m[41m      [m
+application/views/inventory_page/inventory_products.php:159: trailing whitespace.
+[32m+[m[32m          <option value="<?= $item->InventoryItemID; ?>"[m[41m [m
+application/views/inventory_page/inventory_products.php:178: trailing whitespace.
+[32m+[m[41m      [m
+application/views/inventory_page/inventory_reports.php:419: trailing whitespace.
+[32m+[m[41m            [m
+application/views/shop/products.php:68: trailing whitespace.
+[32m+[m[32m          <?php foreach ($products as $p):[m[41m [m
+application/views/shop/products.php:89: trailing whitespace.
+[32m+[m[41m              [m
+assets/js/admin-js/products.js:225: trailing whitespace.
+[32m+[m[41m  [m

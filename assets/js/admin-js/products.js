@@ -220,7 +220,11 @@ editSaveBtn?.addEventListener("click", () => {
   const editCategoryEl = document.getElementById("editProductCategory");
   const editMaterialEl = document.getElementById("editProductMaterial");
   formData.append("category", editCategoryEl ? editCategoryEl.value : '');
-  formData.append("material", editMaterialEl ? editMaterialEl.value : '');
+  // Admin CANNOT edit materials - do not send material field
+  // formData.append("material", editMaterialEl ? editMaterialEl.value : '');
+  
+  // Add role parameter
+  formData.append("user_role", "Admin");
 
   if (editImageInput.files[0]) {
     formData.append("productImage", editImageInput.files[0]);

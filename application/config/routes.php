@@ -96,6 +96,8 @@ $route['cart-page'] = 'CartCon/cart_page';
 $route['payment'] = 'ShopCon/checkout';
 $route['paying'] = 'ShopCon/ewallet';
 $route['complete'] = 'ShopCon/complete';
+$route['ShopCon/submit_ewallet_payment'] = 'ShopCon/submit_ewallet_payment';
+$route['submit-ewallet-payment'] = 'ShopCon/submit_ewallet_payment';
 $route['terms_order'] = 'ShopCon/terms_order';
 $route['wishlist'] = 'WishlistCon/index';
 $route['wishlist/add'] = 'WishlistCon/add_ajax';
@@ -108,6 +110,8 @@ $route['track_order'] = 'ShopCon/order_tracking';
 $route['waiting_order'] = 'ShopCon/waiting_order';
 $route['cartsave'] = 'AddtoCartCon/save';
 $route['my_purchases'] = 'ShopCon/list_products';
+$route['ShopCon/get_order_progress_ajax'] = 'ShopCon/get_order_progress_ajax';
+$route['shopcon/get_order_progress_ajax'] = 'ShopCon/get_order_progress_ajax';
 
 /* 
 ======================================

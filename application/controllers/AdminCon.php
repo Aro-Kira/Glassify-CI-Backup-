@@ -699,6 +699,54 @@ class AdminCon extends CI_Controller
     // Inventory
     public function admin_inventory()
     {
+        // Load Inventory_model
+        $this->load->model('Inventory_model');
+        
+        // Get all inventory items from database
+        $this->db->select('InventoryItemID, ItemID, Name, Category, InStock, Unit, Status, DateAdded');
+        $this->db->from('inventory_items');
+        $this->db->order_by('InventoryItemID', 'ASC');
+        $inventory_items = $this->db->get()->result();
+        
+        // Get unread inventory notifications
+        $notifications = $this->Inventory_model->get_unread_notifications();
+        
+        // Calculate statistics
+        $total_items = count($inventory_items);
+        $low_stock_count = 0;
+        $out_of_stock_count = 0;
+        $new_items_count = 0;
+        
+        foreach ($inventory_items as $item) {
+            if ($item->InStock == 0) {
+                $out_of_stock_count++;
+            } elseif ($item->InStock > 0 && $item->InStock < 10) {
+                $low_stock_count++;
+            }
+            
+            // Check if item is new (added within last 2 days)
+            $date_added = strtotime($item->DateAdded);
+            $two_days_ago = strtotime('-2 days');
+            if ($date_added >= $two_days_ago) {
+                $new_items_count++;
+            }
+        }
+        
+        // Update status in database based on stock levels (but preserve 'New' status if within 2 days)
+        $this->db->query("UPDATE inventory_items SET Status = 'Out of Stock' WHERE InStock = 0 AND Status != 'Out of Stock' AND (Status != 'New' OR DateAdded < DATE_SUB(NOW(), INTERVAL 2 DAY))");
+        $this->db->query("UPDATE inventory_items SET Status = 'Low Stock' WHERE InStock > 0 AND InStock < 10 AND Status != 'Low Stock' AND (Status != 'New' OR DateAdded < DATE_SUB(NOW(), INTERVAL 2 DAY))");
+        $this->db->query("UPDATE inventory_items SET Status = 'In Stock' WHERE InStock >= 10 AND Status != 'In Stock' AND (Status != 'New' OR DateAdded < DATE_SUB(NOW(), INTERVAL 2 DAY))");
+        
+        // Mark items as 'New' if added within last 2 days (only if not already marked)
+        $this->db->query("UPDATE inventory_items SET Status = 'New' WHERE DateAdded >= DATE_SUB(NOW(), INTERVAL 2 DAY) AND Status != 'New'");
+        
+        $data['inventory_items'] = $inventory_items;
+        $data['total_items'] = $total_items;
+        $data['low_stock_count'] = $low_stock_count;
+        $data['out_of_stock_count'] = $out_of_stock_count;
+        $data['new_items_count'] = $new_items_count;
+        $data['notifications'] = $notifications;
+        $data['notification_count'] = count($notifications);
         $data['title'] = "Glassify - Inventory";
         $data['active'] = 'inventory';
         $data['content_view'] = 'admin_page/admin_inventory';

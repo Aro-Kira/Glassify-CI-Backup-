@@ -373,7 +373,7 @@ document.addEventListener('keydown', function(e) {
     const POLL_INTERVAL = 10000; // Poll every 10 seconds
     
     function updateOrderProgress() {
-        fetch(`<?php echo base_url('ShopCon/get_order_progress_ajax'); ?>?order_id=${orderId}`)
+        fetch(`<?php echo base_url('shopcon/get_order_progress_ajax'); ?>?order_id=${orderId}`)
             .then(response => response.json())
             .then(data => {
                 if (data.success) {

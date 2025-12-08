@@ -366,12 +366,12 @@
                         // Determine stock display
                         const stock = item.InStock || item.stock_quantity || 0;
                         const minThreshold = item.min_threshold || 10;
-                        let stockDisplay = '<span>' + stock + '</span>';
+                        let stockDisplay = '<span class="stock-number">' + stock + '</span>';
                         
                         if (stock === 0) {
                             stockDisplay += '<span class="badge badge-out-stock">Out of Stock</span>';
                         } else if (stock < minThreshold) {
-                            stockDisplay += '<span class="badge badge-low-stock">Low Stock</span>';
+                            stockDisplay += '<span class="low-stock-indicator">Low Stock</span>';
                         }
                         
                         // Item name
@@ -391,9 +391,18 @@
                                 <div class="actions-menu">
                                     <button class="actions-btn" data-item-id="${item.InventoryItemID || item.item_id}">⋮</button>
                                     <div class="actions-dropdown">
-                                        <a href="#" data-action="manage" data-item-id="${item.InventoryItemID || item.item_id}">Manage Stock</a>
-                                        <a href="#" data-action="edit" data-item-id="${item.InventoryItemID || item.item_id}">Edit Item</a>
-                                        <a href="#" data-action="delete" data-item-id="${item.InventoryItemID || item.item_id}">Delete Item</a>
+                                        <a href="#" data-action="manage" data-item-id="${item.InventoryItemID || item.item_id}">
+                                            <i class="fas fa-chart-bar"></i>
+                                            <span>Manage Stock</span>
+                                        </a>
+                                        <a href="#" data-action="edit" data-item-id="${item.InventoryItemID || item.item_id}">
+                                            <i class="fas fa-pencil-alt"></i>
+                                            <span>Edit Item</span>
+                                        </a>
+                                        <a href="#" data-action="delete" data-item-id="${item.InventoryItemID || item.item_id}">
+                                            <i class="fas fa-trash"></i>
+                                            <span>Delete Item</span>
+                                        </a>
                                     </div>
                                 </div>
                             </td>
@@ -468,10 +477,14 @@
                 document.querySelectorAll('.actions-menu').forEach(m => {
                     if (m !== menu) {
                         m.classList.remove('active');
-                        m.querySelector('.actions-dropdown').classList.remove('show');
+                        const otherDropdown = m.querySelector('.actions-dropdown');
+                        if (otherDropdown) {
+                            otherDropdown.classList.remove('show');
+                        }
                     }
                 });
                 
+                // Toggle current menu
                 menu.classList.toggle('active');
                 dropdown.classList.toggle('show');
             });
@@ -484,10 +497,12 @@
                 const action = this.getAttribute('data-action');
                 const itemId = this.getAttribute('data-item-id');
                 const row = this.closest('tr');
+                const menu = this.closest('.actions-menu');
+                const dropdown = this.closest('.actions-dropdown');
                 
                 // Close menu
-                this.closest('.actions-menu').classList.remove('active');
-                this.closest('.actions-dropdown').classList.remove('show');
+                menu.classList.remove('active');
+                dropdown.classList.remove('show');
                 
                 if (action === 'manage') {
                     openManageStock(itemId, row);
@@ -723,6 +738,19 @@
                     closePopups();
                 }
             });
+        });
+        
+        // Click outside to close action dropdowns
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.actions-menu')) {
+                document.querySelectorAll('.actions-menu').forEach(menu => {
+                    menu.classList.remove('active');
+                    const dropdown = menu.querySelector('.actions-dropdown');
+                    if (dropdown) {
+                        dropdown.classList.remove('show');
+                    }
+                });
+            }
         });
     });
     

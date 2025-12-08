@@ -1022,8 +1022,21 @@ class SalesCon extends CI_Controller
     public function sales_products()
     {
         $sales_rep_id = $this->get_current_sales_rep_id();
+        $this->load->model('Inventory_model');
+        $this->load->model('Product_model');
         
         // Get all products from database
+        $this->db->select('Product_ID, ProductName, Category, Material, Price, ImageUrl, Status, DateAdded');
+        $this->db->from('product');
+        $this->db->order_by('DateAdded', 'DESC');
+        $products = $this->db->get()->result();
+        
+        // Update product status based on materials for each product
+        foreach ($products as $product) {
+            $this->Inventory_model->update_product_status_from_materials($product->Product_ID);
+        }
+        
+        // Reload products to get updated status
         $this->db->select('Product_ID, ProductName, Category, Material, Price, ImageUrl, Status, DateAdded');
         $this->db->from('product');
         $this->db->order_by('DateAdded', 'DESC');

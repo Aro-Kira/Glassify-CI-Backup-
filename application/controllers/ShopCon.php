@@ -16,8 +16,17 @@ class ShopCon extends CI_Controller
 public function products()
 {
     $data['title'] = "Glassify - Products";
+    $this->load->model('Inventory_model');
 
     // Load products from database
+    $products = $this->Product_model->get_products();
+    
+    // Update product status based on materials for each product
+    foreach ($products as $product) {
+        $this->Inventory_model->update_product_status_from_materials($product->Product_ID);
+    }
+    
+    // Reload products to get updated status
     $data['products'] = $this->Product_model->get_products();
 
     $this->load->view('includes/header', $data);
@@ -103,139 +112,94 @@ public function checkout()
     public function ewallet()
     {
         $data['title'] = "Glassify - Payment";
-        
-        // Get pending order data from session
-        $data['pending_summary'] = $this->session->userdata('pending_order_summary');
-        $data['pending_cart_ids'] = $this->session->userdata('pending_cart_ids');
-        
-        // Log session data for debugging
-        log_message('debug', 'Ewallet Page - Session Data: ' . json_encode([
-            'pending_summary' => $data['pending_summary'],
-            'pending_cart_ids' => $data['pending_cart_ids'],
-            'all_session_keys' => array_keys($this->session->all_userdata())
-        ]));
-        
-        // Check if we have valid pending order data (with actual values)
-        $has_valid_order = false;
-        if (is_array($data['pending_summary']) && 
-            isset($data['pending_summary']['total']) && 
-            $data['pending_summary']['total'] > 0) {
-            $has_valid_order = true;
-        }
-        
-        log_message('debug', 'Ewallet Page - Has valid order: ' . ($has_valid_order ? 'YES' : 'NO'));
-        
-        // If no valid pending order, redirect back to checkout
-        if (!$has_valid_order) {
-            log_message('error', 'Ewallet Page - Redirecting: No valid pending order');
-            $this->session->set_flashdata('error', 'No pending order found. Please place an order first.');
-            redirect('payment');
-            return;
-        }
-        
         $this->load->view('includes/header', $data);
         $this->load->view('shop/ewallet', $data);
         $this->load->view('includes/footer');
     }
-
+    
     /**
-     * Submit E-Wallet Payment - Create order after payment receipt is uploaded
+     * Handle e-wallet payment receipt submission
      */
     public function submit_ewallet_payment()
     {
         // Check if user is logged in
-        $customer_id = $this->session->userdata('customer_id');
-        if (!$customer_id) {
-            $this->session->set_flashdata('error', 'Please log in to complete payment.');
+        if (!$this->session->userdata('is_logged_in')) {
             redirect('login');
             return;
         }
-
-        // Get pending order data from session
-        $order_data = $this->session->userdata('pending_order_data');
-        $selected_cart_ids = $this->session->userdata('pending_cart_ids');
-
-        if (empty($order_data)) {
-            $this->session->set_flashdata('error', 'No pending order found. Please try again.');
-            redirect('payment');
-            return;
-        }
-
-        // Handle file upload
-        $config['upload_path'] = './uploads/receipts/';
-        $config['allowed_types'] = 'gif|jpg|jpeg|png|pdf';
-        $config['max_size'] = 5120; // 5MB
-        $config['file_name'] = 'receipt_' . $customer_id . '_' . time();
-
-        // Create upload directory if not exists
-        if (!is_dir($config['upload_path'])) {
-            mkdir($config['upload_path'], 0755, true);
-        }
-
-        $this->load->library('upload', $config);
-
-        if (!$this->upload->do_upload('receipt')) {
-            $this->session->set_flashdata('error', 'Failed to upload receipt: ' . $this->upload->display_errors('', ''));
-            redirect('paying');
-            return;
-        }
-
-        $upload_data = $this->upload->data();
-        $receipt_path = 'uploads/receipts/' . $upload_data['file_name'];
-
-        // Load models
-        $this->load->model('Cart_model');
-        $this->load->model('Order_model');
-
-        // Now create the order
-        $order_id = $this->Order_model->create_order($order_data);
-
-        if (!$order_id) {
-            $this->session->set_flashdata('error', 'Failed to create order. Please try again.');
-            redirect('paying');
-            return;
-        }
-
-        // Get cart items for order customizations
-        $cart_items = $this->Cart_model->get_cart_items($customer_id);
         
-        // Filter to only selected items
-        if (!empty($selected_cart_ids)) {
-            $selected_ids = array_filter(array_map('intval', explode(',', $selected_cart_ids)));
-            if (!empty($selected_ids)) {
-                $cart_items = array_filter($cart_items, function($item) use ($selected_ids) {
-                    return in_array($item->Cart_ID, $selected_ids);
-                });
-                $cart_items = array_values($cart_items);
-            }
+        // Get order ID from session
+        $order_id = $this->session->userdata('last_order_id');
+        if (!$order_id) {
+            $this->session->set_flashdata('error', 'No order found. Please place an order first.');
+            redirect('checkout');
+            return;
         }
-
-        // Save order customizations
-        $this->Order_model->save_order_customizations($order_id, $cart_items);
-
-        // Save payment receipt reference
-        $this->Order_model->save_payment_receipt($order_id, $receipt_path, $order_data['TotalAmount']);
-
-        // Store order info in session for complete page
-        $this->session->set_userdata([
-            'last_order_id' => $order_id,
-            'last_order_total' => $order_data['TotalAmount'],
-            'last_payment_method' => 'E-Wallet'
+        
+        // Load models
+        $this->load->model('Order_model');
+        $this->load->database();
+        
+        // Validate file upload
+        if (!isset($_FILES['receipt']) || $_FILES['receipt']['error'] !== UPLOAD_ERR_OK) {
+            $this->session->set_flashdata('error', 'Please attach a payment receipt.');
+            redirect(base_url('paying'));
+            return;
+        }
+        
+        // Validate terms acceptance - checkbox sends 'on' when checked
+        $terms = $this->input->post('terms');
+        if (!$terms || $terms !== 'on') {
+            $this->session->set_flashdata('error', 'Please agree to the Terms and Conditions.');
+            redirect(base_url('paying'));
+            return;
+        }
+        
+        // Configure file upload
+        $upload_path = './uploads/payments/';
+        if (!is_dir($upload_path)) {
+            mkdir($upload_path, 0755, true);
+        }
+        
+        $config['upload_path'] = $upload_path;
+        $config['allowed_types'] = 'jpg|jpeg|png|pdf';
+        $config['max_size'] = 5120; // 5MB
+        $config['encrypt_name'] = TRUE;
+        
+        $this->load->library('upload', $config);
+        
+        // Upload receipt
+        if (!$this->upload->do_upload('receipt')) {
+            $error = $this->upload->display_errors();
+            $this->session->set_flashdata('error', 'File upload failed: ' . $error);
+            redirect(base_url('paying'));
+            return;
+        }
+        
+        $upload_data = $this->upload->data();
+        $receipt_path = 'uploads/payments/' . $upload_data['file_name'];
+        
+        // Get order details
+        $order = $this->Order_model->get_order_with_customer($order_id);
+        if (!$order) {
+            $this->session->set_flashdata('error', 'Order not found.');
+            redirect(base_url('paying'));
+            return;
+        }
+        
+        // Save payment receipt using Order_model method
+        $amount = $order->TotalAmount ?? 0;
+        $this->Order_model->save_payment_receipt($order_id, $receipt_path, $amount);
+        
+        // Update order payment method
+        $this->db->where('OrderID', $order_id);
+        $this->db->update('`order`', [
+            'PaymentMethod' => 'E-Wallet',
+            'PaymentStatus' => 'Pending'
         ]);
-
-        // Remove selected items from cart
-        if (!empty($selected_cart_ids)) {
-            $selected_ids = array_filter(array_map('intval', explode(',', $selected_cart_ids)));
-            foreach ($selected_ids as $cart_id) {
-                $this->Cart_model->remove_item($cart_id);
-            }
-        }
-
-        // Clear pending order data from session
-        $this->session->unset_userdata(['pending_order_data', 'pending_cart_ids', 'pending_order_summary']);
-
-        // Redirect to order complete page
-        redirect('complete');
+        
+        // Redirect to complete page
+        redirect(base_url('complete'));
     }
     public function complete()
     {
@@ -272,41 +236,26 @@ public function checkout()
             // Calculate summary
             $data['summary'] = $this->Order_model->calculate_order_summary($order_id);
             
-            // Get customer shipping address and user data
+            // Get customer shipping address
             $customer_id = $this->session->userdata('customer_id');
             if ($customer_id) {
                 $addresses = $this->User_model->get_addresses($customer_id);
                 $data['shipping_address'] = $addresses['Shipping'] ?? null;
                 $data['billing_address'] = $addresses['Billing'] ?? null;
-                
-                // Get user data - first get customer to find UserID
-                $customer = $this->db->where('Customer_ID', $customer_id)->get('customer')->row();
-                if ($customer && $customer->UserID) {
-                    $data['user'] = $this->User_model->get_by_id($customer->UserID);
-                } else {
-                    // Fallback: use data from order if available
-                    if ($data['order'] && isset($data['order']->Email)) {
-                        $data['user'] = (object)[
-                            'First_Name' => $data['order']->First_Name ?? '',
-                            'Last_Name' => $data['order']->Last_Name ?? '',
-                            'Email' => $data['order']->Email ?? '',
-                            'PhoneNum' => $data['order']->PhoneNum ?? ''
-                        ];
-                    }
-                }
-            } else if ($data['order'] && isset($data['order']->Email)) {
-                // Fallback: use data from order if customer_id not in session
-                $data['user'] = (object)[
-                    'First_Name' => $data['order']->First_Name ?? '',
-                    'Last_Name' => $data['order']->Last_Name ?? '',
-                    'Email' => $data['order']->Email ?? '',
-                    'PhoneNum' => $data['order']->PhoneNum ?? ''
-                ];
+                $data['user'] = $this->User_model->get_by_id($customer_id);
             }
         }
         
         $this->load->view('includes/header', $data);
         $this->load->view('shop/order_complete', $data);
+        $this->load->view('includes/footer');
+    }
+
+    public function wishlist()
+    {
+        $data['title'] = "Glassify - Wishlist";
+        $this->load->view('includes/header', $data);
+        $this->load->view('shop/wishlist', $data);
         $this->load->view('includes/footer');
     }
 
@@ -350,7 +299,7 @@ public function checkout()
                 // Get payment info
                 $data['payment'] = $this->Order_model->get_order_payment($order_id);
 
-                // Get progress steps based on status (pass order_id to check appointments table)
+                // Get progress steps based on status and order_id (to check appointments table)
                 $data['progress'] = $this->Order_model->get_order_progress($data['order']->Status, $order_id);
 
                 // Get customer addresses
@@ -367,15 +316,13 @@ public function checkout()
         $this->load->view('shop/order_tracking', $data);
         $this->load->view('includes/footer');
     }
-
+    
     /**
-     * AJAX endpoint to get real-time order progress updates
-     * Used for polling to sync appointment changes
+     * AJAX endpoint for real-time order progress updates
+     * Used by order tracking page to poll for appointment updates
      */
     public function get_order_progress_ajax()
     {
-        header('Content-Type: application/json');
-        
         $order_id = $this->input->get('order_id');
         
         if (!$order_id) {
@@ -383,87 +330,55 @@ public function checkout()
             return;
         }
         
-        // Load models
         $this->load->model('Order_model');
         
         // Get order details
-        $order = $this->Order_model->get_order_tracking_details($order_id);
-        
+        $order = $this->Order_model->get_order_with_customer($order_id);
         if (!$order) {
             echo json_encode(['success' => false, 'message' => 'Order not found']);
             return;
         }
         
-        // Get progress steps
+        // Get progress with order_id to check appointments table
         $progress = $this->Order_model->get_order_progress($order->Status, $order_id);
         
-        // Calculate progress percentage (include in-progress steps so line connects)
-        // The line should extend to the highest completed or in-progress step
-        $progress_percent = 0;
-        if ($progress['order_placed'] === 'completed' || $progress['order_placed'] === 'in_progress') {
-            $progress_percent = 0;
-        }
-        // Extend line to in-progress or completed steps
-        if ($progress['ocular_visit'] === 'completed' || $progress['ocular_visit'] === 'in_progress') {
-            $progress_percent = 25;
-        }
-        if ($progress['in_fabrication'] === 'completed' || $progress['in_fabrication'] === 'in_progress') {
-            $progress_percent = 50;
-        }
-        if ($progress['installed'] === 'completed' || $progress['installed'] === 'in_progress') {
-            $progress_percent = 75;
-        }
-        if ($progress['completed'] === 'completed' || $progress['completed'] === 'in_progress') {
-            $progress_percent = 100;
+        // Calculate progress percentage
+        $completed_steps = 0;
+        $total_steps = 5; // order_placed, ocular_visit, in_fabrication, installed, completed
+        
+        foreach ($progress as $step => $status) {
+            if ($status === 'completed') {
+                $completed_steps++;
+            }
         }
         
-        // Ensure line extends fully to in-progress steps by checking if previous steps are completed
-        // If a step is in progress, all previous steps should be completed for proper line display
-        if ($progress['installed'] === 'in_progress') {
-            // If installed is in progress, fabrication and ocular should be completed
-            if ($progress['in_fabrication'] !== 'completed') $progress['in_fabrication'] = 'completed';
-            if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
-            $progress_percent = 75; // Ensure line extends to installed step
-        }
-        if ($progress['completed'] === 'in_progress') {
-            // If completed is in progress, all previous should be completed
-            if ($progress['installed'] !== 'completed') $progress['installed'] = 'completed';
-            if ($progress['in_fabrication'] !== 'completed') $progress['in_fabrication'] = 'completed';
-            if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
-            $progress_percent = 100; // Ensure line extends to completed step
-        }
-        if ($progress['in_fabrication'] === 'in_progress') {
-            // If fabrication is in progress, ocular should be completed
-            if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
-            $progress_percent = 50; // Ensure line extends to fabrication step
-        }
+        $progress_percent = ($completed_steps / $total_steps) * 100;
         
-        // Check if any step is in progress (for progress bar color)
+        // Get dates from order
+        $dates = [
+            'order_placed' => $order->OrderDate ?? null,
+            'ocular_visit' => $order->OcularDate ?? null,
+            'fabrication' => $order->FabricationDate ?? null,
+            'installation' => $order->InstallationDate ?? null,
+            'estimated_delivery' => $order->EstimatedDelivery ?? null
+        ];
+        
+        // Check if any step is in progress
         $has_in_progress = false;
-        foreach ($progress as $step_status) {
-            if ($step_status === 'in_progress') {
+        foreach ($progress as $step => $status) {
+            if ($status === 'in_progress') {
                 $has_in_progress = true;
                 break;
             }
         }
         
-        // Format dates for display
-        $formatted_dates = [
-            'ocular_date' => $order->OcularDate ? date('M j, Y', strtotime($order->OcularDate)) : null,
-            'fabrication_date' => $order->FabricationDate ? date('M j, Y', strtotime($order->FabricationDate)) : null,
-            'installation_date' => $order->InstallationDate ? date('M j, Y', strtotime($order->InstallationDate)) : null,
-            'estimated_delivery' => $order->EstimatedDelivery ? date('M j, Y', strtotime($order->EstimatedDelivery)) : null
-        ];
-        
         echo json_encode([
             'success' => true,
-            'order_status' => $order->Status,
             'progress' => $progress,
             'progress_percent' => $progress_percent,
-            'has_in_progress' => $has_in_progress,
-            'dates' => $formatted_dates,
-            'order_date' => $order->OrderDate ? date('M j, Y', strtotime($order->OrderDate)) : null,
-            'order_time' => $order->OrderDate ? date('g:i A', strtotime($order->OrderDate)) : null
+            'dates' => $dates,
+            'order_status' => $order->Status,
+            'has_in_progress' => $has_in_progress
         ]);
     }
 
@@ -543,13 +458,39 @@ public function checkout()
             } elseif ($this->session->userdata('order_total')) {
                 $total_amount = floatval($this->session->userdata('order_total'));
             } else {
-                // Get from unified customization table (most recent for this customer)
-                $this->db->select('EstimatePrice');
-                $this->db->from('customization');
-                $this->db->where('Customer_ID', $customer_id);
-                $this->db->order_by('CreatedAt', 'DESC');
-                $this->db->limit(1);
-                $custom = $this->db->get()->row();
+                // Get from category-specific customization tables (most recent for this customer)
+                $this->load->model('Cart_model');
+                $customization_tables = [
+                    'mirror_customization',
+                    'shower_enclosure_customization',
+                    'aluminum_doors_customization',
+                    'aluminum_bathroom_doors_customization'
+                ];
+                
+                $custom = null;
+                foreach ($customization_tables as $table) {
+                    $this->db->select('EstimatePrice');
+                    $this->db->from($table);
+                    $this->db->where('Customer_ID', $customer_id);
+                    $this->db->order_by('Created_Date', 'DESC');
+                    $this->db->limit(1);
+                    $result = $this->db->get()->row();
+                    if ($result) {
+                        $custom = $result;
+                        break;
+                    }
+                }
+                
+                // Fallback to old customization table
+                if (!$custom) {
+                    $this->db->select('TotalQuotation, EstimatePrice');
+                    $this->db->from('customization');
+                    $this->db->where('Customer_ID', $customer_id);
+                    $this->db->where('OrderID IS NULL', null, false);
+                    $this->db->order_by('Created_Date', 'DESC');
+                    $this->db->limit(1);
+                    $custom = $this->db->get()->row();
+                }
                 
                 if ($custom) {
                     $total_amount = floatval($custom->TotalQuotation ?? $custom->EstimatePrice ?? 0);
@@ -584,13 +525,12 @@ public function checkout()
             // Combine note and preferred installation date in SpecialInstructions
             $special_instructions = [];
             if ($this->input->post('note')) {
-                $special_instructions[] = trim($this->input->post('note'));
+                $special_instructions[] = 'Note: ' . $this->input->post('note');
             }
             if ($preferred_installation_date) {
-                $formatted_date = date('F j, Y', strtotime($preferred_installation_date));
-                $special_instructions[] = 'Preferred Installation Date: ' . $formatted_date;
+                $special_instructions[] = 'Preferred Installation Date: ' . date('F j, Y', strtotime($preferred_installation_date));
             }
-            $special_instructions_text = !empty($special_instructions) ? implode("\n", $special_instructions) : null;
+            $special_instructions_text = !empty($special_instructions) ? implode(' | ', $special_instructions) : null;
             
             // Create order data
             $order_data = [
@@ -598,10 +538,9 @@ public function checkout()
                 'SalesRep_ID' => (int)$sales_rep_id,
                 'TotalAmount' => $total_amount,
                 'DeliveryAddress' => $delivery_address,
-                'Status' => 'Pending Review',
+                'Status' => 'Pending',
                 'PaymentStatus' => ($this->input->post('payment_method') === 'ewallet' && $this->input->post('receipt')) ? 'Pending' : 'Pending',
-                'SpecialInstructions' => $special_instructions_text,
-                'PreferredInstallationDate' => !empty($preferred_installation_date) ? $preferred_installation_date : null
+                'SpecialInstructions' => $special_instructions_text
             ];
             
             // Handle file upload (payment receipt for ewallet)
@@ -699,14 +638,8 @@ public function checkout()
         // Set JSON response header
         header('Content-Type: application/json');
 
-        // Initialize log array for debugging
-        $debug_log = [];
-        $debug_log['timestamp'] = date('Y-m-d H:i:s');
-
         // Check if user is logged in
         $customer_id = $this->session->userdata('customer_id');
-        $debug_log['customer_id'] = $customer_id;
-        
         if (!$customer_id) {
             echo json_encode([
                 'status' => 'error',
@@ -718,11 +651,6 @@ public function checkout()
         // Get POST data
         $payment_method = $this->input->post('payment_method');
         $terms_accepted = $this->input->post('terms_accepted');
-        $selected_cart_ids = $this->input->post('selected_cart_ids');
-        
-        $debug_log['payment_method'] = $payment_method;
-        $debug_log['terms_accepted'] = $terms_accepted;
-        $debug_log['selected_cart_ids'] = $selected_cart_ids;
 
         // Validate payment method
         if (empty($payment_method)) {
@@ -749,71 +677,25 @@ public function checkout()
 
         // Get cart items
         $cart_items = $this->Cart_model->get_cart_items($customer_id);
-        $debug_log['cart_items_count_before_filter'] = count($cart_items);
-        $debug_log['cart_items_raw'] = array_map(function($item) {
-            return [
-                'Cart_ID' => $item->Cart_ID ?? 'N/A',
-                'Product_ID' => $item->Product_ID ?? 'N/A',
-                'Quantity' => $item->Quantity ?? 0,
-                'EstimatePrice' => $item->EstimatePrice ?? 'N/A',
-                'Price' => $item->Price ?? 'N/A'
-            ];
-        }, $cart_items);
-        
-        // Filter to only selected items if IDs provided
-        if (!empty($selected_cart_ids)) {
-            $selected_ids = array_filter(array_map('intval', explode(',', $selected_cart_ids)));
-            $debug_log['selected_ids_parsed'] = $selected_ids;
-            
-            if (!empty($selected_ids)) {
-                $cart_items = array_filter($cart_items, function($item) use ($selected_ids) {
-                    return in_array($item->Cart_ID, $selected_ids);
-                });
-                // Re-index array
-                $cart_items = array_values($cart_items);
-            }
-        }
-        
-        $debug_log['cart_items_count_after_filter'] = count($cart_items);
-
         if (empty($cart_items)) {
-            $debug_log['error'] = 'No items after filter';
-            log_message('error', 'Place Order Debug: ' . json_encode($debug_log));
-            
             echo json_encode([
                 'status' => 'error',
-                'message' => 'No items selected for checkout.',
-                'debug' => $debug_log
+                'message' => 'Your cart is empty.'
             ]);
             return;
         }
 
-        // Calculate totals for selected items only
+        // Calculate totals
         $subtotal = 0;
         $total_items = 0;
         foreach ($cart_items as $item) {
             $price = $item->EstimatePrice ?? $item->Price ?? 0;
-            $debug_log['item_prices'][] = [
-                'Cart_ID' => $item->Cart_ID,
-                'EstimatePrice' => $item->EstimatePrice ?? 'null',
-                'Price' => $item->Price ?? 'null',
-                'used_price' => $price,
-                'Quantity' => $item->Quantity
-            ];
             $subtotal += $price * $item->Quantity;
             $total_items += $item->Quantity;
         }
         $shipping = $total_items * 25;
         $handling = $total_items * 10;
         $total_amount = $subtotal + $shipping + $handling;
-        
-        $debug_log['calculated_totals'] = [
-            'subtotal' => $subtotal,
-            'total_items' => $total_items,
-            'shipping' => $shipping,
-            'handling' => $handling,
-            'total_amount' => $total_amount
-        ];
 
         // Get shipping address
         $addresses = $this->User_model->get_addresses($customer_id);
@@ -831,7 +713,6 @@ public function checkout()
 
         // Get form data for shipping info update (optional)
         $firstname = $this->input->post('firstname');
-        $middlename = $this->input->post('middlename'); // Middle name from form
         $lastname = $this->input->post('lastname');
         $address = $this->input->post('address');
         $city = $this->input->post('city');
@@ -848,86 +729,31 @@ public function checkout()
             ]));
         }
 
+        // Combine note and preferred installation date in SpecialInstructions
+        $special_instructions = [];
+        if ($note) {
+            $special_instructions[] = 'Note: ' . $note;
+        }
+        if ($preferred_installation_date) {
+            $special_instructions[] = 'Preferred Installation Date: ' . date('F j, Y', strtotime($preferred_installation_date));
+        }
+        $special_instructions_text = !empty($special_instructions) ? implode(' | ', $special_instructions) : null;
+
         // Get default sales rep
         $sales_rep_id = $this->Order_model->get_default_sales_rep();
-
-        // Prepare special instructions (combine note and preferred installation date)
-        $special_instructions = [];
-        if (!empty($note)) {
-            $special_instructions[] = trim($note);
-        }
-        if (!empty($preferred_installation_date)) {
-            $formatted_date = date('F j, Y', strtotime($preferred_installation_date));
-            $special_instructions[] = 'Preferred Installation Date: ' . $formatted_date;
-        }
-        $special_instructions_text = !empty($special_instructions) ? implode("\n", $special_instructions) : null;
 
         // Prepare order data
         $order_data = [
             'Customer_ID' => $customer_id,
             'SalesRep_ID' => $sales_rep_id,
             'TotalAmount' => $total_amount,
-            'Status' => 'Pending Review',
+            'Status' => 'Pending',
             'PaymentStatus' => 'Pending',
-            'PaymentMethod' => $payment_method, // Explicitly set PaymentMethod
             'DeliveryAddress' => $shipping_address,
-            'SpecialInstructions' => $special_instructions_text,
-            'PreferredInstallationDate' => !empty($preferred_installation_date) ? $preferred_installation_date : null
+            'SpecialInstructions' => $special_instructions_text
         ];
 
-        // For E-Wallet: Store order data in session and redirect to payment page
-        // Don't create order yet - wait for payment submission
-        if ($payment_method === 'E-Wallet') {
-            // Validate we have actual items with value
-            if ($total_items <= 0 || $total_amount <= 0) {
-                $debug_log['error'] = 'Invalid order amount';
-                log_message('error', 'Place Order Debug: ' . json_encode($debug_log));
-                
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Invalid order amount. Please try again.',
-                    'debug' => $debug_log
-                ]);
-                return;
-            }
-
-            // Prepare summary data
-            $summary_data = [
-                'items' => $total_items,
-                'subtotal' => $subtotal,
-                'shipping' => $shipping,
-                'handling' => $handling,
-                'total' => $total_amount
-            ];
-            
-            $debug_log['summary_to_store'] = $summary_data;
-
-            // Store pending order data in session (cart items remain intact)
-            $this->session->set_userdata('pending_order_data', $order_data);
-            $this->session->set_userdata('pending_cart_ids', $selected_cart_ids);
-            $this->session->set_userdata('pending_order_summary', $summary_data);
-            $this->session->set_userdata('last_payment_method', $payment_method);
-            
-            // Verify session was stored
-            $stored_summary = $this->session->userdata('pending_order_summary');
-            $debug_log['session_verification'] = [
-                'stored_successfully' => !empty($stored_summary),
-                'stored_data' => $stored_summary
-            ];
-            
-            // Log to file
-            log_message('debug', 'E-Wallet Order - Session stored: ' . json_encode($debug_log));
-
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Redirecting to payment...',
-                'redirect_url' => base_url('paying'),
-                'debug' => $debug_log
-            ]);
-            return;
-        }
-
-        // For COD: Create order immediately
+        // Create order
         $order_id = $this->Order_model->create_order($order_data);
 
         if (!$order_id) {
@@ -938,32 +764,29 @@ public function checkout()
             return;
         }
 
-        // Save order customizations from selected cart items only
+        // Save order customizations from cart items
         $this->Order_model->save_order_customizations($order_id, $cart_items);
 
-        // Store order info in session for complete page
+        // Store order info in session for payment/complete page
         $this->session->set_userdata([
             'last_order_id' => $order_id,
             'last_order_total' => $total_amount,
             'last_payment_method' => $payment_method
         ]);
 
-        // Remove only the selected items from cart (not entire cart)
-        if (!empty($selected_cart_ids)) {
-            $selected_ids = array_filter(array_map('intval', explode(',', $selected_cart_ids)));
-            foreach ($selected_ids as $cart_id) {
-                $this->Cart_model->remove_item($cart_id);
-            }
-        } else {
-            // If no selection specified, clear entire cart (fallback)
-            $this->Cart_model->clear_cart($customer_id);
-        }
+        // Clear cart after successful order
+        $this->Cart_model->clear_cart($customer_id);
+
+        // Determine redirect URL based on payment method
+        $redirect_url = ($payment_method === 'E-Wallet') 
+            ? base_url('paying') 
+            : base_url('complete');
 
         echo json_encode([
             'status' => 'success',
             'message' => 'Order placed successfully!',
             'order_id' => $order_id,
-            'redirect_url' => base_url('complete')
+            'redirect_url' => $redirect_url
         ]);
     }
 
@@ -972,6 +795,7 @@ public function checkout()
         $data['title'] = "Glassify - My Purchases";
 
         // Check if user is logged in
+        // Session stores Customer_ID as 'customer_id' (set during login in Auth controller)
         $customer_id = $this->session->userdata('customer_id');
         
         if (!$customer_id) {
@@ -979,6 +803,9 @@ public function checkout()
             redirect('login');
             return;
         }
+
+        // Ensure customer_id is an integer
+        $customer_id = (int)$customer_id;
 
         // Load Order model
         $this->load->model('Order_model');

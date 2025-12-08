@@ -416,7 +416,15 @@
         // Generate report button
         document.getElementById('generateReport').addEventListener('click', function() {
             const reportType = document.getElementById('reportType').value;
-            showReport(reportType);
+            
+            // If stock status report, download Excel file
+            if (reportType === 'stock') {
+                // Download Excel file
+                window.location.href = baseUrl + 'InventCon/export_stock_report';
+            } else {
+                // Show other reports in the page
+                showReport(reportType);
+            }
         });
     });
 })();

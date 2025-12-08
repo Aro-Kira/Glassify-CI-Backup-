@@ -52,12 +52,30 @@
                         $image_path = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
                     }
             ?>
-            <div class="product-card" data-category="<?php echo htmlspecialchars($product->Category); ?>">
+            <div class="product-card" data-category="<?php echo htmlspecialchars($product->Category); ?>" data-status="<?php echo htmlspecialchars($product->Status ?? 'Out of Stock'); ?>">
                 <div class="product-image">
                     <img src="<?php echo $image_path; ?>" alt="<?php echo htmlspecialchars($product->ProductName); ?>" onerror="if(this.src.indexOf('data:image') === -1) { this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4='; }">
                 </div>
                 <p class="product-name"><?php echo htmlspecialchars($product->ProductName); ?></p>
                 <p class="product-price">₱<?php echo number_format($product->Price, 2); ?></p>
+                <?php
+                  $status = isset($product->Status) ? $product->Status : 'Out of Stock';
+                  $status_class = '';
+                  $status_color = '';
+                  if ($status === 'In Stock') {
+                    $status_class = 'badge-in-stock';
+                    $status_color = '#4CAF50';
+                  } elseif ($status === 'Low Stock') {
+                    $status_class = 'badge-low-stock';
+                    $status_color = '#FF9800';
+                  } else {
+                    $status_class = 'badge-out-stock';
+                    $status_color = '#f44336';
+                  }
+                ?>
+                <span class="product-status-badge <?= $status_class; ?>" style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; color: white; background-color: <?= $status_color; ?>; margin-top: 8px;">
+                  <?= htmlspecialchars($status); ?>
+                </span>
             </div>
             <?php 
                 endforeach; 

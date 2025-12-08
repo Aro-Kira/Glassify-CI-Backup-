@@ -186,14 +186,15 @@
       </select>
     </div>
 
-    <!-- Material -->
+    <!-- Material (Read-only for Admin) -->
     <div class="form-group">
       <label for="editProductMaterial">Material</label>
-      <select id="editProductMaterial" class="input-text">
+      <select id="editProductMaterial" class="input-text" disabled style="opacity: 0.6; cursor: not-allowed;">
         <option value="" disabled>Select material</option>
         <option value="Glass">Glass</option>
         <option value="Aluminum">Aluminum</option>
       </select>
+      <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Material cannot be edited by Admin</small>
     </div>
 
     <!-- Price -->

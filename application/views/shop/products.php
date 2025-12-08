@@ -65,13 +65,31 @@
 
         <div class="product-grid">
 
-          <?php foreach ($products as $p): ?>
+          <?php foreach ($products as $p): 
+            $status = isset($p->Status) ? $p->Status : 'Out of Stock';
+            $status_class = '';
+            $status_color = '';
+            if ($status === 'In Stock') {
+              $status_class = 'badge-in-stock';
+              $status_color = '#4CAF50';
+            } elseif ($status === 'Low Stock') {
+              $status_class = 'badge-low-stock';
+              $status_color = '#FF9800';
+            } else {
+              $status_class = 'badge-out-stock';
+              $status_color = '#f44336';
+            }
+          ?>
             <div class="product" data-category="<?= $p->Category ?>" data-material="<?= $p->Material ?>"
-              data-availability="<?= $p->Status ?>">
+              data-availability="<?= $status ?>">
 
               <img src="<?= base_url('uploads/products/' . $p->ImageUrl) ?>" alt="<?= $p->ProductName ?>">
 
               <p><?= $p->ProductName ?></p>
+              
+              <span class="product-status-badge <?= $status_class; ?>" style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; color: white; background-color: <?= $status_color; ?>; margin: 8px 0;">
+                <?= htmlspecialchars($status); ?>
+              </span>
 
               <button onclick="window.location.href='<?= base_url('2DModeling?id=' . $p->Product_ID) ?>'">
                 Build and Buy

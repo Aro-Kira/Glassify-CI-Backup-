@@ -31,7 +31,7 @@ class Inventory_model extends CI_Model
      */
     public function get_product_materials($product_id)
     {
-        $this->db->select('pm.*, ii.ItemID, ii.Name as ItemName, ii.InStock, ii.Unit');
+        $this->db->select('pm.*, ii.ItemID, ii.Name as ItemName, ii.InStock, ii.Unit, ii.min_threshold, ii.Status as MaterialStatus');
         $this->db->from('product_materials pm');
         $this->db->join('inventory_items ii', 'ii.InventoryItemID = pm.InventoryItemID');
         $this->db->where('pm.Product_ID', $product_id);
@@ -67,6 +67,7 @@ class Inventory_model extends CI_Model
     
     /**
      * Deduct materials from inventory when order is paid
+     * Reduces each material by 1 (not by quantity)
      */
     public function deduct_materials_for_order($order_id, $product_id, $quantity = 1)
     {
@@ -77,44 +78,58 @@ class Inventory_model extends CI_Model
         $out_of_stock_items = [];
         
         foreach ($materials as $material) {
-            $required = $material->QuantityRequired * $quantity;
+            // Reduce by 1 per material (not by quantity * QuantityRequired)
+            $deduct_amount = 1;
             $current_stock = $material->InStock;
             
-            if ($current_stock < $required) {
+            if ($current_stock < $deduct_amount) {
                 // Not enough stock - record but don't deduct
                 $out_of_stock_items[] = [
                     'ItemID' => $material->ItemID,
                     'ItemName' => $material->ItemName,
-                    'Required' => $required,
+                    'Required' => $deduct_amount,
                     'Available' => $current_stock
                 ];
                 continue;
             }
             
-            // Deduct from inventory
-            $new_stock = $current_stock - $required;
+            // Deduct from inventory (reduce by 1)
+            $new_stock = $current_stock - $deduct_amount;
             $this->db->where('InventoryItemID', $material->InventoryItemID);
             $this->db->update('inventory_items', ['InStock' => $new_stock]);
             
             $deductions[] = [
                 'ItemID' => $material->ItemID,
                 'ItemName' => $material->ItemName,
-                'Deducted' => $required,
+                'Deducted' => $deduct_amount,
                 'Remaining' => $new_stock
             ];
             
-            // Update status based on new stock level
+            // Get min_threshold for this material (from database after update)
+            $this->db->where('InventoryItemID', $material->InventoryItemID);
+            $updated_material = $this->db->get('inventory_items')->row();
+            $min_threshold = isset($updated_material->min_threshold) ? $updated_material->min_threshold : 10;
+            
+            // Update material status based on new stock level
+            $status_update = [];
             if ($new_stock == 0) {
-                $this->db->where('InventoryItemID', $material->InventoryItemID);
-                $this->db->update('inventory_items', ['Status' => 'Out of Stock']);
-                
+                $status_update['Status'] = 'Out of Stock';
                 // Create notification for sales
                 $this->create_out_of_stock_notification($material->InventoryItemID, $material->ItemID, $material->ItemName);
-            } elseif ($new_stock > 0 && $new_stock < 10) {
+            } elseif ($new_stock > 0 && $new_stock < $min_threshold) {
+                $status_update['Status'] = 'Low Stock';
+            } else {
+                $status_update['Status'] = 'In Stock';
+            }
+            
+            if (!empty($status_update)) {
                 $this->db->where('InventoryItemID', $material->InventoryItemID);
-                $this->db->update('inventory_items', ['Status' => 'Low Stock']);
+                $this->db->update('inventory_items', $status_update);
             }
         }
+        
+        // Update product status based on raw materials
+        $this->update_product_status_from_materials($product_id);
         
         $this->db->trans_complete();
         
@@ -123,6 +138,62 @@ class Inventory_model extends CI_Model
             'deductions' => $deductions,
             'out_of_stock_items' => $out_of_stock_items
         ];
+    }
+    
+    /**
+     * Calculate and update product status based on its raw materials
+     * Status priority: Out of Stock > Low Stock > In Stock
+     */
+    public function update_product_status_from_materials($product_id)
+    {
+        $materials = $this->get_product_materials($product_id);
+        
+        if (empty($materials)) {
+            // No materials linked - set to Out of Stock
+            $this->db->where('Product_ID', $product_id);
+            $this->db->update('product', ['Status' => 'Out of Stock']);
+            return 'Out of Stock';
+        }
+        
+        $has_out_of_stock = false;
+        $has_low_stock = false;
+        
+        foreach ($materials as $material) {
+            // Get current material status (after deduction)
+            $this->db->where('InventoryItemID', $material->InventoryItemID);
+            $material_item = $this->db->get('inventory_items')->row();
+            
+            if (!$material_item) continue;
+            
+            $material_status = $material_item->Status;
+            $material_stock = $material_item->InStock;
+            $min_threshold = isset($material_item->min_threshold) ? $material_item->min_threshold : 10;
+            
+            // Check if material is out of stock
+            if ($material_stock == 0 || $material_status == 'Out of Stock') {
+                $has_out_of_stock = true;
+                break; // If any material is out of stock, product is out of stock
+            }
+            
+            // Check if material is low stock
+            if ($material_stock < $min_threshold || $material_status == 'Low Stock') {
+                $has_low_stock = true;
+            }
+        }
+        
+        // Determine product status
+        $product_status = 'In Stock';
+        if ($has_out_of_stock) {
+            $product_status = 'Out of Stock';
+        } elseif ($has_low_stock) {
+            $product_status = 'Low Stock';
+        }
+        
+        // Update product status
+        $this->db->where('Product_ID', $product_id);
+        $this->db->update('product', ['Status' => $product_status]);
+        
+        return $product_status;
     }
     
     /**
@@ -398,9 +469,11 @@ class Inventory_model extends CI_Model
         $this->db->where('InStock <', 'min_threshold', FALSE);
         $low_stock_count = $this->db->count_all_results('inventory_items');
         
-        // New items (Status = 'New' or added within 2 days)
+        // New items (Status = 'New' OR added within 2 days)
+        $this->db->group_start();
         $this->db->where('Status', 'New');
         $this->db->or_where('DateAdded >=', date('Y-m-d H:i:s', strtotime('-2 days')));
+        $this->db->group_end();
         $new_items_count = $this->db->count_all_results('inventory_items');
         
         // Out of stock
