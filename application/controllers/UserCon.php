@@ -38,7 +38,15 @@ class UserCon extends CI_Controller
 
         $data['title'] = "Glassify - User Profile";
         $data['user'] = $this->User_model->get_by_id($userID);
+        
+        // Get default address or first available
+        $default_address = $this->User_model->get_default_address($userID);
         $data['addresses'] = $this->User_model->get_addresses($userID);
+        
+        // If we have a default address, use it for Shipping
+        if ($default_address) {
+            $data['addresses']['Shipping'] = $default_address;
+        }
 
         // Fallback if user not found
         if (!$data['user']) {

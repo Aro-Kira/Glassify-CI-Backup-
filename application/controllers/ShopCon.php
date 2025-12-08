@@ -80,7 +80,33 @@ public function checkout()
     if ($userID) {
         $this->load->model('User_model');
         $data['user'] = $this->User_model->get_by_id($userID);
-        $data['addresses'] = $this->User_model->get_addresses($userID);
+        
+        // Get all addresses to find default or first one
+        $all_addresses = $this->User_model->get_user_addresses($userID);
+        
+        // Find default address first, then shipping, then first available
+        $default_address = null;
+        $shipping_address = null;
+        
+        foreach ($all_addresses as $addr) {
+            if ($addr->IsDefault == 1) {
+                $default_address = $addr;
+                break;
+            }
+            if ($addr->AddressType === 'Shipping' && !$shipping_address) {
+                $shipping_address = $addr;
+            }
+        }
+        
+        // Use default if found, otherwise shipping, otherwise first address
+        $selected_address = $default_address ?: $shipping_address ?: (!empty($all_addresses) ? $all_addresses[0] : null);
+        
+        if ($selected_address) {
+            $data['addresses']['Shipping'] = $selected_address;
+        }
+        
+        // Also get addresses by type for backward compatibility
+        $data['addresses'] = array_merge($data['addresses'], $this->User_model->get_addresses($userID));
     }
 
     // fallback if user not found
@@ -100,9 +126,14 @@ public function checkout()
         if (!$data['addresses'][$type]) {
             $data['addresses'][$type] = (object)[
                 'AddressLine' => '',
+                'UnitHouseNumber' => '',
+                'Street' => '',
+                'Subdivision' => '',
+                'Barangay' => '',
                 'City' => '',
                 'Province' => '',
-                'Country' => '',
+                'Region' => '',
+                'Country' => 'Philippines',
                 'ZipCode' => '',
                 'Note' => ''
             ];

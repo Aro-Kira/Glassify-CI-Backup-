@@ -77,44 +77,74 @@
                 </div>
 
                 <!-- Shipping Address -->
-                <div class="info-title">
+                <div class="shipping-address-title">
                     <h3>Shipping Address</h3>
                 </div>
                 <div class="form-row">
-                    <div class="form-group full-width">
-                        <label>Address line</label>
-                        <input type="text" name="address"
-                            value="<?= htmlspecialchars($addresses['Shipping']->AddressLine ?? '') ?>"
-                            placeholder="Enter your address" required>
+                    <div class="form-group">
+                        <label>Unit/House Number</label>
+                        <input type="text" name="unit_house_number"
+                            value="<?= htmlspecialchars($addresses['Shipping']->UnitHouseNumber ?? '') ?>"
+                            placeholder="Unit/House Number (optional)" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Street</label>
+                        <input type="text" name="street"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Street ?? '') ?>"
+                            placeholder="Street (optional)" readonly>
                     </div>
                 </div>
 
                 <div class="form-row">
+                    <div class="form-group">
+                        <label>Subdivision/Building</label>
+                        <input type="text" name="subdivision"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Subdivision ?? '') ?>"
+                            placeholder="Subdivision/Building (optional)" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Barangay <span style="color: red;">*</span></label>
+                        <input type="text" name="barangay"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Barangay ?? '') ?>"
+                            placeholder="Enter Barangay" required readonly>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Region <span style="color: red;">*</span></label>
+                        <input type="text" name="region"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Region ?? '') ?>"
+                            placeholder="Enter Region" required readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Province <span style="color: red;">*</span></label>
+                        <input type="text" name="province"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Province ?? '') ?>"
+                            placeholder="Enter Province" required readonly>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>City/Municipality <span style="color: red;">*</span></label>
+                        <input type="text" name="city" value="<?= htmlspecialchars($addresses['Shipping']->City ?? '') ?>"
+                            placeholder="Enter City/Municipality" required readonly>
+                    </div>
                     <div class="form-group">
                         <label>Country</label>
                         <input type="text" name="country"
                             value="<?= htmlspecialchars($addresses['Shipping']->Country ?? 'Philippines') ?>"
-                            placeholder="Enter your country" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Zip code</label>
-                        <input type="text" name="zipcode"
-                            value="<?= htmlspecialchars($addresses['Shipping']->ZipCode ?? '') ?>"
-                            placeholder="Enter your zip code" required>
+                            placeholder="Country" required readonly>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Province</label>
-                        <input type="text" name="province"
-                            value="<?= htmlspecialchars($addresses['Shipping']->Province ?? '') ?>"
-                            placeholder="Enter your province" required>
-                    </div>
-                    <div class="form-group">
-                        <label>City/Municipality</label>
-                        <input type="text" name="city" value="<?= htmlspecialchars($addresses['Shipping']->City ?? '') ?>"
-                            placeholder="Enter your city or municipality" required>
+                        <label>Zip Code <span style="color: red;">*</span></label>
+                        <input type="text" name="zipcode"
+                            value="<?= htmlspecialchars($addresses['Shipping']->ZipCode ?? '') ?>"
+                            placeholder="Enter Zip Code" required readonly>
                     </div>
                 </div>
 
@@ -128,10 +158,10 @@
                 <!-- Preferred Installation Date -->
                 <div class="form-row">
                     <div class="form-group full-width">
-                        <label>Preferred Installation Date</label>
+                        <label>Preferred Installation Date <span style="color: red;">*</span></label>
                         <input type="date" name="preferred_installation_date" id="preferred_installation_date" 
                             min="<?= date('Y-m-d', strtotime('+7 days')) ?>" 
-                            placeholder="Select your preferred installation date (optional)">
+                            placeholder="Select your preferred installation date" required>
                         <small style="color: #666; font-size: 0.9em; display: block; margin-top: 5px;">
                             Please select a date at least 7 days from today. We'll do our best to accommodate your preference.
                         </small>
@@ -349,8 +379,19 @@
           <span class="value" id="quote-customer-address"><?php 
             if (isset($addresses['Shipping'])) {
               $addr = $addresses['Shipping'];
-              $full_address = trim(($addr->AddressLine ?? '') . ', ' . ($addr->City ?? '') . ', ' . ($addr->Province ?? '') . ' ' . ($addr->ZipCode ?? ''));
-              echo $full_address ?: 'N/A';
+              $addressParts = array_filter([
+                $addr->UnitHouseNumber ?? '',
+                $addr->Street ?? '',
+                $addr->Subdivision ?? '',
+                $addr->Barangay ?? '',
+                $addr->City ?? '',
+                $addr->Province ?? '',
+                $addr->Region ?? '',
+                $addr->Country ?? 'Philippines',
+                $addr->ZipCode ?? ''
+              ]);
+              $full_address = !empty($addressParts) ? implode(', ', $addressParts) : ($addr->AddressLine ?? 'N/A');
+              echo htmlspecialchars($full_address);
             } else {
               echo 'N/A';
             }
@@ -626,19 +667,39 @@ $(document).ready(function() {
         const lastname = form.querySelector("input[name='lastname']").value;
         const email = form.querySelector("input[name='email']").value;
         const phone = form.querySelector("input[name='phone']").value;
-        const address = form.querySelector("input[name='address']").value;
+        
+        // Get all address fields
+        const unitHouseNumber = form.querySelector("input[name='unit_house_number']")?.value || '';
+        const street = form.querySelector("input[name='street']")?.value || '';
+        const subdivision = form.querySelector("input[name='subdivision']")?.value || '';
+        const barangay = form.querySelector("input[name='barangay']").value;
         const city = form.querySelector("input[name='city']").value;
         const province = form.querySelector("input[name='province']").value;
+        const region = form.querySelector("input[name='region']")?.value || '';
         const zipcode = form.querySelector("input[name='zipcode']").value;
         const country = form.querySelector("input[name='country']").value;
         const preferredInstallationDate = form.querySelector("input[name='preferred_installation_date']")?.value || '';
+
+        // Build complete address
+        const addressParts = [
+            unitHouseNumber,
+            street,
+            subdivision,
+            barangay,
+            city,
+            province,
+            region,
+            country,
+            zipcode
+        ].filter(Boolean);
+        const fullAddress = addressParts.join(', ');
 
         // Populate shipping details
         const fullName = middlename ? `${firstname} ${middlename} ${lastname}` : `${firstname} ${lastname}`;
         document.getElementById('confirm-name').textContent = fullName;
         document.getElementById('confirm-email').textContent = email;
         document.getElementById('confirm-phone').textContent = phone;
-        document.getElementById('confirm-address').textContent = `${address}, ${city}, ${province} ${zipcode}, ${country}`;
+        document.getElementById('confirm-address').textContent = fullAddress;
 
         // Payment method
         const ewallet = document.getElementById("ewallet-radio").checked;
@@ -739,6 +800,8 @@ $(document).ready(function() {
         const cod = document.getElementById("COD-radio").checked;
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
+        const preferredDateInput = document.querySelector("input[name='preferred_installation_date']");
+        const preferredDate = preferredDateInput ? preferredDateInput.value : '';
 
         // Validate payment method
         if (!ewallet && !cod) {
@@ -749,6 +812,15 @@ $(document).ready(function() {
         // Validate terms acceptance
         if (!termsAccepted) {
             alert("Please accept the Terms and Conditions to proceed.");
+            return;
+        }
+
+        // Validate Preferred Installation Date
+        if (!preferredDate) {
+            alert("Please select a Preferred Installation Date. This field is required.");
+            if (preferredDateInput) {
+                preferredDateInput.focus();
+            }
             return;
         }
 
@@ -776,36 +848,39 @@ $(document).ready(function() {
         formData.append('selected_cart_ids', SELECTED_CART_IDS);
         
         // Ensure all required address fields are included
-        if (!formData.has('address') || !formData.get('address')) {
-            const addressInput = form.querySelector("input[name='address']");
-            if (addressInput) formData.append('address', addressInput.value || '');
-        }
-        if (!formData.has('city') || !formData.get('city')) {
-            const cityInput = form.querySelector("input[name='city']");
-            if (cityInput) formData.append('city', cityInput.value || '');
-        }
-        if (!formData.has('province') || !formData.get('province')) {
-            const provinceInput = form.querySelector("input[name='province']");
-            if (provinceInput) formData.append('province', provinceInput.value || '');
-        }
-        if (!formData.has('country') || !formData.get('country')) {
-            const countryInput = form.querySelector("input[name='country']");
-            if (countryInput) formData.append('country', countryInput.value || '');
-        }
-        if (!formData.has('zipcode') || !formData.get('zipcode')) {
-            const zipcodeInput = form.querySelector("input[name='zipcode']");
-            if (zipcodeInput) formData.append('zipcode', zipcodeInput.value || '');
-        }
-        if (!formData.has('note') || !formData.get('note')) {
-            const noteInput = form.querySelector("textarea[name='note']");
-            if (noteInput) formData.append('note', noteInput.value || '');
-        }
-        // Add preferred installation date
-        if (!formData.has('preferred_installation_date')) {
-            const preferredDateInput = form.querySelector("input[name='preferred_installation_date']");
-            if (preferredDateInput && preferredDateInput.value) {
-                formData.append('preferred_installation_date', preferredDateInput.value);
+        const addressFields = [
+            'unit_house_number', 'street', 'subdivision', 'barangay',
+            'city', 'province', 'region', 'country', 'zipcode', 'note'
+        ];
+        
+        addressFields.forEach(fieldName => {
+            const input = form.querySelector(`input[name='${fieldName}'], textarea[name='${fieldName}']`);
+            if (input && !formData.has(fieldName)) {
+                formData.append(fieldName, input.value || '');
             }
+        });
+        
+        // Build AddressLine from components for backward compatibility
+        const unitHouse = form.querySelector("input[name='unit_house_number']")?.value || '';
+        const street = form.querySelector("input[name='street']")?.value || '';
+        const subdivision = form.querySelector("input[name='subdivision']")?.value || '';
+        const addressParts = [unitHouse, street, subdivision].filter(Boolean);
+        if (addressParts.length > 0) {
+            formData.append('address', addressParts.join(', '));
+            formData.append('AddressLine', addressParts.join(', '));
+        }
+        
+        // Add preferred installation date (required)
+        const preferredDateInput = form.querySelector("input[name='preferred_installation_date']");
+        if (preferredDateInput) {
+            if (!preferredDateInput.value) {
+                alert("Preferred Installation Date is required. Please select a date.");
+                preferredDateInput.focus();
+                btn.disabled = false;
+                btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
+                return;
+            }
+            formData.append('preferred_installation_date', preferredDateInput.value);
         }
 
         // Disable button and show loading state

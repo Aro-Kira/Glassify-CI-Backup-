@@ -276,4 +276,30 @@ class User_model extends CI_Model
         $this->db->where('UserID', $userID);
         return $this->db->update($this->addressTable, $data);
     }
+
+    // ====================================
+    // GET DEFAULT ADDRESS
+    // ====================================
+    public function get_default_address($userID)
+    {
+        $this->db->where('UserID', $userID);
+        $this->db->where('IsDefault', 1);
+        $result = $this->db->get($this->addressTable)->row();
+        
+        // If no default, get first shipping address
+        if (!$result) {
+            $this->db->where('UserID', $userID);
+            $this->db->where('AddressType', 'Shipping');
+            $result = $this->db->get($this->addressTable)->row();
+        }
+        
+        // If still no result, get first available address
+        if (!$result) {
+            $this->db->where('UserID', $userID);
+            $this->db->limit(1);
+            $result = $this->db->get($this->addressTable)->row();
+        }
+        
+        return $result;
+    }
 }

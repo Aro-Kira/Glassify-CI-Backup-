@@ -31,9 +31,26 @@
 
                     <label for="address">Address</label>
                     <div class="input-group">
-                        <input type="text" id="address" name="address" readonly
-                            value="<?= isset($addresses['Shipping']) ? $addresses['Shipping']->AddressLine : '' ?>"
-                            placeholder="Select an address">
+                        <?php
+                        $fullAddress = '';
+                        if (isset($addresses['Shipping']) && $addresses['Shipping']) {
+                            $addr = $addresses['Shipping'];
+                            $addressParts = array_filter([
+                                $addr->UnitHouseNumber ?? '',
+                                $addr->Street ?? '',
+                                $addr->Subdivision ?? '',
+                                $addr->Barangay ?? '',
+                                $addr->City ?? '',
+                                $addr->Province ?? '',
+                                $addr->Region ?? '',
+                                $addr->Country ?? 'Philippines',
+                                $addr->ZipCode ?? ''
+                            ]);
+                            $fullAddress = !empty($addressParts) ? implode(', ', $addressParts) : ($addr->AddressLine ?? '');
+                        }
+                        ?>
+                        <textarea id="address" name="address" readonly rows="3" 
+                            placeholder="Select an address" style="resize: vertical; min-height: 60px;"><?= htmlspecialchars($fullAddress) ?></textarea>
                         <button type="button" id="chooseAddressBtn" title="Select address">
                             <!-- Location Pin Icon SVG -->
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
@@ -403,6 +420,9 @@
                 const addressText = $(this).data("address");
                 $("#address").val(addressText);
                 modal.removeClass("show").fadeOut(200);
+                
+                // Trigger change event to enable save button
+                $("#address").trigger('change');
             });
 
             // ========= EDIT ADDRESS =========
