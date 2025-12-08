@@ -198,26 +198,115 @@ class Order_model extends CI_Model
      */
     public function update_payment_status($order_id, $status)
     {
-        $this->db->trans_start();
-        
-        // Update order table
-        $result = $this->db->where('OrderID', $order_id)
-                        ->update('order', ['PaymentStatus' => $status]);
-        
-        // Update payment table
-        $this->db->where('OrderID', $order_id);
-        $this->db->update('payment', [
-            'Status' => $status,
-            'Payment_Date' => date('Y-m-d H:i:s')
-        ]);
-        
-        $this->db->trans_complete();
-        
-        if ($this->db->trans_status() === FALSE) {
+        // Validate status value
+        $valid_statuses = ['Pending', 'Paid', 'Failed', 'Refunded'];
+        if (!in_array($status, $valid_statuses)) {
+            log_message('error', 'Invalid payment status: ' . $status . ' for OrderID: ' . $order_id);
             return false;
         }
         
-        return $result;
+        // Make sure no transaction is already active
+        if ($this->db->trans_status() !== FALSE) {
+            $this->db->trans_rollback();
+        }
+        
+        $this->db->trans_start();
+        
+        try {
+            // First, verify the order exists
+            $this->db->where('OrderID', $order_id);
+            $order_exists = $this->db->get('`order`')->row();
+            
+            if (!$order_exists) {
+                log_message('error', 'Order not found: OrderID ' . $order_id);
+                $this->db->trans_rollback();
+                return false;
+            }
+            
+            // Update order table
+            $this->db->where('OrderID', $order_id);
+            $result = $this->db->update('`order`', ['PaymentStatus' => $status]);
+            
+            if (!$result) {
+                $error = $this->db->error();
+                log_message('error', 'Failed to update order PaymentStatus: ' . ($error['message'] ?? 'Unknown error'));
+                $this->db->trans_rollback();
+                return false;
+            }
+            
+            // Check if payment record exists
+            $this->db->where('OrderID', $order_id);
+            $existing_payment = $this->db->get('payment')->row();
+            
+            if ($existing_payment) {
+                // Update existing payment record
+                $this->db->where('OrderID', $order_id);
+                $payment_update = $this->db->update('payment', [
+                    'Status' => $status,
+                    'Payment_Date' => date('Y-m-d H:i:s')
+                ]);
+                
+                if (!$payment_update) {
+                    $error = $this->db->error();
+                    log_message('error', 'Failed to update payment Status: ' . ($error['message'] ?? 'Unknown error'));
+                    $this->db->trans_rollback();
+                    return false;
+                }
+            } else {
+                // Create payment record if it doesn't exist
+                // Get order details to populate payment record
+                $order = $this->get_order_with_customer($order_id);
+                if ($order) {
+                    // Get customer name
+                    $customer_name = trim(($order->First_Name ?? '') . ' ' . ($order->Last_Name ?? ''));
+                    
+                    // Get product name from order items
+                    $order_items = $this->get_order_customizations($order_id);
+                    $product_name = '';
+                    if (!empty($order_items)) {
+                        $product_name = $order_items[0]->ProductName ?? '';
+                    }
+                    
+                    // Create payment record
+                    $payment_data = [
+                        'OrderID' => $order_id,
+                        'Amount' => $order->TotalAmount ?? 0,
+                        'Status' => $status,
+                        'Payment_Date' => date('Y-m-d H:i:s'),
+                        'CustomerName' => $customer_name,
+                        'ProductName' => $product_name,
+                        'PaymentMethod' => $order->PaymentMethod ?? 'E-Wallet'
+                    ];
+                    
+                    $payment_insert = $this->db->insert('payment', $payment_data);
+                    
+                    if (!$payment_insert) {
+                        $error = $this->db->error();
+                        log_message('error', 'Failed to insert payment record: ' . ($error['message'] ?? 'Unknown error'));
+                        $this->db->trans_rollback();
+                        return false;
+                    }
+                } else {
+                    log_message('warning', 'Could not get order details for OrderID: ' . $order_id . ' - payment record not created');
+                    // Don't fail the transaction if we can't create payment record, but log it
+                }
+            }
+            
+            $this->db->trans_complete();
+            
+            if ($this->db->trans_status() === FALSE) {
+                $error = $this->db->error();
+                log_message('error', 'Transaction failed: ' . ($error['message'] ?? 'Unknown error'));
+                return false;
+            }
+            
+            return true;
+        } catch (Exception $e) {
+            log_message('error', 'Exception in update_payment_status: ' . $e->getMessage());
+            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
+            $this->db->trans_rollback();
+            return false;
+        }
     }
 
     /**
@@ -625,6 +714,7 @@ class Order_model extends CI_Model
     {
         $this->db->select('
             o.OrderID,
+            o.OrderNumber,
             o.Status,
             o.OrderDate,
             p.ProductName
@@ -648,6 +738,7 @@ class Order_model extends CI_Model
     {
         $this->db->select('
             o.OrderID,
+            o.OrderNumber,
             o.OrderDate,
             o.Status,
             o.PaymentStatus,
@@ -674,6 +765,7 @@ class Order_model extends CI_Model
     {
         $this->db->select('
             o.OrderID,
+            o.OrderNumber,
             o.Status,
             o.OrderDate,
             p.ProductName

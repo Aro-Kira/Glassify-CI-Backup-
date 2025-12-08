@@ -58,17 +58,56 @@
           foreach ($orders as $order): 
             $customer_name = trim(($order->First_Name ?? '') . ' ' . ($order->Last_Name ?? ''));
             $customer_name = $customer_name ?: 'N/A';
-            $order_id_formatted = '#' . $order->OrderID;
-            // Get payment status and method from payment table if available, otherwise from approved_orders
-            $payment_status = isset($order->PaymentStatus) && !empty($order->PaymentStatus) ? $order->PaymentStatus : ($order->PaymentStatus ?? 'Pending');
+            $order_id_formatted = '#' . ($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT));
+            // Get payment status from payment table if available, otherwise from order table
+            // Priority: payment.Status > order.PaymentStatus > 'Pending'
+            $payment_status = 'Pending';
+            if (isset($order->PaymentStatus) && !empty($order->PaymentStatus)) {
+                $payment_status = $order->PaymentStatus;
+            }
+            
+            // Only override status if it's not already 'Paid' or 'Complete'
+            // Determine if status should be "Under Review" (has receipt but not paid)
+            if (($payment_status === 'Pending' || $payment_status === '') && !empty($order->ReceiptPath)) {
+                $payment_status = 'Under Review';
+            }
+            
+            // Determine if overdue (more than 7 days since approval and still pending/under review)
+            // Only check overdue if status is not already 'Paid' or 'Complete'
+            $is_overdue = false;
+            if (($payment_status === 'Pending' || $payment_status === 'Under Review' || $payment_status === '') && $order->Approved_Date) {
+                $approved_date = strtotime($order->Approved_Date);
+                $days_since = (time() - $approved_date) / (60 * 60 * 24);
+                if ($days_since > 7) {
+                    $is_overdue = true;
+                    $payment_status = 'Overdue';
+                }
+            }
+            
+            // Get payment method from payment table if available, otherwise from order table
             $payment_method = isset($order->PaymentMethod) && !empty($order->PaymentMethod) ? $order->PaymentMethod : ($order->PaymentMethod ?? 'Not Selected');
-            $approved_date = $order->Approved_Date ? date('d/m/Y', strtotime($order->Approved_Date)) : date('d/m/Y', strtotime($order->OrderDate));
+            
+            // If payment method is not set but receipt exists, it's E-Wallet
+            if (empty($payment_method) || $payment_method === 'Not Selected') {
+                if (!empty($order->ReceiptPath)) {
+                    $payment_method = 'E-Wallet';
+                }
+            }
+            
+            // Use Approved_Date if available, otherwise OrderDate, or payment date
+            $display_date = $order->Approved_Date ?? $order->OrderDate;
+            if (empty($display_date) && !empty($order->Payment_Date)) {
+                $display_date = $order->Payment_Date;
+            }
+            $approved_date = $display_date ? date('d/m/Y', strtotime($display_date)) : date('d/m/Y');
         ?>
         <tr data-order-id="<?php echo $order->OrderID; ?>" 
             data-price="<?php echo isset($order->PaymentAmount) ? $order->PaymentAmount : $order->TotalQuotation; ?>" 
-            data-payment-method="<?php echo htmlspecialchars(isset($order->PaymentMethod) ? $order->PaymentMethod : $payment_method); ?>"
+            data-payment-method="<?php echo htmlspecialchars($payment_method); ?>"
             data-product-image="<?php echo htmlspecialchars($order->ProductImage ?? ''); ?>"
-            data-payment-id="<?php echo isset($order->Payment_ID) ? $order->Payment_ID : ''; ?>">
+            data-payment-id="<?php echo isset($order->Payment_ID) ? $order->Payment_ID : ''; ?>"
+            data-payment-status="<?php echo strtolower($payment_status); ?>"
+            data-receipt-path="<?php echo htmlspecialchars($order->ReceiptPath ?? ''); ?>">
           <td><?php echo $row_num++; ?></td>
           <td><?php echo $order_id_formatted; ?></td>
           <td><?php echo $customer_name; ?></td>
@@ -87,6 +126,10 @@
             $status_class = strtolower($payment_status);
             if ($status_class === 'paid') {
               echo '<span class="status-badge paid">Paid</span>';
+            } elseif ($status_class === 'overdue') {
+              echo '<span class="status-badge overdue">Overdue</span>';
+            } elseif ($status_class === 'under review') {
+              echo '<span class="status-badge review">Under Review</span>';
             } elseif ($status_class === 'failed') {
               echo '<span class="status-badge overdue">Failed</span>';
             } else {
@@ -129,9 +172,10 @@
     <span class="close-btn" id="closePopup">&times;</span>
     <h3>Order ID: <span id="popupOrderId">#</span></h3>
 
-    <!-- Image Preview -->
+    <!-- Receipt Image Preview -->
     <div class="form-group">
       <div class="image-preview">
+        <img id="popupReceiptImage" src="" alt="Payment Receipt" style="display: none; max-width: 100%; max-height: 400px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
         <img id="popupProductImage" src="" alt="Product Image" style="display: none;">
       </div>
     </div>

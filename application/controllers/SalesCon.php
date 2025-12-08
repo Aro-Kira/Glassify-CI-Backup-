@@ -150,8 +150,96 @@ class SalesCon extends CI_Controller
         $this->db->limit(10); // Get last 10 activities
         $recent_activities = $this->db->get()->result();
         
-        // If no activities in log, generate from existing data
-        if (empty($recent_activities)) {
+        // Process activities to ensure UserName is not null/empty
+        if (!empty($recent_activities)) {
+            foreach ($recent_activities as $activity) {
+                // If UserName is null or empty, try to get customer name
+                if (empty($activity->UserName)) {
+                    $customer_name = null;
+                    
+                    // If Role is Client or Customer, try to get customer name from order
+                    if (($activity->Role === 'Client' || $activity->Role === 'Customer') && !empty($activity->RelatedID) && $activity->RelatedType === 'Order') {
+                        // Get customer name from order
+                        $this->db->select('u.First_Name, u.Last_Name');
+                        $this->db->from('`order` o');
+                        $this->db->join('customer c', 'c.Customer_ID = o.Customer_ID', 'left');
+                        $this->db->join('user u', 'u.UserID = c.UserID', 'left');
+                        $this->db->where('o.OrderID', $activity->RelatedID);
+                        $order_customer = $this->db->get()->row();
+                        
+                        if ($order_customer) {
+                            $first_name = trim($order_customer->First_Name ?? '');
+                            $last_name = trim($order_customer->Last_Name ?? '');
+                            if (!empty($last_name)) {
+                                $customer_name = $last_name;
+                                if (!empty($first_name)) {
+                                    $customer_name = $first_name . ' ' . $last_name;
+                                }
+                            } elseif (!empty($first_name)) {
+                                $customer_name = $first_name;
+                            }
+                        }
+                    }
+                    
+                    // If still no customer name and UserID exists, try to get from user table
+                    if (empty($customer_name) && !empty($activity->UserID)) {
+                        // Check if user is a customer
+                        $this->db->select('u.First_Name, u.Last_Name, u.Role');
+                        $this->db->from('user u');
+                        $this->db->where('u.UserID', $activity->UserID);
+                        $user = $this->db->get()->row();
+                        
+                        if ($user) {
+                            // If it's a customer, get name from customer table
+                            if ($user->Role === 'Customer') {
+                                $this->db->select('u.First_Name, u.Last_Name');
+                                $this->db->from('customer c');
+                                $this->db->join('user u', 'u.UserID = c.UserID', 'left');
+                                $this->db->where('c.UserID', $activity->UserID);
+                                $customer = $this->db->get()->row();
+                                
+                                if ($customer) {
+                                    $first_name = trim($customer->First_Name ?? '');
+                                    $last_name = trim($customer->Last_Name ?? '');
+                                    if (!empty($last_name)) {
+                                        $customer_name = $last_name;
+                                        if (!empty($first_name)) {
+                                            $customer_name = $first_name . ' ' . $last_name;
+                                        }
+                                    } elseif (!empty($first_name)) {
+                                        $customer_name = $first_name;
+                                    }
+                                }
+                            } else {
+                                // For non-customers, use user table directly
+                                $first_name = trim($user->First_Name ?? '');
+                                $last_name = trim($user->Last_Name ?? '');
+                                if (!empty($last_name)) {
+                                    $customer_name = $last_name;
+                                    if (!empty($first_name)) {
+                                        $customer_name = $first_name . ' ' . $last_name;
+                                    }
+                                } elseif (!empty($first_name)) {
+                                    $customer_name = $first_name;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Set the UserName based on what we found
+                    if (!empty($customer_name)) {
+                        $activity->UserName = $customer_name;
+                    } elseif ($activity->Role === 'System') {
+                        $activity->UserName = 'System';
+                    } elseif ($activity->Role === 'Client' || $activity->Role === 'Customer') {
+                        $activity->UserName = 'Customer';
+                    } else {
+                        $activity->UserName = 'User';
+                    }
+                }
+            }
+        } else {
+            // If no activities in log, generate from existing data
             $recent_activities = $this->generate_recent_activities($sales_rep_id);
         }
         
@@ -181,6 +269,20 @@ class SalesCon extends CI_Controller
         try {
             // Check if system_activity_log table exists before inserting
             if ($this->db->table_exists('system_activity_log')) {
+                // Truncate action to 50 characters if needed (database constraint)
+                $action = substr($action, 0, 50);
+                
+                // Verify UserID exists if provided (to avoid foreign key constraint errors)
+                if ($user_id !== null) {
+                    $this->db->select('UserID');
+                    $this->db->where('UserID', $user_id);
+                    $user_exists = $this->db->get('user')->row();
+                    if (!$user_exists) {
+                        log_message('warning', 'UserID ' . $user_id . ' does not exist in user table. Setting to NULL.');
+                        $user_id = null;
+                    }
+                }
+                
                 $data = [
                     'Action' => $action,
                     'Description' => $description,
@@ -193,13 +295,24 @@ class SalesCon extends CI_Controller
                 ];
                 
                 $this->db->insert('system_activity_log', $data);
+                
+                // Check for insert errors
+                if ($this->db->affected_rows() === 0) {
+                    $error = $this->db->error();
+                    log_message('error', 'Failed to insert into system_activity_log: ' . ($error['message'] ?? 'Unknown error'));
+                }
             }
             
             // Also create notification in sales_notif table
             if ($this->db->table_exists('sales_notif')) {
-                $icon = $this->determine_notification_icon($action, $description);
-                $notification_description = $action . ': ' . $description;
-                $this->add_sales_notification($icon, $role, $notification_description, 'Unread', $related_id, $related_type);
+                try {
+                    $icon = $this->determine_notification_icon($action, $description);
+                    $notification_description = $action . ': ' . $description;
+                    $this->add_sales_notification($icon, $role, $notification_description, 'Unread', $related_id, $related_type);
+                } catch (Exception $notif_error) {
+                    // Log error but don't throw - notification failure shouldn't break the main operation
+                    log_message('error', 'Failed to add sales notification: ' . $notif_error->getMessage());
+                }
             }
         } catch (Exception $e) {
             // Log error but don't throw exception
@@ -252,69 +365,105 @@ class SalesCon extends CI_Controller
     {
         $activities = [];
         
-        // Get recent orders from unified order table
-        $this->db->select('o.OrderID, o.OrderDate, o.Customer_ID');
+        // Get recent orders from unified order table with customer info
+        $this->db->select('o.OrderID, o.OrderNumber, o.OrderDate, o.Created_Date, o.Customer_ID, u.First_Name, u.Last_Name');
         $this->db->from('`order` o');
+        $this->db->join('customer c', 'c.Customer_ID = o.Customer_ID', 'left');
+        $this->db->join('user u', 'u.UserID = c.UserID', 'left');
         $this->db->where('o.SalesRep_ID', $sales_rep_id);
         $this->db->where('o.Status', 'Pending Review');
-        $this->db->order_by('o.OrderDate', 'DESC');
+        $this->db->order_by('o.Created_Date', 'DESC');
         $this->db->limit(3);
         $recent_orders = $this->db->get()->result();
         
         foreach ($recent_orders as $order) {
-            // Get customer name via customer table
-            $this->db->select('u.First_Name, u.Last_Name');
-            $this->db->from('customer c');
-            $this->db->join('user u', 'u.UserID = c.UserID', 'left');
-            $this->db->where('c.Customer_ID', $order->Customer_ID);
-            $customer = $this->db->get()->row();
-            $customer_name = ($customer ? trim($customer->First_Name . ' ' . $customer->Last_Name) : 'Customer') ?: 'Customer';
+            // Build customer name with proper fallbacks
+            $first_name = trim($order->First_Name ?? '');
+            $last_name = trim($order->Last_Name ?? '');
             
-            $order_id_formatted = '#' . $order->OrderID;
+            // Use last name if available, otherwise first name, otherwise 'Customer'
+            if (!empty($last_name)) {
+                $customer_name = $last_name;
+                if (!empty($first_name)) {
+                    $customer_name = $first_name . ' ' . $last_name;
+                }
+            } elseif (!empty($first_name)) {
+                $customer_name = $first_name;
+            } else {
+                $customer_name = 'Customer';
+            }
+            
+            // Format Order ID using OrderNumber if available
+            $order_id_formatted = '#' . ($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT));
+            
+            // Use Created_Date for more accurate timestamp, fallback to OrderDate
+            $timestamp = !empty($order->Created_Date) ? $order->Created_Date : $order->OrderDate;
+            
             $activities[] = (object)[
                 'Action' => 'Info',
                 'Description' => "New order created ({$order_id_formatted})",
                 'Role' => 'Client',
                 'UserName' => $customer_name,
-                'Timestamp' => $order->OrderDate
+                'Timestamp' => $timestamp
             ];
         }
         
         // Get recent inventory warnings (low stock items)
-        $this->db->select('Name, InStock, DateAdded');
+        $this->db->select('Name, InStock, DateAdded, Updated_Date');
         $this->db->from('inventory_items');
         $this->db->where('InStock >', 0);
         $this->db->where('InStock <=', 10);
-        $this->db->order_by('DateAdded', 'DESC');
+        $this->db->order_by('Updated_Date', 'DESC');
         $this->db->limit(2);
         $low_stock_items = $this->db->get()->result();
         
         foreach ($low_stock_items as $item) {
+            // Use Updated_Date for more accurate timestamp, fallback to DateAdded
+            $timestamp = !empty($item->Updated_Date) ? $item->Updated_Date : $item->DateAdded;
+            
             $activities[] = (object)[
                 'Action' => 'Warning',
                 'Description' => "Stock running low: {$item->Name}",
                 'Role' => 'System',
                 'UserName' => 'System',
-                'Timestamp' => $item->DateAdded
+                'Timestamp' => $timestamp
             ];
         }
         
         // Get recent high priority issues
-        $this->db->select('Category, Report_Date, First_Name, Last_Name');
+        $this->db->select('Category, Report_Date, Created_Date, First_Name, Last_Name');
         $this->db->from('issuereport');
         $this->db->where('Priority', 'High');
-        $this->db->order_by('Report_Date', 'DESC');
+        $this->db->order_by('Created_Date', 'DESC');
         $this->db->limit(2);
         $recent_issues = $this->db->get()->result();
         
         foreach ($recent_issues as $issue) {
-            $customer_name = trim($issue->First_Name . ' ' . $issue->Last_Name);
+            // Build customer name with proper fallbacks
+            $first_name = trim($issue->First_Name ?? '');
+            $last_name = trim($issue->Last_Name ?? '');
+            
+            // Use last name if available, otherwise first name, otherwise 'Customer'
+            if (!empty($last_name)) {
+                $customer_name = $last_name;
+                if (!empty($first_name)) {
+                    $customer_name = $first_name . ' ' . $last_name;
+                }
+            } elseif (!empty($first_name)) {
+                $customer_name = $first_name;
+            } else {
+                $customer_name = 'Customer';
+            }
+            
+            // Use Created_Date for more accurate timestamp, fallback to Report_Date
+            $timestamp = !empty($issue->Created_Date) ? $issue->Created_Date : $issue->Report_Date;
+            
             $activities[] = (object)[
                 'Action' => 'Error',
                 'Description' => "High priority issue: {$issue->Category}",
                 'Role' => 'Client',
-                'UserName' => $customer_name ?: 'Customer',
-                'Timestamp' => $issue->Report_Date
+                'UserName' => $customer_name,
+                'Timestamp' => $timestamp
             ];
         }
         
@@ -354,6 +503,7 @@ class SalesCon extends CI_Controller
             payment.Amount as PaymentAmount,
             payment.Payment_Date,
             payment.Transaction_ID,
+            payment.ReceiptPath,
             payment.Status as PaymentStatus,
             payment.CustomerName as PaymentCustomerName,
             payment.ProductName as PaymentProductName,
@@ -366,12 +516,15 @@ class SalesCon extends CI_Controller
         $this->db->join('product', 'product.Product_ID = oi.Product_ID', 'left');
         $this->db->join('payment', 'payment.OrderID = o.OrderID', 'left');
         $this->db->where('o.SalesRep_ID', $sales_rep_id);
-        $this->db->where('o.Status', 'Approved');
-        $this->db->order_by('o.Approved_Date', 'DESC');
+        // Show orders that are Approved OR have a payment record with receipt (E-Wallet orders)
+        // This allows E-Wallet orders with receipts to show even if not yet approved
+        $this->db->where("(o.Status = 'Approved' OR (payment.ReceiptPath IS NOT NULL AND payment.ReceiptPath != ''))", NULL, FALSE);
+        // Order by Approved_Date if available, otherwise OrderDate
+        $this->db->order_by("COALESCE(o.Approved_Date, o.OrderDate)", 'DESC', FALSE);
         $this->db->group_by('o.OrderID'); // Group to avoid duplicates from multiple order_items
         $orders = $this->db->get()->result();
         
-        // Calculate weekly sales (last 7 days)
+        // Calculate weekly sales (last 7 days) - only from approved orders
         $week_start = date('Y-m-d', strtotime('-7 days'));
         $this->db->select_sum('TotalAmount');
         $this->db->from('`order`');
@@ -381,15 +534,25 @@ class SalesCon extends CI_Controller
         $weekly_sales_result = $this->db->get()->row();
         $weekly_sales = $weekly_sales_result->TotalAmount ?? 0;
         
-        // Count pending and overdue payments
+        // Count pending, under review, and overdue payments
         $pending_count = 0;
         $overdue_count = 0;
         foreach ($orders as $order) {
-            if ($order->PaymentStatus === 'Pending') {
+            // Get payment status from payment table if available, otherwise from order table
+            $payment_status = $order->PaymentStatus ?? 'Pending';
+            
+            // Determine if status should be "Under Review" (has receipt but not paid)
+            if ($payment_status === 'Pending' && !empty($order->ReceiptPath)) {
+                $payment_status = 'Under Review';
+            }
+            
+            // Count pending (excluding under review)
+            if ($payment_status === 'Pending') {
                 $pending_count++;
             }
-            // Check if overdue (more than 7 days since approval and still pending)
-            if ($order->PaymentStatus === 'Pending' && $order->Approved_Date) {
+            
+            // Check if overdue (more than 7 days since approval and still pending/under review)
+            if (($payment_status === 'Pending' || $payment_status === 'Under Review') && $order->Approved_Date) {
                 $approved_date = strtotime($order->Approved_Date);
                 $days_since = (time() - $approved_date) / (60 * 60 * 24);
                 if ($days_since > 7) {
@@ -1127,12 +1290,7 @@ class SalesCon extends CI_Controller
             ];
         }
         
-        // Count unread notifications
-        $this->db->where('Status', 'Unread');
-        $unread_count = $this->db->count_all_results('sales_notif');
-        
         $data['notifications'] = $all_notifications;
-        $data['unread_count'] = $unread_count;
         $data['title'] = "Glassify - Notifications";
         $data['active'] = 'notif';
         $data['content_view'] = 'sales_page/sales_notif';
@@ -1153,18 +1311,30 @@ class SalesCon extends CI_Controller
      */
     public function add_sales_notification($icon, $role, $description, $status = 'Unread', $related_id = null, $related_type = null)
     {
-        $data = [
-            'Icon' => $icon,
-            'Role' => $role,
-            'Description' => $description,
-            'Status' => $status,
-            'RelatedID' => $related_id,
-            'RelatedType' => $related_type,
-            'Created_Date' => date('Y-m-d H:i:s')
-        ];
-        
-        $this->db->insert('sales_notif', $data);
-        return $this->db->insert_id();
+        try {
+            $data = [
+                'Icon' => $icon,
+                'Role' => $role,
+                'Description' => $description,
+                'Status' => $status,
+                'RelatedID' => $related_id,
+                'RelatedType' => $related_type,
+                'Created_Date' => date('Y-m-d H:i:s')
+            ];
+            
+            $this->db->insert('sales_notif', $data);
+            
+            if ($this->db->affected_rows() > 0) {
+                return $this->db->insert_id();
+            } else {
+                $error = $this->db->error();
+                log_message('error', 'Failed to insert sales notification: ' . ($error['message'] ?? 'Unknown error'));
+                return false;
+            }
+        } catch (Exception $e) {
+            log_message('error', 'Exception in add_sales_notification: ' . $e->getMessage());
+            return false;
+        }
     }
     
     /**
@@ -1694,7 +1864,8 @@ class SalesCon extends CI_Controller
                         'product_name' => $order->ProductName ?? 'N/A',
                         'product_image' => $product ? ($product->ImageUrl ?? '') : '',
                         'amount' => $order->TotalAmount,
-                        'payment_method' => $order->PaymentMethod ?? 'Not Selected'
+                        'payment_method' => $order->PaymentMethod ?? 'Not Selected',
+                        'receipt_path' => '' // No receipt if payment record doesn't exist
                     ]
                 ]);
                 return;
@@ -1712,7 +1883,8 @@ class SalesCon extends CI_Controller
                     'product_name' => $payment->ProductName ?? '',
                     'product_image' => $product ? ($product->ImageUrl ?? '') : '',
                     'amount' => $payment->Amount,
-                    'payment_method' => $payment->PaymentMethod ?? 'Not Selected'
+                    'payment_method' => $payment->PaymentMethod ?? 'Not Selected',
+                    'receipt_path' => $payment->ReceiptPath ?? ''
                 ]
             ]);
         } catch (Exception $e) {
@@ -1727,63 +1899,158 @@ class SalesCon extends CI_Controller
      */
     public function mark_payment_paid()
     {
-        // Set JSON header
+        // Set JSON header first
         header('Content-Type: application/json');
         
-        // Check authentication
-        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Sales Representative') {
-            echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
-            return;
+        // Enable error reporting for debugging (only in development)
+        if (ENVIRONMENT === 'development') {
+            error_reporting(E_ALL);
+            ini_set('display_errors', 0); // Don't display, but log
         }
         
-        $sales_rep_id = $this->get_current_sales_rep_id();
-        $order_id = $this->input->post('order_id');
-        
-        if (!$sales_rep_id) {
-            echo json_encode(['success' => false, 'message' => 'Sales representative ID not found. Please log in again.']);
-            return;
-        }
-        
-        if (!$order_id) {
-            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
-            return;
-        }
+        // Set up error handler to catch any fatal errors
+        register_shutdown_function(function() {
+            $error = error_get_last();
+            if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+                log_message('error', 'Fatal error in mark_payment_paid: ' . $error['message'] . ' in ' . $error['file'] . ' on line ' . $error['line']);
+                if (!headers_sent()) {
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false, 
+                        'message' => 'Fatal error: ' . $error['message'] . ' (Check logs for details)',
+                        'error_file' => basename($error['file']),
+                        'error_line' => $error['line']
+                    ]);
+                }
+            }
+        });
         
         try {
-            // Remove # prefix and extract numeric part
-            $order_id_clean = str_replace(['#GI', '#'], '', $order_id);
-            $order_id_clean = str_replace('GI', '', $order_id_clean);
-            $order_id_numeric = ltrim($order_id_clean, '0');
-            if (empty($order_id_numeric)) {
-                $order_id_numeric = 1;
+            // Check authentication
+            if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Sales Representative') {
+                echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+                return;
             }
-            $order_id_numeric = (int)$order_id_numeric;
             
-            // Start transaction
-            $this->db->trans_start();
+            $sales_rep_id = $this->get_current_sales_rep_id();
+            $order_id = $this->input->post('order_id');
+            
+            if (!$sales_rep_id) {
+                echo json_encode(['success' => false, 'message' => 'Sales representative ID not found. Please log in again.']);
+                return;
+            }
+            
+            if (!$order_id) {
+                echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+                return;
+            }
+            
+            // Log the attempt
+            log_message('info', 'mark_payment_paid called: order_id=' . $order_id . ', sales_rep_id=' . $sales_rep_id);
+            // Remove # prefix and handle both numeric and GI format
+            $order_id_clean = str_replace(['#GI', '#'], '', $order_id);
+            $order_id_clean = trim($order_id_clean);
+            
+            // Try to find order by OrderNumber first (if it's in GI format)
+            $order = null;
+            $order_id_numeric = null;
+            
+            if (preg_match('/^GI\d+$/i', $order_id_clean)) {
+                // It's in GI format, look up by OrderNumber
+                $this->db->select('OrderID, Status, TotalAmount, PaymentMethod');
+                $this->db->where('OrderNumber', $order_id_clean);
+                $this->db->where('SalesRep_ID', $sales_rep_id);
+                $order = $this->db->get('`order`')->row();
+                if ($order) {
+                    $order_id_numeric = $order->OrderID;
+                }
+            }
+            
+            // If not found by OrderNumber, try numeric lookup
+            if (!$order) {
+                $order_id_clean_numeric = str_replace('GI', '', $order_id_clean);
+                $order_id_clean_numeric = ltrim($order_id_clean_numeric, '0');
+                if (empty($order_id_clean_numeric)) {
+                    $order_id_clean_numeric = 1;
+                }
+                $order_id_numeric = (int)$order_id_clean_numeric;
+                
+                // Verify order exists and belongs to this sales rep
+                $this->db->select('OrderID, Status, TotalAmount, PaymentMethod');
+                $this->db->where('OrderID', $order_id_numeric);
+                $this->db->where('SalesRep_ID', $sales_rep_id);
+                $order = $this->db->get('`order`')->row();
+            }
+            
+            if (!$order) {
+                throw new Exception('Order not found or does not belong to this sales representative');
+            }
+            
+            // Ensure we have the numeric OrderID
+            if (!$order_id_numeric) {
+                $order_id_numeric = $order->OrderID;
+            }
+            
+            // Generate order_id_string for logging (used later in the code)
+            $order_id_string = 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
             
             // Update payment status using Order_model transaction function
+            // Note: update_payment_status handles its own transaction
             $this->load->model('Order_model');
-            $update_result = $this->Order_model->update_payment_status($order_id_numeric, 'Paid');
             
-            if (!$update_result) {
-                $error = $this->db->error();
-                throw new Exception('Failed to update payment status: ' . $error['message']);
+            log_message('info', 'Attempting to update payment status for OrderID: ' . $order_id_numeric);
+            
+            try {
+                $update_result = $this->Order_model->update_payment_status($order_id_numeric, 'Paid');
+                
+                if (!$update_result) {
+                    $error = $this->db->error();
+                    $error_msg = $error['message'] ?? 'Unknown database error';
+                    $error_code = $error['code'] ?? 0;
+                    log_message('error', 'update_payment_status returned false. Error: ' . $error_msg . ' (Code: ' . $error_code . ')');
+                    log_message('error', 'Order ID: ' . $order_id_numeric . ', Sales Rep ID: ' . $sales_rep_id);
+                    
+                    // Check if it's a database error
+                    if ($this->db->trans_status() === FALSE) {
+                        $trans_error = $this->db->error();
+                        log_message('error', 'Transaction failed: ' . ($trans_error['message'] ?? 'Unknown transaction error'));
+                    }
+                    
+                    throw new Exception('Failed to update payment status: ' . $error_msg);
+                }
+                
+                log_message('info', 'Payment status updated successfully for OrderID: ' . $order_id_numeric);
+            } catch (Exception $update_error) {
+                log_message('error', 'Exception in update_payment_status: ' . $update_error->getMessage());
+                log_message('error', 'Stack trace: ' . $update_error->getTraceAsString());
+                log_message('error', 'File: ' . $update_error->getFile() . ', Line: ' . $update_error->getLine());
+                throw $update_error;
+            } catch (Error $update_error) {
+                log_message('error', 'Fatal error in update_payment_status: ' . $update_error->getMessage());
+                log_message('error', 'File: ' . $update_error->getFile() . ', Line: ' . $update_error->getLine());
+                throw new Exception('Fatal error updating payment status: ' . $update_error->getMessage());
             }
             
-            // Also update approved_orders table PaymentStatus if it exists
-            $order_id_string = 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
+            // Also update approved_orders table PaymentStatus if it exists and has the column
+            // Note: This is a legacy table and may not have PaymentStatus column
             if ($this->db->table_exists('approved_orders')) {
-                $this->db->where('OrderID', $order_id_string);
-                $this->db->where('SalesRep_ID', $sales_rep_id);
-                $update_approved = $this->db->update('approved_orders', [
-                    'PaymentStatus' => 'Paid'
-                ]);
-                
-                if (!$update_approved) {
-                    $error = $this->db->error();
-                    // Log warning but don't fail if approved_orders doesn't have the record
-                    log_message('warning', 'Failed to update approved_orders PaymentStatus for OrderID ' . $order_id_string . ': ' . $error['message']);
+                // Check if PaymentStatus column exists in approved_orders table
+                $columns = $this->db->list_fields('approved_orders');
+                if (in_array('PaymentStatus', $columns)) {
+                    $this->db->where('OrderID', $order_id_string);
+                    $this->db->where('SalesRep_ID', $sales_rep_id);
+                    $update_approved = $this->db->update('approved_orders', [
+                        'PaymentStatus' => 'Paid'
+                    ]);
+                    
+                    if (!$update_approved) {
+                        $error = $this->db->error();
+                        // Log warning but don't fail if approved_orders doesn't have the record
+                        log_message('warning', 'Failed to update approved_orders PaymentStatus for OrderID ' . $order_id_string . ': ' . $error['message']);
+                    }
+                } else {
+                    // Column doesn't exist, skip update (this is fine - approved_orders is legacy)
+                    log_message('debug', 'approved_orders table does not have PaymentStatus column - skipping update');
                 }
             }
             
@@ -1837,14 +2104,32 @@ class SalesCon extends CI_Controller
             }
             
             // Get sales rep name for logging
-            $sales_rep = $this->User_model->get_by_id($sales_rep_id);
-            $sales_rep_name = $sales_rep ? trim($sales_rep->First_Name . ' ' . $sales_rep->Last_Name) : 'Sales Representative';
+            $sales_rep_name = 'Sales Representative';
+            try {
+                $sales_rep = $this->User_model->get_by_id($sales_rep_id);
+                if ($sales_rep && isset($sales_rep->First_Name) && isset($sales_rep->Last_Name)) {
+                    $sales_rep_name = trim($sales_rep->First_Name . ' ' . $sales_rep->Last_Name);
+                } elseif ($sales_rep && isset($sales_rep->First_Name)) {
+                    $sales_rep_name = trim($sales_rep->First_Name);
+                } elseif ($sales_rep && isset($sales_rep->Last_Name)) {
+                    $sales_rep_name = trim($sales_rep->Last_Name);
+                }
+            } catch (Exception $user_error) {
+                log_message('error', 'Failed to get sales rep name: ' . $user_error->getMessage());
+            }
             
             // Get payment amount
-            $this->db->select('Amount');
-            $this->db->where('OrderID', $order_id_numeric);
-            $payment_info = $this->db->get('payment')->row();
-            $payment_amount = $payment_info ? $payment_info->Amount : 0;
+            $payment_amount = 0;
+            try {
+                $this->db->select('Amount');
+                $this->db->where('OrderID', $order_id_numeric);
+                $payment_info = $this->db->get('payment')->row();
+                $payment_amount = $payment_info ? (float)($payment_info->Amount ?? 0) : 0;
+            } catch (Exception $amount_error) {
+                log_message('error', 'Failed to get payment amount: ' . $amount_error->getMessage());
+                // Use order total as fallback
+                $payment_amount = isset($order->TotalAmount) ? (float)$order->TotalAmount : 0;
+            }
             
             // Log activity and create notification (wrap in try-catch to prevent failure)
             try {
@@ -1862,45 +2147,84 @@ class SalesCon extends CI_Controller
                 log_message('error', 'Failed to log activity for payment: ' . $log_error->getMessage());
             }
             
-            $this->db->trans_complete();
-            
-            if ($this->db->trans_status() === FALSE) {
-                $error = $this->db->error();
-                log_message('error', 'Failed to mark payment as paid. OrderID: ' . $order_id_numeric . ', Error: ' . json_encode($error));
-                echo json_encode(['success' => false, 'message' => 'Failed to update payment status: ' . $error['message']]);
-                return;
-            }
+            // Transaction is handled by update_payment_status, so we don't need to complete it here
+            // But we should check if there were any errors
             
             echo json_encode([
                 'success' => true,
                 'message' => 'Payment marked as paid successfully'
             ]);
         } catch (Exception $e) {
-            // Rollback transaction if it's still active
-            if ($this->db->trans_status() !== FALSE) {
-                $this->db->trans_rollback();
-            }
-            
+            // Log the error
             $error_message = $e->getMessage();
             $error_trace = $e->getTraceAsString();
+            $error_file = $e->getFile();
+            $error_line = $e->getLine();
             
             log_message('error', 'Error in mark_payment_paid: ' . $error_message);
+            log_message('error', 'File: ' . $error_file . ', Line: ' . $error_line);
             log_message('error', 'Stack trace: ' . $error_trace);
+            
+            // Check if there's an active transaction and rollback if needed
+            // Note: update_payment_status handles its own transaction, but we check just in case
+            if ($this->db->trans_status() !== FALSE) {
+                $this->db->trans_rollback();
+                log_message('error', 'Transaction rolled back');
+            }
+            
+            // Get database error if any
+            $db_error = $this->db->error();
+            if (!empty($db_error['message'])) {
+                log_message('error', 'Database error: ' . $db_error['message'] . ' (Code: ' . ($db_error['code'] ?? 'N/A') . ')');
+            }
             
             // Return detailed error in development, generic in production
             $message = (ENVIRONMENT === 'development') 
-                ? 'Server error: ' . $error_message 
+                ? 'Server error: ' . $error_message . ' (File: ' . basename($error_file) . ', Line: ' . $error_line . ')' 
                 : 'An error occurred while processing your request. Please try again.';
             
-            echo json_encode(['success' => false, 'message' => $message]);
+            // Log the full error details
+            log_message('error', 'mark_payment_paid error details: ' . json_encode([
+                'error_message' => $error_message,
+                'error_file' => $error_file,
+                'error_line' => $error_line,
+                'order_id' => $order_id ?? 'not set',
+                'sales_rep_id' => $sales_rep_id ?? 'not set',
+                'db_error' => $db_error,
+                'trace' => $error_trace ?? 'not available'
+            ]));
+            
+            // Return error with details for debugging
+            $response = [
+                'success' => false, 
+                'message' => $message,
+                'error_details' => (ENVIRONMENT === 'development') ? [
+                    'error' => $error_message,
+                    'file' => basename($error_file),
+                    'line' => $error_line,
+                    'db_error' => $db_error
+                ] : null
+            ];
+            
+            echo json_encode($response);
         } catch (Error $e) {
             // Catch PHP 7+ errors (fatal errors)
+            $error_message = $e->getMessage();
+            $error_trace = $e->getTraceAsString();
+            log_message('error', 'Fatal error in mark_payment_paid: ' . $error_message);
+            log_message('error', 'Stack trace: ' . $error_trace);
+            
+            // Check if there's an active transaction and rollback if needed
             if ($this->db->trans_status() !== FALSE) {
                 $this->db->trans_rollback();
             }
             
-            $error_message = $e->getMessage();
-            $error_trace = $e->getTraceAsString();
+            // Return error response
+            $message = (ENVIRONMENT === 'development') 
+                ? 'Fatal error: ' . $error_message 
+                : 'An error occurred while processing your request. Please try again.';
+            
+            echo json_encode(['success' => false, 'message' => $message]);
             
             log_message('error', 'Fatal error in mark_payment_paid: ' . $error_message);
             log_message('error', 'Stack trace: ' . $error_trace);

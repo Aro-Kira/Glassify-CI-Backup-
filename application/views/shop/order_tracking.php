@@ -6,7 +6,7 @@
         <!-- Title -->
         <section class="order-header">
             <h2>Order Status</h2>
-            <p>Order ID: <span><?= str_pad($order->OrderID, 14, '0', STR_PAD_LEFT) ?></span></p>
+            <p>Order ID: <span><?= htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) ?></span></p>
             <div class="divider"></div>
         </section>
 
@@ -14,7 +14,7 @@
         <section class="order-info">
             <div>
                 <h4>Order ID:</h4>
-                <p><?= str_pad($order->OrderID, 14, '0', STR_PAD_LEFT) ?></p>
+                <p><?= htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) ?></p>
             </div>
             <div>
                 <h4>Payment Method:</h4>

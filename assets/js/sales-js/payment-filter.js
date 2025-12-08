@@ -25,14 +25,32 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Core Helper Functions ---
 
     function getStatus(row) {
-        // Safely extract the status class from the status-badge element
+        // First try to get from data attribute (most reliable)
+        const dataStatus = row.getAttribute('data-payment-status');
+        if (dataStatus) {
+            return dataStatus.toLowerCase();
+        }
+        
+        // Fallback: Safely extract the status class from the status-badge element
         const statusElement = row.querySelector(".status-badge");
         if (!statusElement) return '';
         
         // Find the status class: 'pending', 'paid', 'overdue', 'review', etc.
         const classes = Array.from(statusElement.classList);
         const status = classes.find(cls => ['pending', 'paid', 'overdue', 'review'].includes(cls));
-        return status || statusElement.textContent.trim().toLowerCase();
+        
+        // If not found in classes, check text content
+        if (!status) {
+            const textStatus = statusElement.textContent.trim().toLowerCase();
+            // Map text to status codes
+            if (textStatus.includes('under review')) return 'review';
+            if (textStatus.includes('overdue')) return 'overdue';
+            if (textStatus.includes('paid')) return 'paid';
+            if (textStatus.includes('pending')) return 'pending';
+            return textStatus;
+        }
+        
+        return status;
     }
 
     function updateInventoryStats() {
@@ -65,8 +83,12 @@ document.addEventListener("DOMContentLoaded", () => {
         let filter = "all";
         
         if (activeTab) {
-            // Use data-status if you updated the HTML as recommended, otherwise use textContent
-            filter = activeTab.getAttribute('data-status') || activeTab.textContent.trim().toLowerCase().replace('under review', 'review');
+            // Use data-status attribute (most reliable)
+            filter = activeTab.getAttribute('data-status') || 'all';
+            
+            // Normalize filter values
+            if (filter === 'review') filter = 'review'; // 'Under Review' maps to 'review'
+            if (filter === 'under review') filter = 'review';
         }
 
         // Filter rows

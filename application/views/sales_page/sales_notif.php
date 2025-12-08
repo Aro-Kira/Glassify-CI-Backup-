@@ -4,16 +4,7 @@
         <h3>Stay Updated with your latest notifications</h3>
     </div>
 
-    <div class="order-tabs">
-        <div class="tab-links-container">
-            <a href="#" class="tab-link active" data-target="all">
-                All
-            </a>
-            <a href="#" class="tab-link" data-target="unread" id="unread-tab-link">
-                Unread (<span id="unread-count"><?php echo isset($unread_count) ? $unread_count : 0; ?></span>)
-            </a>
-        </div>
-    </div>
+    <!-- Filter tabs removed - showing all notifications by default -->
     
     <div class="notifications-list" id="notifications-list">
         <?php if (empty($notifications)): ?>
@@ -23,11 +14,6 @@
                 </div>
             </div>
         <?php else: ?>
-            <div class="notification-item empty-message" id="no-unread-message" style="display: none;">
-                <div class="notification-details">
-                    <p class="notification-text">No unread notifications.</p>
-                </div>
-            </div>
             <?php foreach ($notifications as $notif): ?>
                 <?php
                 // Get icon from database (already stored)
@@ -59,4 +45,4 @@
     </div>
 </section>
 
-<script src="<?php echo base_url('assets/js/inventory-js/sales-notif-filter.js'); ?>"></script>
+<!-- Filter script removed - no longer needed -->

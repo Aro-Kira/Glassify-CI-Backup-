@@ -131,18 +131,49 @@ document.addEventListener("DOMContentLoaded", () => {
                   methodField.innerHTML = `<label>Method: <span id="popupMethod">${methodDisplay}</span></label>`;
               }
 
-              // Set product image
-              const productImg = document.getElementById("popupProductImage");
-              if (productImg) {
-                  if (paymentData.product_image) {
+              // Set receipt image (priority - show receipt if available)
+              const receiptImg = document.getElementById("popupReceiptImage");
+              if (receiptImg) {
+                  if (paymentData.receipt_path) {
                       // Check if it's a full URL or relative path
-                      let imageUrl = paymentData.product_image;
-                      if (!paymentData.product_image.startsWith('http://') && !paymentData.product_image.startsWith('https://')) {
+                      let receiptUrl = paymentData.receipt_path;
+                      if (!paymentData.receipt_path.startsWith('http://') && !paymentData.receipt_path.startsWith('https://')) {
                           // It's a relative path, check if it needs base_url
-                          if (paymentData.product_image.startsWith('uploads/') || paymentData.product_image.startsWith('assets/')) {
-                              imageUrl = base_url + paymentData.product_image;
+                          if (paymentData.receipt_path.startsWith('uploads/') || paymentData.receipt_path.startsWith('assets/')) {
+                              receiptUrl = base_url + paymentData.receipt_path;
                           } else {
-                              imageUrl = base_url + 'uploads/' + paymentData.product_image;
+                              receiptUrl = base_url + 'uploads/' + paymentData.receipt_path;
+                          }
+                      }
+                      receiptImg.src = receiptUrl;
+                      receiptImg.style.display = 'block';
+                      receiptImg.onerror = function() {
+                          // If receipt image fails to load, hide it and show product image instead
+                          this.style.display = 'none';
+                          showProductImage(paymentData.product_image);
+                      };
+                  } else {
+                      receiptImg.style.display = 'none';
+                      // If no receipt, show product image
+                      showProductImage(paymentData.product_image);
+                  }
+              } else {
+                  // Fallback: show product image if receipt image element doesn't exist
+                  showProductImage(paymentData.product_image);
+              }
+              
+              // Helper function to show product image
+              function showProductImage(productImage) {
+                  const productImg = document.getElementById("popupProductImage");
+                  if (productImg && productImage) {
+                      // Check if it's a full URL or relative path
+                      let imageUrl = productImage;
+                      if (!productImage.startsWith('http://') && !productImage.startsWith('https://')) {
+                          // It's a relative path, check if it needs base_url
+                          if (productImage.startsWith('uploads/') || productImage.startsWith('assets/')) {
+                              imageUrl = base_url + productImage;
+                          } else {
+                              imageUrl = base_url + 'uploads/' + productImage;
                           }
                       }
                       productImg.src = imageUrl;
@@ -151,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
                           // If image fails to load, hide it
                           this.style.display = 'none';
                       };
-                  } else {
+                  } else if (productImg) {
                       productImg.style.display = 'none';
                   }
               }
@@ -239,27 +270,43 @@ document.addEventListener("DOMContentLoaded", () => {
                        body: 'order_id=' + encodeURIComponent(orderId)
                    })
                    .then(response => {
+                       // First check if response is ok
                        if (!response.ok) {
-                           throw new Error('Network response was not ok: ' + response.status);
+                           // Try to get error message from response
+                           return response.text().then(text => {
+                               let errorData;
+                               try {
+                                   errorData = JSON.parse(text);
+                               } catch (e) {
+                                   errorData = { message: text || 'Server error: ' + response.status };
+                               }
+                               throw new Error(errorData.message || 'Server error: ' + response.status);
+                           });
                        }
                        return response.json();
                    })
                    .then(data => {
                        if (data.success) {
+                           // Update the table row without reloading the page
+                           updatePaymentStatusInTable(orderId, 'Paid');
+                           
                            alert('Payment marked as paid successfully!');
                            // Close popup
                            popup.style.display = "none";
-                           // Reload page to reflect changes
-                           window.location.reload();
                        } else {
-                           alert('Failed to mark payment as paid: ' + (data.message || 'Unknown error'));
+                           let errorMsg = 'Failed to mark payment as paid: ' + (data.message || 'Unknown error');
+                           if (data.error_details) {
+                               errorMsg += '\n\nDetails:\n' + JSON.stringify(data.error_details, null, 2);
+                           }
+                           alert(errorMsg);
+                           console.error('Payment update failed:', data);
                            markAsPaidBtn.disabled = false;
                            markAsPaidBtn.textContent = 'Mark as Paid';
                        }
                    })
                    .catch(error => {
                        console.error('Error marking payment as paid:', error);
-                       alert('An error occurred while marking payment as paid: ' + error.message);
+                       alert('An error occurred while marking payment as paid:\n\n' + error.message + '\n\nPlease check the browser console for more details.');
                        markAsPaidBtn.disabled = false;
                        markAsPaidBtn.textContent = 'Mark as Paid';
                    });
@@ -271,4 +318,110 @@ document.addEventListener("DOMContentLoaded", () => {
                popup.style.display = "none";
              }
            });
+           
+           // Function to update payment status in the table
+           function updatePaymentStatusInTable(orderId, status) {
+               // Find the table row with matching order ID
+               const tableRows = document.querySelectorAll('.payment-table tbody tr[data-order-id]');
+               
+               // Helper function to extract numeric order ID from formatted string (e.g., "#GI020" -> 20)
+               const extractNumericOrderId = (id) => {
+                   if (!id) return null;
+                   let clean = id.toString().replace('#', '').trim().toUpperCase();
+                   // Remove GI prefix if present
+                   if (clean.startsWith('GI')) {
+                       clean = clean.substring(2);
+                   }
+                   // Remove leading zeros and convert to number
+                   const numeric = parseInt(clean, 10);
+                   return isNaN(numeric) ? null : numeric;
+               };
+               
+               // Try to get numeric order ID from the provided orderId
+               const numericOrderId = extractNumericOrderId(orderId);
+               
+               tableRows.forEach(row => {
+                   // Get numeric order ID from data-order-id attribute (most reliable)
+                   const rowDataOrderId = row.getAttribute('data-order-id');
+                   const rowNumericId = rowDataOrderId ? parseInt(rowDataOrderId, 10) : null;
+                   
+                   // Also get formatted order ID from the cell for fallback matching
+                   const rowOrderIdCell = row.cells[1];
+                   const rowOrderId = rowOrderIdCell ? rowOrderIdCell.textContent.trim() : '';
+                   
+                   // Check if this row matches the order ID
+                   // Priority: match by numeric ID (most reliable), then by formatted string
+                   let isMatch = false;
+                   
+                   if (numericOrderId && rowNumericId && numericOrderId === rowNumericId) {
+                       isMatch = true;
+                   } else if (rowOrderId && orderId) {
+                       // Fallback: compare formatted strings (normalize by removing # and case)
+                       const normalizedOrderId = orderId.replace('#', '').trim().toUpperCase();
+                       const normalizedRowOrderId = rowOrderId.replace('#', '').trim().toUpperCase();
+                       isMatch = normalizedOrderId === normalizedRowOrderId;
+                   }
+                   
+                   if (isMatch) {
+                           // Update the data-payment-status attribute
+                           row.setAttribute('data-payment-status', status.toLowerCase());
+                           
+                           // Find the status cell (6th column, index 5)
+                           const statusCell = row.cells[5];
+                           if (statusCell) {
+                               // Update the status badge
+                               const statusLower = status.toLowerCase();
+                               let badgeClass = 'pending';
+                               let badgeText = 'Pending';
+                               
+                               if (statusLower === 'paid') {
+                                   badgeClass = 'paid';
+                                   badgeText = 'Paid';
+                               } else if (statusLower === 'overdue') {
+                                   badgeClass = 'overdue';
+                                   badgeText = 'Overdue';
+                               } else if (statusLower === 'under review') {
+                                   badgeClass = 'review';
+                                   badgeText = 'Under Review';
+                               } else if (statusLower === 'failed') {
+                                   badgeClass = 'overdue';
+                                   badgeText = 'Failed';
+                               }
+                               
+                               statusCell.innerHTML = `<span class="status-badge ${badgeClass}">${badgeText}</span>`;
+                           }
+                           
+                           // Update stats counters
+                           updatePaymentStats();
+                       }
+               });
+           }
+           
+           // Function to update payment statistics
+           function updatePaymentStats() {
+               const tableRows = document.querySelectorAll('.payment-table tbody tr[data-order-id]');
+               let pendingCount = 0;
+               let overdueCount = 0;
+               
+               tableRows.forEach(row => {
+                   const status = row.getAttribute('data-payment-status') || 'pending';
+                   
+                   if (status === 'pending') {
+                       pendingCount++;
+                   } else if (status === 'overdue') {
+                       overdueCount++;
+                   }
+               });
+               
+               // Update the stat values
+               const pendingStatEl = document.getElementById('statPendingValue');
+               const overdueStatEl = document.getElementById('statOverdueValue');
+               
+               if (pendingStatEl) {
+                   pendingStatEl.textContent = pendingCount;
+               }
+               if (overdueStatEl) {
+                   overdueStatEl.textContent = overdueCount;
+               }
+           }
          });

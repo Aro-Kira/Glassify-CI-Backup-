@@ -132,7 +132,7 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
                         $status_display = 'pending approval';
                     }
                     ?>
-                    <p>Order <?= htmlspecialchars($recent_activity->OrderID) ?> <?= $status_display ?></p>
+                    <p>Order <?= htmlspecialchars($recent_activity->OrderNumber ?? 'GI' . str_pad($recent_activity->OrderID, 3, '0', STR_PAD_LEFT)) ?> <?= $status_display ?></p>
                 <?php else: ?>
                     <p>No recent activity</p>
                 <?php endif; ?>
@@ -213,7 +213,7 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
                             <img src="<?= $product_img ?>" alt="<?= htmlspecialchars($order->ProductName ?? 'Product') ?>" class="product-thumb">
                             <span><?= htmlspecialchars($order->ProductName ?? 'Custom Order') ?></span>
                         </td>
-                        <td><?= htmlspecialchars($order->OrderID) ?></td>
+                        <td><?= htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) ?></td>
                         <td><?= date('M j, Y', strtotime($order->OrderDate)) ?></td>
                         <td><span class="status <?= get_status_class($order->Status) ?>"><?= htmlspecialchars($order->Status) ?></span></td>
                         <td><a href="<?= base_url('track_order?order=' . $order->OrderID) ?>" class="view-details">View details</a></td>
@@ -360,7 +360,7 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
                         $hidden_class = ($appointment_count > 5) ? 'hidden-row' : '';
                 ?>
                         <tr data-status="<?= $status_class ?>" class="<?= $hidden_class ?>" data-index="<?= $appointment_count ?>">
-                        <td><?= htmlspecialchars($order->OrderID) ?></td>
+                        <td><?= htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) ?></td>
                         <td><?= $service ?></td>
                         <td><?= $appointment_date ?></td>
                         <td><?= $staff_name ?></td>

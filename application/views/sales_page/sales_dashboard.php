@@ -53,9 +53,20 @@
                                     $badge_class = 'warning';
                                 }
                                 
+                                // Get timestamp with proper handling
                                 $timestamp = $activity->Timestamp ?? date('Y-m-d H:i:s');
-                                $formatted_date = date('m/d/Y', strtotime($timestamp));
-                                $formatted_time = date('h:i A', strtotime($timestamp));
+                                
+                                // Ensure timestamp is valid before formatting
+                                $timestamp_obj = strtotime($timestamp);
+                                if ($timestamp_obj === false) {
+                                    // If invalid, use current time
+                                    $timestamp_obj = time();
+                                    $timestamp = date('Y-m-d H:i:s');
+                                }
+                                
+                                // Format date and time with timezone consideration
+                                $formatted_date = date('m/d/Y', $timestamp_obj);
+                                $formatted_time = date('h:i A', $timestamp_obj);
                                 ?>
                                 <tr>
                                     <td><span class="badge <?php echo $badge_class; ?>"><?php echo htmlspecialchars($activity->Action ?? 'Info'); ?></span></td>

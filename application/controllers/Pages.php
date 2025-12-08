@@ -20,33 +20,59 @@ class Pages extends CI_Controller {
         $this->load->model('Order_model');
         $this->load->model('User_model');
         $this->load->model('Product_model');
+        $this->load->model('Customer_model');
 
         $user_id = $this->session->userdata('user_id');
+        
+        // Get Customer_ID from UserID (order table uses Customer_ID, not UserID)
+        $customer_id = $this->Customer_model->get_customer_id($user_id);
+        
+        if (!$customer_id) {
+            log_message('error', 'Customer dashboard: Failed to get Customer_ID for UserID: ' . $user_id);
+            // Fallback: try to get from session if available
+            $customer_id = $this->session->userdata('customer_id');
+            if (!$customer_id) {
+                $data['error'] = 'Unable to load customer data. Please contact support.';
+                $data['user'] = $this->User_model->get_by_id($user_id);
+                $data['orders_in_progress'] = 0;
+                $data['recent_activity'] = null;
+                $data['orders'] = [];
+                $data['activity_feed'] = [];
+                $data['last_update'] = null;
+                $data['recommendations'] = $this->Product_model->get_recommended_products(4);
+                $data['next_appointment'] = null;
+                $data['title'] = "Glassify - Home";
+                $this->load->view('includes/header', $data);
+                $this->load->view('pages/home-login', $data);
+                $this->load->view('includes/footer');
+                return;
+            }
+        }
         
         // Get user data
         $data['user'] = $this->User_model->get_by_id($user_id);
         
-        // Get order statistics
+        // Get order statistics (using Customer_ID, not UserID)
         $in_progress_statuses = ['Pending', 'Approved', 'In Fabrication', 'Ready for Installation'];
-        $data['orders_in_progress'] = $this->Order_model->count_orders_by_status($user_id, $in_progress_statuses);
+        $data['orders_in_progress'] = $this->Order_model->count_orders_by_status($customer_id, $in_progress_statuses);
         
         // Get recent activity (most recent non-completed order)
-        $data['recent_activity'] = $this->Order_model->get_recent_order_activity($user_id);
+        $data['recent_activity'] = $this->Order_model->get_recent_order_activity($customer_id);
         
         // Get orders for the table
-        $data['orders'] = $this->Order_model->get_customer_orders_with_products($user_id, 10);
+        $data['orders'] = $this->Order_model->get_customer_orders_with_products($customer_id, 10);
         
         // Get activity feed (fetch more for expandable list)
-        $data['activity_feed'] = $this->Order_model->get_activity_feed($user_id, 20);
+        $data['activity_feed'] = $this->Order_model->get_activity_feed($customer_id, 20);
         
         // Get last update time
-        $data['last_update'] = $this->Order_model->get_last_update_time($user_id);
+        $data['last_update'] = $this->Order_model->get_last_update_time($customer_id);
         
         // Get recommended products
         $data['recommendations'] = $this->Product_model->get_recommended_products(4);
         
         // Get next appointment (placeholder - using order dates for now)
-        $data['next_appointment'] = $this->get_next_appointment($user_id);
+        $data['next_appointment'] = $this->get_next_appointment($customer_id);
 
         $data['title'] = "Glassify - Home";
         $this->load->view('includes/header', $data);
@@ -57,8 +83,9 @@ class Pages extends CI_Controller {
     /**
      * Helper function to get next appointment
      * Uses order installation dates as appointments for now
+     * @param int $customer_id Customer_ID (not UserID)
      */
-    private function get_next_appointment($user_id) {
+    private function get_next_appointment($customer_id) {
         $this->load->database();
         
         // Get order with upcoming installation (estimated from order date)
@@ -69,7 +96,7 @@ class Pages extends CI_Controller {
             DATE_ADD(o.OrderDate, INTERVAL 14 DAY) as AppointmentDate
         ');
         $this->db->from('`order` o');
-        $this->db->where('o.Customer_ID', $user_id);
+        $this->db->where('o.Customer_ID', $customer_id);
         $this->db->where('o.Status !=', 'Completed');
         $this->db->where('o.Status !=', 'Cancelled');
         $this->db->order_by('o.OrderDate', 'DESC');

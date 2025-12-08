@@ -37,7 +37,7 @@
     <!-- Order Info -->
     <section class="order-info">
         <div class="info-box">
-            <p><strong>Order ID:</strong> <?= isset($order) && $order ? str_pad($order->OrderID, 10, '0', STR_PAD_LEFT) : 'N/A' ?></p>
+            <p><strong>Order ID:</strong> <?= isset($order) && $order ? htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) : 'N/A' ?></p>
             <p><strong>Payment Method:</strong> <?= htmlspecialchars($payment_method ?? 'Cash on Delivery') ?></p>
             <p><strong>Transaction ID:</strong> TXN<?= isset($order) && $order ? date('Ymd', strtotime($order->OrderDate)) . str_pad($order->OrderID, 6, '0', STR_PAD_LEFT) : 'N/A' ?></p>
             <p><strong>Order Date:</strong> <?= isset($order) && $order ? date('F d, Y', strtotime($order->OrderDate)) : date('F d, Y') ?></p>
@@ -246,7 +246,7 @@ document.addEventListener('keydown', function(e) {
 <script>
 // Order data from PHP
 const orderData = {
-    orderId: "<?= isset($order) && $order ? str_pad($order->OrderID, 10, '0', STR_PAD_LEFT) : 'N/A' ?>",
+    orderId: "<?= isset($order) && $order ? htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) : 'N/A' ?>",
     transactionId: "TXN<?= isset($order) && $order ? date('Ymd', strtotime($order->OrderDate)) . str_pad($order->OrderID, 6, '0', STR_PAD_LEFT) : date('Ymd') . '000000' ?>",
     orderDate: "<?= isset($order) && $order ? date('F d, Y', strtotime($order->OrderDate)) : date('F d, Y') ?>",
     paymentMethod: "<?= htmlspecialchars($payment_method ?? 'Cash on Delivery') ?>",
