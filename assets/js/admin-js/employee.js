@@ -121,25 +121,44 @@ document.addEventListener("DOMContentLoaded", () => {
         
         currentEditId = userId;
         
-        // Find form inputs in edit popup
-        const form = editPopup.querySelector('form');
-        const inputs = form.querySelectorAll('input[type="text"], input[type="email"]');
-        const selects = form.querySelectorAll('select');
-        
-        // Set values - assuming form structure: Full Name, Email, Role, Password, Confirm Password
-        // We'll need to split the name or use separate fields
-        // For now, let's assume the first text input is for full name (we'll need to update the form)
-        if (inputs.length > 0) {
-            inputs[0].value = `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim();
-        }
-        if (inputs.length > 1) {
-            inputs[1].value = user.email;
-        }
-        if (selects.length > 0) {
-            selects[0].value = user.role;
-        }
-        
+        // Show popup first
         editPopup.style.display = "flex";
+        
+        // Wait a tiny bit for DOM to be ready, then populate fields
+        setTimeout(() => {
+            // Find form inputs in edit popup - use querySelector within popup context
+            const form = editPopup.querySelector('form');
+            if (!form) {
+                console.error('Form not found in edit popup');
+                return;
+            }
+            
+            // Set values for separate name fields - access from within popup context
+            const firstNameInput = editPopup.querySelector('#edit-first-name');
+            const middleNameInput = editPopup.querySelector('#edit-middle-name');
+            const lastNameInput = editPopup.querySelector('#edit-last-name');
+            const emailInput = editPopup.querySelector('#edit-email');
+            const roleSelect = form.querySelector('select');
+            
+            // Clear all fields first
+            if (firstNameInput) firstNameInput.value = '';
+            if (middleNameInput) middleNameInput.value = '';
+            if (lastNameInput) lastNameInput.value = '';
+            if (emailInput) emailInput.value = '';
+            
+            // Now populate with correct data
+            if (firstNameInput) firstNameInput.value = (user.firstName || '').trim();
+            if (middleNameInput) middleNameInput.value = (user.middleName || '').trim();
+            if (lastNameInput) lastNameInput.value = (user.lastName || '').trim();
+            if (emailInput) emailInput.value = (user.email || '').trim();
+            if (roleSelect) {
+                roleSelect.value = user.role || '';
+            }
+            
+            // Clear password fields
+            const passwordInputs = form.querySelectorAll('input[type="password"]');
+            passwordInputs.forEach(input => input.value = '');
+        }, 10);
     }
 
     // --- Add User ---
@@ -223,18 +242,22 @@ document.addEventListener("DOMContentLoaded", () => {
         
         const popup = editPopup;
         const form = popup.querySelector('form');
-        const inputs = form.querySelectorAll('input[type="text"], input[type="email"], input[type="password"]');
         const selects = form.querySelectorAll('select');
         
-        // Get form values
-        const fullName = inputs[0].value.trim();
-        const email = inputs[1].value.trim();
+        // Get form values from separate name fields
+        const firstName = document.getElementById('edit-first-name')?.value.trim() || '';
+        const middleName = document.getElementById('edit-middle-name')?.value.trim() || '';
+        const lastName = document.getElementById('edit-last-name')?.value.trim() || '';
+        const email = document.getElementById('edit-email')?.value.trim() || '';
         const role = selects[0].value;
-        const password = inputs[inputs.length - 2] ? inputs[inputs.length - 2].value : '';
-        const confirmPassword = inputs[inputs.length - 1] ? inputs[inputs.length - 1].value : '';
         
-        if (!fullName || !email || !role) {
-            alert("Please fill all required fields!");
+        // Get password fields
+        const passwordInputs = form.querySelectorAll('input[type="password"]');
+        const password = passwordInputs[0] ? passwordInputs[0].value : '';
+        const confirmPassword = passwordInputs[1] ? passwordInputs[1].value : '';
+        
+        if (!firstName || !lastName || !email || !role) {
+            alert("Please fill all required fields (First Name, Last Name, Email, and Role)!");
             return;
         }
         
@@ -243,11 +266,10 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         
-        // Split full name
-        const nameParts = fullName.split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts[nameParts.length - 1] || '';
-        const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+        if (password && password.length < 6) {
+            alert("Password must be at least 6 characters long!");
+            return;
+        }
         
         const updateData = {
             id: currentEditId,

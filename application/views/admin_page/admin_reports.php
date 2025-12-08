@@ -11,19 +11,19 @@
     </div>
     <div class="inventory-stats">
       <div class="stat-card">
-        <p class="stat-value">₱12,450</p>
+        <p class="stat-value">₱<?php echo isset($report_stats['total_sales']) ? number_format($report_stats['total_sales'], 2) : '0.00'; ?></p>
         <p class="stat-title">Total Sales</p>
       </div>
       <div class="stat-card">
-        <p class="stat-value">320</p>
+        <p class="stat-value"><?php echo isset($report_stats['total_orders']) ? number_format($report_stats['total_orders']) : '0'; ?></p>
         <p class="stat-title">Orders</p>
       </div>
       <div class="stat-card">
-        <p class="stat-value">₱38.91</p>
+        <p class="stat-value">₱<?php echo isset($report_stats['avg_order_value']) ? number_format($report_stats['avg_order_value'], 2) : '0.00'; ?></p>
         <p class="stat-title">Avg. Order Value</p>
       </div>
       <div class="stat-card">
-        <p class="stat-value">15</p>
+        <p class="stat-value"><?php echo isset($report_stats['refunds']) ? number_format($report_stats['refunds']) : '0'; ?></p>
         <p class="stat-title">Refunds</p>
       </div>
     </div>

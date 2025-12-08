@@ -49,11 +49,17 @@
         <div class="popup-content">
             <h3>User Details</h3>
             <form>
-                <label>Full Name</label>
-                <input type="text">
+                <label>First Name</label>
+                <input type="text" id="edit-first-name">
+
+                <label>Middle Name</label>
+                <input type="text" id="edit-middle-name">
+
+                <label>Last Name</label>
+                <input type="text" id="edit-last-name">
 
                 <label>Email Address</label>
-                <input type="email">
+                <input type="email" id="edit-email">
 
                 <label>Role</label>
                 <select>
@@ -72,7 +78,6 @@
                     <button type="button" class="save-btn">Save Changes</button>
                     <button type="button" class="delete-btn">Delete Account</button>
                 </div>
-                <a class="reset-link">Reset Password?</a>
             </form>
         </div>
     </div>

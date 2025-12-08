@@ -23,6 +23,12 @@ class AdminCon extends CI_Controller
         // Get dashboard statistics
         $data['stats'] = $this->get_dashboard_stats();
         
+        // Get today's appointments
+        $data['today_appointments'] = $this->get_today_appointments();
+        
+        // Get recent activities
+        $data['recent_activities'] = $this->get_recent_activities();
+        
         $data['title'] = "Glassify - Dashboard";
         $data['active'] = 'dashboard';
         $data['content_view'] = 'admin_page/admin_dashboard';
@@ -75,6 +81,40 @@ class AdminCon extends CI_Controller
         $stats['weekly_sales'] = $result && $result->TotalQuotation ? floatval($result->TotalQuotation) : 0;
         
         return $stats;
+    }
+    
+    /**
+     * Get today's appointments from appointments table
+     * Returns: array of appointments scheduled for today
+     */
+    private function get_today_appointments()
+    {
+        $today = date('Y-m-d');
+        
+        $this->db->select('a.AppointmentID, a.AppointmentTime, a.Service, a.ClientName, a.Status, a.AssignedStaff');
+        $this->db->from('appointments a');
+        $this->db->where('a.AppointmentDate', $today);
+        $this->db->where('a.Status !=', 'Cancelled');
+        $this->db->order_by('a.AppointmentTime', 'ASC');
+        $this->db->limit(10); // Limit to 10 appointments
+        
+        $query = $this->db->get();
+        return $query->result();
+    }
+    
+    /**
+     * Get recent activities from system_activity_log
+     * Returns: array of recent activities (last 10)
+     */
+    private function get_recent_activities()
+    {
+        $this->db->select('Action, Description, Role, UserName, Timestamp');
+        $this->db->from('system_activity_log');
+        $this->db->order_by('Timestamp', 'DESC');
+        $this->db->limit(10); // Get last 10 activities
+        
+        $query = $this->db->get();
+        return $query->result();
     }
 
     // Orders
@@ -1086,11 +1126,56 @@ class AdminCon extends CI_Controller
     // Reports
     public function admin_reports()
     {
+        // Get report statistics from database
+        $data['report_stats'] = $this->get_report_statistics();
+        
         $data['title'] = "Glassify - Reports";
         $data['active'] = 'reports';
         $data['content_view'] = 'admin_page/admin_reports';
         $data['page_css'] = 'admin_css/admin_reports.css';
         $this->load->view('admin_page/layout', $data);
+    }
+    
+    /**
+     * Get report statistics from database
+     * Returns: total sales, total orders, average order value, refunds
+     */
+    private function get_report_statistics()
+    {
+        $stats = [];
+        
+        // 1. Total Sales - Sum of TotalAmount from orders where PaymentStatus = 'Paid'
+        $this->db->select_sum('TotalAmount');
+        $this->db->where('PaymentStatus', 'Paid');
+        $query = $this->db->get('order');
+        $result = $query->row();
+        $stats['total_sales'] = $result && $result->TotalAmount ? floatval($result->TotalAmount) : 0;
+        
+        // 2. Total Orders - Count of all orders
+        // Reset query builder first
+        $this->db->reset_query();
+        $stats['total_orders'] = $this->db->count_all_results('order');
+        
+        // 3. Average Order Value - Total Sales / Number of Paid Orders
+        // Count paid orders for accurate average
+        $this->db->reset_query();
+        $this->db->where('PaymentStatus', 'Paid');
+        $paid_orders_count = $this->db->count_all_results('order');
+        
+        if ($paid_orders_count > 0) {
+            $stats['avg_order_value'] = $stats['total_sales'] / $paid_orders_count;
+        } else {
+            $stats['avg_order_value'] = 0;
+        }
+        
+        // 4. Refunds - Count of orders where PaymentStatus = 'Refunded' OR Status = 'Cancelled'
+        $this->db->group_start();
+        $this->db->where('PaymentStatus', 'Refunded');
+        $this->db->or_where('Status', 'Cancelled');
+        $this->db->group_end();
+        $stats['refunds'] = $this->db->count_all_results('order');
+        
+        return $stats;
     }
 
     // Account
