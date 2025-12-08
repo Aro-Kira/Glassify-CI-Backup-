@@ -627,7 +627,26 @@ class Order_model extends CI_Model
      */
     public function get_order_customizations($order_id)
     {
-        $this->db->select('oi.*, p.ProductName, p.ImageUrl');
+        $this->db->select('
+            oi.OrderItemID,
+            oi.OrderID,
+            oi.Product_ID,
+            oi.CustomizationID,
+            oi.Quantity,
+            oi.UnitPrice,
+            oi.EstimatePrice,
+            oi.Dimensions,
+            oi.GlassShape,
+            oi.GlassType,
+            oi.GlassThickness,
+            oi.EdgeWork,
+            oi.FrameType,
+            oi.Engraving,
+            oi.DesignRef,
+            oi.Created_Date,
+            p.ProductName,
+            p.ImageUrl
+        ');
         $this->db->from('order_items oi');
         $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
         $this->db->where('oi.OrderID', $order_id);

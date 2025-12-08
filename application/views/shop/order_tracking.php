@@ -204,7 +204,8 @@
                                                     <img src="<?= base_url($item->DesignRef) ?>" 
                                                          alt="Custom Design" 
                                                          class="design-thumbnail"
-                                                         onclick="showDesignModal('<?= base_url($item->DesignRef) ?>')">
+                                                         onclick="showDesignModal('<?= base_url($item->DesignRef) ?>')"
+                                                         onerror="this.style.display='none'; this.parentElement.querySelector('.view-design-text').textContent='Image not found';">
                                                     <span class="view-design-text">Click to view</span>
                                                 </div>
                                             <?php endif; ?>
