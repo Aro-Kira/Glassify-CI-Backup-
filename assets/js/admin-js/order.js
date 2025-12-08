@@ -465,11 +465,13 @@ document.addEventListener('DOMContentLoaded', async function () {
             
             const orders = await response.json();
             renderApprovalTable(orders);
+            updateApprovalPagination(orders.length);
         } catch (error) {
             console.error("Error loading approval orders:", error);
             if (approvalTbody) {
                 approvalTbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Error loading approval orders. Please refresh the page.</td></tr>';
             }
+            updateApprovalPagination(0, true);
         }
     }
 
@@ -503,6 +505,32 @@ document.addEventListener('DOMContentLoaded', async function () {
                 loadApprovalOrderDetails(orderId);
             });
         });
+    }
+
+    function updateApprovalPagination(total, isError = false) {
+        // Find the pagination in the approval section
+        const approvalSection = document.querySelector('.order-schedule-section');
+        if (!approvalSection) return;
+        
+        const pagination = approvalSection.querySelector('.pagination');
+        if (!pagination) return;
+        
+        const paginationInfo = pagination.querySelector('span');
+        if (paginationInfo) {
+            if (isError) {
+                paginationInfo.textContent = 'Error loading orders';
+            } else if (total === 0) {
+                paginationInfo.textContent = 'No orders awaiting approval';
+            } else {
+                paginationInfo.textContent = `Showing ${total} order${total !== 1 ? 's' : ''} awaiting approval`;
+            }
+        }
+        
+        // Clear pagination controls since approval orders don't use pagination
+        const paginationControls = pagination.querySelector('.pagination-controls');
+        if (paginationControls) {
+            paginationControls.innerHTML = '';
+        }
     }
 
     // ======================

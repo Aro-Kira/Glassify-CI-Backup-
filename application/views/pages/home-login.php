@@ -26,19 +26,34 @@ function time_ago($datetime) {
 
 // Helper function to get status class
 function get_status_class($status) {
-    $status_lower = strtolower($status);
-    if (strpos($status_lower, 'progress') !== false || 
-        strpos($status_lower, 'fabrication') !== false || 
-        strpos($status_lower, 'pending') !== false ||
-        strpos($status_lower, 'approved') !== false) {
-        return 'in-progress';
-    } elseif (strpos($status_lower, 'complete') !== false) {
+    $status_lower = strtolower(trim($status));
+    
+    // Map specific statuses to their classes
+    if ($status_lower === 'disapproved') {
+        return 'disapproved';
+    } elseif ($status_lower === 'ready to approve') {
+        return 'ready-to-approve';
+    } elseif ($status_lower === 'approved') {
+        return 'approved';
+    } elseif ($status_lower === 'completed') {
         return 'completed';
-    } elseif (strpos($status_lower, 'cancel') !== false) {
+    } elseif ($status_lower === 'in fabrication') {
+        return 'in-fabrication';
+    } elseif ($status_lower === 'ready for installation') {
+        return 'ready-for-installation';
+    } elseif ($status_lower === 'pending review' || $status_lower === 'pending') {
+        return 'pending';
+    } elseif ($status_lower === 'awaiting admin') {
+        return 'awaiting-admin';
+    } elseif ($status_lower === 'cancelled') {
         return 'cancelled';
-    } elseif (strpos($status_lower, 'confirm') !== false) {
+    } elseif ($status_lower === 'returned') {
+        return 'returned';
+    } elseif ($status_lower === 'confirmed') {
         return 'confirmed';
     }
+    
+    // Fallback for any other status
     return 'pending';
 }
 

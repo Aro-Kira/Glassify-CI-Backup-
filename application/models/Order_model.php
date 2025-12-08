@@ -1368,24 +1368,28 @@ class Order_model extends CI_Model
      */
     public function sales_rep_final_disapprove($order_id, $sales_rep_id, $reason = '')
     {
-        $this->db->trans_start();
+        try {
+            $this->db->trans_start();
 
-        // Validate order exists and is in correct status
-        $order = $this->get_order($order_id);
-        if (!$order) {
-            $this->db->trans_rollback();
-            return ['success' => false, 'message' => 'Order not found'];
-        }
+            // Validate order exists and is in correct status
+            $order = $this->get_order($order_id);
+            if (!$order) {
+                $this->db->trans_rollback();
+                log_message('error', 'Order_model::sales_rep_final_disapprove - Order not found: ' . $order_id);
+                return ['success' => false, 'message' => 'Order not found'];
+            }
 
-        if ($order->Status !== 'Ready to Approve') {
-            $this->db->trans_rollback();
-            return ['success' => false, 'message' => 'Order is not ready to approve'];
-        }
+            if ($order->Status !== 'Ready to Approve') {
+                $this->db->trans_rollback();
+                log_message('error', 'Order_model::sales_rep_final_disapprove - Order status invalid. Expected: Ready to Approve, Got: ' . ($order->Status ?? 'null'));
+                return ['success' => false, 'message' => 'Order is not ready to approve'];
+            }
 
-        if ($order->SalesRep_ID != $sales_rep_id) {
-            $this->db->trans_rollback();
-            return ['success' => false, 'message' => 'Order does not belong to this sales representative'];
-        }
+            if ($order->SalesRep_ID != $sales_rep_id) {
+                $this->db->trans_rollback();
+                log_message('error', 'Order_model::sales_rep_final_disapprove - Sales rep mismatch. Order SalesRep_ID: ' . ($order->SalesRep_ID ?? 'null') . ', Provided: ' . $sales_rep_id);
+                return ['success' => false, 'message' => 'Order does not belong to this sales representative'];
+            }
 
         // Get admin disapproval reason if exists
         $admin_notes = '';
@@ -1424,36 +1428,63 @@ class Order_model extends CI_Model
 
         // Insert into disapproved_orders (legacy table)
         if ($this->db->table_exists('disapproved_orders')) {
-            $this->db->select('o.*, oi.*, p.ProductName');
-            $this->db->from('`order` o');
-            $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
-            $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
-            $this->db->where('o.OrderID', $order_id);
-            $this->db->limit(1);
-            $order_details = $this->db->get()->row();
+            try {
+                $this->db->select('o.*, oi.*, p.ProductName');
+                $this->db->from('`order` o');
+                $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+                $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+                $this->db->where('o.OrderID', $order_id);
+                $this->db->limit(1);
+                $order_details = $this->db->get()->row();
 
-            if ($order_details) {
-                $disapproved_data = [
-                    'OrderID' => $order->OrderNumber,
-                    'ProductName' => $order_details->ProductName ?? 'N/A',
-                    'Address' => $order->DeliveryAddress ?? '',
-                    'OrderDate' => $order->OrderDate,
-                    'Shape' => $order_details->GlassShape ?? '',
-                    'Dimension' => $order_details->Dimensions ?? '',
-                    'Type' => $order_details->GlassType ?? '',
-                    'Thickness' => $order_details->GlassThickness ?? '',
-                    'EdgeWork' => $order_details->EdgeWork ?? '',
-                    'FrameType' => $order_details->FrameType ?? '',
-                    'Engraving' => $order_details->Engraving ?? '',
-                    'FileAttached' => $order_details->DesignRef ?? null,
-                    'TotalQuotation' => $order->TotalAmount,
-                    'Customer_ID' => $order->Customer_ID,
-                    'SalesRep_ID' => $order->SalesRep_ID,
-                    'DisapprovalReason' => $final_reason,
-                    'Disapproved_Date' => date('Y-m-d H:i:s')
-                ];
+                if ($order_details) {
+                    // Build data array with only fields that exist in the table
+                    $disapproved_data = [
+                        'OrderID' => (int)$order_id, // Required field
+                        'OrderNumber' => $order->OrderNumber ?? 'GI' . str_pad($order_id, 3, '0', STR_PAD_LEFT),
+                        'ProductName' => $order_details->ProductName ?? 'N/A',
+                        'Address' => $order->DeliveryAddress ?? '',
+                        'OrderDate' => $order->OrderDate ?? date('Y-m-d H:i:s'),
+                        'TotalQuotation' => $order->TotalAmount ?? 0.00,
+                        'Customer_ID' => $order->Customer_ID ?? null,
+                        'SalesRep_ID' => $order->SalesRep_ID ?? null,
+                        'DisapprovedBy' => 'Sales Rep',
+                        'DisapprovedBy_ID' => $sales_rep_id,
+                        'DisapprovalReason' => $final_reason,
+                        'Disapproved_Date' => date('Y-m-d H:i:s')
+                    ];
+                    
+                    // Only add fields that exist in the table (check if columns exist)
+                    $table_fields = $this->db->list_fields('disapproved_orders');
+                    $fields_to_add = [
+                        'Shape' => $order_details->GlassShape ?? '',
+                        'Dimension' => $order_details->Dimensions ?? '',
+                        'Type' => $order_details->GlassType ?? '',
+                        'Thickness' => $order_details->GlassThickness ?? '',
+                        'EdgeWork' => $order_details->EdgeWork ?? '',
+                        'FrameType' => $order_details->FrameType ?? '',
+                        'Engraving' => $order_details->Engraving ?? '',
+                        'FileAttached' => $order_details->DesignRef ?? null
+                    ];
+                    
+                    foreach ($fields_to_add as $field => $value) {
+                        if (in_array($field, $table_fields)) {
+                            $disapproved_data[$field] = $value;
+                        }
+                    }
 
-                $this->db->insert('disapproved_orders', $disapproved_data);
+                    $insert_result = $this->db->insert('disapproved_orders', $disapproved_data);
+                    if (!$insert_result) {
+                        $error = $this->db->error();
+                        log_message('error', 'Order_model::sales_rep_final_disapprove - Failed to insert into disapproved_orders: ' . json_encode($error) . ' | Data: ' . json_encode($disapproved_data));
+                        // Don't fail the transaction for legacy table insert failure
+                    }
+                } else {
+                    log_message('debug', 'Order_model::sales_rep_final_disapprove - No order_details found for order_id: ' . $order_id);
+                }
+            } catch (Exception $e) {
+                log_message('error', 'Order_model::sales_rep_final_disapprove - Exception inserting into disapproved_orders: ' . $e->getMessage());
+                // Don't fail the transaction for legacy table insert failure
             }
         }
 
@@ -1479,10 +1510,17 @@ class Order_model extends CI_Model
         $this->db->trans_complete();
 
         if ($this->db->trans_status() === FALSE) {
-            return ['success' => false, 'message' => 'Transaction failed'];
+            $error = $this->db->error();
+            log_message('error', 'Order_model::sales_rep_final_disapprove - Transaction failed: ' . json_encode($error));
+            return ['success' => false, 'message' => 'Transaction failed: ' . ($error['message'] ?? 'Unknown error')];
         }
 
         return ['success' => true, 'message' => 'Order disapproved successfully.'];
+        } catch (Exception $e) {
+            $this->db->trans_rollback();
+            log_message('error', 'Order_model::sales_rep_final_disapprove - Exception: ' . $e->getMessage() . ' | Stack: ' . $e->getTraceAsString());
+            return ['success' => false, 'message' => 'An error occurred: ' . $e->getMessage()];
+        }
     }
 
     /**
