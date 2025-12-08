@@ -4,8 +4,8 @@
 <main class="content-wrapper">
   <div class="content-box">
     <a href="javascript:history.back()" class="back-btn">
-      <img src="assets/img/back.png" alt="Back" class="back-icon">
-      <span>Go back to Payment Process?</span>
+    <img src="<?php echo base_url('assets/images/img-page/icon-park-solid--back.svg'); ?>" alt="Back" class="back-icon">
+    <span>Go back to Payment Process?</span>
     </a>
 
     <h2>Terms and Conditions for Purchase</h2>

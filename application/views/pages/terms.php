@@ -3,7 +3,7 @@
 <main class="content-wrapper">
   <div class="content-box">
     <a href="javascript:history.back()" class="back-btn">
-      <img src="<?php echo base_url('assets/img/back.png'); ?>" alt="Back" class="back-icon">
+      <img src="<?php echo base_url('assets/images/img-page/icon-park-solid--back.svg'); ?>" alt="Back" class="back-icon">
       <span>Go back to Registration?</span>
     </a>
 
