@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Approve Order button handler
     const approvedPopup = document.getElementById('approvedPopup');
     if (approvedPopup) {
-        const approveBtn = approvedPopup.querySelector('.approved-btn');
+        const approveBtn = document.getElementById('approved-approve-btn') || approvedPopup.querySelector('.approved-btn');
         if (approveBtn) {
             approveBtn.addEventListener('click', function() {
                 const orderId = getOrderIdFromPopup(approvedPopup);
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sales rep can finalize the disapproval, which will notify customer and cancel order
     const disapprovedPopup = document.getElementById('disapprovedPopup');
     if (disapprovedPopup) {
-        const disapproveBtn = disapprovedPopup.querySelector('.disapproved-btn');
+        const disapproveBtn = document.getElementById('disapproved-disapprove-btn') || disapprovedPopup.querySelector('.disapproved-btn');
         if (disapproveBtn) {
             disapproveBtn.addEventListener('click', function() {
                 const orderIdElement = document.getElementById('disapproved-order-id');

@@ -899,22 +899,17 @@ class CartCon extends CI_Controller
         $subtotal = 0;
         $total_items = 0;
 
-
-
         foreach ($cart_items as $item) {
-            $price = $item->EstimatePrice ?? 100;
+            // Use Price (which includes EstimatePrice or BasePrice) as calculated in get_cart_items_with_details
+            // Fallback chain: Price -> EstimatePrice -> BasePrice -> 0
+            $price = $item->Price ?? $item->EstimatePrice ?? $item->BasePrice ?? 0;
             $subtotal += $price * $item->Quantity;
             $total_items += $item->Quantity;
- 
         }
- 
-      ;
 
-        $shipping =  $total_items * 25;
-        $handling =  $total_items * 10;
+        $shipping = $total_items * 25;
+        $handling = $total_items * 10;
         $total = $subtotal + $shipping + $handling;
-        
-
 
         return [
             'items' => $total_items,
