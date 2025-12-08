@@ -166,6 +166,8 @@ $route['admin-product'] = 'AdminCon/admin_product';
 $route['admin-payments'] = 'AdminCon/admin_payments';
 $route['admin-reports'] = 'AdminCon/admin_reports';
 $route['admin-account'] = 'AdminCon/admin_account';
+$route['admin-notif'] = 'AdminCon/admin_notif';
+$route['admin-get-notification-count'] = 'AdminCon/get_notification_count_ajax';
 
 
 /* 
@@ -188,6 +190,7 @@ $route['sales-mark-resolved'] = 'SalesCon/mark_resolved_ajax';
 $route['sales-update-priority'] = 'SalesCon/update_priority_ajax';
 $route['sales-get-issue-stats'] = 'SalesCon/get_issue_stats_ajax';
 $route['sales-notif'] = 'SalesCon/sales_notif';
+$route['sales-get-notification-count'] = 'SalesCon/get_notification_count_ajax';
 $route['SalesCon/update_account'] = 'SalesCon/update_account';
 $route['AdminCon/update_account'] = 'AdminCon/update_account';
 $route['SalesCon/get_order_details'] = 'SalesCon/get_order_details';
@@ -210,6 +213,7 @@ $route['inventory-inventory'] = 'InventCon/inventory_inventory';
 $route['inventory-account'] = 'InventCon/inventory_account';
 $route['inventory-reports'] = 'InventCon/inventory_reports';
 $route['inventory-notif'] = 'InventCon/inventory_notif';
+$route['inventory-get-notification-count'] = 'InventCon/get_notification_count_ajax';
 
 /* 
 ======================================

@@ -55,28 +55,62 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (ledbacklightEl) ledbacklightEl.textContent = order.LEDBacklight || 'N/A';
                             if (dooroperationEl) dooroperationEl.textContent = order.DoorOperation || 'N/A';
                             if (configurationEl) configurationEl.textContent = order.Configuration || 'N/A';
-                            document.getElementById('popup-total').textContent = order.TotalAmount;
+                            const totalEl = document.getElementById('popup-total');
+                            if (totalEl) {
+                                const totalAmount = parseFloat(order.TotalAmount || order.TotalQuotation || 0);
+                                totalEl.textContent = '₱' + totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            }
                             
                             // Conditionally show/hide fields based on product category
                             if (typeof showHideFieldsByCategory === 'function') {
                                 showHideFieldsByCategory('popup', order.ProductCategory || '', order);
                             }
 
-                            // Handle file attachment - always make clickable if file exists
+                            // Handle file attachment with thumbnail
+                            const fileThumbnail = document.getElementById('popup-file-thumbnail');
+                            const fileThumbnailImg = document.getElementById('popup-file-thumbnail-img');
                             const fileLink = document.getElementById('popup-file-link');
                             const fileText = document.getElementById('popup-file-text');
+                            
                             if (order.FileAttached && order.FileAttached !== 'N/A') {
                                 // Build file URL - try FileUrl first, then construct from FileAttached
                                 let fileUrl = order.FileUrl;
                                 if (!fileUrl && order.FileAttached) {
                                     // Construct URL from file name
-                                    fileUrl = base_url + 'uploads/' + order.FileAttached;
+                                    if (order.FileAttached.startsWith('uploads/')) {
+                                        fileUrl = base_url + order.FileAttached;
+                                    } else {
+                                        fileUrl = base_url + 'uploads/' + order.FileAttached;
+                                    }
                                 }
-                                fileLink.href = fileUrl;
-                                fileLink.textContent = order.FileAttached;
-                                fileLink.style.display = 'inline';
-                                fileText.style.display = 'none';
+                                
+                                // Get filename for display
+                                const fileName = (order.FileAttached.includes('/') ? order.FileAttached.split('/').pop() : order.FileAttached);
+                                
+                                // Check if file is an image
+                                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+                                const fileExtension = fileName.split('.').pop().toLowerCase();
+                                const isImage = imageExtensions.includes(fileExtension);
+                                
+                                if (isImage && fileUrl && fileThumbnail && fileThumbnailImg) {
+                                    // Show thumbnail for images
+                                    fileThumbnail.style.display = 'block';
+                                    fileThumbnailImg.src = fileUrl;
+                                    fileThumbnailImg.alt = fileName;
+                                    fileLink.href = fileUrl;
+                                    fileLink.textContent = fileName;
+                                    fileLink.style.display = 'inline';
+                                    fileText.style.display = 'none';
+                                } else {
+                                    // Show link only for non-images
+                                    if (fileThumbnail) fileThumbnail.style.display = 'none';
+                                    fileLink.href = fileUrl;
+                                    fileLink.textContent = fileName;
+                                    fileLink.style.display = 'inline';
+                                    fileText.style.display = 'none';
+                                }
                             } else {
+                                if (fileThumbnail) fileThumbnail.style.display = 'none';
                                 fileLink.style.display = 'none';
                                 fileText.textContent = 'N/A';
                                 fileText.style.display = 'inline';
@@ -101,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Select the popup overlay
     const popupOverlay = document.getElementById('approvalPopup');
     const closeButton = document.getElementById('closePopup');
-    const cancelButton = popupOverlay ? popupOverlay.querySelector('.cancel-btn') : null;
+    const cancelButton = document.getElementById('approval-cancel-btn');
 
     // Function to hide the popup
     function hidePopup() {

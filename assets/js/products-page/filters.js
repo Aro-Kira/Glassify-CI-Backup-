@@ -14,7 +14,6 @@ document.addEventListener("DOMContentLoaded", () => {
   function applyFilters() {
     const selected = {
       Category: null,
-      Material: null,
       Availability: null,
     };
 
@@ -33,7 +32,6 @@ document.addEventListener("DOMContentLoaded", () => {
       let show = true;
 
       if (selected.Category && product.dataset.category !== selected.Category) show = false;
-      if (selected.Material && !product.dataset.material.includes(selected.Material)) show = false;
       if (selected.Availability && product.dataset.availability !== selected.Availability) show = false;
 
       if (searchTerm && !product.textContent.toLowerCase().includes(searchTerm)) show = false;

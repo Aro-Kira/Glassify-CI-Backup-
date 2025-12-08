@@ -80,6 +80,7 @@ $(document).ready(function () {
                         // Update wishlist counter if exists
                         if ($('#wishlist-count').length) {
                             $('#wishlist-count').text(res.wishlist_count);
+                            $('#wishlist-count').toggle(res.wishlist_count > 0);
                         }
                     }, 300);
                 } else {
@@ -147,9 +148,11 @@ $(document).ready(function () {
                             // Update counters
                             if ($('#cart-count').length) {
                                 $('#cart-count').text(res.cart_count);
+                                $('#cart-count').toggle(res.cart_count > 0);
                             }
                             if ($('#wishlist-count').length) {
                                 $('#wishlist-count').text(res.wishlist_count);
+                                $('#wishlist-count').toggle(res.wishlist_count > 0);
                             }
                         }, 300);
                     }, 500);
@@ -216,6 +219,7 @@ $(document).ready(function () {
                         
                         if ($('#wishlist-count').length) {
                             $('#wishlist-count').text(0);
+                            $('#wishlist-count').hide();
                         }
                     }, 300);
                 } else {

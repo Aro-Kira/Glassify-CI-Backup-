@@ -3,10 +3,18 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/include/footer_style.css'); ?>">
 
 <?php 
+// FOOTER LOGIC: General vs Customer Footer
+// General footer: public pages + all login pages (customer, admin, sales, inventory)
+// Customer footer: only for logged-in customers on customer pages
+
 // Check if we should force guest header (for employee login pages and customer login/register pages)
 // Use the same logic as header to ensure consistency
 $force_guest = isset($force_guest_header) && $force_guest_header;
+
+// Determine if user is a logged-in customer (not employee)
 $is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
+$user_role = $this->session->userdata('user_role');
+$is_customer = $is_logged_in && $user_role === 'Customer';
 ?>
 
 <footer id="contact-footer" class="site-footer">
@@ -33,7 +41,7 @@ $is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
         <div class="footer-section">
             <h3>Quick Links</h3>
             <ul>
-                <?php if ($is_logged_in): ?>
+                <?php if ($is_customer): ?>
                     <!-- Logged-in customer links (matching header) -->
                     <li><a href="<?php echo base_url('home-login'); ?>">Home</a></li>
                     <li><a href="<?php echo base_url('products'); ?>">Products</a></li>
@@ -42,7 +50,7 @@ $is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
                     <li><a href="<?php echo base_url('addtocart'); ?>">Cart</a></li>
                     <li><a href="<?php echo base_url('wishlist'); ?>">Wishlist</a></li>
                 <?php else: ?>
-                    <!-- Guest/public links -->
+                    <!-- General/public links (shown on public pages and login pages) -->
                     <li><a href="<?php echo base_url(); ?>">Home</a></li>
                     <li><a href="<?php echo base_url('about'); ?>">About Us</a></li>
                     <li><a href="<?php echo base_url('projects'); ?>">Project Showcase</a></li>

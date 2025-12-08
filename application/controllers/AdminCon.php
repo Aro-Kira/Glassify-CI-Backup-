@@ -10,6 +10,23 @@ class AdminCon extends CI_Controller
         $this->load->helper('url');
         $this->load->model('User_model');
         
+        // If a logged-in customer tries to access admin pages, force logout and redirect
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            // Set error message BEFORE clearing session data (flashdata needs active session)
+            $this->session->set_flashdata('error', '⚠️ Access Denied: This page is restricted to Admin employees only. Customer accounts cannot access employee pages. You have been logged out for security reasons.');
+            
+            // Clear all user session data (but keep session alive for flashdata)
+            $this->session->unset_userdata(['is_logged_in', 'user_id', 'user_name', 'user_email', 'user_role', 'customer_id']);
+            
+            // Set cache control headers to prevent back button access after force logout
+            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+            $this->output->set_header('Pragma: no-cache');
+            $this->output->set_header('Expires: 0');
+            
+            redirect(base_url('login'));
+        }
+        
         // Check if user is logged in and has Admin role
         if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
             $this->session->set_flashdata('error', 'Access denied. You must be logged in as an Admin.');
@@ -771,14 +788,404 @@ class AdminCon extends CI_Controller
 }
 
 
-    // Payments
+    // Payments - Show approved orders ready for payment
     public function admin_payments()
     {
+        // Get approved orders for all sales reps with payment data
+        // Note: payment table uses numeric OrderID, which matches order.OrderID in unified table
+        $this->db->select('
+            o.OrderID,
+            o.OrderNumber,
+            o.Customer_ID,
+            o.SalesRep_ID,
+            o.OrderDate,
+            o.TotalAmount as TotalQuotation,
+            o.Status,
+            o.PaymentStatus,
+            o.PaymentMethod,
+            o.Approved_Date,
+            o.DeliveryAddress as Address,
+            user.First_Name,
+            user.Last_Name,
+            user.Email,
+            product.ImageUrl as ProductImage,
+            product.ProductName,
+            payment.Payment_ID,
+            payment.Amount as PaymentAmount,
+            payment.Payment_Date,
+            payment.Transaction_ID,
+            payment.ReceiptPath,
+            payment.Status as PaymentStatus,
+            payment.CustomerName as PaymentCustomerName,
+            payment.ProductName as PaymentProductName,
+            payment.PaymentMethod as PaymentMethod
+        ');
+        $this->db->from('`order` o');
+        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+        $this->db->join('user', 'user.UserID = c.UserID', 'left');
+        $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+        $this->db->join('product', 'product.Product_ID = oi.Product_ID', 'left');
+        $this->db->join('payment', 'payment.OrderID = o.OrderID', 'left');
+        // Show orders that are Approved OR have a payment record with receipt (E-Wallet orders)
+        // This allows E-Wallet orders with receipts to show even if not yet approved
+        $this->db->where("(o.Status = 'Approved' OR (payment.ReceiptPath IS NOT NULL AND payment.ReceiptPath != ''))", NULL, FALSE);
+        // Order by Approved_Date if available, otherwise OrderDate
+        $this->db->order_by("COALESCE(o.Approved_Date, o.OrderDate)", 'DESC', FALSE);
+        $this->db->group_by('o.OrderID'); // Group to avoid duplicates from multiple order_items
+        $orders = $this->db->get()->result();
+        
+        // Calculate weekly sales (last 7 days) - only from approved orders
+        $week_start = date('Y-m-d', strtotime('-7 days'));
+        $this->db->select_sum('TotalAmount');
+        $this->db->from('`order`');
+        $this->db->where('Status', 'Approved');
+        $this->db->where('Approved_Date >=', $week_start);
+        $weekly_sales_result = $this->db->get()->row();
+        $weekly_sales = $weekly_sales_result->TotalAmount ?? 0;
+        
+        // Count pending, under review, and overdue payments
+        $pending_count = 0;
+        $overdue_count = 0;
+        foreach ($orders as $order) {
+            // Get payment status from payment table if available, otherwise from order table
+            $payment_status = $order->PaymentStatus ?? 'Pending';
+            
+            // Determine if status should be "Under Review" (has receipt but not paid)
+            if ($payment_status === 'Pending' && !empty($order->ReceiptPath)) {
+                $payment_status = 'Under Review';
+            }
+            
+            // Count pending (excluding under review)
+            if ($payment_status === 'Pending') {
+                $pending_count++;
+            }
+            
+            // Check if overdue (more than 7 days since approval and still pending/under review)
+            if (($payment_status === 'Pending' || $payment_status === 'Under Review') && $order->Approved_Date) {
+                $approved_date = strtotime($order->Approved_Date);
+                $days_since = (time() - $approved_date) / (60 * 60 * 24);
+                if ($days_since > 7) {
+                    $overdue_count++;
+                }
+            }
+        }
+        
+        $data['orders'] = $orders;
+        $data['weekly_sales'] = $weekly_sales;
+        $data['pending_count'] = $pending_count;
+        $data['overdue_count'] = $overdue_count;
         $data['title'] = "Glassify - Payments";
         $data['active'] = 'payments';
         $data['content_view'] = 'admin_page/admin_payments';
         $data['page_css'] = 'admin_css/admin_payments.css';
         $this->load->view('admin_page/layout', $data);
+    }
+
+    /**
+     * Get payment details for admin
+     * Similar to SalesCon but without SalesRep_ID filtering
+     */
+    public function get_payment_details()
+    {
+        // Set JSON header
+        header('Content-Type: application/json');
+        
+        // Check authentication
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+            return;
+        }
+        
+        // Remove # prefix and extract numeric part
+        $order_id_clean = str_replace(['#GI', '#'], '', $order_id);
+        $order_id_clean = str_replace('GI', '', $order_id_clean);
+        $order_id_numeric = ltrim($order_id_clean, '0');
+        if (empty($order_id_numeric)) {
+            $order_id_numeric = 1;
+        }
+        $order_id_numeric = (int)$order_id_numeric;
+        
+        try {
+            // Get payment record from database
+            $this->db->where('OrderID', $order_id_numeric);
+            $payment = $this->db->get('payment')->row();
+            
+            if (!$payment) {
+                // If payment record doesn't exist, get from unified order table
+                $this->db->select('o.*, p.ProductName');
+                $this->db->from('`order` o');
+                $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+                $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+                $this->db->where('o.OrderID', $order_id_numeric);
+                $this->db->where("(o.Status = 'Approved' OR o.Status = 'Pending Review')", NULL, FALSE);
+                $this->db->group_by('o.OrderID');
+                $order = $this->db->get()->row();
+                
+                if (!$order) {
+                    echo json_encode(['success' => false, 'message' => 'Order not found']);
+                    return;
+                }
+                
+                // Get customer name
+                $this->db->select('u.First_Name, u.Last_Name');
+                $this->db->from('customer c');
+                $this->db->join('user u', 'u.UserID = c.UserID', 'left');
+                $this->db->where('c.Customer_ID', $order->Customer_ID);
+                $customer = $this->db->get()->row();
+                $customer_name = '';
+                if ($customer) {
+                    $customer_name = trim(($customer->First_Name ?? '') . ' ' . ($customer->Last_Name ?? ''));
+                }
+                
+                // Get product image
+                $this->db->select('ImageUrl');
+                $this->db->where('ProductName', $order->ProductName);
+                $product = $this->db->get('product')->row();
+                
+                echo json_encode([
+                    'success' => true,
+                    'data' => [
+                        'customer_name' => $customer_name,
+                        'product_name' => $order->ProductName ?? 'N/A',
+                        'product_image' => $product ? ($product->ImageUrl ?? '') : '',
+                        'amount' => $order->TotalAmount,
+                        'payment_method' => $order->PaymentMethod ?? 'Not Selected',
+                        'receipt_path' => '' // No receipt if payment record doesn't exist
+                    ]
+                ]);
+                return;
+            }
+            
+            // Get product image
+            $this->db->select('ImageUrl');
+            $this->db->where('ProductName', $payment->ProductName);
+            $product = $this->db->get('product')->row();
+            
+            echo json_encode([
+                'success' => true,
+                'data' => [
+                    'customer_name' => $payment->CustomerName ?? '',
+                    'product_name' => $payment->ProductName ?? '',
+                    'product_image' => $product ? ($product->ImageUrl ?? '') : '',
+                    'amount' => $payment->Amount,
+                    'payment_method' => $payment->PaymentMethod ?? 'Not Selected',
+                    'receipt_path' => $payment->ReceiptPath ?? ''
+                ]
+            ]);
+        } catch (Exception $e) {
+            log_message('error', 'Error in get_payment_details: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Server error: ' . $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * Mark payment as paid (Admin version)
+     * Updates payment status in payment table and order table
+     * Admin can mark any order as paid (no SalesRep_ID restriction)
+     */
+    public function mark_payment_paid()
+    {
+        // Set JSON header first
+        header('Content-Type: application/json');
+        
+        // Enable error reporting for debugging (only in development)
+        if (ENVIRONMENT === 'development') {
+            error_reporting(E_ALL);
+            ini_set('display_errors', 0); // Don't display, but log
+        }
+        
+        // Set up error handler to catch any fatal errors
+        register_shutdown_function(function() {
+            $error = error_get_last();
+            if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+                log_message('error', 'Fatal error in mark_payment_paid: ' . $error['message'] . ' in ' . $error['file'] . ' on line ' . $error['line']);
+                if (!headers_sent()) {
+                    header('Content-Type: application/json');
+                    echo json_encode([
+                        'success' => false, 
+                        'message' => 'Fatal error: ' . $error['message'] . ' (Check logs for details)',
+                        'error_file' => basename($error['file']),
+                        'error_line' => $error['line']
+                    ]);
+                }
+            }
+        });
+        
+        try {
+            // Check authentication
+            if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+                echo json_encode(['success' => false, 'message' => 'Unauthorized access']);
+                return;
+            }
+            
+            $order_id = $this->input->post('order_id');
+            
+            if (!$order_id) {
+                echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+                return;
+            }
+            
+            // Log the attempt
+            log_message('info', 'mark_payment_paid (Admin) called: order_id=' . $order_id);
+            
+            // Remove # prefix and handle both numeric and GI format
+            $order_id_clean = str_replace(['#GI', '#'], '', $order_id);
+            $order_id_clean = trim($order_id_clean);
+            
+            // Try to find order by OrderNumber first (if it's in GI format)
+            $order = null;
+            $order_id_numeric = null;
+            
+            if (preg_match('/^GI\d+$/i', $order_id_clean)) {
+                // It's in GI format, look up by OrderNumber
+                $this->db->select('OrderID, Status, TotalAmount, PaymentMethod');
+                $this->db->where('OrderNumber', $order_id_clean);
+                $order = $this->db->get('`order`')->row();
+                if ($order) {
+                    $order_id_numeric = $order->OrderID;
+                }
+            }
+            
+            // If not found by OrderNumber, try numeric lookup
+            if (!$order) {
+                $order_id_clean_numeric = str_replace('GI', '', $order_id_clean);
+                $order_id_clean_numeric = ltrim($order_id_clean_numeric, '0');
+                if (empty($order_id_clean_numeric)) {
+                    $order_id_clean_numeric = 1;
+                }
+                $order_id_numeric = (int)$order_id_clean_numeric;
+                
+                // Verify order exists (no SalesRep_ID restriction for admin)
+                $this->db->select('OrderID, Status, TotalAmount, PaymentMethod');
+                $this->db->where('OrderID', $order_id_numeric);
+                $order = $this->db->get('`order`')->row();
+            }
+            
+            if (!$order) {
+                throw new Exception('Order not found');
+            }
+            
+            // Ensure we have the numeric OrderID
+            if (!$order_id_numeric) {
+                $order_id_numeric = $order->OrderID;
+            }
+            
+            // Generate order_id_string for logging
+            $order_id_string = 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
+            
+            // Update payment status using Order_model transaction function
+            $this->load->model('Order_model');
+            
+            log_message('info', 'Attempting to update payment status for OrderID: ' . $order_id_numeric);
+            
+            try {
+                $update_result = $this->Order_model->update_payment_status($order_id_numeric, 'Paid');
+                
+                if (!$update_result) {
+                    $error = $this->db->error();
+                    $error_msg = $error['message'] ?? 'Unknown database error';
+                    $error_code = $error['code'] ?? 0;
+                    log_message('error', 'update_payment_status returned false. Error: ' . $error_msg . ' (Code: ' . $error_code . ')');
+                    log_message('error', 'Order ID: ' . $order_id_numeric);
+                    
+                    if ($this->db->trans_status() === FALSE) {
+                        $trans_error = $this->db->error();
+                        log_message('error', 'Transaction failed: ' . ($trans_error['message'] ?? 'Unknown transaction error'));
+                    }
+                    
+                    throw new Exception('Failed to update payment status: ' . $error_msg);
+                }
+                
+                log_message('info', 'Payment status updated successfully for OrderID: ' . $order_id_numeric);
+            } catch (Exception $update_error) {
+                log_message('error', 'Exception in update_payment_status: ' . $update_error->getMessage());
+                throw $update_error;
+            }
+            
+            // Deduct materials from inventory after payment
+            $this->load->model('Inventory_model');
+            $product_id = null;
+            $this->db->select('oi.Product_ID');
+            $this->db->from('order_items oi');
+            $this->db->where('oi.OrderID', $order_id_numeric);
+            $this->db->limit(1);
+            $order_item = $this->db->get()->row();
+            
+            if ($order_item && isset($order_item->Product_ID) && $order_item->Product_ID) {
+                $product_id = $order_item->Product_ID;
+            }
+            
+            if ($product_id) {
+                try {
+                    $deduction_result = $this->Inventory_model->deduct_materials_for_order($order_id_numeric, $product_id, 1);
+                    
+                    if (!$deduction_result['success']) {
+                        log_message('error', 'Some materials could not be deducted for order ' . $order_id_string . ': ' . json_encode($deduction_result['out_of_stock_items']));
+                    } else {
+                        log_message('info', 'Materials deducted successfully for order ' . $order_id_string);
+                    }
+                } catch (Exception $deduct_error) {
+                    log_message('error', 'Failed to deduct materials for order ' . $order_id_string . ': ' . $deduct_error->getMessage());
+                }
+            }
+            
+            // Get admin name for logging
+            $admin_id = $this->session->userdata('user_id');
+            $admin_name = 'Admin';
+            try {
+                $admin = $this->User_model->get_by_id($admin_id);
+                if ($admin && isset($admin->First_Name) && isset($admin->Last_Name)) {
+                    $admin_name = trim($admin->First_Name . ' ' . $admin->Last_Name);
+                }
+            } catch (Exception $user_error) {
+                log_message('error', 'Failed to get admin name: ' . $user_error->getMessage());
+            }
+            
+            // Get payment amount
+            $payment_amount = 0;
+            try {
+                $this->db->select('Amount');
+                $this->db->where('OrderID', $order_id_numeric);
+                $payment_info = $this->db->get('payment')->row();
+                $payment_amount = $payment_info ? (float)($payment_info->Amount ?? 0) : 0;
+            } catch (Exception $amount_error) {
+                log_message('error', 'Failed to get payment amount: ' . $amount_error->getMessage());
+                $payment_amount = isset($order->TotalAmount) ? (float)$order->TotalAmount : 0;
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Payment marked as paid successfully'
+            ]);
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
+            log_message('error', 'Error in mark_payment_paid (Admin): ' . $error_message);
+            
+            if ($this->db->trans_status() !== FALSE) {
+                $this->db->trans_rollback();
+            }
+            
+            $db_error = $this->db->error();
+            if (!empty($db_error['message'])) {
+                log_message('error', 'Database error: ' . $db_error['message']);
+            }
+            
+            $message = (ENVIRONMENT === 'development') 
+                ? 'Server error: ' . $error_message 
+                : 'An error occurred while processing your request. Please try again.';
+            
+            echo json_encode([
+                'success' => false, 
+                'message' => $message
+            ]);
+        }
     }
 
     // Reports
@@ -1671,6 +2078,7 @@ class AdminCon extends CI_Controller
         }
         
         echo json_encode($result);
+        return;
         
         // Get admin ID
         $admin_id = $this->session->userdata('user_id');
@@ -1772,11 +2180,14 @@ class AdminCon extends CI_Controller
     {
         $status_map = [
             'Pending' => 'Pending',
+            'Pending Review' => 'Ready to Approve',
             'Approved' => 'Confirmed',
             'Completed' => 'Completed',
             'Cancelled' => 'Canceled',
+            'Disapproved' => 'Disapproved',
             'In Fabrication' => 'In Progress',
             'Ready for Installation' => 'In Progress',
+            'Awaiting Admin' => 'Ready to Approve',
             'Returned' => 'Returned'
         ];
         
@@ -1790,11 +2201,14 @@ class AdminCon extends CI_Controller
     {
         $class_map = [
             'Pending' => 'pending',
+            'Pending Review' => 'pending',
             'Approved' => 'completed',
             'Completed' => 'completed',
             'Cancelled' => 'canceled',
+            'Disapproved' => 'canceled',
             'In Fabrication' => 'pending',
             'Ready for Installation' => 'pending',
+            'Awaiting Admin' => 'pending',
             'Returned' => 'canceled'
         ];
         
@@ -1938,6 +2352,149 @@ class AdminCon extends CI_Controller
         ];
         
         $this->db->insert('system_activity_log', $data);
+    }
+
+    // Notifications
+    public function admin_notif()
+    {
+        // Initialize notifications array
+        $all_notifications = [];
+        
+        // Check if system_activity_log table exists and fetch notifications
+        if ($this->db->table_exists('system_activity_log')) {
+            try {
+                $this->db->order_by('Timestamp', 'DESC');
+                $notifications = $this->db->get('system_activity_log')->result();
+                
+                // Format notifications for display
+                if ($notifications) {
+                    foreach ($notifications as $notif) {
+                        // Determine icon based on action
+                        $icon = $this->determine_notification_icon(
+                            isset($notif->Action) ? $notif->Action : '', 
+                            isset($notif->Description) ? $notif->Description : ''
+                        );
+                        
+                        // Format title and message
+                        $action = isset($notif->Action) ? $notif->Action : 'Notification';
+                        $description = isset($notif->Description) ? $notif->Description : '';
+                        
+                        $all_notifications[] = (object)[
+                            'Action' => $action,
+                            'Description' => $description,
+                            'Icon' => $icon,
+                            'Role' => isset($notif->Role) ? $notif->Role : 'System',
+                            'Timestamp' => isset($notif->Timestamp) ? $notif->Timestamp : date('Y-m-d H:i:s'),
+                            'Status' => 'read'
+                        ];
+                    }
+                }
+            } catch (Exception $e) {
+                log_message('error', 'Error fetching notifications: ' . $e->getMessage());
+                // Continue with empty array
+            } catch (Error $e) {
+                log_message('error', 'Fatal error fetching notifications: ' . $e->getMessage());
+                // Continue with empty array
+            }
+        }
+        
+        // Prepare data for view
+        $data['notifications'] = $all_notifications;
+        $data['title'] = "Glassify - Notifications";
+        $data['active'] = 'notif';
+        $data['content_view'] = 'admin_page/admin_notif';
+        $data['page_css'] = 'sales_css/sales_notif.css';
+        
+        // Load view
+        try {
+            $this->load->view('admin_page/layout', $data);
+        } catch (Exception $e) {
+            log_message('error', 'Error loading admin_notif view: ' . $e->getMessage());
+            show_error('Error loading notifications page: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    /**
+     * Determine notification icon based on action and description
+     * 
+     * @param string $action Action type
+     * @param string $description Description text
+     * @return string Font Awesome icon class
+     */
+    private function determine_notification_icon($action, $description)
+    {
+        $action_lower = strtolower($action ?? '');
+        $desc_lower = strtolower($description ?? '');
+        
+        // Order-related icons
+        if (stripos($action_lower, 'order') !== false || stripos($desc_lower, 'order') !== false) {
+            if (stripos($action_lower, 'approval') !== false || stripos($action_lower, 'requested') !== false) {
+                return 'fa-user-tie';
+            } elseif (stripos($action_lower, 'approved') !== false) {
+                return 'fa-shopping-cart';
+            } elseif (stripos($action_lower, 'disapproved') !== false || stripos($action_lower, 'rejected') !== false) {
+                return 'fa-times-circle';
+            } elseif (stripos($action_lower, 'completed') !== false) {
+                return 'fa-check-circle';
+            }
+            return 'fa-shopping-cart';
+        }
+        
+        // Product-related
+        if (stripos($action_lower, 'product') !== false) {
+            return 'fa-box';
+        }
+        
+        // Inventory-related
+        if (stripos($action_lower, 'inventory') !== false || stripos($desc_lower, 'inventory') !== false || 
+            stripos($desc_lower, 'stock') !== false) {
+            return 'fa-box-open';
+        }
+        
+        // Payment-related
+        if (stripos($action_lower, 'payment') !== false || stripos($desc_lower, 'payment') !== false) {
+            return 'fa-money-bill-wave';
+        }
+        
+        // User/Employee-related
+        if (stripos($action_lower, 'employee') !== false || stripos($action_lower, 'user') !== false) {
+            return 'fa-user-tie';
+        }
+        
+        // Default icon
+        return 'fa-info-circle';
+    }
+    
+    /**
+     * Get notification count (AJAX endpoint)
+     * Admin uses system_activity_log - count all recent notifications
+     */
+    public function get_notification_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        // Count all notifications from system_activity_log (admin treats all as notifications)
+        if ($this->db->table_exists('system_activity_log')) {
+            // Count notifications from last 30 days
+            $this->db->where('Timestamp >=', date('Y-m-d H:i:s', strtotime('-30 days')));
+            $count = $this->db->count_all_results('system_activity_log');
+        } else {
+            $count = 0;
+        }
+        
+        // Limit to 99, show 99+ if more
+        if ($count > 99) {
+            $display_count = '99+';
+        } else {
+            $display_count = $count;
+        }
+        
+        echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
     }
 
   

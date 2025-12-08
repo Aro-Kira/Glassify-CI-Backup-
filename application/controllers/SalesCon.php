@@ -23,6 +23,23 @@ class SalesCon extends CI_Controller
     // Check if user is authenticated and is a Sales Representative
     private function check_auth()
     {
+        // If a logged-in customer tries to access sales pages, force logout and redirect
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            // Set error message BEFORE clearing session data (flashdata needs active session)
+            $this->session->set_flashdata('error', '⚠️ Access Denied: This page is restricted to Sales Representative employees only. Customer accounts cannot access employee pages. You have been logged out for security reasons.');
+            
+            // Clear all user session data (but keep session alive for flashdata)
+            $this->session->unset_userdata(['is_logged_in', 'user_id', 'user_name', 'user_email', 'user_role', 'customer_id']);
+            
+            // Set cache control headers to prevent back button access after force logout
+            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+            $this->output->set_header('Pragma: no-cache');
+            $this->output->set_header('Expires: 0');
+            
+            redirect(base_url('login'));
+        }
+        
         if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Sales Representative') {
             $this->session->set_flashdata('error', 'You must be logged in as a Sales Representative to access this page.');
             redirect(base_url('sales-login'));
@@ -1198,6 +1215,16 @@ class SalesCon extends CI_Controller
         $result = $this->Issue_model->mark_as_resolved($issue_id);
         
         if ($result) {
+            // Create notification for issue resolution
+            $this->add_sales_notification(
+                'fa-check-circle',
+                'Sales Representative',
+                "Issue Resolved: Issue #{$issue_id} has been marked as resolved",
+                'Unread',
+                $issue_id,
+                'Issue'
+            );
+            
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => true,
@@ -1232,6 +1259,16 @@ class SalesCon extends CI_Controller
         $result = $this->Issue_model->update_priority($issue_id, $priority);
         
         if ($result) {
+            // Create notification for priority update
+            $this->add_sales_notification(
+                'fa-exclamation-triangle',
+                'Sales Representative',
+                "Issue Priority Updated: Issue #{$issue_id} priority changed to {$priority}",
+                'Unread',
+                $issue_id,
+                'Issue'
+            );
+            
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => true,
@@ -1363,6 +1400,31 @@ class SalesCon extends CI_Controller
             'Read_Date' => date('Y-m-d H:i:s')
         ]);
     }
+    
+    /**
+     * Get unread notification count (AJAX endpoint)
+     */
+    public function get_notification_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Sales Representative') {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        $this->db->where('Status', 'Unread');
+        $count = $this->db->count_all_results('sales_notif');
+        
+        // Limit to 99, show 99+ if more
+        if ($count > 99) {
+            $display_count = '99+';
+        } else {
+            $display_count = $count;
+        }
+        
+        echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
+    }
 
     // Update account information via AJAX
     public function update_account()
@@ -1385,6 +1447,7 @@ class SalesCon extends CI_Controller
         // Get POST data
         $field = $this->input->post('field');
         $value = $this->input->post('value');
+        $current_password = $this->input->post('current_password');
         
         // Also try raw input in case POST isn't working
         if (empty($field)) {
@@ -1393,6 +1456,7 @@ class SalesCon extends CI_Controller
             if (!empty($parsed['field'])) {
                 $field = $parsed['field'];
                 $value = $parsed['value'] ?? '';
+                $current_password = $parsed['current_password'] ?? '';
             }
         }
 
@@ -1421,15 +1485,43 @@ class SalesCon extends CI_Controller
             return;
         }
 
+        // Get current user early (needed for password verification and change detection)
+        $this->load->model('User_model');
+        $current_user = $this->User_model->get_by_id($user_id);
+        if (!$current_user) {
+            echo json_encode(['success' => false, 'message' => 'User account not found']);
+            return;
+        }
+
         // Prepare update data
         $update_data = [];
 
-        // Handle password separately (needs hashing)
+        // Handle password separately (needs hashing and current password verification)
         if ($field === 'Password') {
-            if (empty($value) || strlen($value) < 6) {
-                echo json_encode(['success' => false, 'message' => 'Password must be at least 6 characters']);
+            // Require current password for password changes
+            if (empty($current_password)) {
+                echo json_encode(['success' => false, 'message' => 'Current password is required to change password']);
                 return;
             }
+            
+            // Verify current password
+            if (!password_verify($current_password, $current_user->Password)) {
+                echo json_encode(['success' => false, 'message' => 'Current password is incorrect']);
+                return;
+            }
+            
+            // Validate new password
+            if (empty($value) || strlen($value) < 6) {
+                echo json_encode(['success' => false, 'message' => 'New password must be at least 6 characters']);
+                return;
+            }
+            
+            // Check if new password is different from current password
+            if (password_verify($value, $current_user->Password)) {
+                echo json_encode(['success' => false, 'message' => 'New password must be different from the current password']);
+                return;
+            }
+            
             $update_data['Password'] = password_hash($value, PASSWORD_BCRYPT);
         } else {
             // Trim and validate other fields
@@ -1484,22 +1576,11 @@ class SalesCon extends CI_Controller
         }
 
         // Check if value actually changed (prevent unnecessary updates)
-        $current_user = $this->User_model->get_by_id($user_id);
-        if (!$current_user) {
-            echo json_encode(['success' => false, 'message' => 'User account not found']);
-            return;
-        }
-
-        // Check if the new value is different from current value
+        // Note: current_user was already fetched above for password verification
         $current_value = $current_user->$field ?? '';
         
         if ($field === 'Password') {
-            // For password, we always update (can't compare hashes)
-            // But verify the new password is different from old one by checking if it verifies
-            if (!empty($current_value) && password_verify($value, $current_value)) {
-                echo json_encode(['success' => false, 'message' => 'New password must be different from the current password.']);
-                return;
-            }
+            // Password verification already done above, skip duplicate check
         } else {
             // For other fields, compare trimmed values
             $current_trimmed = trim($current_value);
@@ -1554,6 +1635,17 @@ class SalesCon extends CI_Controller
 
                 // Log successful update
                 log_message('info', 'Sales Rep account updated successfully: UserID=' . $user_id . ', Field=' . $field . ', Affected rows=' . $affected_rows);
+                
+                // Create notification for account update
+                $field_display = ucfirst(str_replace('_', ' ', $field));
+                $this->add_sales_notification(
+                    'fa-user-tie',
+                    'Sales Representative',
+                    "Account Updated: {$field_display} has been updated",
+                    'Unread',
+                    $user_id,
+                    'Account'
+                );
                 
                 echo json_encode(['success' => true, 'message' => 'Account updated successfully in database']);
             } else {
@@ -1645,6 +1737,15 @@ class SalesCon extends CI_Controller
         
         if ($result['success']) {
             $result['order_id'] = $order_id_formatted;
+            // Create notification for order approval
+            $this->add_sales_notification(
+                'fa-check-circle',
+                'Sales Representative',
+                "Order Approved: {$order_id_formatted} has been approved",
+                'Unread',
+                $order_id_numeric,
+                'Order'
+            );
         }
         
         echo json_encode($result);
@@ -1659,41 +1760,64 @@ class SalesCon extends CI_Controller
     {
         header('Content-Type: application/json');
         
-        $sales_rep_id = $this->get_current_sales_rep_id();
-        $order_id = $this->input->post('order_id');
-        $reason = $this->input->post('reason') ?: '';
-        
-        if (!$order_id) {
-            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
-            return;
+        try {
+            $sales_rep_id = $this->get_current_sales_rep_id();
+            if (!$sales_rep_id) {
+                echo json_encode(['success' => false, 'message' => 'Sales representative not authenticated']);
+                return;
+            }
+            
+            $order_id = $this->input->post('order_id');
+            $reason = $this->input->post('reason') ?: '';
+            
+            if (!$order_id) {
+                echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+                return;
+            }
+            
+            // Load Order_model
+            $this->load->model('Order_model');
+            
+            // Parse order ID - remove # prefix
+            $order_id_clean = str_replace('#', '', $order_id);
+            
+            // Look up the order by OrderNumber or OrderID to get the actual numeric OrderID
+            $order = $this->Order_model->get_order($order_id_clean);
+            
+            if (!$order) {
+                echo json_encode(['success' => false, 'message' => 'Order not found']);
+                return;
+            }
+            
+            // Use the actual numeric OrderID from the database
+            $order_id_numeric = $order->OrderID;
+            $order_id_formatted = $order->OrderNumber ?? 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
+            
+            // Use Order_model function
+            $result = $this->Order_model->sales_rep_final_disapprove($order_id_numeric, $sales_rep_id, $reason);
+            
+            if ($result['success']) {
+                $result['order_id'] = $order_id_formatted;
+                // Create notification for order disapproval
+                $reason_text = $reason ? " (Reason: {$reason})" : '';
+                $this->add_sales_notification(
+                    'fa-times-circle',
+                    'Sales Representative',
+                    "Order Disapproved: {$order_id_formatted} has been disapproved{$reason_text}",
+                    'Unread',
+                    $order_id_numeric,
+                    'Order'
+                );
+            }
+            
+            echo json_encode($result);
+        } catch (Exception $e) {
+            log_message('error', 'SalesCon::disapprove_order - Exception: ' . $e->getMessage());
+            echo json_encode([
+                'success' => false, 
+                'message' => 'An error occurred while disapproving the order: ' . $e->getMessage()
+            ]);
         }
-        
-        // Load Order_model
-        $this->load->model('Order_model');
-        
-        // Parse order ID - remove # prefix
-        $order_id_clean = str_replace('#', '', $order_id);
-        
-        // Look up the order by OrderNumber or OrderID to get the actual numeric OrderID
-        $order = $this->Order_model->get_order($order_id_clean);
-        
-        if (!$order) {
-            echo json_encode(['success' => false, 'message' => 'Order not found']);
-            return;
-        }
-        
-        // Use the actual numeric OrderID from the database
-        $order_id_numeric = $order->OrderID;
-        $order_id_formatted = $order->OrderNumber ?? 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
-        
-        // Use Order_model function
-        $result = $this->Order_model->sales_rep_final_disapprove($order_id_numeric, $sales_rep_id, $reason);
-        
-        if ($result['success']) {
-            $result['order_id'] = $order_id_formatted;
-        }
-        
-        echo json_encode($result);
     }
     
     /**
@@ -2162,6 +2286,21 @@ class SalesCon extends CI_Controller
             
             // Transaction is handled by update_payment_status, so we don't need to complete it here
             // But we should check if there were any errors
+            
+            // Create notification for payment update
+            if ($order && isset($order->OrderNumber)) {
+                $order_id_formatted = $order->OrderNumber;
+            } else {
+                $order_id_formatted = 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
+            }
+            $this->add_sales_notification(
+                'fa-money-bill-wave',
+                'Sales Representative',
+                "Payment Updated: Payment for Order {$order_id_formatted} has been marked as paid",
+                'Unread',
+                $order_id_numeric,
+                'Payment'
+            );
             
             echo json_encode([
                 'success' => true,

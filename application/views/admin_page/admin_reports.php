@@ -35,7 +35,6 @@
 
 </main>
 </div>
-<script src="/Glassify/assets/js/admin-sidebar.js"></script>
 
 </body>
 

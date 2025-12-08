@@ -16,9 +16,10 @@ $(document).ready(function () {
             subtotal += price * quantity;
         });
 
-        // Calculate shipping and handling based on selection
-        const shipping = selectedItems > 0 ? 50 : 0; // Base shipping fee
-        const handling = selectedItems > 0 ? Math.ceil(subtotal * 0.02) : 0; // 2% handling fee
+        // Calculate shipping and handling to match server-side calculation
+        // Shipping: 25 per item, Handling: 10 per item
+        const shipping = selectedItems * 25;
+        const handling = selectedItems * 10;
         const total = subtotal + shipping + handling;
 
         // Update summary display
@@ -448,9 +449,10 @@ $(document).on('change', '.qty-input', function () {
                     designsSection.hide();
                 }
 
-                // Calculate fees based on selected items only
-                const shippingFee = itemCount > 0 ? 50 : 0;
-                const handlingFee = itemCount > 0 ? Math.ceil(subtotal * 0.02) : 0;
+                // Calculate fees based on selected items only (matching server-side calculation)
+                // Shipping: 25 per item, Handling: 10 per item
+                const shippingFee = itemCount * 25;
+                const handlingFee = itemCount * 10;
                 const grandTotal = subtotal + shippingFee + handlingFee;
 
                 // Format date nicely

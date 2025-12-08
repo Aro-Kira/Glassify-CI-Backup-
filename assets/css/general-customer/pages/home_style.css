@@ -335,29 +335,65 @@ tbody tr:hover {
   text-align: center;
   min-width: 80px;
 }
-.status.in-progress { 
-  background: #FF9800; 
-  color: #fff;
+/* Disapproved - Red */
+.status.disapproved { 
+  background: #dc3545 !important; 
+  color: #fff !important;
 }
+/* Ready to Approve - Yellow/Warning */
+.status.ready-to-approve { 
+  background: #ffc107 !important; 
+  color: #fff !important;
+}
+/* Approved - Blue */
 .status.approved { 
-  background: #FF9800; 
-  color: #fff;
+  background: #2196F3 !important; 
+  color: #fff !important;
 }
+/* Completed - Green */
 .status.completed { 
-  background: #28a745; 
-  color: #fff;
+  background: #28a745 !important; 
+  color: #fff !important;
 }
-.status.confirmed { 
-  background: #28a745; 
-  color: #fff;
+/* In Fabrication - Blue (In Progress) */
+.status.in-fabrication { 
+  background: #2196F3 !important; 
+  color: #fff !important;
 }
+/* Ready for Installation - Blue (In Progress) */
+.status.ready-for-installation { 
+  background: #2196F3 !important; 
+  color: #fff !important;
+}
+/* Pending Review - Yellow/Warning */
 .status.pending { 
-  background: #FF9800; 
-  color: #fff;
+  background: #ffc107 !important; 
+  color: #fff !important;
 }
+/* Awaiting Admin - Yellow/Warning */
+.status.awaiting-admin { 
+  background: #ffc107 !important; 
+  color: #fff !important;
+}
+/* Cancelled - Red */
 .status.cancelled { 
-  background: #dc3545; 
-  color: #fff;
+  background: #dc3545 !important; 
+  color: #fff !important;
+}
+/* Returned - Red */
+.status.returned { 
+  background: #dc3545 !important; 
+  color: #fff !important;
+}
+/* Confirmed - Green */
+.status.confirmed { 
+  background: #28a745 !important; 
+  color: #fff !important;
+}
+/* Legacy support for in-progress class */
+.status.in-progress { 
+  background: #2196F3 !important; 
+  color: #fff !important;
 }
 
 /* Activity Feed */

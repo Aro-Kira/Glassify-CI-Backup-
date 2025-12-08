@@ -56,6 +56,43 @@
   transition: 0.3s ease;
 }
 
+/* Icon wrapper for badge positioning */
+.icon-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* Badge styling for cart and wishlist counts */
+.icon-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #f4b400; /* golden yellow */
+  color: #02455F; /* dark blue text */
+  border-radius: 50% !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  max-width: 22px !important;
+  max-height: 22px !important;
+  aspect-ratio: 1 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: 'DM Sans', sans-serif;
+  padding: 0 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border: 2px solid #02455F;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .icons img.tracking-icon
 {
   margin-top: -5px;

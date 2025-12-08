@@ -1,25 +1,26 @@
+
+
 <!-- Payments -->
 <section class="order-list-section">
   <div class="section-header">
     <h2>Payments</h2>
 
     <div class="inventory-stats">
-      <div class="stat-card stat-green">
-        <div class="stat-value">₱67,704</div>
+    <div class="stat-card stat-green">
+        <div class="stat-value">₱<?php echo number_format($weekly_sales ?? 0, 2); ?></div>
         <div class="stat-title">Weekly Sales</div>
-        <div class="stat-percent">↑ 18% from last week</div>
-      </div>
-
-      <div class="stat-card stat-orange">
-        <div class="stat-value">3</div>
-        <div class="stat-title">Pending Payments</div>
-      </div>
-
-      <div class="stat-card stat-red">
-        <div class="stat-value">1</div>
-        <div class="stat-title">Overdue Payments</div>
-      </div>
     </div>
+
+    <div class="stat-card stat-orange">
+        <div class="stat-value" id="statPendingValue"><?php echo $pending_count ?? 0; ?></div> 
+        <div class="stat-title">Pending Payments</div>
+    </div>
+
+    <div class="stat-card stat-red">
+        <div class="stat-value" id="statOverdueValue"><?php echo $overdue_count ?? 0; ?></div> 
+        <div class="stat-title">Overdue Payments</div>
+    </div>
+</div>
 
   </div>
 
@@ -27,13 +28,13 @@
     <h2>Payment Tables</h2>
   </div>
 
-  <div class="payment-filters">
-    <span class="filter-tab active">All</span>
-    <span class="filter-tab">Paid</span>
-    <span class="filter-tab">Pending</span>
-    <span class="filter-tab">Under Review</span>
-    <span class="filter-tab">Overdue</span>
-  </div>
+    <div class="payment-filters">
+    <span class="filter-tab active" data-status="all">All</span>
+    <span class="filter-tab" data-status="paid">Paid</span>
+    <span class="filter-tab" data-status="pending">Pending</span>
+    <span class="filter-tab" data-status="review">Under Review</span>
+    <span class="filter-tab" data-status="overdue">Overdue</span>
+    </div>
 
 
   <div class="table-container">
@@ -43,139 +44,179 @@
           <th>#</th>
           <th>Order ID</th>
           <th>Customer</th>
+          <th>Product</th>
           <th>Method</th>
           <th>Status</th>
-          <th>Receipt</th>
           <th>Date</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td>1</td>
-          <td>#G1001</td>
-          <td>Calista Flockhart</td>
-          <td><span class="method-gcash">Gcash</span></td>
-          <td><span class="status-badge pending">Pending</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
+        <?php 
+        $row_num = 1;
+        if (!empty($orders)): 
+          foreach ($orders as $order): 
+            $customer_name = trim(($order->First_Name ?? '') . ' ' . ($order->Last_Name ?? ''));
+            $customer_name = $customer_name ?: 'N/A';
+            $order_id_formatted = '#' . ($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT));
+            // Get payment status from payment table if available, otherwise from order table
+            // Priority: payment.Status > order.PaymentStatus > 'Pending'
+            $payment_status = 'Pending';
+            if (isset($order->PaymentStatus) && !empty($order->PaymentStatus)) {
+                $payment_status = $order->PaymentStatus;
+            }
+            
+            // Only override status if it's not already 'Paid' or 'Complete'
+            // Determine if status should be "Under Review" (has receipt but not paid)
+            if (($payment_status === 'Pending' || $payment_status === '') && !empty($order->ReceiptPath)) {
+                $payment_status = 'Under Review';
+            }
+            
+            // Determine if overdue (more than 7 days since approval and still pending/under review)
+            // Only check overdue if status is not already 'Paid' or 'Complete'
+            $is_overdue = false;
+            if (($payment_status === 'Pending' || $payment_status === 'Under Review' || $payment_status === '') && $order->Approved_Date) {
+                $approved_date = strtotime($order->Approved_Date);
+                $days_since = (time() - $approved_date) / (60 * 60 * 24);
+                if ($days_since > 7) {
+                    $is_overdue = true;
+                    $payment_status = 'Overdue';
+                }
+            }
+            
+            // Get payment method from payment table if available, otherwise from order table
+            $payment_method = isset($order->PaymentMethod) && !empty($order->PaymentMethod) ? $order->PaymentMethod : ($order->PaymentMethod ?? 'Not Selected');
+            
+            // If payment method is not set but receipt exists, it's E-Wallet
+            if (empty($payment_method) || $payment_method === 'Not Selected') {
+                if (!empty($order->ReceiptPath)) {
+                    $payment_method = 'E-Wallet';
+                }
+            }
+            
+            // Use Approved_Date if available, otherwise OrderDate, or payment date
+            $display_date = $order->Approved_Date ?? $order->OrderDate;
+            if (empty($display_date) && !empty($order->Payment_Date)) {
+                $display_date = $order->Payment_Date;
+            }
+            $approved_date = $display_date ? date('d/m/Y', strtotime($display_date)) : date('d/m/Y');
+        ?>
+        <tr data-order-id="<?php echo $order->OrderID; ?>" 
+            data-price="<?php echo isset($order->PaymentAmount) ? $order->PaymentAmount : $order->TotalQuotation; ?>" 
+            data-payment-method="<?php echo htmlspecialchars($payment_method); ?>"
+            data-product-image="<?php echo htmlspecialchars($order->ProductImage ?? ''); ?>"
+            data-payment-id="<?php echo isset($order->Payment_ID) ? $order->Payment_ID : ''; ?>"
+            data-payment-status="<?php echo strtolower($payment_status); ?>"
+            data-receipt-path="<?php echo htmlspecialchars($order->ReceiptPath ?? ''); ?>">
+          <td><?php echo $row_num++; ?></td>
+          <td><?php echo $order_id_formatted; ?></td>
+          <td><?php echo $customer_name; ?></td>
+          <td><?php echo $order->ProductName ?: 'N/A'; ?></td>
+          <td>
+            <?php if ($payment_method === 'E-Wallet'): ?>
+              <span class="method-gcash">Gcash</span>
+            <?php elseif ($payment_method === 'Cash on Delivery'): ?>
+              <span>Cash</span>
+            <?php else: ?>
+              <span>Not Selected</span>
+            <?php endif; ?>
+          </td>
+          <td>
+            <?php 
+            $status_class = strtolower($payment_status);
+            if ($status_class === 'paid') {
+              echo '<span class="status-badge paid">Paid</span>';
+            } elseif ($status_class === 'overdue') {
+              echo '<span class="status-badge overdue">Overdue</span>';
+            } elseif ($status_class === 'under review') {
+              echo '<span class="status-badge review">Under Review</span>';
+            } elseif ($status_class === 'failed') {
+              echo '<span class="status-badge overdue">Failed</span>';
+            } else {
+              echo '<span class="status-badge pending">Pending</span>';
+            }
+            ?>
+          </td>
+          <td><?php echo $approved_date; ?></td>
           <td class="action-cell">⋮</td>
         </tr>
+        <?php 
+          endforeach; 
+        else: 
+        ?>
         <tr>
-          <td>2</td>
-          <td>#G1002</td>
-          <td>Jeremy Tan</td>
-          <td>Cash</td>
-          <td><span class="status-badge overdue">Overdue</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
+          <td colspan="8" style="text-align: center; padding: 20px;">No approved orders found</td>
         </tr>
-        <tr>
-          <td>3</td>
-          <td>#G1003</td>
-          <td>David Discaya</td>
-          <td><span class="method-gcash">Gcash</span></td>
-          <td><span class="status-badge pending">Pending</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
-        </tr>
-        <tr>
-          <td>4</td>
-          <td>#G1004</td>
-          <td>Harold Sy</td>
-          <td><span class="method-gcash">Gcash</span></td>
-          <td><span class="status-badge review">Under Review</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
-        </tr>
-        <tr>
-          <td>5</td>
-          <td>#G1005</td>
-          <td>Krishanne Gravidez</td>
-          <td><span class="method-gcash">Gcash</span></td>
-          <td><span class="status-badge paid">Paid</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
-        </tr>
-        <tr>
-          <td>6</td>
-          <td>#G1006</td>
-          <td>Julianne Copiaza</td>
-          <td>Cash</td>
-          <td><span class="status-badge review">Under Review</span></td>
-          <td><button class="receipt-btn"><i class="fas fa-camera camera-icon"></i></button></td>
-          <td>03/23/2025</td>
-          <td class="action-cell">⋮</td>
-        </tr>
+        <?php endif; ?>
       </tbody>
     </table>
   </div>
-  <div class="pagination">
-    <span>Showing 1-10 of 255 items</span>
-    <div class="pagination-controls">
-      <button><i class="fas fa-chevron-left"></i></button>
-      <button class="active">1</button>
-      <button><i class="fas fa-chevron-right"></i></button>
-    </div>
-
-    <div id="actionMenu" class="action-menu hidden">
-      <ul>
-        <li><a href="#">View Receipt</a></li>
-        <li><a href="#">Mark as Paid</a></li>
-        <li><a href="#">Cancel</a></li>
-      </ul>
-    </div>
-
-    <!-- Popup Overlay -->
-    <div class="popup-overlay" id="productPopup">
-      <div class="popup">
-        <span class="close-btn" id="closePopup">&times;</span>
-        <h3>Order ID: <span id="popupOrderId">#</span></h3>
-
-        <!-- Image Preview -->
-        <div class="form-group">
-          <div class="image-preview">
-            <img src="https://cdn-icons-png.flaticon.com/512/4211/4211763.png" alt="Preview">
+        <div class="pagination">
+          <span>Showing 1-<?php echo min(10, count($orders ?? [])); ?> of <?php echo count($orders ?? []); ?> items</span>
+          <div class="pagination-controls">
+            <button><i class="fas fa-chevron-left"></i></button>
+            <button class="active">1</button>
+            <button><i class="fas fa-chevron-right"></i></button>
           </div>
         </div>
-
-        <!-- Form Fields -->
-        <div class="form-group">
-          <label>Customer: <span id="popupCustomer"></span></label>
+        <div id="actionMenu" class="action-menu hidden">
+        <ul>
+            <li><a href="#">View Receipt</a></li>
+            <li><a href="#">Cancel</a></li>
+        </ul>
         </div>
 
-        <div class="form-group">
-          <label>Price:</label>
-          <div class="price-input">
-            <span>₱</span>
-            <input type="number" id="popupPrice" class="input-text" readonly>
-          </div>
-        </div>
+<!-- Popup Overlay -->
+<div class="popup-overlay" id="productPopup">
+  <div class="popup">
+    <span class="close-btn" id="closePopup">&times;</span>
+    <h3>Order ID: <span id="popupOrderId">#</span></h3>
 
-        <div class="form-group method-field">
-          <label>Method:</label>
-        </div>
-
-
-        <!-- Action Buttons -->
-        <div class="popup-actions">
-          <button class="save-btn">Mark as Paid</button>
-          <button class="cancel-btn">Cancel</button>
-        </div>
+    <!-- Receipt Image Preview -->
+    <div class="form-group">
+      <div class="image-preview">
+        <img id="popupReceiptImage" src="" alt="Payment Receipt" style="display: none; max-width: 100%; max-height: 400px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+        <img id="popupProductImage" src="" alt="Product Image" style="display: none;">
       </div>
     </div>
 
+    <!-- Form Fields -->
+    <div class="form-group">
+      <label>Customer: <span id="popupCustomer"></span></label>
+    </div>
+
+    <div class="form-group">
+      <label>Price:</label>
+      <div class="price-input">
+        <span>₱</span>
+        <input type="number" id="popupPrice" class="input-text" readonly>
+      </div>
+    </div>
+
+    <div class="form-group method-field">
+        <label>Method:</label>
+    </div>
 
 
-</section>
-<script src="/Glassify/assets/js/order-status.js"></script>
+    <!-- Action Buttons -->
+    <div class="popup-actions">
+      <button class="save-btn">Mark as Paid</button>
+      <button class="cancel-btn">Cancel</button>
+    </div>
+  </div>
+</div>
 
-<script src="/Glassify/assets/js/admin-sidebar.js"></script>
 
-<script src="/Glassify/assets/js/payments-action.js"></script>
-<script src="/Glassify/assets/js/payment-filter.js"></script>
-<script src="/Glassify/assets/js/view-receipt-payments.js"></script>
+
+      </section>
+    </main>
+    </div>
+    <script>
+        const base_url = '<?php echo base_url(); ?>';
+    </script>
+    <script src="<?php echo base_url('assets/js/admin-js/payments-action.js'); ?>"></script>
+    <script src="<?php echo base_url('assets/js/admin-js/payment-filter.js'); ?>"></script>
+    <script src="<?php echo base_url('assets/js/admin-js/view-receipt-payments.js'); ?>"></script>
+
+
+

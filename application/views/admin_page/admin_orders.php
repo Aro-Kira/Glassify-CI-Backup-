@@ -196,7 +196,17 @@
         </tr>
         <tr>
           <td>File Attached:</td>
-          <td id="popup-file-attached">-</td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div id="popup-file-thumbnail" style="display: none;">
+                <img id="popup-file-thumbnail-img" src="" alt="Design Thumbnail" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; cursor: pointer;" onclick="window.open(this.src, '_blank')">
+              </div>
+              <div style="flex: 1;">
+                <a href="#" id="popup-file-attached-link" target="_blank" style="display: none; color: #0066cc; text-decoration: underline;">-</a>
+                <span id="popup-file-attached-text" style="display: none;">-</span>
+              </div>
+            </div>
+          </td>
         </tr>
         <tr>
           <td>Total Quotation (₱):</td>
@@ -222,103 +232,160 @@
 
 <!-- Approval Review Popup Overlay -->
 <div class="popup-overlay" id="approvalPopup">
-  <div class="popup">
+  <div class="popup modern-popup">
     <span class="close-btn" id="closeApprovalPopup">&times;</span>
-    <h3>Review Order for Approval</h3>
-
-    <table class="order-details" id="approvalDetailsTable">
-      <tbody>
-        <tr>
-          <td>Order ID:</td>
-          <td id="approval-order-id">-</td>
-        </tr>
-        <tr>
-          <td>Product:</td>
-          <td id="approval-product-name">-</td>
-        </tr>
-        <tr>
-          <td>Customer:</td>
-          <td id="approval-customer-name">-</td>
-        </tr>
-        <tr>
-          <td>Sales Rep:</td>
-          <td id="approval-sales-rep-name">-</td>
-        </tr>
-        <tr>
-          <td>Address:</td>
-          <td id="approval-address">-</td>
-        </tr>
-        <tr>
-          <td>Order Date:</td>
-          <td id="approval-order-date">-</td>
-        </tr>
-        <tr>
-          <td>Scheduled Date:</td>
-          <td id="approval-scheduled-date">-</td>
-        </tr>
-        <tr>
-          <td>Requested Date:</td>
-          <td id="approval-requested-date">-</td>
-        </tr>
-        <tr>
-          <td>Shape:</td>
-          <td id="approval-shape">-</td>
-        </tr>
-        <tr>
-          <td>Dimension:</td>
-          <td id="approval-dimension">-</td>
-        </tr>
-        <tr>
-          <td>Type:</td>
-          <td id="approval-type">-</td>
-        </tr>
-        <tr>
-          <td>Thickness:</td>
-          <td id="approval-thickness">-</td>
-        </tr>
-        <tr>
-          <td>Edge Work:</td>
-          <td id="approval-edge-work">-</td>
-        </tr>
-        <tr>
-          <td>Frame Type:</td>
-          <td id="approval-frame-type">-</td>
-        </tr>
-        <tr>
-          <td>Engraving:</td>
-          <td id="approval-engraving">-</td>
-        </tr>
-        <tr>
-          <td>File Attached:</td>
-          <td id="approval-file-attached">-</td>
-        </tr>
-        <tr>
-          <td>Total Quotation (₱):</td>
-          <td id="approval-total-quotation">-</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="barcode" id="approval-barcode">
-      <img id="approval-barcode-img" src="" alt="Barcode">
+    
+    <div class="popup-header-modern">
+      <h3 class="popup-title-modern">Review Order for Approval</h3>
+      <p class="popup-subtitle">Review and approve or disapprove this order</p>
     </div>
 
-    <div class="approval-actions">
-      <div class="form-group">
-        <label for="admin-notes">Admin Notes (Optional):</label>
-        <textarea id="admin-notes" placeholder="Add any notes for the sales representative..."></textarea>
+    <div class="popup-content-modern">
+      <!-- Order & Customer Info Card -->
+      <div class="info-card">
+        <div class="info-card-header">
+          <span class="info-card-icon">📋</span>
+          <h4 class="info-card-title">Order & Customer Information</h4>
+        </div>
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Order ID</span>
+              <span class="info-value" id="approval-order-id">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Product</span>
+              <span class="info-value" id="approval-product-name">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Customer</span>
+              <span class="info-value" id="approval-customer-name">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Sales Rep</span>
+              <span class="info-value" id="approval-sales-rep-name">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Order Date</span>
+              <span class="info-value" id="approval-order-date">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Scheduled Date</span>
+              <span class="info-value" id="approval-scheduled-date">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Requested Date</span>
+              <span class="info-value" id="approval-requested-date">-</span>
+            </div>
+            <div class="info-item full-width">
+              <span class="info-label">Address</span>
+              <span class="info-value" id="approval-address">-</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="form-group">
-        <label for="disapproval-reason">Disapproval Reason (Required if disapproving):</label>
-        <textarea id="disapproval-reason" placeholder="Enter reason for disapproval..."></textarea>
+
+      <!-- Customization Card -->
+      <div class="info-card">
+        <div class="info-card-header">
+          <span class="info-card-icon">⚙️</span>
+          <h4 class="info-card-title">Customization Details</h4>
+        </div>
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Shape</span>
+              <span class="info-value" id="approval-shape">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Dimension</span>
+              <span class="info-value" id="approval-dimension">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Type</span>
+              <span class="info-value" id="approval-type">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Thickness</span>
+              <span class="info-value" id="approval-thickness">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Edge Work</span>
+              <span class="info-value" id="approval-edge-work">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Frame Type</span>
+              <span class="info-value" id="approval-frame-type">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Engraving</span>
+              <span class="info-value" id="approval-engraving">-</span>
+            </div>
+            <div class="info-item full-width">
+              <span class="info-label">File Attached</span>
+              <div class="file-attachment-modern">
+                <div id="approval-file-thumbnail" class="file-thumbnail-modern" style="display: none;">
+                  <img id="approval-file-thumbnail-img" src="" alt="Design Thumbnail" onclick="window.open(this.src, '_blank')">
+                </div>
+                <div class="file-link-modern">
+                  <a href="#" class="file-link" id="approval-file-attached-link" target="_blank" style="display: none;">-</a>
+                  <span class="file-text" id="approval-file-attached-text" style="display: none;">-</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="popup-actions">
-        <button class="approve-btn" id="approval-approve-btn">Approve Order</button>
-        <button class="disapprove-btn" id="approval-disapprove-btn">Disapprove Order</button>
-        <button class="cancel-btn" id="approval-cancel-btn">Cancel</button>
+
+      <!-- Total Card -->
+      <div class="info-card">
+        <div class="info-card-header">
+          <span class="info-card-icon">💰</span>
+          <h4 class="info-card-title">Total Quotation</h4>
+        </div>
+        <div class="info-card-body">
+          <div class="total-section-modern">
+            <span class="total-label">Total Amount</span>
+            <span class="total-amount" id="approval-total-quotation">₱0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Barcode Card -->
+      <div class="info-card" id="approval-barcode" style="display: none;">
+        <div class="info-card-header">
+          <span class="info-card-icon">📊</span>
+          <h4 class="info-card-title">Order Barcode</h4>
+        </div>
+        <div class="info-card-body barcode-body-modern">
+          <img id="approval-barcode-img" src="" alt="Barcode" class="barcode-img-modern">
+        </div>
+      </div>
+
+      <!-- Admin Notes & Actions Card -->
+      <div class="info-card">
+        <div class="info-card-header">
+          <span class="info-card-icon">📝</span>
+          <h4 class="info-card-title">Admin Notes & Actions</h4>
+        </div>
+        <div class="info-card-body">
+          <div class="form-group-modern">
+            <label for="admin-notes" class="form-label-modern">Admin Notes (Optional)</label>
+            <textarea id="admin-notes" class="form-textarea-modern" placeholder="Add any notes for the sales representative..."></textarea>
+          </div>
+          <div class="form-group-modern">
+            <label for="disapproval-reason" class="form-label-modern">Disapproval Reason <span class="required-asterisk">*</span></label>
+            <textarea id="disapproval-reason" class="form-textarea-modern" placeholder="Enter reason for disapproval (required if disapproving)..."></textarea>
+          </div>
+        </div>
       </div>
     </div>
 
+    <div class="popup-actions-modern">
+      <button class="btn-modern btn-secondary" id="approval-cancel-btn" type="button">Cancel</button>
+      <button class="btn-modern btn-danger" id="approval-disapprove-btn" type="button">Disapprove Order</button>
+      <button class="btn-modern btn-success" id="approval-approve-btn" type="button">Approve Order</button>
+    </div>
   </div>
 </div>
 

@@ -365,25 +365,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 const category = order.ProductCategory || '';
                 showHideFieldsByCategory(prefix, category, order);
 
-                // Handle file attachment - always make clickable if file exists
+                // Handle file attachment with thumbnail
+                const fileThumbnail = document.getElementById(prefix + '-file-thumbnail');
+                const fileThumbnailImg = document.getElementById(prefix + '-file-thumbnail-img');
                 const fileLink = document.getElementById(prefix + '-file-link');
                 const fileText = document.getElementById(prefix + '-file-text');
+                
                 if (order.FileAttached && order.FileAttached !== 'N/A') {
                     // Build file URL - try FileUrl first, then construct from FileAttached
                     let fileUrl = order.FileUrl;
                     if (!fileUrl && order.FileAttached) {
                         // Construct URL from file name
-                        fileUrl = base_url + 'uploads/' + order.FileAttached;
+                        if (order.FileAttached.startsWith('uploads/')) {
+                            fileUrl = base_url + order.FileAttached;
+                        } else {
+                            fileUrl = base_url + 'uploads/' + order.FileAttached;
+                        }
                     }
-                    if (fileLink && fileText) {
-                        fileLink.href = fileUrl;
-                        fileLink.textContent = order.FileAttached;
-                        fileLink.style.display = 'inline';
-                        fileText.style.display = 'none';
+                    
+                    // Get filename for display
+                    const fileName = (order.FileAttached.includes('/') ? order.FileAttached.split('/').pop() : order.FileAttached);
+                    
+                    // Check if file is an image
+                    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+                    const fileExtension = fileName.split('.').pop().toLowerCase();
+                    const isImage = imageExtensions.includes(fileExtension);
+                    
+                    if (isImage && fileUrl && fileThumbnail && fileThumbnailImg) {
+                        // Show thumbnail for images
+                        fileThumbnail.style.display = 'block';
+                        fileThumbnailImg.src = fileUrl;
+                        fileThumbnailImg.alt = fileName;
+                        if (fileLink) {
+                            fileLink.href = fileUrl;
+                            fileLink.textContent = fileName;
+                            fileLink.style.display = 'inline';
+                        }
+                        if (fileText) fileText.style.display = 'none';
+                    } else {
+                        // Show link only for non-images
+                        if (fileThumbnail) fileThumbnail.style.display = 'none';
+                        if (fileLink) {
+                            fileLink.href = fileUrl;
+                            fileLink.textContent = fileName;
+                            fileLink.style.display = 'inline';
+                        }
+                        if (fileText) fileText.style.display = 'none';
                     }
                 } else {
-                    if (fileLink && fileText) {
-                        fileLink.style.display = 'none';
+                    if (fileThumbnail) fileThumbnail.style.display = 'none';
+                    if (fileLink) fileLink.style.display = 'none';
+                    if (fileText) {
                         fileText.textContent = 'N/A';
                         fileText.style.display = 'inline';
                     }

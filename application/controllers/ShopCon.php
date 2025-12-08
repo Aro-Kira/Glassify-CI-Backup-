@@ -65,6 +65,23 @@ public function product_2d()
 // ShopCon.php
 public function checkout()
 {
+    // Check if user is logged in and is a customer
+    if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+        // Set cache control headers to prevent back button access
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: 0');
+        redirect('login');
+        return;
+    }
+    
+    // Set cache control headers for customer pages
+    $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+    $this->output->set_header('Pragma: no-cache');
+    $this->output->set_header('Expires: 0');
+    
     $userID = $this->session->userdata('user_id');
     $data['user'] = null;
     $data['addresses'] = ['Shipping' => null, 'Billing' => null];
@@ -72,7 +89,33 @@ public function checkout()
     if ($userID) {
         $this->load->model('User_model');
         $data['user'] = $this->User_model->get_by_id($userID);
-        $data['addresses'] = $this->User_model->get_addresses($userID);
+        
+        // Get all addresses to find default or first one
+        $all_addresses = $this->User_model->get_user_addresses($userID);
+        
+        // Find default address first, then shipping, then first available
+        $default_address = null;
+        $shipping_address = null;
+        
+        foreach ($all_addresses as $addr) {
+            if ($addr->IsDefault == 1) {
+                $default_address = $addr;
+                break;
+            }
+            if ($addr->AddressType === 'Shipping' && !$shipping_address) {
+                $shipping_address = $addr;
+            }
+        }
+        
+        // Use default if found, otherwise shipping, otherwise first address
+        $selected_address = $default_address ?: $shipping_address ?: (!empty($all_addresses) ? $all_addresses[0] : null);
+        
+        if ($selected_address) {
+            $data['addresses']['Shipping'] = $selected_address;
+        }
+        
+        // Also get addresses by type for backward compatibility
+        $data['addresses'] = array_merge($data['addresses'], $this->User_model->get_addresses($userID));
     }
 
     // fallback if user not found
@@ -92,9 +135,14 @@ public function checkout()
         if (!$data['addresses'][$type]) {
             $data['addresses'][$type] = (object)[
                 'AddressLine' => '',
+                'UnitHouseNumber' => '',
+                'Street' => '',
+                'Subdivision' => '',
+                'Barangay' => '',
                 'City' => '',
                 'Province' => '',
-                'Country' => '',
+                'Region' => '',
+                'Country' => 'Philippines',
                 'ZipCode' => '',
                 'Note' => ''
             ];
@@ -794,15 +842,24 @@ public function checkout()
     {
         $data['title'] = "Glassify - My Purchases";
 
-        // Check if user is logged in
-        // Session stores Customer_ID as 'customer_id' (set during login in Auth controller)
-        $customer_id = $this->session->userdata('customer_id');
-        
-        if (!$customer_id) {
-            // Redirect to login if not logged in
+        // Check if user is logged in and is a customer
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            // Set cache control headers to prevent back button access
+            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+            $this->output->set_header('Pragma: no-cache');
+            $this->output->set_header('Expires: 0');
             redirect('login');
             return;
         }
+        
+        $customer_id = $this->session->userdata('customer_id');
+        
+        // Set cache control headers for customer pages
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: 0');
 
         // Ensure customer_id is an integer
         $customer_id = (int)$customer_id;

@@ -3,7 +3,11 @@
 
 <header class="header">
   <div class="header-right">
-    <i class="fas fa-bell"></i>
+    <a href="<?php echo base_url('inventory-notif'); ?>" 
+       class="notification-link <?php echo (isset($active) && $active === 'notif') ? 'active' : ''; ?>">
+      <i class="fas fa-bell"></i>
+      <span class="notification-badge" id="inventory-notification-count" style="display: none;">0</span>
+    </a>
     <a href="<?php echo base_url('inventory-account'); ?>" 
        class="user-link <?php echo (isset($active) && $active === 'account') ? 'active' : ''; ?>">
       <i class="fas fa-user-circle user-icon"></i>

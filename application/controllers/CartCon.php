@@ -358,12 +358,24 @@ class CartCon extends CI_Controller
     // ===================== SHOW CART PAGE =====================
     public function cart_page()
     {
-        $customer_id = $this->session->userdata('customer_id');
-
-        if (!$customer_id) {
+        // Check if user is logged in and is a customer
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            // Set cache control headers to prevent back button access
+            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+            $this->output->set_header('Pragma: no-cache');
+            $this->output->set_header('Expires: 0');
             redirect('login');
             return;
         }
+        
+        $customer_id = $this->session->userdata('customer_id');
+        
+        // Set cache control headers for customer pages
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: 0');
 
         $cart_items = $this->Cart_model->get_cart_items($customer_id);
         
@@ -858,28 +870,46 @@ class CartCon extends CI_Controller
         ]);
     }
 
+    // ===================== GET CART COUNT (AJAX) =====================
+    /**
+     * Get cart count for header badge
+     */
+    public function get_cart_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        $customer_id = $this->session->userdata('customer_id');
+        
+        if (!$customer_id) {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        $count = $this->Cart_model->get_cart_count($customer_id);
+        
+        echo json_encode([
+            'status' => 'success',
+            'count' => $count
+        ]);
+    }
+
     // ===================== HELPER =====================
     private function calculate_summary($cart_items)
     {
         $subtotal = 0;
         $total_items = 0;
 
-
-
         foreach ($cart_items as $item) {
-            $price = $item->EstimatePrice ?? 100;
+            // Use Price (which includes EstimatePrice or BasePrice) as calculated in get_cart_items_with_details
+            // Fallback chain: Price -> EstimatePrice -> BasePrice -> 0
+            $price = $item->Price ?? $item->EstimatePrice ?? $item->BasePrice ?? 0;
             $subtotal += $price * $item->Quantity;
             $total_items += $item->Quantity;
- 
         }
- 
-      ;
 
-        $shipping =  $total_items * 25;
-        $handling =  $total_items * 10;
+        $shipping = $total_items * 25;
+        $handling = $total_items * 10;
         $total = $subtotal + $shipping + $handling;
-        
-
 
         return [
             'items' => $total_items,

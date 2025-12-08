@@ -1,9 +1,11 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/auth/login_style.css'); ?>">
 
 <?php if ($this->session->flashdata('error')): ?>
-  <p style="color: red; text-align:center; margin-bottom:10px;">
-    <?php echo $this->session->flashdata('error'); ?>
-  </p>
+  <div style="background-color: #fee; border: 2px solid #fcc; border-radius: 8px; padding: 15px; margin: 15px auto; max-width: 600px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <p style="color: #c33; font-weight: bold; margin: 0; font-size: 16px;">
+      <?php echo $this->session->flashdata('error'); ?>
+    </p>
+  </div>
 <?php endif; ?>
 
 

@@ -31,9 +31,26 @@
 
                     <label for="address">Address</label>
                     <div class="input-group">
-                        <input type="text" id="address" name="address" readonly
-                            value="<?= isset($addresses['Shipping']) ? $addresses['Shipping']->AddressLine : '' ?>"
-                            placeholder="Select an address">
+                        <?php
+                        $fullAddress = '';
+                        if (isset($addresses['Shipping']) && $addresses['Shipping']) {
+                            $addr = $addresses['Shipping'];
+                            $addressParts = array_filter([
+                                $addr->UnitHouseNumber ?? '',
+                                $addr->Street ?? '',
+                                $addr->Subdivision ?? '',
+                                $addr->Barangay ?? '',
+                                $addr->City ?? '',
+                                $addr->Province ?? '',
+                                $addr->Region ?? '',
+                                $addr->Country ?? 'Philippines',
+                                $addr->ZipCode ?? ''
+                            ]);
+                            $fullAddress = !empty($addressParts) ? implode(', ', $addressParts) : ($addr->AddressLine ?? '');
+                        }
+                        ?>
+                        <textarea id="address" name="address" readonly rows="3" 
+                            placeholder="Select an address" style="resize: vertical; min-height: 60px;"><?= htmlspecialchars($fullAddress) ?></textarea>
                         <button type="button" id="chooseAddressBtn" title="Select address">
                             <!-- Location Pin Icon SVG -->
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor"
@@ -99,11 +116,15 @@
                             <table class="styled-table">
                                 <thead>
                                     <tr>
-                                        <th>Address</th>
+                                        <th>Unit/House #</th>
+                                        <th>Street</th>
+                                        <th>Subdivision</th>
+                                        <th>Barangay</th>
                                         <th>City</th>
                                         <th>Province</th>
+                                        <th>Region</th>
                                         <th>Country</th>
-                                        <th>Zip</th>
+                                        <th>Zip Code</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -168,24 +189,90 @@
 
                     </div>
 
-                    <!-- Add new address -->
+                    <!-- Add/Edit address -->
                     <div class="block-section">
-                        <h4 class="section-title">Add New Address</h4>
+                        <h4 class="section-title" id="addressFormTitle">Add New Address</h4>
 
                         <form id="newAddressForm" class="address-form">
-                            <div class="grid-2">
-                                <input type="text" name="AddressLine" placeholder="Address Line" required>
-                                <input type="text" name="City" placeholder="City" required>
+                            <input type="hidden" name="AddressID" id="editAddressID" value="">
+                            
+                            <div class="form-field-group">
+                                <label for="unitHouseNumber">Unit/House Number</label>
+                                <input type="text" name="UnitHouseNumber" id="unitHouseNumber" placeholder="Enter Unit/House Number (optional)">
                             </div>
-                            <div class="grid-2">
-                                <input type="text" name="Province" placeholder="Province" required>
-                                <input type="text" name="Country" placeholder="Country" required>
+                            
+                            <div class="form-field-group">
+                                <label for="street">Street</label>
+                                <input type="text" name="Street" id="street" placeholder="Enter Street (optional)">
                             </div>
-                            <div class="grid-2">
-                                <input type="text" name="ZipCode" placeholder="Zip Code" required>
+                            
+                            <div class="form-field-group">
+                                <label for="subdivision">Subdivision</label>
+                                <input type="text" name="Subdivision" id="subdivision" placeholder="Enter Subdivision/Village (optional)">
+                            </div>
+                            
+                            <div class="form-field-group">
+                                <label for="barangay">Barangay <span class="required-asterisk">*</span></label>
+                                <input type="text" name="Barangay" id="barangay" placeholder="Enter Barangay" required>
+                            </div>
+                            
+                            <div class="form-field-group">
+                                <label for="city">City/Municipality <span class="required-asterisk">*</span></label>
+                                <select name="City" id="city" required>
+                                    <option value="">Select City/Municipality</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-field-group">
+                                <label for="province">Province <span class="required-asterisk">*</span></label>
+                                <select name="Province" id="province" required>
+                                    <option value="">Select Province</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-field-group">
+                                <label for="region">Region <span class="required-asterisk">*</span></label>
+                                <select name="Region" id="region" required>
+                                    <option value="">Select Region</option>
+                                    <option value="NCR">NCR (National Capital Region)</option>
+                                    <option value="Region I">Region I (Ilocos Region)</option>
+                                    <option value="Region II">Region II (Cagayan Valley)</option>
+                                    <option value="Region III">Region III (Central Luzon)</option>
+                                    <option value="Region IV-A">Region IV-A (CALABARZON)</option>
+                                    <option value="Region IV-B">Region IV-B (MIMAROPA)</option>
+                                    <option value="Region V">Region V (Bicol Region)</option>
+                                    <option value="Region VI">Region VI (Western Visayas)</option>
+                                    <option value="Region VII">Region VII (Central Visayas)</option>
+                                    <option value="Region VIII">Region VIII (Eastern Visayas)</option>
+                                    <option value="Region IX">Region IX (Zamboanga Peninsula)</option>
+                                    <option value="Region X">Region X (Northern Mindanao)</option>
+                                    <option value="Region XI">Region XI (Davao Region)</option>
+                                    <option value="Region XII">Region XII (SOCCSKSARGEN)</option>
+                                    <option value="Region XIII">Region XIII (Caraga)</option>
+                                    <option value="BARMM">BARMM (Bangsamoro Autonomous Region)</option>
+                                    <option value="CAR">CAR (Cordillera Administrative Region)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-field-group">
+                                <label for="country">Country</label>
+                                <input type="text" name="Country" id="country" value="Philippines" readonly>
+                            </div>
+                            
+                            <div class="form-field-group">
+                                <label for="zipCode">Zip Code <span class="required-asterisk">*</span></label>
+                                <input type="text" name="ZipCode" id="zipCode" placeholder="Enter Zip Code" required>
+                            </div>
+                            
+                            <div class="form-field-group checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="IsDefault" id="isDefault" value="1">
+                                    <span>Set as default address</span>
+                                </label>
                             </div>
 
-                            <button type="submit" class="btn-add">+ Add Address</button>
+                            <button type="submit" class="btn-add" id="addressSubmitBtn">+ Add Address</button>
+                            <button type="button" class="btn-cancel" id="cancelEditBtn" style="display:none; margin-top:10px;">Cancel Edit</button>
                         </form>
                     </div>
 
@@ -233,6 +320,55 @@
                 }
             });
 
+            // ========= PHILIPPINE REGIONS AND CITIES DATA =========
+            const metroManilaCities = [
+                'Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong',
+                'Manila', 'Marikina', 'Muntinlupa', 'Navotas', 'Parañaque',
+                'Pasay', 'Pasig', 'Quezon City', 'San Juan', 'Taguig', 'Valenzuela'
+            ];
+
+            // ========= REGION CHANGE HANDLER =========
+            $("#region").on("change", function() {
+                const selectedRegion = $(this).val();
+                const provinceSelect = $("#province");
+                const citySelect = $("#city");
+                
+                // Clear existing options
+                provinceSelect.html('<option value="">Select Province</option>');
+                citySelect.html('<option value="">Select City/Municipality</option>');
+                
+                if (selectedRegion === "NCR") {
+                    // For NCR, set province to Metro Manila
+                    provinceSelect.html('<option value="Metro Manila">Metro Manila</option>');
+                    provinceSelect.val("Metro Manila");
+                    
+                    // Populate cities
+                    metroManilaCities.forEach(city => {
+                        citySelect.append(`<option value="${city}">${city}</option>`);
+                    });
+                } else if (selectedRegion) {
+                    // For other regions, leave empty for now (to be populated later)
+                    provinceSelect.html('<option value="">Select Province</option>');
+                }
+            });
+
+            // ========= PROVINCE CHANGE HANDLER =========
+            $("#province").on("change", function() {
+                const selectedProvince = $(this).val();
+                const citySelect = $("#city");
+                
+                if (selectedProvince === "Metro Manila") {
+                    // Populate Metro Manila cities
+                    citySelect.html('<option value="">Select City/Municipality</option>');
+                    metroManilaCities.forEach(city => {
+                        citySelect.append(`<option value="${city}">${city}</option>`);
+                    });
+                } else if (selectedProvince) {
+                    // For other provinces, leave empty for now
+                    citySelect.html('<option value="">Select City/Municipality</option>');
+                }
+            });
+
             // ========= LOAD ADDRESSES (AJAX REFRESH) =========
             function loadAddresses() {
                 $("#addressLoader").show();
@@ -247,22 +383,29 @@
                         $("#addressLoader").hide();
 
                         if (!res.success || res.data.length === 0) {
-                            tbody.html("<tr><td colspan='6' style='text-align:center'>No addresses found.</td></tr>");
+                            tbody.html("<tr><td colspan='7' style='text-align:center'>No addresses found.</td></tr>");
                             return;
                         }
 
                         res.data.forEach(a => {
                             tbody.append(`
                         <tr>
-                            <td>${a.AddressLine}</td>
-                            <td>${a.City}</td>
-                            <td>${a.Province}</td>
-                            <td>${a.Country}</td>
-                            <td>${a.ZipCode}</td>
+                            <td>${a.UnitHouseNumber || ''}</td>
+                            <td>${a.Street || ''}</td>
+                            <td>${a.Subdivision || ''}</td>
+                            <td>${a.Barangay || ''}</td>
+                            <td>${a.City || ''}</td>
+                            <td>${a.Province || ''}</td>
+                            <td>${a.Region || ''}</td>
+                            <td>${a.Country || 'Philippines'}</td>
+                            <td>${a.ZipCode || ''}</td>
                             <td>
-                                <button class="btn-select select-address"
-                                    data-address="${a.AddressLine}, ${a.City}, ${a.Province}, ${a.Country}, ${a.ZipCode}">
+                                <button class="btn-select select-address" data-address-id="${a.AddressID}"
+                                    data-address="${[a.UnitHouseNumber || '', a.Street || '', a.Subdivision || '', a.Barangay || '', a.City || '', a.Province || '', a.Region || '', a.Country || 'Philippines', a.ZipCode || ''].filter(Boolean).join(', ')}">
                                     Select
+                                </button>
+                                <button class="btn-select edit-address" data-address-id="${a.AddressID}" style="margin-left:5px; background:#037c9e;">
+                                    Edit
                                 </button>
                             </td>
                         </tr>
@@ -274,28 +417,104 @@
 
             // ========= SELECT ADDRESS =========
             $(document).on("click", ".select-address", function () {
-                $("#address").val($(this).data("address"));
-                modal.hide();
+                const addressText = $(this).data("address");
+                $("#address").val(addressText);
+                modal.removeClass("show").fadeOut(200);
+                
+                // Trigger change event to enable save button
+                $("#address").trigger('change');
             });
 
-            // ========= ADD NEW ADDRESS (AJAX + AUTO REFRESH) =========
+            // ========= EDIT ADDRESS =========
+            $(document).on("click", ".edit-address", function () {
+                const addressId = $(this).data("address-id");
+                
+                $.ajax({
+                    url: "<?= base_url('UserCon/get_address') ?>",
+                    method: "GET",
+                    data: { address_id: addressId },
+                    dataType: "json",
+                    success: function (res) {
+                        if (res.success && res.data) {
+                            const addr = res.data;
+                            
+                            // Populate form fields
+                            $("#editAddressID").val(addr.AddressID || '');
+                            $("#unitHouseNumber").val(addr.UnitHouseNumber || '');
+                            $("#street").val(addr.Street || '');
+                            $("#subdivision").val(addr.Subdivision || '');
+                            $("#barangay").val(addr.Barangay || '');
+                            $("#region").val(addr.Region || '').trigger('change');
+                            
+                            // Wait a bit for province to populate, then set city
+                            setTimeout(function() {
+                                $("#province").val(addr.Province || '');
+                                $("#province").trigger('change');
+                                
+                                setTimeout(function() {
+                                    $("#city").val(addr.City || '');
+                                }, 100);
+                            }, 100);
+                            
+                            $("#country").val(addr.Country || 'Philippines');
+                            $("#zipCode").val(addr.ZipCode || '');
+                            $("#isDefault").prop('checked', addr.IsDefault == 1);
+                            
+                            // Change form title and button
+                            $("#addressFormTitle").text("Edit Address");
+                            $("#addressSubmitBtn").text("Update Address");
+                            $("#cancelEditBtn").show();
+                            
+                            // Scroll to form
+                            $('html, body').animate({
+                                scrollTop: $("#newAddressForm").offset().top - 100
+                            }, 500);
+                        }
+                    }
+                });
+            });
+
+            // ========= CANCEL EDIT =========
+            $("#cancelEditBtn").on("click", function() {
+                $("#newAddressForm")[0].reset();
+                $("#editAddressID").val('');
+                $("#isDefault").prop('checked', false);
+                $("#addressFormTitle").text("Add New Address");
+                $("#addressSubmitBtn").text("+ Add Address");
+                $(this).hide();
+                $("#region").trigger('change');
+            });
+
+            // ========= ADD/UPDATE ADDRESS (AJAX + AUTO REFRESH) =========
             $("#newAddressForm").submit(function (e) {
                 e.preventDefault();
 
                 const fd = new FormData(this);
+                const addressId = $("#editAddressID").val();
+                const url = addressId ? "<?= base_url('UserCon/update_address') ?>" : "<?= base_url('UserCon/add_address') ?>";
 
-                fetch("<?= base_url('UserCon/add_address') ?>", {
+                fetch(url, {
                     method: "POST",
                     body: fd
                 })
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
-                            $("#address").val(data.full_address);
-                            this.reset();
+                            if (addressId) {
+                                alert("Address updated successfully!");
+                            } else {
+                                alert("Address added successfully!");
+                            }
+                            $("#newAddressForm")[0].reset();
+                            $("#editAddressID").val('');
+                            $("#isDefault").prop('checked', false);
+                            $("#addressFormTitle").text("Add New Address");
+                            $("#addressSubmitBtn").text("+ Add Address");
+                            $("#cancelEditBtn").hide();
+                            $("#region").trigger('change');
                             loadAddresses(); // refresh list
                         } else {
-                            alert(data.message || "Failed to add address.");
+                            alert(data.message || "Failed to save address.");
                         }
                     });
             });

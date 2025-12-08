@@ -11,6 +11,23 @@ class InventCon extends CI_Controller
         $this->load->database();
         $this->load->model('User_model');
         
+        // If a logged-in customer tries to access inventory pages, force logout and redirect
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            // Set error message BEFORE clearing session data (flashdata needs active session)
+            $this->session->set_flashdata('error', '⚠️ Access Denied: This page is restricted to Inventory Officer employees only. Customer accounts cannot access employee pages. You have been logged out for security reasons.');
+            
+            // Clear all user session data (but keep session alive for flashdata)
+            $this->session->unset_userdata(['is_logged_in', 'user_id', 'user_name', 'user_email', 'user_role', 'customer_id']);
+            
+            // Set cache control headers to prevent back button access after force logout
+            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+            $this->output->set_header('Pragma: no-cache');
+            $this->output->set_header('Expires: 0');
+            
+            redirect(base_url('login'));
+        }
+        
         // Check if user is logged in and has Inventory Officer role
         // Don't check auth for update_account (it handles its own auth check)
         $method = $this->router->method;
@@ -368,9 +385,35 @@ class InventCon extends CI_Controller
     public function inventory_notif()
     {
         $data['title'] = "Glassify - Inventory Notifications";
-        $data['active'] = 'inventory_notifications';
+        $data['active'] = 'notif';
         $data['content_view'] = 'inventory_page/inventory_notif';
         $data['page_css'] = 'admin_css/admin_notif.css';
         $this->load->view('inventory_page/layout', $data);
+    }
+    
+    /**
+     * Get unread notification count (AJAX endpoint)
+     */
+    public function get_notification_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Inventory Officer') {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        $this->load->model('Inventory_model');
+        $this->db->where('Status', 'Unread');
+        $count = $this->db->count_all_results('inventory_notifications');
+        
+        // Limit to 99, show 99+ if more
+        if ($count > 99) {
+            $display_count = '99+';
+        } else {
+            $display_count = $count;
+        }
+        
+        echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
     }
 }

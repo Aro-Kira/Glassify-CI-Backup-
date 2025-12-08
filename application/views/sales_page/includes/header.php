@@ -6,6 +6,7 @@
     <a href="<?php echo base_url('sales-notif'); ?>" 
        class="notification-link <?php echo (isset($active) && $active === 'notif') ? 'active' : ''; ?>">
       <i class="fas fa-bell"></i>
+      <span class="notification-badge" id="sales-notification-count" style="display: none;">0</span>
     </a>
     <a href="<?php echo base_url('sales-account'); ?>" 
        class="user-link <?php echo (isset($active) && $active === 'account') ? 'active' : ''; ?>">

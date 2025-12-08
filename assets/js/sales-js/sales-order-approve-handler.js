@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Approve Order button handler
     const approvedPopup = document.getElementById('approvedPopup');
     if (approvedPopup) {
-        const approveBtn = approvedPopup.querySelector('.approved-btn');
+        const approveBtn = document.getElementById('approved-approve-btn') || approvedPopup.querySelector('.approved-btn');
         if (approveBtn) {
             approveBtn.addEventListener('click', function() {
                 const orderId = getOrderIdFromPopup(approvedPopup);
@@ -48,7 +48,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     body: 'order_id=' + encodeURIComponent(orderId)
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        // If response is not OK, try to get error message
+                        return response.text().then(text => {
+                            let errorData;
+                            try {
+                                errorData = JSON.parse(text);
+                            } catch (e) {
+                                errorData = { success: false, message: `Server error (${response.status}): ${response.statusText}` };
+                            }
+                            throw new Error(errorData.message || 'Server error');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         alert(data.message || 'Order approved successfully!');
@@ -64,7 +78,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => {
                     console.error('Error approving order:', error);
-                    alert('An error occurred while approving the order. Please try again.');
+                    const errorMessage = error.message || 'An error occurred while approving the order. Please try again.';
+                    alert(errorMessage);
                     approveBtn.disabled = false;
                     approveBtn.textContent = 'Approve Order';
                 });
@@ -126,7 +141,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         },
                         body: 'order_id=' + encodeURIComponent(orderId) + '&reason=' + encodeURIComponent(reason)
                     })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            // If response is not OK, try to get error message
+                            return response.text().then(text => {
+                                let errorData;
+                                try {
+                                    errorData = JSON.parse(text);
+                                } catch (e) {
+                                    errorData = { success: false, message: `Server error (${response.status}): ${response.statusText}` };
+                                }
+                                throw new Error(errorData.message || 'Server error');
+                            });
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             alert(data.message || 'Order disapproved and cancelled successfully! The customer has been notified.');
@@ -142,7 +171,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                     .catch(error => {
                         console.error('Error disapproving order:', error);
-                        alert('An error occurred while disapproving the order. Please try again.');
+                        const errorMessage = error.message || 'An error occurred while disapproving the order. Please try again.';
+                        alert(errorMessage);
                         disapproveBtn.disabled = false;
                         disapproveBtn.textContent = 'Disapprove Order';
                     });
@@ -161,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sales rep can finalize the disapproval, which will notify customer and cancel order
     const disapprovedPopup = document.getElementById('disapprovedPopup');
     if (disapprovedPopup) {
-        const disapproveBtn = disapprovedPopup.querySelector('.disapproved-btn');
+        const disapproveBtn = document.getElementById('disapproved-disapprove-btn') || disapprovedPopup.querySelector('.disapproved-btn');
         if (disapproveBtn) {
             disapproveBtn.addEventListener('click', function() {
                 const orderIdElement = document.getElementById('disapproved-order-id');
@@ -207,7 +237,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     body: 'order_id=' + encodeURIComponent(orderId) + '&reason=' + encodeURIComponent(reason)
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        // If response is not OK, try to get error message
+                        return response.text().then(text => {
+                            let errorData;
+                            try {
+                                errorData = JSON.parse(text);
+                            } catch (e) {
+                                errorData = { success: false, message: `Server error (${response.status}): ${response.statusText}` };
+                            }
+                            throw new Error(errorData.message || 'Server error');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.success) {
                         alert(data.message || 'Order disapproved and cancelled successfully! The customer has been notified.');
@@ -223,7 +267,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => {
                     console.error('Error disapproving order:', error);
-                    alert('An error occurred while disapproving the order. Please try again.');
+                    const errorMessage = error.message || 'An error occurred while disapproving the order. Please try again.';
+                    alert(errorMessage);
                     disapproveBtn.disabled = false;
                     disapproveBtn.textContent = 'Disapprove Order';
                 });

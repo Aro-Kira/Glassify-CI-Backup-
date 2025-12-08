@@ -56,28 +56,62 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (ledbacklightEl) ledbacklightEl.textContent = order.LEDBacklight || 'N/A';
                             if (dooroperationEl) dooroperationEl.textContent = order.DoorOperation || 'N/A';
                             if (configurationEl) configurationEl.textContent = order.Configuration || 'N/A';
-                            document.getElementById(prefix + '-total').textContent = order.TotalAmount;
+                            const totalEl = document.getElementById(prefix + '-total');
+                            if (totalEl) {
+                                const totalAmount = parseFloat(order.TotalAmount || order.TotalQuotation || 0);
+                                totalEl.textContent = '₱' + totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            }
                             
                             // Conditionally show/hide fields based on product category
                             if (typeof showHideFieldsByCategory === 'function') {
                                 showHideFieldsByCategory(prefix, order.ProductCategory || '', order);
                             }
 
-                            // Handle file attachment - always make clickable if file exists
+                            // Handle file attachment with thumbnail
+                            const fileThumbnail = document.getElementById(prefix + '-file-thumbnail');
+                            const fileThumbnailImg = document.getElementById(prefix + '-file-thumbnail-img');
                             const fileLink = document.getElementById(prefix + '-file-link');
                             const fileText = document.getElementById(prefix + '-file-text');
+                            
                             if (order.FileAttached && order.FileAttached !== 'N/A') {
                                 // Build file URL - try FileUrl first, then construct from FileAttached
                                 let fileUrl = order.FileUrl;
                                 if (!fileUrl && order.FileAttached) {
                                     // Construct URL from file name
-                                    fileUrl = base_url + 'uploads/' + order.FileAttached;
+                                    if (order.FileAttached.startsWith('uploads/')) {
+                                        fileUrl = base_url + order.FileAttached;
+                                    } else {
+                                        fileUrl = base_url + 'uploads/' + order.FileAttached;
+                                    }
                                 }
-                                fileLink.href = fileUrl;
-                                fileLink.textContent = order.FileAttached;
-                                fileLink.style.display = 'inline';
-                                fileText.style.display = 'none';
+                                
+                                // Get filename for display
+                                const fileName = (order.FileAttached.includes('/') ? order.FileAttached.split('/').pop() : order.FileAttached);
+                                
+                                // Check if file is an image
+                                const imageExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+                                const fileExtension = fileName.split('.').pop().toLowerCase();
+                                const isImage = imageExtensions.includes(fileExtension);
+                                
+                                if (isImage && fileUrl && fileThumbnail && fileThumbnailImg) {
+                                    // Show thumbnail for images
+                                    fileThumbnail.style.display = 'block';
+                                    fileThumbnailImg.src = fileUrl;
+                                    fileThumbnailImg.alt = fileName;
+                                    fileLink.href = fileUrl;
+                                    fileLink.textContent = fileName;
+                                    fileLink.style.display = 'inline';
+                                    fileText.style.display = 'none';
+                                } else {
+                                    // Show link only for non-images
+                                    if (fileThumbnail) fileThumbnail.style.display = 'none';
+                                    fileLink.href = fileUrl;
+                                    fileLink.textContent = fileName;
+                                    fileLink.style.display = 'inline';
+                                    fileText.style.display = 'none';
+                                }
                             } else {
+                                if (fileThumbnail) fileThumbnail.style.display = 'none';
                                 fileLink.style.display = 'none';
                                 fileText.textContent = 'N/A';
                                 fileText.style.display = 'inline';
@@ -100,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Close buttons
+    // Close buttons (X button in header)
     const closeApprovedBtn = document.getElementById('closeApprovedPopup');
     const closeDisapprovedBtn = document.getElementById('closeDisapprovedPopup');
     
@@ -116,14 +150,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Cancel buttons
+    // Close/Cancel buttons (footer buttons)
     const approvedPopup = document.getElementById('approvedPopup');
     const disapprovedPopup = document.getElementById('disapprovedPopup');
     
     if (approvedPopup) {
-        const cancelApprovedButton = approvedPopup.querySelector('.cancel-btn');
-        if (cancelApprovedButton) {
-            cancelApprovedButton.addEventListener('click', function() {
+        const closeApprovedButton = document.getElementById('approved-close-btn');
+        if (closeApprovedButton) {
+            closeApprovedButton.addEventListener('click', function() {
                 approvedPopup.style.display = 'none';
             });
         }
@@ -136,9 +170,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     if (disapprovedPopup) {
-        const cancelDisapprovedButton = disapprovedPopup.querySelector('.cancel-btn');
-        if (cancelDisapprovedButton) {
-            cancelDisapprovedButton.addEventListener('click', function() {
+        const closeDisapprovedButton = document.getElementById('disapproved-close-btn');
+        if (closeDisapprovedButton) {
+            closeDisapprovedButton.addEventListener('click', function() {
                 disapprovedPopup.style.display = 'none';
             });
         }

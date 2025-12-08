@@ -26,77 +26,35 @@
           </div>
         </section>
 
-        <!-- INVENTORY & PROJECT PROGRESS -->
-        <section class="inventory-progress">
-
-          <!-- Inventory -->
-          <div class="inventory-section">
-            <div class="dash-tabs">
-              <h2>Inventory</h2>
-            </div>
-            <div class="inventory-box">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Items</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>6mm Glass Sheets</td>
-                    <td><span class="status-badge out">Out Of Stock</span></td>
-                  </tr>
-                  <tr>
-                    <td>Aluminum Brackets</td>
-                    <td><span class="status-badge low">Low Stock</span></td>
-                  </tr>
-                  <tr>
-                    <td>Rubber Gasket</td>
-                    <td><span class="status-badge in">In Stock</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+        <!-- INVENTORY -->
+        <section class="inventory-section-full">
+          <div class="dash-tabs">
+            <h2>Inventory</h2>
           </div>
-
-          <!-- Project Progress -->
-          <div class="progress-section">
-            <div class="dash-tabs">
-              <h2>Project Progress</h2>
-            </div>
-            <div class="progress-box">
-              <div class="progress-item">
-                <span>Store Front A</span>
-                <div class="progress-bar">
-                  <div style="width:75%"></div>
-                </div>
-                <span class="percent">75%</span>
-              </div>
-              <div class="progress-item">
-                <span>Residential Glasswork</span>
-                <div class="progress-bar">
-                  <div style="width:90%"></div>
-                </div>
-                <span class="percent">90%</span>
-              </div>
-              <div class="progress-item">
-                <span>Office Partitioning</span>
-                <div class="progress-bar">
-                  <div style="width:45%"></div>
-                </div>
-                <span class="percent">45%</span>
-              </div>
-              <div class="progress-item">
-                <span>SM North Facade</span>
-                <div class="progress-bar">
-                  <div style="width:30%"></div>
-                </div>
-                <span class="percent">30%</span>
-              </div>
-            </div>
+          <div class="inventory-box">
+            <table>
+              <thead>
+                <tr>
+                  <th>Items</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>6mm Glass Sheets</td>
+                  <td><span class="status-badge out">Out Of Stock</span></td>
+                </tr>
+                <tr>
+                  <td>Aluminum Brackets</td>
+                  <td><span class="status-badge low">Low Stock</span></td>
+                </tr>
+                <tr>
+                  <td>Rubber Gasket</td>
+                  <td><span class="status-badge in">In Stock</span></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-
         </section>
 
 

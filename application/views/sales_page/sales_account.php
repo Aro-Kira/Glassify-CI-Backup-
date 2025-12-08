@@ -118,10 +118,22 @@ $date_created = $sales_rep ? date('F d, Y', strtotime($sales_rep->Date_Created))
         <input type="text" id="popupInput" class="input-text" autocomplete="off">
       </div>
 
-      <!-- Confirm Password field (only shown when editing password) -->
+      <!-- Current Password field (only shown when editing password) -->
+      <div class="form-group" id="currentPasswordGroup" style="display: none;">
+        <label>Current Password</label>
+        <input type="password" id="popupCurrentPassword" class="input-text" placeholder="Enter your current password" autocomplete="off">
+      </div>
+
+      <!-- New Password field (only shown when editing password, enabled after current password is entered) -->
+      <div class="form-group" id="newPasswordGroup" style="display: none;">
+        <label>New Password</label>
+        <input type="password" id="popupNewPassword" class="input-text" placeholder="Enter new password" autocomplete="off" disabled>
+      </div>
+
+      <!-- Confirm Password field (only shown when editing password, enabled after current password is entered) -->
       <div class="form-group" id="confirmPasswordGroup" style="display: none;">
         <label>Confirm Password</label>
-        <input type="password" id="popupConfirmPassword" class="input-text" placeholder="Re-enter new password" autocomplete="off">
+        <input type="password" id="popupConfirmPassword" class="input-text" placeholder="Re-enter new password" autocomplete="off" disabled>
       </div>
 
       <div class="popup-actions">

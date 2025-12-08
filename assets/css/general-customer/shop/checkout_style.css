@@ -41,6 +41,22 @@ main {
   margin-bottom: 20px;
 }
 
+/* Shipping Address Title - aligned with form fields */
+.shipping-address-title {
+  width: 100%;
+  margin: 20px 0 15px 0;
+  padding: 0;
+}
+
+.shipping-address-title h3 {
+  font-size: 1.3em;
+  font-weight: bold;
+  color: #0f2b46;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
 /* Container that holds form and order summary */
 .info-container {
   display: flex;

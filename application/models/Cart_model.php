@@ -182,6 +182,18 @@ class Cart_model extends CI_Model
         ];
     }
 
+   // ===================== GET CART COUNT =====================
+   /**
+    * Get total number of items in cart for a customer
+    * @param int $customer_id Customer ID
+    * @return int Number of items in cart
+    */
+   public function get_cart_count($customer_id)
+   {
+       $this->db->where('Customer_ID', $customer_id);
+       return $this->db->count_all_results('cart');
+   }
+
    // ===================== GET CART ITEMS =====================
 public function get_cart_items($customer_id)
 {

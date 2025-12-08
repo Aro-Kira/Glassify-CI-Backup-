@@ -387,8 +387,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         document.getElementById('popup-frame-type').textContent = order.frame_type;
         document.getElementById('popup-engraving').textContent = order.engraving;
         
-        // File attached
-        const fileAttached = document.getElementById('popup-file-attached');
+        // File attached with thumbnail
+        const fileThumbnail = document.getElementById('popup-file-thumbnail');
+        const fileThumbnailImg = document.getElementById('popup-file-thumbnail-img');
+        const fileLink = document.getElementById('popup-file-attached-link');
+        const fileText = document.getElementById('popup-file-attached-text');
+        
         if (order.file_attached && order.file_attached !== 'N/A') {
             // Use file_url from backend if available (already includes full path), otherwise construct from file_attached
             let fileUrl = order.file_url;
@@ -402,9 +406,34 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
             // Get just the filename for display
             const fileName = (order.file_attached.includes('/') ? order.file_attached.split('/').pop() : order.file_attached);
-            fileAttached.innerHTML = `<a href="${fileUrl}" target="_blank">${fileName}</a>`;
+            
+            // Check if file is an image (jpg, jpeg, png, gif)
+            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const isImage = imageExtensions.includes(fileExtension);
+            
+            if (isImage && fileUrl) {
+                // Show thumbnail for images
+                fileThumbnail.style.display = 'block';
+                fileThumbnailImg.src = fileUrl;
+                fileThumbnailImg.alt = fileName;
+                fileLink.href = fileUrl;
+                fileLink.textContent = fileName;
+                fileLink.style.display = 'inline';
+                fileText.style.display = 'none';
+            } else {
+                // Show link only for non-images
+                fileThumbnail.style.display = 'none';
+                fileLink.href = fileUrl;
+                fileLink.textContent = fileName;
+                fileLink.style.display = 'inline';
+                fileText.style.display = 'none';
+            }
         } else {
-            fileAttached.textContent = 'N/A';
+            fileThumbnail.style.display = 'none';
+            fileLink.style.display = 'none';
+            fileText.textContent = 'N/A';
+            fileText.style.display = 'inline';
         }
         
         document.getElementById('popup-total-quotation').textContent = order.total_quotation;
@@ -465,11 +494,13 @@ document.addEventListener('DOMContentLoaded', async function () {
             
             const orders = await response.json();
             renderApprovalTable(orders);
+            updateApprovalPagination(orders.length);
         } catch (error) {
             console.error("Error loading approval orders:", error);
             if (approvalTbody) {
                 approvalTbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Error loading approval orders. Please refresh the page.</td></tr>';
             }
+            updateApprovalPagination(0, true);
         }
     }
 
@@ -503,6 +534,32 @@ document.addEventListener('DOMContentLoaded', async function () {
                 loadApprovalOrderDetails(orderId);
             });
         });
+    }
+
+    function updateApprovalPagination(total, isError = false) {
+        // Find the pagination in the approval section
+        const approvalSection = document.querySelector('.order-schedule-section');
+        if (!approvalSection) return;
+        
+        const pagination = approvalSection.querySelector('.pagination');
+        if (!pagination) return;
+        
+        const paginationInfo = pagination.querySelector('span');
+        if (paginationInfo) {
+            if (isError) {
+                paginationInfo.textContent = 'Error loading orders';
+            } else if (total === 0) {
+                paginationInfo.textContent = 'No orders awaiting approval';
+            } else {
+                paginationInfo.textContent = `Showing ${total} order${total !== 1 ? 's' : ''} awaiting approval`;
+            }
+        }
+        
+        // Clear pagination controls since approval orders don't use pagination
+        const paginationControls = pagination.querySelector('.pagination-controls');
+        if (paginationControls) {
+            paginationControls.innerHTML = '';
+        }
     }
 
     // ======================
@@ -663,8 +720,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         document.getElementById('approval-frame-type').textContent = order.frame_type;
         document.getElementById('approval-engraving').textContent = order.engraving;
         
-        // File attached
-        const fileAttached = document.getElementById('approval-file-attached');
+        // File attached with thumbnail
+        const approvalFileThumbnail = document.getElementById('approval-file-thumbnail');
+        const approvalFileThumbnailImg = document.getElementById('approval-file-thumbnail-img');
+        const approvalFileLink = document.getElementById('approval-file-attached-link');
+        const approvalFileText = document.getElementById('approval-file-attached-text');
+        
         if (order.file_attached && order.file_attached !== 'N/A') {
             // Use file_url from backend if available (already includes full path), otherwise construct from file_attached
             let fileUrl = order.file_url;
@@ -678,24 +739,50 @@ document.addEventListener('DOMContentLoaded', async function () {
             }
             // Get just the filename for display
             const fileName = (order.file_attached.includes('/') ? order.file_attached.split('/').pop() : order.file_attached);
-            fileAttached.innerHTML = `<a href="${fileUrl}" target="_blank">${fileName}</a>`;
+            
+            // Check if file is an image (jpg, jpeg, png, gif)
+            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const isImage = imageExtensions.includes(fileExtension);
+            
+            if (isImage && fileUrl) {
+                // Show thumbnail for images
+                approvalFileThumbnail.style.display = 'block';
+                approvalFileThumbnailImg.src = fileUrl;
+                approvalFileThumbnailImg.alt = fileName;
+                approvalFileLink.href = fileUrl;
+                approvalFileLink.textContent = fileName;
+                approvalFileLink.style.display = 'inline';
+                approvalFileText.style.display = 'none';
+            } else {
+                // Show link only for non-images
+                approvalFileThumbnail.style.display = 'none';
+                approvalFileLink.href = fileUrl;
+                approvalFileLink.textContent = fileName;
+                approvalFileLink.style.display = 'inline';
+                approvalFileText.style.display = 'none';
+            }
         } else {
-            fileAttached.textContent = 'N/A';
+            approvalFileThumbnail.style.display = 'none';
+            approvalFileLink.style.display = 'none';
+            approvalFileText.textContent = 'N/A';
+            approvalFileText.style.display = 'inline';
         }
         
-        document.getElementById('approval-total-quotation').textContent = order.total_quotation;
-        
-        // Preferred Installation Date
-        const approvalPrefDateEl = document.getElementById('approval-preferred-installation-date');
-        if (approvalPrefDateEl) {
-            approvalPrefDateEl.textContent = order.preferred_installation_date || 'N/A';
+        const totalQuotationEl = document.getElementById('approval-total-quotation');
+        if (totalQuotationEl) {
+            totalQuotationEl.textContent = '₱' + parseFloat(order.total_quotation || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
         
         // Barcode
+        const barcodeContainer = document.getElementById('approval-barcode');
         const barcodeImg = document.getElementById('approval-barcode-img');
-        if (barcodeImg) {
+        if (barcodeImg && barcodeContainer) {
             const orderIdForBarcode = order.order_id.replace('#', '');
             barcodeImg.src = `https://barcode.tec-it.com/barcode.ashx?data=${orderIdForBarcode}&code=Code128&translate-esc=false`;
+            barcodeContainer.style.display = 'block';
+        } else if (barcodeContainer) {
+            barcodeContainer.style.display = 'none';
         }
         
         // Clear form fields
