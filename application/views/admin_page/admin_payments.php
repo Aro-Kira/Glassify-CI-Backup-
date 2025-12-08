@@ -174,7 +174,6 @@
 </section>
 <script src="/Glassify/assets/js/order-status.js"></script>
 
-<script src="/Glassify/assets/js/admin-sidebar.js"></script>
 
 <script src="/Glassify/assets/js/payments-action.js"></script>
 <script src="/Glassify/assets/js/payment-filter.js"></script>

@@ -162,6 +162,7 @@ $route['admin-product'] = 'AdminCon/admin_product';
 $route['admin-payments'] = 'AdminCon/admin_payments';
 $route['admin-reports'] = 'AdminCon/admin_reports';
 $route['admin-account'] = 'AdminCon/admin_account';
+$route['admin-notif'] = 'AdminCon/admin_notif';
 
 
 /* 

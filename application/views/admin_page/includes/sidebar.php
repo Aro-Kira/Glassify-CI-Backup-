@@ -81,6 +81,12 @@
                     <span>Payments</span>
                 </a>
             </li>
+            <li class="<?php echo (isset($active) && $active == 'notif') ? 'active' : ''; ?>">
+                <a href="<?php echo base_url('admin-notif'); ?>">
+                    <i class="fas fa-bell" style="width: 20px; margin-right: 15px; text-align: center; display: inline-block;"></i>
+                    <span>Notifications</span>
+                </a>
+            </li>
         </ul>
     </div>
 </aside>

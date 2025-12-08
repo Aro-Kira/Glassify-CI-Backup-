@@ -177,14 +177,11 @@ body {
 .chart-legend .legend-weekly::before { background-color: #007bff; }
 .chart-legend .legend-monthly::before { background-color: #ff9500; }
 
-/* ---------- INVENTORY & PROJECT PROGRESS ---------- */
-.inventory-progress {
-  display: flex;
-  gap: 20px;
+/* ---------- INVENTORY (FULL WIDTH) ---------- */
+.inventory-section-full {
   margin-bottom: 25px;
   font-family: 'DM Sans', sans-serif;
 }
-.inventory-section, .progress-section { flex: 1; }
 
 /* Boxes */
 .inventory-box, .progress-box {

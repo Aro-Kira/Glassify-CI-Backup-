@@ -134,7 +134,6 @@ $date_created = $admin ? date('F d, Y', strtotime($admin->Date_Created)) : '';
 
 </section>
 
-<script src="<?php echo base_url('assets/js/admin-sidebar.js'); ?>"></script>
 <script>
     // Make base_url and update URL available to JavaScript
     const base_url = "<?php echo base_url(); ?>";

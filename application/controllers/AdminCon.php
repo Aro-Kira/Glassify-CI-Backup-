@@ -1807,5 +1807,116 @@ class AdminCon extends CI_Controller
         $this->db->insert('system_activity_log', $data);
     }
 
+    // Notifications
+    public function admin_notif()
+    {
+        // Initialize notifications array
+        $all_notifications = [];
+        
+        // Check if system_activity_log table exists and fetch notifications
+        if ($this->db->table_exists('system_activity_log')) {
+            try {
+                $this->db->order_by('Timestamp', 'DESC');
+                $notifications = $this->db->get('system_activity_log')->result();
+                
+                // Format notifications for display
+                if ($notifications) {
+                    foreach ($notifications as $notif) {
+                        // Determine icon based on action
+                        $icon = $this->determine_notification_icon(
+                            isset($notif->Action) ? $notif->Action : '', 
+                            isset($notif->Description) ? $notif->Description : ''
+                        );
+                        
+                        // Format title and message
+                        $action = isset($notif->Action) ? $notif->Action : 'Notification';
+                        $description = isset($notif->Description) ? $notif->Description : '';
+                        
+                        $all_notifications[] = (object)[
+                            'Action' => $action,
+                            'Description' => $description,
+                            'Icon' => $icon,
+                            'Role' => isset($notif->Role) ? $notif->Role : 'System',
+                            'Timestamp' => isset($notif->Timestamp) ? $notif->Timestamp : date('Y-m-d H:i:s'),
+                            'Status' => 'read'
+                        ];
+                    }
+                }
+            } catch (Exception $e) {
+                log_message('error', 'Error fetching notifications: ' . $e->getMessage());
+                // Continue with empty array
+            } catch (Error $e) {
+                log_message('error', 'Fatal error fetching notifications: ' . $e->getMessage());
+                // Continue with empty array
+            }
+        }
+        
+        // Prepare data for view
+        $data['notifications'] = $all_notifications;
+        $data['title'] = "Glassify - Notifications";
+        $data['active'] = 'notif';
+        $data['content_view'] = 'admin_page/admin_notif';
+        $data['page_css'] = 'sales_css/sales_notif.css';
+        
+        // Load view
+        try {
+            $this->load->view('admin_page/layout', $data);
+        } catch (Exception $e) {
+            log_message('error', 'Error loading admin_notif view: ' . $e->getMessage());
+            show_error('Error loading notifications page: ' . $e->getMessage(), 500);
+        }
+    }
+    
+    /**
+     * Determine notification icon based on action and description
+     * 
+     * @param string $action Action type
+     * @param string $description Description text
+     * @return string Font Awesome icon class
+     */
+    private function determine_notification_icon($action, $description)
+    {
+        $action_lower = strtolower($action ?? '');
+        $desc_lower = strtolower($description ?? '');
+        
+        // Order-related icons
+        if (stripos($action_lower, 'order') !== false || stripos($desc_lower, 'order') !== false) {
+            if (stripos($action_lower, 'approval') !== false || stripos($action_lower, 'requested') !== false) {
+                return 'fa-user-tie';
+            } elseif (stripos($action_lower, 'approved') !== false) {
+                return 'fa-shopping-cart';
+            } elseif (stripos($action_lower, 'disapproved') !== false || stripos($action_lower, 'rejected') !== false) {
+                return 'fa-times-circle';
+            } elseif (stripos($action_lower, 'completed') !== false) {
+                return 'fa-check-circle';
+            }
+            return 'fa-shopping-cart';
+        }
+        
+        // Product-related
+        if (stripos($action_lower, 'product') !== false) {
+            return 'fa-box';
+        }
+        
+        // Inventory-related
+        if (stripos($action_lower, 'inventory') !== false || stripos($desc_lower, 'inventory') !== false || 
+            stripos($desc_lower, 'stock') !== false) {
+            return 'fa-box-open';
+        }
+        
+        // Payment-related
+        if (stripos($action_lower, 'payment') !== false || stripos($desc_lower, 'payment') !== false) {
+            return 'fa-money-bill-wave';
+        }
+        
+        // User/Employee-related
+        if (stripos($action_lower, 'employee') !== false || stripos($action_lower, 'user') !== false) {
+            return 'fa-user-tie';
+        }
+        
+        // Default icon
+        return 'fa-info-circle';
+    }
+
   
 }

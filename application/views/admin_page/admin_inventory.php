@@ -77,7 +77,6 @@
 </main>
 </div>
 
-<script src="/Glassify/assets/js/admin-sidebar.js"></script>
 <script src="/Glassify/assets/js/order-popup.js"></script>
 <script src="/Glassify/assets/js/search-inventory.js"></script>
 <script src="/Glassify/assets/js/inventory-action.js"></script>
