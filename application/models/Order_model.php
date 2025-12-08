@@ -340,7 +340,8 @@ class Order_model extends CI_Model
             COALESCE(o.EstimatedDelivery, DATE_ADD(o.OrderDate, INTERVAL 21 DAY)) as EstimatedDelivery
         ');
         $this->db->from('`order` o');
-        $this->db->join('user u', 'u.UserID = o.Customer_ID', 'left');
+        $this->db->join('customer c', 'c.Customer_ID = o.Customer_ID', 'left');
+        $this->db->join('user u', 'u.UserID = c.UserID', 'left');
         $this->db->where('o.OrderID', $order_id);
         
         $order = $this->db->get()->row();
