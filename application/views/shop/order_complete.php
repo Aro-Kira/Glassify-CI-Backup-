@@ -252,9 +252,9 @@ const orderData = {
     paymentMethod: "<?= htmlspecialchars($payment_method ?? 'Cash on Delivery') ?>",
     status: "<?= isset($order) && $order ? $order->Status : 'Pending' ?>",
     customer: {
-        name: "<?= isset($user) ? htmlspecialchars($user->First_Name . ' ' . $user->Last_Name) : 'Customer' ?>",
-        email: "<?= isset($user) ? htmlspecialchars($user->Email ?? '') : '' ?>",
-        phone: "<?= isset($user) ? htmlspecialchars($user->PhoneNum ?? '') : '' ?>",
+        name: "<?= isset($user) ? htmlspecialchars($user->First_Name . ' ' . $user->Last_Name) : (isset($order) && isset($order->First_Name) ? htmlspecialchars($order->First_Name . ' ' . $order->Last_Name) : 'Customer') ?>",
+        email: "<?= isset($user) && !empty($user->Email) ? htmlspecialchars($user->Email) : (isset($order) && !empty($order->Email) ? htmlspecialchars($order->Email) : '') ?>",
+        phone: "<?= isset($user) ? htmlspecialchars($user->PhoneNum ?? '') : (isset($order) ? htmlspecialchars($order->PhoneNum ?? '') : '') ?>",
         address: "<?= isset($shipping_address) && $shipping_address ? htmlspecialchars($shipping_address->AddressLine . ', ' . $shipping_address->City . ', ' . $shipping_address->Province . ', ' . $shipping_address->Country . ' ' . $shipping_address->ZipCode) : (isset($order) && $order ? htmlspecialchars($order->DeliveryAddress) : '') ?>"
     },
     items: [
@@ -361,8 +361,8 @@ document.getElementById('downloadInvoiceBtn').addEventListener('click', async fu
             item.name,
             `Size: ${item.dimensions}\nShape: ${item.shape}\nType: ${item.glassType}\nThickness: ${item.thickness}\nEdge: ${item.edgeWork}\nFrame: ${item.frameType}`,
             item.quantity,
-            '₱' + item.unitPrice.toLocaleString('en-PH', {minimumFractionDigits: 2}),
-            '₱' + item.total.toLocaleString('en-PH', {minimumFractionDigits: 2})
+            'PHP' + item.unitPrice.toLocaleString('en-PH', {minimumFractionDigits: 2}),
+            'PHP' + item.total.toLocaleString('en-PH', {minimumFractionDigits: 2})
         ]);
         
         doc.autoTable({
@@ -470,13 +470,13 @@ document.getElementById('downloadInvoiceBtn').addEventListener('click', async fu
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text('Subtotal:', 125, finalY + 10);
-        doc.text('₱' + orderData.summary.subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 10, { align: 'right' });
+        doc.text('PHP' + orderData.summary.subtotal.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 10, { align: 'right' });
         
         doc.text('Shipping Fee:', 125, finalY + 18);
-        doc.text('₱' + orderData.summary.shipping.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 18, { align: 'right' });
+        doc.text('PHP' + orderData.summary.shipping.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 18, { align: 'right' });
         
         doc.text('Handling Fee:', 125, finalY + 26);
-        doc.text('₱' + orderData.summary.handling.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 26, { align: 'right' });
+        doc.text('PHP' + orderData.summary.handling.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 26, { align: 'right' });
         
         doc.setDrawColor(...primaryColor);
         doc.line(125, finalY + 32, 185, finalY + 32);
@@ -484,7 +484,7 @@ document.getElementById('downloadInvoiceBtn').addEventListener('click', async fu
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
         doc.text('TOTAL:', 125, finalY + 40);
-        doc.text('₱' + orderData.summary.total.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 40, { align: 'right' });
+        doc.text('PHP' + orderData.summary.total.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 40, { align: 'right' });
         
         // Payment Info
         const paymentY = finalY + 55;

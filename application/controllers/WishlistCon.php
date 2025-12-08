@@ -247,12 +247,61 @@ class WishlistCon extends CI_Controller
             return;
         }
 
-        $in_wishlist = $this->Wishlist_model->is_in_wishlist($customer_id, $product_id);
+        // Get wishlist entry to return wishlist_id if found
+        $this->db->select('Wishlist_ID, CustomizationID');
+        $this->db->from('wishlist');
+        $this->db->where('Customer_ID', $customer_id);
+        $this->db->where('Product_ID', $product_id);
+        $this->db->limit(1);
+        $wishlist_item = $this->db->get()->row();
+
+        $in_wishlist = $wishlist_item !== null;
 
         echo json_encode([
             'status' => 'success',
-            'in_wishlist' => $in_wishlist
+            'in_wishlist' => $in_wishlist,
+            'wishlist_id' => $in_wishlist ? $wishlist_item->Wishlist_ID : null
         ]);
+    }
+
+    /**
+     * Remove item from wishlist by product_id (AJAX)
+     * Used for 2D Modeling page toggle functionality
+     */
+    public function remove_by_product_ajax()
+    {
+        $product_id = $this->input->post('product_id');
+        $customer_id = $this->session->userdata('customer_id');
+
+        if (!$product_id || !$customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid request']);
+            return;
+        }
+
+        // Find wishlist entry by product_id
+        $this->db->select('Wishlist_ID, CustomizationID');
+        $this->db->from('wishlist');
+        $this->db->where('Customer_ID', $customer_id);
+        $this->db->where('Product_ID', $product_id);
+        $this->db->limit(1);
+        $wishlist_item = $this->db->get()->row();
+
+        if (!$wishlist_item) {
+            echo json_encode(['status' => 'error', 'message' => 'Item not found in wishlist']);
+            return;
+        }
+
+        $deleted = $this->Wishlist_model->remove_item($wishlist_item->Wishlist_ID);
+
+        if ($deleted) {
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Item removed from wishlist',
+                'wishlist_count' => $this->Wishlist_model->get_wishlist_count($customer_id)
+            ]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to remove item']);
+        }
     }
 
     /**

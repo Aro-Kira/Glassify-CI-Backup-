@@ -151,9 +151,46 @@ public function get_addresses()
             'PhoneNum' => $this->input->post('phone', TRUE)
         ];
 
-        $password = $this->input->post('password', TRUE);
-        if (!empty($password)) {
-            $updateData['Password'] = password_hash($password, PASSWORD_DEFAULT);
+        // Handle password change with security validation
+        $currentPassword = $this->input->post('current_password', TRUE);
+        $newPassword = $this->input->post('new_password', TRUE);
+        $confirmPassword = $this->input->post('confirm_password', TRUE);
+
+        // If any password field is provided, validate all
+        if (!empty($currentPassword) || !empty($newPassword) || !empty($confirmPassword)) {
+            // All password fields must be provided
+            if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+                return $this->send_response('error', 'All password fields are required to change password.', 400);
+            }
+
+            // Verify new password and confirm password match
+            if ($newPassword !== $confirmPassword) {
+                return $this->send_response('error', 'New password and confirm password do not match.', 400);
+            }
+
+            // Check minimum password length
+            if (strlen($newPassword) < 6) {
+                return $this->send_response('error', 'New password must be at least 6 characters long.', 400);
+            }
+
+            // Get current user to verify current password
+            $currentUser = $this->User_model->get_by_id($userID);
+            if (!$currentUser) {
+                return $this->send_response('error', 'User not found.', 404);
+            }
+
+            // Verify current password
+            if (!password_verify($currentPassword, $currentUser->Password)) {
+                return $this->send_response('error', 'Current password is incorrect.', 400);
+            }
+
+            // Check if new password is different from current password
+            if (password_verify($newPassword, $currentUser->Password)) {
+                return $this->send_response('error', 'New password must be different from your current password.', 400);
+            }
+
+            // Hash and set new password
+            $updateData['Password'] = password_hash($newPassword, PASSWORD_DEFAULT);
         }
 
         // Handle image upload

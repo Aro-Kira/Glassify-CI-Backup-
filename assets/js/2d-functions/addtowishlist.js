@@ -67,10 +67,10 @@ $(document).ready(function() {
                         stroke: #e74c3c !important;
                     }
                     .wishlist-btn.active {
-                        cursor: default !important;
+                        cursor: pointer !important;
                     }
                     .wishlist-btn.active:hover {
-                        transform: scale(1) !important;
+                        transform: scale(1.1) !important;
                     }
                     .wishlist-btn.processing {
                         pointer-events: none;
@@ -148,9 +148,11 @@ $(document).ready(function() {
             success: function(res) {
                 if (res.status === 'success' && res.in_wishlist) {
                     setWishlistActive(false); // no animation on load
-                    // Disable button since item is already in wishlist
-                    btn.prop('disabled', true);
-                    btn.css('cursor', 'default');
+                    // Store wishlist_id for removal
+                    btn.data('wishlist-id', res.wishlist_id);
+                    // Keep button enabled so user can remove it
+                    btn.prop('disabled', false);
+                    btn.css('cursor', 'pointer');
                 }
             }
         });
@@ -160,7 +162,7 @@ $(document).ready(function() {
         const btn = $('#add-to-wishlist-btn');
         btn.addClass('active');
         btn.find('svg').attr('fill', '#e74c3c').attr('stroke', '#e74c3c');
-        btn.attr('title', 'Already in Wishlist');
+        btn.attr('title', 'Click to remove from Wishlist');
         
         if (animate) {
             // Add pop animation
@@ -226,9 +228,9 @@ $(document).ready(function() {
         const btn = $(this);
         const product_id = btn.data('product-id');
 
-        // Prevent clicking if already in wishlist
+        // If already in wishlist, remove it instead
         if (btn.hasClass('active')) {
-            showNotification('Already in Wishlist', 'info');
+            removeFromWishlist(btn, product_id);
             return;
         }
 
@@ -288,9 +290,14 @@ $(document).ready(function() {
                 if (res.status === 'success') {
                     setWishlistActive(true);
                     
-                    // Keep button disabled after successful add
-                    btn.prop('disabled', true);
-                    btn.css('cursor', 'default');
+                    // Store wishlist_id for future removal
+                    if (res.wishlist_id) {
+                        btn.data('wishlist-id', res.wishlist_id);
+                    }
+                    
+                    // Keep button enabled so user can remove it
+                    btn.prop('disabled', false);
+                    btn.css('cursor', 'pointer');
                     
                     // Show success notification
                     showNotification('Added to Wishlist!', 'success');
@@ -300,10 +307,13 @@ $(document).ready(function() {
                         $('#wishlist-count').text(res.wishlist_count);
                     }
                 } else if (res.status === 'exists') {
-                    // Item already exists - keep it disabled
+                    // Item already exists - enable toggle
                     setWishlistActive(false);
-                    btn.prop('disabled', true);
-                    btn.css('cursor', 'default');
+                    btn.prop('disabled', false);
+                    btn.css('cursor', 'pointer');
+                    if (res.wishlist_id) {
+                        btn.data('wishlist-id', res.wishlist_id);
+                    }
                     showNotification('Already in Wishlist', 'info');
                 } else {
                     // Error - re-enable button
@@ -325,6 +335,57 @@ $(document).ready(function() {
             }
         });
     });
+
+    // Remove from wishlist function
+    function removeFromWishlist(btn, product_id) {
+        // Prevent double-clicking while processing
+        if (btn.hasClass('processing')) {
+            return;
+        }
+
+        // Mark as processing
+        btn.addClass('processing');
+        btn.prop('disabled', true);
+        btn.find('svg').css('opacity', '0.5');
+
+        $.ajax({
+            url: base_url + "WishlistCon/remove_by_product_ajax",
+            method: "POST",
+            data: { product_id: product_id },
+            dataType: "json",
+            success: function(res) {
+                btn.removeClass('processing');
+                btn.find('svg').css('opacity', '1');
+                btn.prop('disabled', false);
+
+                if (res.status === 'success') {
+                    setWishlistInactive();
+                    btn.removeData('wishlist-id');
+                    
+                    // Show success notification
+                    showNotification('Removed from Wishlist', 'success');
+                    
+                    // Update wishlist counter if exists
+                    if ($('#wishlist-count').length) {
+                        $('#wishlist-count').text(res.wishlist_count || 0);
+                    }
+                } else {
+                    showNotification(res.message || 'Error removing from wishlist', 'error');
+                }
+            },
+            error: function(xhr) {
+                btn.removeClass('processing');
+                btn.prop('disabled', false);
+                btn.find('svg').css('opacity', '1');
+                
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    showNotification(xhr.responseJSON.message, 'error');
+                } else {
+                    showNotification('Error removing from wishlist', 'error');
+                }
+            }
+        });
+    }
 
     // Simple notification function
     function showNotification(message, type) {

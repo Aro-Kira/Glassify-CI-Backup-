@@ -272,13 +272,36 @@ public function checkout()
             // Calculate summary
             $data['summary'] = $this->Order_model->calculate_order_summary($order_id);
             
-            // Get customer shipping address
+            // Get customer shipping address and user data
             $customer_id = $this->session->userdata('customer_id');
             if ($customer_id) {
                 $addresses = $this->User_model->get_addresses($customer_id);
                 $data['shipping_address'] = $addresses['Shipping'] ?? null;
                 $data['billing_address'] = $addresses['Billing'] ?? null;
-                $data['user'] = $this->User_model->get_by_id($customer_id);
+                
+                // Get user data - first get customer to find UserID
+                $customer = $this->db->where('Customer_ID', $customer_id)->get('customer')->row();
+                if ($customer && $customer->UserID) {
+                    $data['user'] = $this->User_model->get_by_id($customer->UserID);
+                } else {
+                    // Fallback: use data from order if available
+                    if ($data['order'] && isset($data['order']->Email)) {
+                        $data['user'] = (object)[
+                            'First_Name' => $data['order']->First_Name ?? '',
+                            'Last_Name' => $data['order']->Last_Name ?? '',
+                            'Email' => $data['order']->Email ?? '',
+                            'PhoneNum' => $data['order']->PhoneNum ?? ''
+                        ];
+                    }
+                }
+            } else if ($data['order'] && isset($data['order']->Email)) {
+                // Fallback: use data from order if customer_id not in session
+                $data['user'] = (object)[
+                    'First_Name' => $data['order']->First_Name ?? '',
+                    'Last_Name' => $data['order']->Last_Name ?? '',
+                    'Email' => $data['order']->Email ?? '',
+                    'PhoneNum' => $data['order']->PhoneNum ?? ''
+                ];
             }
         }
         

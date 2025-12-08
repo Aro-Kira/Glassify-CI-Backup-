@@ -44,10 +44,18 @@
                         </button>
                     </div>
 
-
-
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" placeholder="Enter new password">
+                    <!-- Password Change Section -->
+                    <div class="password-section">
+                        <label for="current_password">Current Password</label>
+                        <input type="password" id="current_password" name="current_password" placeholder="Enter your current password">
+                        
+                        <label for="new_password">New Password</label>
+                        <input type="password" id="new_password" name="new_password" placeholder="Enter new password">
+                        
+                        <label for="confirm_password">Confirm New Password</label>
+                        <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm new password">
+                        <small id="passwordError" style="color: #dc3545; display: none; margin-top: 5px;"></small>
+                    </div>
 
                     <div class="form-buttons">
                         <button type="button" class="btn-cancel">Cancel</button>
@@ -295,38 +303,123 @@
             // ========= PROFILE FORM =========
             const saveBtn = $("#saveBtn");
             const accountForm = $("#accountForm");
+            const passwordError = $("#passwordError");
             const originalValues = {};
 
+            // Initialize original values (excluding password fields)
             accountForm.find("input").each(function () {
-                originalValues[$(this).attr("name")] = $(this).val();
+                const name = $(this).attr("name");
+                if (name && !name.includes("password")) {
+                    originalValues[name] = $(this).val();
+                }
             });
+
+            function validatePasswords() {
+                const currentPassword = $("#current_password").val();
+                const newPassword = $("#new_password").val();
+                const confirmPassword = $("#confirm_password").val();
+
+                // If any password field is filled, all must be filled
+                if (currentPassword || newPassword || confirmPassword) {
+                    if (!currentPassword || !newPassword || !confirmPassword) {
+                        passwordError.text("All password fields must be filled to change password.").show();
+                        return false;
+                    }
+
+                    // Check if new password and confirm password match
+                    if (newPassword !== confirmPassword) {
+                        passwordError.text("New password and confirm password do not match.").show();
+                        return false;
+                    }
+
+                    // Check minimum length
+                    if (newPassword.length < 6) {
+                        passwordError.text("New password must be at least 6 characters long.").show();
+                        return false;
+                    }
+
+                    passwordError.hide();
+                    return true;
+                }
+
+                // No password change attempted
+                passwordError.hide();
+                return true;
+            }
 
             function checkFormChanged() {
                 let changed = false;
+                
+                // Check non-password fields
                 accountForm.find("input").each(function () {
-                    if ($(this).val() !== originalValues[$(this).attr("name")]) {
-                        changed = true;
-                        return false;
+                    const name = $(this).attr("name");
+                    if (name && !name.includes("password")) {
+                        if ($(this).val() !== (originalValues[name] || "")) {
+                            changed = true;
+                            return false;
+                        }
                     }
                 });
+
+                // Check if password fields are filled (password change attempt)
+                const currentPassword = $("#current_password").val();
+                const newPassword = $("#new_password").val();
+                const confirmPassword = $("#confirm_password").val();
+                
+                if (currentPassword || newPassword || confirmPassword) {
+                    changed = true;
+                }
+
                 return changed;
             }
 
-            accountForm.find("input").on("input", function () {
+            // Validate passwords on input
+            $("#current_password, #new_password, #confirm_password").on("input", function () {
+                validatePasswords();
+                saveBtn.prop("disabled", !checkFormChanged() || !validatePasswords());
+            });
+
+            accountForm.find("input").not("#current_password, #new_password, #confirm_password").on("input", function () {
                 saveBtn.prop("disabled", !checkFormChanged());
             });
 
             $("#address").on("input change", function () {
-                saveBtn.prop("disabled", checkFormChanged());
+                saveBtn.prop("disabled", !checkFormChanged());
             });
 
             $(".btn-cancel").click(function () {
                 accountForm[0].reset();
+                passwordError.hide();
                 saveBtn.prop("disabled", true);
+                // Reset original values
+                accountForm.find("input").each(function () {
+                    const name = $(this).attr("name");
+                    if (name && !name.includes("password")) {
+                        originalValues[name] = $(this).val();
+                    }
+                });
             });
 
             accountForm.submit(function (e) {
                 e.preventDefault();
+
+                // Validate passwords before submission
+                if (!validatePasswords()) {
+                    return;
+                }
+
+                // Check if password change is being attempted
+                const currentPassword = $("#current_password").val();
+                const newPassword = $("#new_password").val();
+                const confirmPassword = $("#confirm_password").val();
+
+                // If password fields are filled, ensure all are filled
+                if (currentPassword || newPassword || confirmPassword) {
+                    if (!currentPassword || !newPassword || !confirmPassword) {
+                        passwordError.text("All password fields must be filled to change password.").show();
+                        return;
+                    }
+                }
 
                 $.ajax({
                     url: "<?= base_url('UserCon/update_profile') ?>",
@@ -339,16 +432,34 @@
                         if (res.status === "success") {
                             alert("Profile updated!");
                             saveBtn.prop("disabled", true);
+                            passwordError.hide();
 
+                            // Clear password fields after successful update
+                            $("#current_password, #new_password, #confirm_password").val("");
+
+                            // Update original values
                             accountForm.find("input").each(function () {
-                                originalValues[$(this).attr("name")] = $(this).val();
+                                const name = $(this).attr("name");
+                                if (name && !name.includes("password")) {
+                                    originalValues[name] = $(this).val();
+                                }
                             });
                         } else {
                             alert(res.message || "Failed to update profile.");
+                            if (res.message && res.message.toLowerCase().includes("password")) {
+                                passwordError.text(res.message).show();
+                            }
                         }
                     },
-                    error: function () {
-                        alert("Error updating profile.");
+                    error: function (xhr) {
+                        let errorMsg = "Error updating profile.";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                            if (errorMsg.toLowerCase().includes("password")) {
+                                passwordError.text(errorMsg).show();
+                            }
+                        }
+                        alert(errorMsg);
                     }
                 });
             });
