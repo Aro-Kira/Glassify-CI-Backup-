@@ -40,3 +40,25 @@
 .user-link:hover .user-icon {
     color: #FDC103;
 }
+
+/* Notification link styles */
+.notification-link {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.notification-link i {
+  font-size: 1.8em;
+  margin: 10px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.notification-link:hover i {
+  color: #FDC103;
+}
+
+.notification-link.active i {
+  color: #FDC103;  /* Highlight color when active */
+}

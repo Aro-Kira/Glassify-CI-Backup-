@@ -89,7 +89,7 @@ class InventCon extends CI_Controller
     public function inventory_notif()
     {
         $data['title'] = "Glassify - Inventory Notifications";
-        $data['active'] = 'inventory_notifications';
+        $data['active'] = 'notif';
         $data['content_view'] = 'inventory_page/inventory_notif';
         $data['page_css'] = 'admin_css/admin_notif.css';
         $this->load->view('inventory_page/layout', $data);
