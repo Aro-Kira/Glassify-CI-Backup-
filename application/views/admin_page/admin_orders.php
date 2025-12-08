@@ -357,8 +357,8 @@
           <span class="info-card-icon">📊</span>
           <h4 class="info-card-title">Order Barcode</h4>
         </div>
-        <div class="info-card-body" style="text-align: center; padding: 20px;">
-          <img id="approval-barcode-img" src="" alt="Barcode" style="max-width: 100%; height: auto;">
+        <div class="info-card-body barcode-body-modern">
+          <img id="approval-barcode-img" src="" alt="Barcode" class="barcode-img-modern">
         </div>
       </div>
 
