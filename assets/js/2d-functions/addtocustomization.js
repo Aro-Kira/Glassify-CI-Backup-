@@ -1,3 +1,76 @@
+// Notification function for add to cart (similar to wishlist notification)
+function showCartNotification(message, type) {
+    // Remove existing notification
+    $('.cart-notification').remove();
+
+    const bgColor = type === 'success' ? '#28a745' : 
+                   type === 'error' ? '#dc3545' : 
+                   type === 'info' ? '#17a2b8' : '#333';
+    
+    const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
+
+    const notification = $(`
+        <div class="cart-notification" style="
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: ${bgColor};
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: cartNotifSlideIn 0.3s ease;
+        ">
+            <span style="font-size: 18px;">${icon}</span>
+            ${message}
+        </div>
+    `);
+
+    // Add notification animation style if not exists
+    if (!$('#cart-notification-style').length) {
+        $('head').append(`
+            <style id="cart-notification-style">
+                @keyframes cartNotifSlideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateX(100px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                }
+                @keyframes cartNotifSlideOut {
+                    from {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                    to {
+                        opacity: 0;
+                        transform: translateX(100px);
+                    }
+                }
+            </style>
+        `);
+    }
+
+    $('body').append(notification);
+
+    // Auto remove after 3 seconds
+    setTimeout(function() {
+        notification.css('animation', 'cartNotifSlideOut 0.3s ease');
+        setTimeout(function() {
+            notification.remove();
+        }, 300);
+    }, 3000);
+}
+
 $(document).on('click', '#add-to-cart-btn', function () {
     const btn = $(this);
     const originalText = btn.html();
@@ -56,17 +129,8 @@ $(document).on('click', '#add-to-cart-btn', function () {
                 let response = typeof res === 'string' ? JSON.parse(res) : res;
 
                 if (response.status === 'success') {
-                    // Show success message with SweetAlert if available, else use alert
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Added to Cart!',
-                            text: 'Your customized item has been added to cart.',
-                            confirmButtonColor: '#003b4d'
-                        });
-                    } else {
-                        alert("Added to Cart! Your custom design has been saved.");
-                    }
+                    // Show success notification (similar to wishlist)
+                    showCartNotification('Added to Cart!', 'success');
 
                     // Update cart counter
                     if ($('#cart-count').length) {
@@ -74,11 +138,11 @@ $(document).on('click', '#add-to-cart-btn', function () {
                         $('#cart-count').toggle(response.cart_count > 0);
                     }
                 } else {
-                    alert("Error: " + (response.message || 'Unknown error'));
+                    showCartNotification("Error: " + (response.message || 'Unknown error'), 'error');
                 }
             } catch (e) {
                 console.error('Parse error:', e);
-                alert("Added to Cart!");
+                showCartNotification('Added to Cart!', 'success');
             }
         },
         error: function (xhr, status, error) {
@@ -105,7 +169,7 @@ $(document).on('click', '#add-to-cart-btn', function () {
                 }
             }
             
-            alert(errorMessage);
+            showCartNotification(errorMessage, 'error');
         },
         complete: function() {
             // Restore button state
@@ -160,12 +224,12 @@ $(document).on('click', '#buy-now-btn', function () {
                     // Redirect to checkout with the cart item selected
                     window.location.href = base_url + 'payment?selected=' + response.cart_id;
                 } else {
-                    alert("Error: " + (response.message || 'Unknown error'));
+                    showCartNotification("Error: " + (response.message || 'Unknown error'), 'error');
                     btn.prop('disabled', false).html(originalText);
                 }
             } catch (e) {
                 console.error('Parse error:', e);
-                alert("Error processing response. Please try again.");
+                showCartNotification("Error processing response. Please try again.", 'error');
                 btn.prop('disabled', false).html(originalText);
             }
         },
@@ -193,7 +257,7 @@ $(document).on('click', '#buy-now-btn', function () {
                 }
             }
             
-            alert(errorMessage);
+            showCartNotification(errorMessage, 'error');
             btn.prop('disabled', false).html(originalText);
         }
     });
