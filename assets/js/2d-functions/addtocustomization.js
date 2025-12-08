@@ -69,7 +69,10 @@ $(document).on('click', '#add-to-cart-btn', function () {
                     }
 
                     // Update cart counter
-                    $('#cart-count').text(response.cart_count);
+                    if ($('#cart-count').length) {
+                        $('#cart-count').text(response.cart_count);
+                        $('#cart-count').toggle(response.cart_count > 0);
+                    }
                 } else {
                     alert("Error: " + (response.message || 'Unknown error'));
                 }

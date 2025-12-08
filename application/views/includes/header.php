@@ -1,5 +1,9 @@
 <!-- ========================= INCLUDE STYLES & SCRIPTS ========================= -->
 <link rel="stylesheet" href="<?php echo base_url('assets/css/include/header_style.css'); ?>">
+<script>
+    // Set BASE_URL for JavaScript
+    window.BASE_URL = "<?php echo base_url(); ?>";
+</script>
 <script src="<?php echo base_url('assets/js/includes/header.js'); ?>"></script>
 <script src="https://kit.fontawesome.com/fc5ceca38c.js" crossorigin="anonymous"></script>
 
@@ -13,6 +17,24 @@
 // Check if we should force guest header (for employee login pages and customer login/register pages)
 $force_guest = isset($force_guest_header) && $force_guest_header;
 $is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
+
+// Get cart and wishlist counts if logged in
+$cart_count = 0;
+$wishlist_count = 0;
+if ($is_logged_in) {
+    $customer_id = $this->session->userdata('customer_id');
+    if ($customer_id) {
+        // Load models in view (CodeIgniter allows this)
+        // Note: In views, $this refers to CI_Loader, models are loaded into CI instance
+        $CI =& get_instance();
+        $CI->load->model('Cart_model');
+        $CI->load->model('Wishlist_model');
+        
+        // Access models through CI instance
+        $cart_count = $CI->Cart_model->get_cart_count($customer_id);
+        $wishlist_count = $CI->Wishlist_model->get_wishlist_count($customer_id);
+    }
+}
 ?>
 
 <header class="navbar">
@@ -57,15 +79,25 @@ $is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
 
         <!-- CART ICON (Requires Login) -->
         <a href="<?= base_url($is_logged_in ? 'addtocart' : 'login?redirect=addtocart'); ?>"
-            class="icon-link">
-            <img src="<?= base_url('assets/images/img-page/shopping-cart.png'); ?>" alt="Shopping_cart">
+            class="icon-link cart-icon-link">
+            <div class="icon-wrapper">
+                <img src="<?= base_url('assets/images/img-page/shopping-cart.png'); ?>" alt="Shopping_cart">
+                <?php if ($is_logged_in): ?>
+                    <span class="icon-badge" id="cart-count" style="display: <?= $cart_count > 0 ? 'flex' : 'none' ?>;"><?= $cart_count ?></span>
+                <?php endif; ?>
+            </div>
         </a>
 
 
         <!-- WISHLIST ICON (Requires Login) -->
         <a href="<?= base_url($is_logged_in ? 'wishlist' : 'login?redirect=wishlist'); ?>"
-            class="icon-link">
-            <img src="<?= base_url('assets/images/img-page/heart.png'); ?>" alt="Wishlist">
+            class="icon-link wishlist-icon-link">
+            <div class="icon-wrapper">
+                <img src="<?= base_url('assets/images/img-page/heart.png'); ?>" alt="Wishlist">
+                <?php if ($is_logged_in): ?>
+                    <span class="icon-badge" id="wishlist-count" style="display: <?= $wishlist_count > 0 ? 'flex' : 'none' ?>;"><?= $wishlist_count ?></span>
+                <?php endif; ?>
+            </div>
         </a>
 
 

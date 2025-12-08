@@ -305,6 +305,7 @@ $(document).ready(function() {
                     // Update wishlist counter if exists
                     if ($('#wishlist-count').length) {
                         $('#wishlist-count').text(res.wishlist_count);
+                        $('#wishlist-count').toggle(res.wishlist_count > 0);
                     }
                 } else if (res.status === 'exists') {
                     // Item already exists - enable toggle

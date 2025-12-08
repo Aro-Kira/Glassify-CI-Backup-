@@ -858,6 +858,29 @@ class CartCon extends CI_Controller
         ]);
     }
 
+    // ===================== GET CART COUNT (AJAX) =====================
+    /**
+     * Get cart count for header badge
+     */
+    public function get_cart_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        $customer_id = $this->session->userdata('customer_id');
+        
+        if (!$customer_id) {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        $count = $this->Cart_model->get_cart_count($customer_id);
+        
+        echo json_encode([
+            'status' => 'success',
+            'count' => $count
+        ]);
+    }
+
     // ===================== HELPER =====================
     private function calculate_summary($cart_items)
     {
