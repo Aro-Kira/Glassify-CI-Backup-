@@ -589,7 +589,12 @@ class Order_model extends CI_Model
             o.Status as OrderStatus,
             o.PaymentStatus,
             o.DeliveryAddress,
-            DATE_ADD(o.OrderDate, INTERVAL 7 DAY) as DeliveryDate
+            COALESCE(
+                o.PreferredInstallationDate,
+                o.EstimatedDelivery,
+                o.InstallationDate,
+                DATE_ADD(o.OrderDate, INTERVAL 7 DAY)
+            ) as DeliveryDate
         ');
         $this->db->from('order_items oi');
         $this->db->join('`order` o', 'o.OrderID = oi.OrderID', 'left');
