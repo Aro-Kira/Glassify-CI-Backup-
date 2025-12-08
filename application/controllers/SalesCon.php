@@ -1185,6 +1185,16 @@ class SalesCon extends CI_Controller
         $result = $this->Issue_model->mark_as_resolved($issue_id);
         
         if ($result) {
+            // Create notification for issue resolution
+            $this->add_sales_notification(
+                'fa-check-circle',
+                'Sales Representative',
+                "Issue Resolved: Issue #{$issue_id} has been marked as resolved",
+                'Unread',
+                $issue_id,
+                'Issue'
+            );
+            
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => true,
@@ -1219,6 +1229,16 @@ class SalesCon extends CI_Controller
         $result = $this->Issue_model->update_priority($issue_id, $priority);
         
         if ($result) {
+            // Create notification for priority update
+            $this->add_sales_notification(
+                'fa-exclamation-triangle',
+                'Sales Representative',
+                "Issue Priority Updated: Issue #{$issue_id} priority changed to {$priority}",
+                'Unread',
+                $issue_id,
+                'Issue'
+            );
+            
             header('Content-Type: application/json');
             echo json_encode([
                 'success' => true,
@@ -1349,6 +1369,31 @@ class SalesCon extends CI_Controller
             'Status' => 'Read',
             'Read_Date' => date('Y-m-d H:i:s')
         ]);
+    }
+    
+    /**
+     * Get unread notification count (AJAX endpoint)
+     */
+    public function get_notification_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Sales Representative') {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        $this->db->where('Status', 'Unread');
+        $count = $this->db->count_all_results('sales_notif');
+        
+        // Limit to 99, show 99+ if more
+        if ($count > 99) {
+            $display_count = '99+';
+        } else {
+            $display_count = $count;
+        }
+        
+        echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
     }
 
     // Update account information via AJAX
@@ -1561,6 +1606,17 @@ class SalesCon extends CI_Controller
                 // Log successful update
                 log_message('info', 'Sales Rep account updated successfully: UserID=' . $user_id . ', Field=' . $field . ', Affected rows=' . $affected_rows);
                 
+                // Create notification for account update
+                $field_display = ucfirst(str_replace('_', ' ', $field));
+                $this->add_sales_notification(
+                    'fa-user-tie',
+                    'Sales Representative',
+                    "Account Updated: {$field_display} has been updated",
+                    'Unread',
+                    $user_id,
+                    'Account'
+                );
+                
                 echo json_encode(['success' => true, 'message' => 'Account updated successfully in database']);
             } else {
                 // Update query ran but verification failed
@@ -1651,6 +1707,15 @@ class SalesCon extends CI_Controller
         
         if ($result['success']) {
             $result['order_id'] = $order_id_formatted;
+            // Create notification for order approval
+            $this->add_sales_notification(
+                'fa-check-circle',
+                'Sales Representative',
+                "Order Approved: {$order_id_formatted} has been approved",
+                'Unread',
+                $order_id_numeric,
+                'Order'
+            );
         }
         
         echo json_encode($result);
@@ -1697,6 +1762,16 @@ class SalesCon extends CI_Controller
         
         if ($result['success']) {
             $result['order_id'] = $order_id_formatted;
+            // Create notification for order disapproval
+            $reason_text = $reason ? " (Reason: {$reason})" : '';
+            $this->add_sales_notification(
+                'fa-times-circle',
+                'Sales Representative',
+                "Order Disapproved: {$order_id_formatted} has been disapproved{$reason_text}",
+                'Unread',
+                $order_id_numeric,
+                'Order'
+            );
         }
         
         echo json_encode($result);
@@ -2168,6 +2243,21 @@ class SalesCon extends CI_Controller
             
             // Transaction is handled by update_payment_status, so we don't need to complete it here
             // But we should check if there were any errors
+            
+            // Create notification for payment update
+            if ($order && isset($order->OrderNumber)) {
+                $order_id_formatted = $order->OrderNumber;
+            } else {
+                $order_id_formatted = 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
+            }
+            $this->add_sales_notification(
+                'fa-money-bill-wave',
+                'Sales Representative',
+                "Payment Updated: Payment for Order {$order_id_formatted} has been marked as paid",
+                'Unread',
+                $order_id_numeric,
+                'Payment'
+            );
             
             echo json_encode([
                 'success' => true,

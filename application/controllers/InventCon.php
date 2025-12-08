@@ -94,4 +94,30 @@ class InventCon extends CI_Controller
         $data['page_css'] = 'admin_css/admin_notif.css';
         $this->load->view('inventory_page/layout', $data);
     }
+    
+    /**
+     * Get unread notification count (AJAX endpoint)
+     */
+    public function get_notification_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Inventory Officer') {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        $this->load->model('Inventory_model');
+        $this->db->where('Status', 'Unread');
+        $count = $this->db->count_all_results('inventory_notifications');
+        
+        // Limit to 99, show 99+ if more
+        if ($count > 99) {
+            $display_count = '99+';
+        } else {
+            $display_count = $count;
+        }
+        
+        echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
+    }
 }

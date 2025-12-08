@@ -57,6 +57,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
     <!-- Sidebar toggle JS -->
     <script src="<?= base_url('assets/js/includes/sidebar.js'); ?>"></script>
+    
+    <!-- Notification badge JS -->
+    <script>
+        window.BASE_URL = '<?= base_url(); ?>';
+    </script>
+    <script src="<?= base_url('assets/js/includes/notification-badge.js'); ?>"></script>
 
     <!-- Page-specific JS -->
     <?php if (isset($page_js)): ?>

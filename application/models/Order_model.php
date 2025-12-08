@@ -71,6 +71,22 @@ class Order_model extends CI_Model
             ]);
         }
         
+        // Create sales notification for new order
+        if ($this->db->table_exists('sales_notif')) {
+            $sales_rep_id = isset($order_data['SalesRep_ID']) ? $order_data['SalesRep_ID'] : null;
+            if ($sales_rep_id) {
+                $this->db->insert('sales_notif', [
+                    'Icon' => 'fa-shopping-cart',
+                    'Role' => 'Client/Customer',
+                    'Description' => "New Order: {$order_number} has been created and requires your review",
+                    'Status' => 'Unread',
+                    'RelatedID' => $order_id,
+                    'RelatedType' => 'Order',
+                    'Created_Date' => date('Y-m-d H:i:s')
+                ]);
+            }
+        }
+        
         // Complete transaction
         $this->db->trans_complete();
         

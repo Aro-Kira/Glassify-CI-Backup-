@@ -1917,6 +1917,38 @@ class AdminCon extends CI_Controller
         // Default icon
         return 'fa-info-circle';
     }
+    
+    /**
+     * Get notification count (AJAX endpoint)
+     * Admin uses system_activity_log - count all recent notifications
+     */
+    public function get_notification_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        // Count all notifications from system_activity_log (admin treats all as notifications)
+        if ($this->db->table_exists('system_activity_log')) {
+            // Count notifications from last 30 days
+            $this->db->where('Timestamp >=', date('Y-m-d H:i:s', strtotime('-30 days')));
+            $count = $this->db->count_all_results('system_activity_log');
+        } else {
+            $count = 0;
+        }
+        
+        // Limit to 99, show 99+ if more
+        if ($count > 99) {
+            $display_count = '99+';
+        } else {
+            $display_count = $count;
+        }
+        
+        echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
+    }
 
   
 }
