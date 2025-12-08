@@ -1730,51 +1730,64 @@ class SalesCon extends CI_Controller
     {
         header('Content-Type: application/json');
         
-        $sales_rep_id = $this->get_current_sales_rep_id();
-        $order_id = $this->input->post('order_id');
-        $reason = $this->input->post('reason') ?: '';
-        
-        if (!$order_id) {
-            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
-            return;
+        try {
+            $sales_rep_id = $this->get_current_sales_rep_id();
+            if (!$sales_rep_id) {
+                echo json_encode(['success' => false, 'message' => 'Sales representative not authenticated']);
+                return;
+            }
+            
+            $order_id = $this->input->post('order_id');
+            $reason = $this->input->post('reason') ?: '';
+            
+            if (!$order_id) {
+                echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+                return;
+            }
+            
+            // Load Order_model
+            $this->load->model('Order_model');
+            
+            // Parse order ID - remove # prefix
+            $order_id_clean = str_replace('#', '', $order_id);
+            
+            // Look up the order by OrderNumber or OrderID to get the actual numeric OrderID
+            $order = $this->Order_model->get_order($order_id_clean);
+            
+            if (!$order) {
+                echo json_encode(['success' => false, 'message' => 'Order not found']);
+                return;
+            }
+            
+            // Use the actual numeric OrderID from the database
+            $order_id_numeric = $order->OrderID;
+            $order_id_formatted = $order->OrderNumber ?? 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
+            
+            // Use Order_model function
+            $result = $this->Order_model->sales_rep_final_disapprove($order_id_numeric, $sales_rep_id, $reason);
+            
+            if ($result['success']) {
+                $result['order_id'] = $order_id_formatted;
+                // Create notification for order disapproval
+                $reason_text = $reason ? " (Reason: {$reason})" : '';
+                $this->add_sales_notification(
+                    'fa-times-circle',
+                    'Sales Representative',
+                    "Order Disapproved: {$order_id_formatted} has been disapproved{$reason_text}",
+                    'Unread',
+                    $order_id_numeric,
+                    'Order'
+                );
+            }
+            
+            echo json_encode($result);
+        } catch (Exception $e) {
+            log_message('error', 'SalesCon::disapprove_order - Exception: ' . $e->getMessage());
+            echo json_encode([
+                'success' => false, 
+                'message' => 'An error occurred while disapproving the order: ' . $e->getMessage()
+            ]);
         }
-        
-        // Load Order_model
-        $this->load->model('Order_model');
-        
-        // Parse order ID - remove # prefix
-        $order_id_clean = str_replace('#', '', $order_id);
-        
-        // Look up the order by OrderNumber or OrderID to get the actual numeric OrderID
-        $order = $this->Order_model->get_order($order_id_clean);
-        
-        if (!$order) {
-            echo json_encode(['success' => false, 'message' => 'Order not found']);
-            return;
-        }
-        
-        // Use the actual numeric OrderID from the database
-        $order_id_numeric = $order->OrderID;
-        $order_id_formatted = $order->OrderNumber ?? 'GI' . str_pad($order_id_numeric, 3, '0', STR_PAD_LEFT);
-        
-        // Use Order_model function
-        $result = $this->Order_model->sales_rep_final_disapprove($order_id_numeric, $sales_rep_id, $reason);
-        
-        if ($result['success']) {
-            $result['order_id'] = $order_id_formatted;
-            // Create notification for order disapproval
-            $reason_text = $reason ? " (Reason: {$reason})" : '';
-            $this->add_sales_notification(
-                'fa-times-circle',
-                'Sales Representative',
-                "Order Disapproved: {$order_id_formatted} has been disapproved{$reason_text}",
-                'Unread',
-                $order_id_numeric,
-                'Order'
-            );
-        }
-        
-        echo json_encode($result);
     }
     
     /**

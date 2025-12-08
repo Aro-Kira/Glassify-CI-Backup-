@@ -112,19 +112,23 @@ body {
     text-align: center;
 }
 
-.calendar-reset button {
-    background-color: #0073aa;
-    color: #fff;
-    border: none;
-    padding: 6px 12px;
+.calendar-reset button,
+#reset-calendar {
+    background-color: #0073aa !important;
+    color: #fff !important;
+    border: none !important;
+    padding: 8px 16px;
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
+    font-weight: 500;
     transition: background-color 0.3s;
+    width: 100%;
 }
 
-.calendar-reset button:hover {
-    background-color: #005f8d;
+.calendar-reset button:hover,
+#reset-calendar:hover {
+    background-color: #005f8d !important;
 }
 
 

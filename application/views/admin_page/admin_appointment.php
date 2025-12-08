@@ -22,7 +22,6 @@
         <input type="text" placeholder="Search by client name..." class="filter-search" id="filter-search">
         <button class="apply-btn" onclick="applyFilters()">Apply</button>
         <button class="clear-btn" onclick="clearFilters()">Clear</button>
-        <button class="add-appointment-button">+ Add new</button>
     </div>
 
     <!-- Progress Steps -->
