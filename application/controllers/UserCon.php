@@ -57,9 +57,14 @@ class UserCon extends CI_Controller
             if (!isset($data['addresses'][$type]) || !$data['addresses'][$type]) {
                 $data['addresses'][$type] = (object)[
                     'AddressLine' => '',
+                    'UnitHouseNumber' => '',
+                    'Street' => '',
+                    'Subdivision' => '',
+                    'Barangay' => '',
                     'City' => '',
                     'Province' => '',
-                    'Country' => '',
+                    'Region' => '',
+                    'Country' => 'Philippines',
                     'ZipCode' => '',
                     'Note' => ''
                 ];
@@ -75,62 +80,215 @@ class UserCon extends CI_Controller
     // ADD NEW ADDRESS (AJAX)
     // =============================
     public function add_address()
-{
-    // Require login
-   $userID = $this->session->userdata('user_id');
+    {
+        // Require login
+        $userID = $this->session->userdata('user_id');
 
-if (!$userID) {
-    echo json_encode(['success' => false, 'message' => 'Not logged in']);
-    return;
-}
+        if (!$userID) {
+            echo json_encode(['success' => false, 'message' => 'Not logged in']);
+            return;
+        }
 
+        // Validate required fields
+        $this->form_validation->set_rules('Barangay', 'Barangay', 'required|trim');
+        $this->form_validation->set_rules('City', 'City/Municipality', 'required|trim');
+        $this->form_validation->set_rules('Province', 'Province', 'required|trim');
+        $this->form_validation->set_rules('Region', 'Region', 'required|trim');
+        $this->form_validation->set_rules('ZipCode', 'Zip Code', 'required|trim');
 
-    $data = [
-        'UserID'      => $userID,
-        'AddressLine' => $this->input->post('AddressLine', true),
-        'City'        => $this->input->post('City', true),
-        'Province'    => $this->input->post('Province', true),
-        'Country'     => $this->input->post('Country', true),
-        'ZipCode'     => $this->input->post('ZipCode', true),
-        'AddressType' => 'Shipping' // default
-    ];
+        if ($this->form_validation->run() === FALSE) {
+            echo json_encode([
+                'success' => false,
+                'message' => validation_errors()
+            ]);
+            return;
+        }
 
-$this->load->model('User_model');
+        $data = [
+            'UserID'          => $userID,
+            'UnitHouseNumber' => $this->input->post('UnitHouseNumber', true),
+            'Street'          => $this->input->post('Street', true),
+            'Subdivision'     => $this->input->post('Subdivision', true),
+            'Barangay'        => $this->input->post('Barangay', true),
+            'City'            => $this->input->post('City', true),
+            'Province'        => $this->input->post('Province', true),
+            'Region'          => $this->input->post('Region', true),
+            'Country'         => $this->input->post('Country', true) ?: 'Philippines',
+            'ZipCode'         => $this->input->post('ZipCode', true),
+            'AddressType'     => 'Shipping', // default
+            'IsDefault'       => $this->input->post('IsDefault') ? 1 : 0
+        ];
+        
+        // If this is set as default, unset other defaults for this user
+        if ($data['IsDefault'] == 1) {
+            $this->db->where('UserID', $userID);
+            $this->db->update('user_address', ['IsDefault' => 0]);
+        }
 
-
-    $insert_id = $this->User_model->add_address($data);
-
-    if ($insert_id) {
-        $full = $data['AddressLine'] . ", " . $data['City'] . ", " . $data['Province'] . ", " . $data['Country'] . ", " . $data['ZipCode'];
-
-        echo json_encode([
-            'success' => true,
-            'address_id' => $insert_id,
-            'full_address' => $full
+        // Build AddressLine from components for backward compatibility
+        $addressParts = array_filter([
+            $data['UnitHouseNumber'],
+            $data['Street'],
+            $data['Subdivision']
         ]);
-    } else {
-        echo json_encode([
-            'success' => false,
-            'message' => 'Failed to save address'
-        ]);
+        $data['AddressLine'] = !empty($addressParts) ? implode(', ', $addressParts) : null;
+
+        $this->load->model('User_model');
+
+        $insert_id = $this->User_model->add_address($data);
+
+        if ($insert_id) {
+            $full = trim(implode(', ', array_filter([
+                $data['UnitHouseNumber'],
+                $data['Street'],
+                $data['Subdivision'],
+                $data['Barangay'],
+                $data['City'],
+                $data['Province'],
+                $data['Region'],
+                $data['Country'],
+                $data['ZipCode']
+            ])));
+
+            echo json_encode([
+                'success' => true,
+                'address_id' => $insert_id,
+                'full_address' => $full
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Failed to save address'
+            ]);
+        }
     }
-}
 
     // =============================
     // GET USER ADDRESSES (AJAX)
     // =============================
-public function get_addresses()
-{
-    $user_id = $this->session->userdata('user_id');
+    public function get_addresses()
+    {
+        $user_id = $this->session->userdata('user_id');
 
-    $this->load->model('User_model');
-    $addresses = $this->User_model->get_user_addresses($user_id);
+        $this->load->model('User_model');
+        $addresses = $this->User_model->get_user_addresses($user_id);
 
-    echo json_encode([
-        'success' => true,
-        'data' => $addresses
-    ]);
-}
+        echo json_encode([
+            'success' => true,
+            'data' => $addresses
+        ]);
+    }
+
+    // =============================
+    // GET SINGLE ADDRESS (AJAX)
+    // =============================
+    public function get_address()
+    {
+        $user_id = $this->session->userdata('user_id');
+        $address_id = $this->input->get('address_id');
+
+        if (!$address_id) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Address ID required'
+            ]);
+            return;
+        }
+
+        $this->load->model('User_model');
+        $address = $this->User_model->get_address_by_id($address_id, $user_id);
+
+        if ($address) {
+            echo json_encode([
+                'success' => true,
+                'data' => $address
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Address not found'
+            ]);
+        }
+    }
+
+    // =============================
+    // UPDATE ADDRESS (AJAX)
+    // =============================
+    public function update_address()
+    {
+        // Require login
+        $userID = $this->session->userdata('user_id');
+
+        if (!$userID) {
+            echo json_encode(['success' => false, 'message' => 'Not logged in']);
+            return;
+        }
+
+        $address_id = $this->input->post('AddressID');
+
+        if (!$address_id) {
+            echo json_encode(['success' => false, 'message' => 'Address ID required']);
+            return;
+        }
+
+        // Validate required fields
+        $this->form_validation->set_rules('Barangay', 'Barangay', 'required|trim');
+        $this->form_validation->set_rules('City', 'City/Municipality', 'required|trim');
+        $this->form_validation->set_rules('Province', 'Province', 'required|trim');
+        $this->form_validation->set_rules('Region', 'Region', 'required|trim');
+        $this->form_validation->set_rules('ZipCode', 'Zip Code', 'required|trim');
+
+        if ($this->form_validation->run() === FALSE) {
+            echo json_encode([
+                'success' => false,
+                'message' => validation_errors()
+            ]);
+            return;
+        }
+
+        $data = [
+            'UnitHouseNumber' => $this->input->post('UnitHouseNumber', true),
+            'Street'          => $this->input->post('Street', true),
+            'Subdivision'     => $this->input->post('Subdivision', true),
+            'Barangay'        => $this->input->post('Barangay', true),
+            'City'            => $this->input->post('City', true),
+            'Province'        => $this->input->post('Province', true),
+            'Region'          => $this->input->post('Region', true),
+            'Country'         => $this->input->post('Country', true) ?: 'Philippines',
+            'ZipCode'         => $this->input->post('ZipCode', true),
+            'IsDefault'       => $this->input->post('IsDefault') ? 1 : 0
+        ];
+        
+        // If this is set as default, unset other defaults for this user
+        if ($data['IsDefault'] == 1) {
+            $this->db->where('UserID', $userID);
+            $this->db->where('AddressID !=', $address_id);
+            $this->db->update('user_address', ['IsDefault' => 0]);
+        }
+
+        // Build AddressLine from components for backward compatibility
+        $addressParts = array_filter([
+            $data['UnitHouseNumber'],
+            $data['Street'],
+            $data['Subdivision']
+        ]);
+        $data['AddressLine'] = !empty($addressParts) ? implode(', ', $addressParts) : null;
+
+        $this->load->model('User_model');
+        $result = $this->User_model->update_address_by_id($address_id, $userID, $data);
+
+        if ($result) {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Address updated successfully'
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'message' => 'Failed to update address'
+            ]);
+        }
+    }
 
 
 

@@ -254,4 +254,26 @@ class User_model extends CI_Model
             ->get($this->addressTable)
             ->result();
     }
+
+    // ====================================
+    // GET ADDRESS BY ID (for editing)
+    // ====================================
+    public function get_address_by_id($addressID, $userID)
+    {
+        return $this->db
+            ->where('AddressID', $addressID)
+            ->where('UserID', $userID)
+            ->get($this->addressTable)
+            ->row();
+    }
+
+    // ====================================
+    // UPDATE ADDRESS BY ID
+    // ====================================
+    public function update_address_by_id($addressID, $userID, $data)
+    {
+        $this->db->where('AddressID', $addressID);
+        $this->db->where('UserID', $userID);
+        return $this->db->update($this->addressTable, $data);
+    }
 }
