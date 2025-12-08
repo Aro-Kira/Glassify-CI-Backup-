@@ -56,6 +56,23 @@ public function product_2d()
 // ShopCon.php
 public function checkout()
 {
+    // Check if user is logged in and is a customer
+    if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+        // Set cache control headers to prevent back button access
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: 0');
+        redirect('login');
+        return;
+    }
+    
+    // Set cache control headers for customer pages
+    $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+    $this->output->set_header('Pragma: no-cache');
+    $this->output->set_header('Expires: 0');
+    
     $userID = $this->session->userdata('user_id');
     $data['user'] = null;
     $data['addresses'] = ['Shipping' => null, 'Billing' => null];
@@ -971,14 +988,24 @@ public function checkout()
     {
         $data['title'] = "Glassify - My Purchases";
 
-        // Check if user is logged in
-        $customer_id = $this->session->userdata('customer_id');
-        
-        if (!$customer_id) {
-            // Redirect to login if not logged in
+        // Check if user is logged in and is a customer
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            // Set cache control headers to prevent back button access
+            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+            $this->output->set_header('Pragma: no-cache');
+            $this->output->set_header('Expires: 0');
             redirect('login');
             return;
         }
+        
+        $customer_id = $this->session->userdata('customer_id');
+        
+        // Set cache control headers for customer pages
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: 0');
 
         // Load Order model
         $this->load->model('Order_model');

@@ -9,6 +9,23 @@ class InventCon extends CI_Controller
         $this->load->library('session');
         $this->load->helper('url');
         
+        // If a logged-in customer tries to access inventory pages, force logout and redirect
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            // Set error message BEFORE clearing session data (flashdata needs active session)
+            $this->session->set_flashdata('error', '⚠️ Access Denied: This page is restricted to Inventory Officer employees only. Customer accounts cannot access employee pages. You have been logged out for security reasons.');
+            
+            // Clear all user session data (but keep session alive for flashdata)
+            $this->session->unset_userdata(['is_logged_in', 'user_id', 'user_name', 'user_email', 'user_role', 'customer_id']);
+            
+            // Set cache control headers to prevent back button access after force logout
+            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+            $this->output->set_header('Pragma: no-cache');
+            $this->output->set_header('Expires: 0');
+            
+            redirect(base_url('login'));
+        }
+        
         // Check if user is logged in and has Inventory Officer role
         if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Inventory Officer') {
             $this->session->set_flashdata('error', 'Access denied. You must be logged in as an Inventory Officer.');

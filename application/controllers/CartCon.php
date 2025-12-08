@@ -358,12 +358,24 @@ class CartCon extends CI_Controller
     // ===================== SHOW CART PAGE =====================
     public function cart_page()
     {
-        $customer_id = $this->session->userdata('customer_id');
-
-        if (!$customer_id) {
+        // Check if user is logged in and is a customer
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            // Set cache control headers to prevent back button access
+            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+            $this->output->set_header('Pragma: no-cache');
+            $this->output->set_header('Expires: 0');
             redirect('login');
             return;
         }
+        
+        $customer_id = $this->session->userdata('customer_id');
+        
+        // Set cache control headers for customer pages
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: 0');
 
         $cart_items = $this->Cart_model->get_cart_items($customer_id);
         

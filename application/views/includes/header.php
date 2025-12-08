@@ -14,14 +14,22 @@
 </head>
 
 <?php 
+// HEADER LOGIC: General vs Customer Header
+// General header: public pages + all login pages (customer, admin, sales, inventory)
+// Customer header: only for logged-in customers on customer pages
+
 // Check if we should force guest header (for employee login pages and customer login/register pages)
 $force_guest = isset($force_guest_header) && $force_guest_header;
-$is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
 
-// Get cart and wishlist counts if logged in
+// Determine if user is a logged-in customer (not employee)
+$is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
+$user_role = $this->session->userdata('user_role');
+$is_customer = $is_logged_in && $user_role === 'Customer';
+
+// Get cart and wishlist counts if customer is logged in
 $cart_count = 0;
 $wishlist_count = 0;
-if ($is_logged_in) {
+if ($is_customer) {
     $customer_id = $this->session->userdata('customer_id');
     if ($customer_id) {
         // Load models in view (CodeIgniter allows this)
@@ -40,7 +48,7 @@ if ($is_logged_in) {
 <header class="navbar">
     <!-- ========================= LOGO SECTION ========================= -->
     <div class="logo">
-        <a href="<?php echo $is_logged_in ? base_url('home-login') : base_url(); ?>">
+        <a href="<?php echo $is_customer ? base_url('home-login') : base_url(); ?>">
             <img src="<?php echo base_url('assets/images/img-page/logo.png'); ?>" alt="GlassWorth Logo">
         </a>
     </div>
@@ -48,16 +56,16 @@ if ($is_logged_in) {
     <!-- ========================= NAVIGATION LINKS ========================= -->
     <nav class="menu">
         <!-- ========== HOME LINK CHANGES BASED ON LOGIN STATUS ========== -->
-        <?php if ($is_logged_in): ?>
-            <!-- When logged in, redirect Home to home-login page -->
+        <?php if ($is_customer): ?>
+            <!-- When customer is logged in, redirect Home to home-login page -->
             <a href="<?php echo base_url('home-login'); ?>" data-link>Home</a>
         <?php else: ?>
-            <!-- When not logged in, redirect Home to main landing page -->
+            <!-- When not logged in or on login pages, redirect Home to main landing page -->
             <a href="<?php echo base_url(); ?>" data-link>Home</a>
         <?php endif; ?>
 
-        <?php if (!$is_logged_in): ?>
-            <!-- ========== GUEST-ONLY LINKS ========== -->
+        <?php if (!$is_customer): ?>
+            <!-- ========== GENERAL/GUEST LINKS (shown on public pages and login pages) ========== -->
             <a href="<?php echo base_url('about'); ?>" data-link>About Us</a>
             <a href="<?php echo base_url('projects'); ?>" data-link>Projects</a>
         <?php endif; ?>
@@ -69,32 +77,32 @@ if ($is_logged_in) {
 
     <!-- ========================= ICON SECTION ========================= -->
     <div class="icons">
-        <?php if ($is_logged_in): ?>
-            <!-- ========== USER-ONLY ICON (TRACK ORDER) ========== -->
+        <?php if ($is_customer): ?>
+            <!-- ========== CUSTOMER-ONLY ICON (TRACK ORDER) ========== -->
             <a href="<?php echo base_url('my_purchases'); ?>">
                 <img src="<?php echo base_url('assets/images/img-page/tracking.png'); ?>" alt="Tracking"
                     class="tracking-icon">
             </a>
         <?php endif; ?>
 
-        <!-- CART ICON (Requires Login) -->
-        <a href="<?= base_url($is_logged_in ? 'addtocart' : 'login?redirect=addtocart'); ?>"
+        <!-- CART ICON (Requires Customer Login) -->
+        <a href="<?= base_url($is_customer ? 'addtocart' : 'login?redirect=addtocart'); ?>"
             class="icon-link cart-icon-link">
             <div class="icon-wrapper">
                 <img src="<?= base_url('assets/images/img-page/shopping-cart.png'); ?>" alt="Shopping_cart">
-                <?php if ($is_logged_in): ?>
+                <?php if ($is_customer): ?>
                     <span class="icon-badge" id="cart-count" style="display: <?= $cart_count > 0 ? 'flex' : 'none' ?>;"><?= $cart_count ?></span>
                 <?php endif; ?>
             </div>
         </a>
 
 
-        <!-- WISHLIST ICON (Requires Login) -->
-        <a href="<?= base_url($is_logged_in ? 'wishlist' : 'login?redirect=wishlist'); ?>"
+        <!-- WISHLIST ICON (Requires Customer Login) -->
+        <a href="<?= base_url($is_customer ? 'wishlist' : 'login?redirect=wishlist'); ?>"
             class="icon-link wishlist-icon-link">
             <div class="icon-wrapper">
                 <img src="<?= base_url('assets/images/img-page/heart.png'); ?>" alt="Wishlist">
-                <?php if ($is_logged_in): ?>
+                <?php if ($is_customer): ?>
                     <span class="icon-badge" id="wishlist-count" style="display: <?= $wishlist_count > 0 ? 'flex' : 'none' ?>;"><?= $wishlist_count ?></span>
                 <?php endif; ?>
             </div>
@@ -104,8 +112,8 @@ if ($is_logged_in) {
 
         <!-- ========== PROFILE / LOGIN ICON (ALWAYS LAST) ========== -->
         <div class="header-dropdown" style="display: inline-block; position: relative;">
-            <?php if ($is_logged_in): ?>
-                <!-- When logged in: show dropdown with Profile + Logout -->
+            <?php if ($is_customer): ?>
+                <!-- When customer is logged in: show dropdown with Profile + Logout -->
                 <button class="header-dropbtn" style="background: none; border: none;">
                     <img src="<?php echo base_url('assets/images/img-page/user.png'); ?>" alt="Profile">
                 </button>
@@ -132,7 +140,7 @@ if ($is_logged_in) {
                     });
                 </script>
             <?php else: ?>
-                <!-- When not logged in: show login icon -->
+                <!-- When not logged in or on login pages: show login icon -->
                 <a href="<?php echo base_url('login'); ?>">
                     <img src="<?php echo base_url('assets/images/img-page/user.png'); ?>" alt="Login">
                 </a>

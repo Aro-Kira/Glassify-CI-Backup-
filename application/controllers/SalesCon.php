@@ -23,6 +23,23 @@ class SalesCon extends CI_Controller
     // Check if user is authenticated and is a Sales Representative
     private function check_auth()
     {
+        // If a logged-in customer tries to access sales pages, force logout and redirect
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            // Set error message BEFORE clearing session data (flashdata needs active session)
+            $this->session->set_flashdata('error', '⚠️ Access Denied: This page is restricted to Sales Representative employees only. Customer accounts cannot access employee pages. You have been logged out for security reasons.');
+            
+            // Clear all user session data (but keep session alive for flashdata)
+            $this->session->unset_userdata(['is_logged_in', 'user_id', 'user_name', 'user_email', 'user_role', 'customer_id']);
+            
+            // Set cache control headers to prevent back button access after force logout
+            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+            $this->output->set_header('Pragma: no-cache');
+            $this->output->set_header('Expires: 0');
+            
+            redirect(base_url('login'));
+        }
+        
         if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Sales Representative') {
             $this->session->set_flashdata('error', 'You must be logged in as a Sales Representative to access this page.');
             redirect(base_url('sales-login'));

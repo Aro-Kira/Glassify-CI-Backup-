@@ -839,6 +839,12 @@ class Auth extends CI_Controller
         // Destroy session only - keep remember me cookies so email is still pre-filled on next login
         $this->session->sess_destroy();
         
+        // Set cache control headers to prevent back button access after logout
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: 0');
+        
         // Redirect based on role
         if ($user_role === 'Sales Representative') {
             redirect(base_url('sales-login'));
