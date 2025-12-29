@@ -87,6 +87,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         orders.forEach((order, index) => {
             const tr = document.createElement('tr');
+            // Handle empty or missing status
+            const status = order.status || 'Pending Review';
+            const statusClass = order.status_class || 'pending';
             // Store status in data attribute for action menu filtering
             tr.innerHTML = `
                 <td>${(currentPage - 1) * itemsPerPage + index + 1}</td>
@@ -95,8 +98,8 @@ document.addEventListener('DOMContentLoaded', async function () {
                 <td>${order.address}</td>
                 <td>${order.date}</td>
                 <td>₱${parseFloat(order.price).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                <td><span class="status-badge ${order.status_class}">${order.status}</span></td>
-                <td class="action-cell" data-order-id="${order.order_id}" data-order-status="${order.status}">⋮</td>
+                <td><span class="status-badge ${statusClass}">${status}</span></td>
+                <td class="action-cell" data-order-id="${order.order_id}" data-order-status="${status}">⋮</td>
             `;
             tbody.appendChild(tr);
         });
@@ -378,7 +381,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         document.getElementById('popup-product-name').textContent = order.product_name;
         document.getElementById('popup-address').textContent = order.address;
         document.getElementById('popup-date').textContent = order.date;
-        document.getElementById('popup-status').textContent = order.status;
+        document.getElementById('popup-status').textContent = order.status || 'Pending Review';
         document.getElementById('popup-shape').textContent = order.shape;
         document.getElementById('popup-dimension').textContent = order.dimension;
         document.getElementById('popup-type').textContent = order.type;

@@ -585,3 +585,270 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* ==========================================
+   RESPONSIVE STYLES
+   ========================================== */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .account-settings {
+    padding: 3rem 5rem;
+  }
+
+  .settings-container {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .settings-form {
+    margin-right: 0;
+  }
+
+  .settings-photo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .modal-content,
+  .upload-style-modal {
+    width: 90%;
+    max-width: 600px;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 768px) {
+  .account-settings {
+    padding: 2rem 1rem;
+    background-image: linear-gradient(to bottom, #02455F 40%, #FFFF 40%);
+  }
+
+  .settings-title {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+
+  .settings-container {
+    flex-direction: column;
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .settings-form {
+    margin-right: 0;
+    width: 100%;
+  }
+
+  .settings-form label {
+    font-size: 0.85rem;
+  }
+
+  .settings-form input {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .password-section {
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+  }
+
+  .form-buttons {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .btn-cancel,
+  .btn-save {
+    width: 100%;
+    padding: 0.7rem;
+  }
+
+  .settings-photo {
+    width: 100%;
+  }
+
+  .profile-img {
+    width: 200px;
+  }
+
+  .btn-photo,
+  .btn-delete {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .logout-container {
+    text-align: center;
+  }
+
+  .btn-logout {
+    width: 100%;
+    max-width: 200px;
+  }
+
+  .modal {
+    padding: 10px;
+  }
+
+  .modal-content,
+  .upload-style-modal {
+    width: 95%;
+    max-width: 100%;
+  }
+
+  .modal-header-bar {
+    padding: 12px 15px;
+  }
+
+  .modal-header-bar h3 {
+    font-size: 16px;
+  }
+
+  .modal-body {
+    padding: 15px;
+  }
+
+  .block-section {
+    padding: 15px;
+  }
+
+  .section-title {
+    font-size: 14px;
+  }
+
+  .styled-table {
+    font-size: 12px;
+  }
+
+  .styled-table th,
+  .styled-table td {
+    padding: 8px 6px;
+    font-size: 11px;
+  }
+
+  .btn-select {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .address-form {
+    gap: 12px;
+  }
+
+  .form-field-group label {
+    font-size: 13px;
+  }
+
+  .address-form input[type="text"],
+  .address-form select {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .btn-add {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .modal-footer {
+    padding: 12px 15px;
+    flex-direction: column-reverse;
+    gap: 10px;
+  }
+
+  .btn-cancel-modal,
+  .btn-done {
+    width: 100%;
+    padding: 12px;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .account-settings {
+    padding: 1.5rem 0.5rem;
+    background-image: linear-gradient(to bottom, #02455F 35%, #FFFF 35%);
+  }
+
+  .settings-title {
+    font-size: 1.1rem;
+    padding: 0 1rem;
+  }
+
+  .settings-container {
+    padding: 1rem;
+  }
+
+  .profile-img {
+    width: 150px;
+  }
+
+  .btn-photo,
+  .btn-delete {
+    max-width: 150px;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .modal-content,
+  .upload-style-modal {
+    width: 98%;
+    border-radius: 10px;
+  }
+
+  .modal-header-bar {
+    padding: 10px 12px;
+  }
+
+  .modal-header-bar h3 {
+    font-size: 14px;
+  }
+
+  .modal-close {
+    font-size: 24px;
+  }
+
+  .modal-body {
+    padding: 12px;
+  }
+
+  .block-section {
+    padding: 12px;
+  }
+
+  .table-wrapper {
+    max-height: 200px;
+  }
+
+  .styled-table th,
+  .styled-table td {
+    padding: 6px 4px;
+    font-size: 10px;
+  }
+
+  .input-group input,
+  .input-group textarea {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .input-group button {
+    width: 32px;
+    height: 32px;
+    margin-left: 6px;
+  }
+
+  .address-form input[type="text"],
+  .address-form select {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .btn-add {
+    padding: 10px;
+    font-size: 13px;
+  }
+}
+

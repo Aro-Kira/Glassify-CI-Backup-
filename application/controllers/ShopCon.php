@@ -159,7 +159,126 @@ public function checkout()
 
     public function ewallet()
     {
+        // Check if user is logged in
+        if (!$this->session->userdata('is_logged_in')) {
+            redirect('login');
+            return;
+        }
+
         $data['title'] = "Glassify - Payment";
+        
+        // Initialize default summary
+        $data['pending_summary'] = [
+            'items' => 0,
+            'subtotal' => 0,
+            'shipping' => 0,
+            'handling' => 0,
+            'total' => 0
+        ];
+        $data['pending_cart_ids'] = '';
+        
+        $customer_id = $this->session->userdata('customer_id');
+        
+        if ($customer_id) {
+            // Priority 1: Check if order was just placed (from checkout -> ewallet redirect)
+            $last_order_id = $this->session->userdata('last_order_id');
+            
+            if ($last_order_id) {
+                // Get order summary from the recently placed order
+                $this->load->model('Order_model');
+                $data['pending_summary'] = $this->Order_model->calculate_order_summary($last_order_id);
+            } else {
+                // Priority 2: Check for buy now customization ID (from session)
+                $buy_now_customization_id = $this->session->userdata('buy_now_customization_id');
+                
+                if ($buy_now_customization_id) {
+                // Handle buy now: get customization data and calculate summary
+                $this->load->model('Cart_model');
+                $this->load->model('Customization_model');
+                
+                // Get customization from database
+                // Verify it belongs to the current customer for security
+                $this->db->where('CustomizationID', $buy_now_customization_id);
+                $this->db->where('Customer_ID', $customer_id);
+                $customization = $this->db->get('customization')->row();
+                
+                if ($customization) {
+                    // Get product info
+                    $product_id = $customization->Product_ID ?? 0;
+                    if ($product_id) {
+                        $this->load->model('Product_model');
+                        $product = $this->Product_model->get_product($product_id);
+                        
+                        if ($product) {
+                            // Calculate summary for buy now (quantity is typically 1)
+                            $quantity = 1;
+                            $subtotal = floatval($customization->EstimatePrice ?? $customization->TotalQuotation ?? $product->Price ?? 0);
+                            $items_count = $quantity;
+                            $shipping = $items_count * 25;
+                            $handling = $items_count * 10;
+                            $total = $subtotal + $shipping + $handling;
+                            
+                            $data['pending_summary'] = [
+                                'items' => $items_count,
+                                'subtotal' => $subtotal,
+                                'shipping' => $shipping,
+                                'handling' => $handling,
+                                'total' => $total
+                            ];
+                        }
+                    }
+                }
+                } else {
+                    // Priority 3: Handle regular cart checkout: get selected cart IDs from URL or session
+                $selected_ids_str = $this->input->get('selected') ?? '';
+                
+                if (!empty($selected_ids_str)) {
+                    $data['pending_cart_ids'] = $selected_ids_str;
+                    
+                    // Get cart items for selected IDs
+                    $this->load->model('Cart_model');
+                    $cart_items = $this->Cart_model->get_cart_items_with_details($customer_id);
+                    
+                    // Parse selected IDs
+                    $selected_ids = array_map('intval', explode(',', $selected_ids_str));
+                    $selected_ids = array_filter($selected_ids);
+                    
+                    // Filter to only selected items
+                    $selected_items = [];
+                    foreach ($cart_items as $item) {
+                        if (in_array($item->Cart_ID, $selected_ids)) {
+                            $selected_items[] = $item;
+                        }
+                    }
+                    
+                    if (!empty($selected_items)) {
+                        // Calculate summary using same logic as CartCon
+                        $subtotal = 0;
+                        $total_items = 0;
+                        
+                        foreach ($selected_items as $item) {
+                            $price = $item->Price ?? $item->EstimatePrice ?? $item->BasePrice ?? 0;
+                            $subtotal += $price * $item->Quantity;
+                            $total_items += $item->Quantity;
+                        }
+                        
+                        $shipping = $total_items * 25;
+                        $handling = $total_items * 10;
+                        $total = $subtotal + $shipping + $handling;
+                        
+                        $data['pending_summary'] = [
+                            'items' => $total_items,
+                            'subtotal' => $subtotal,
+                            'shipping' => $shipping,
+                            'handling' => $handling,
+                            'total' => $total
+                        ];
+                    }
+                }
+                }
+            }
+        }
+        
         $this->load->view('includes/header', $data);
         $this->load->view('shop/ewallet', $data);
         $this->load->view('includes/footer');

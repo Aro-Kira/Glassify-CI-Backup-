@@ -66,7 +66,7 @@ This guide will help you share your `glassify-test` database with your groupmate
 cd C:\xampp\mysql\bin
 
 # Export database
-mysqldump -u admin_glassify -p glassify-test > C:\xampp\htdocs\Glassify-CI\database_export.sql
+mysqldump -u admin_glassify -p glassify-test > C:\xampp\htdocs\Glassify-CI\database\dumps\database_export.sql
 
 # Enter password when prompted: glassifyAdmin
 ```

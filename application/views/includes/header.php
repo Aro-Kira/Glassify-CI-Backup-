@@ -46,6 +46,13 @@ if ($is_customer) {
 ?>
 
 <header class="navbar">
+    <!-- ========================= MOBILE MENU TOGGLE ========================= -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
     <!-- ========================= LOGO SECTION ========================= -->
     <div class="logo">
         <a href="<?php echo $is_customer ? base_url('home-login') : base_url(); ?>">
@@ -54,7 +61,7 @@ if ($is_customer) {
     </div>
 
     <!-- ========================= NAVIGATION LINKS ========================= -->
-    <nav class="menu">
+    <nav class="menu" id="mainMenu">
         <!-- ========== HOME LINK CHANGES BASED ON LOGIN STATUS ========== -->
         <?php if ($is_customer): ?>
             <!-- When customer is logged in, redirect Home to home-login page -->

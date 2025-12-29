@@ -142,9 +142,129 @@ input[type="checkbox"] {
 }
 
 /* Responsive adjustments */
-@media (max-width: 600px) {
+@media (max-width: 1024px) {
+  .info-container {
+    flex-direction: column;
+    gap: 20px;
+    margin: 30px auto;
+    padding: 0 20px;
+  }
+
+  .info-section {
+    width: 100%;
+  }
+
+  .order-summary {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .info-title {
+    width: 90%;
+    margin: 3% 5% 0 5%;
+  }
+
+  .info-title h2 {
+    font-size: 1.5em;
+  }
+
+  .info-container {
+    margin: 20px auto;
+    padding: 0 15px;
+  }
+
+  .info-section {
+    padding: 20px;
+  }
+
   .form-row {
     flex-direction: column;
+    gap: 0;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  .back-btn {
+    margin: 5% 0 0 5%;
+  }
+
+  .progress-nav {
+    margin: 5% auto 0px 5%;
+    font-size: 0.9em;
+    flex-wrap: wrap;
+  }
+
+  .progress-nav .step {
+    padding: 0 10px;
+  }
+
+  .progress-nav .divider {
+    width: 50px;
+  }
+
+  .checkbox-terms {
+    margin-left: 0;
+  }
+
+  .checkbox-terms a {
+    margin: 5px 0;
+    display: block;
+  }
+
+  .generate-btn {
+    width: 100%;
+    padding: 12px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .info-title {
+    width: 95%;
+    margin: 3% 2.5% 0 2.5%;
+  }
+
+  .info-title h2 {
+    font-size: 1.3em;
+  }
+
+  .info-container {
+    padding: 0 10px;
+  }
+
+  .info-section {
+    padding: 15px;
+  }
+
+  .shipping-address-title h3 {
+    font-size: 1.1em;
+  }
+
+  label {
+    font-size: 13px;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="date"] {
+    padding: 8px;
+    font-size: 13px;
+  }
+
+  .progress-nav {
+    font-size: 0.8em;
+  }
+
+  .progress-nav .step {
+    padding: 0 5px;
+    font-size: 0.9em;
+  }
+
+  .progress-nav .divider {
+    width: 30px;
   }
 }
 

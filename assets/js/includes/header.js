@@ -78,6 +78,45 @@ function updateHeaderCounts() {
 window.updateHeaderCounts = updateHeaderCounts;
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Mobile menu toggle functionality
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const mainMenu = document.getElementById('mainMenu');
+  
+  if (mobileMenuToggle && mainMenu) {
+    mobileMenuToggle.addEventListener('click', function() {
+      mainMenu.classList.toggle('active');
+      mobileMenuToggle.classList.toggle('active');
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function(event) {
+      const isClickInsideMenu = mainMenu.contains(event.target);
+      const isClickOnToggle = mobileMenuToggle.contains(event.target);
+      
+      if (!isClickInsideMenu && !isClickOnToggle && mainMenu.classList.contains('active')) {
+        mainMenu.classList.remove('active');
+        mobileMenuToggle.classList.remove('active');
+      }
+    });
+
+    // Close menu when clicking on a menu link
+    const menuLinks = mainMenu.querySelectorAll('a');
+    menuLinks.forEach(link => {
+      link.addEventListener('click', function() {
+        mainMenu.classList.remove('active');
+        mobileMenuToggle.classList.remove('active');
+      });
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', function() {
+      if (window.innerWidth > 768) {
+        mainMenu.classList.remove('active');
+        mobileMenuToggle.classList.remove('active');
+      }
+    });
+  }
+
   // Update counts on page load (only if user is logged in)
   const isLoggedIn = document.querySelector('.cart-icon-link') && 
                      !document.querySelector('.cart-icon-link').href.includes('login');

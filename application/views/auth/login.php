@@ -55,6 +55,9 @@
             <img src="<?php echo base_url('assets/images/img-page/solar_password-outline.svg'); ?>" alt="Password Icon"
               class="login-input-icon">
             <input type="password" id="password" name="password" placeholder="Enter your password" required>
+            <button type="button" class="login-toggle-password" id="togglePassword">
+              <i class="fa fa-eye"></i>
+            </button>
           </div>
         </div>
 
@@ -74,3 +77,24 @@
     </div>
   </div>
 </section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const togglePassword = document.getElementById("togglePassword");
+    const passwordInput = document.getElementById("password");
+    
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener("click", function() {
+            const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
+            passwordInput.setAttribute("type", type);
+            
+            // Toggle icon
+            const icon = this.querySelector("i");
+            if (icon) {
+                icon.classList.toggle("fa-eye");
+                icon.classList.toggle("fa-eye-slash");
+            }
+        });
+    }
+});
+</script>

@@ -316,3 +316,138 @@ body {
   background: #0a2c40;
 }
 
+/* ==========================================
+   RESPONSIVE STYLES
+   ========================================== */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .projects-wrapper {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .divider {
+    display: none;
+  }
+
+  .projects-left,
+  .projects-right {
+    margin-top: 0;
+  }
+
+  .contact-content {
+    gap: 3rem;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 768px) {
+  .projects-intro {
+    padding: 2rem 1rem;
+  }
+
+  .projects-intro h1 {
+    font-size: 32pt;
+    margin: 3% 0 0 0;
+  }
+
+  .projects-intro .tagline {
+    font-size: 14pt;
+  }
+
+  .projects-intro .description {
+    font-size: 11pt;
+    max-width: 100%;
+  }
+
+  .featured-projects h2 {
+    font-size: 32pt;
+    margin-bottom: 3rem;
+  }
+
+  .projects-wrapper {
+    padding: 0 1rem;
+  }
+
+  .projects-left h3,
+  .projects-right h3 {
+    font-size: 2em;
+    text-align: center;
+  }
+
+  .projects-left p,
+  .projects-right p {
+    text-align: center;
+    font-size: 1em;
+  }
+
+  .contact {
+    padding: 2rem 1rem;
+  }
+
+  .contact-content {
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .contact-info h2 {
+    font-size: 2.5rem;
+  }
+
+  .contact-form {
+    width: 100%;
+  }
+
+  .form-group.half {
+    width: 100%;
+    margin-right: 0;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .projects-intro h1 {
+    font-size: 24pt;
+  }
+
+  .projects-intro .tagline {
+    font-size: 12pt;
+    letter-spacing: 1px;
+  }
+
+  .projects-intro .description {
+    font-size: 10pt;
+  }
+
+  .featured-projects h2 {
+    font-size: 24pt;
+    margin-bottom: 2rem;
+  }
+
+  .projects-left h3,
+  .projects-right h3 {
+    font-size: 1.5em;
+  }
+
+  .projects-left p,
+  .projects-right p {
+    font-size: 0.9em;
+  }
+
+  .contact-info h2 {
+    font-size: 2rem;
+  }
+
+  .contact-form input,
+  .contact-form textarea {
+    font-size: 0.9rem;
+    padding: 0.6rem;
+  }
+
+  .contact-form button {
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+

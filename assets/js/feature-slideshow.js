@@ -38,16 +38,38 @@ class Carousel {
         
         this.enableSwipe();
         this.updateCarousel();
+        
+        // Update carousel on window resize
+        window.addEventListener('resize', () => {
+            this.updateCarousel();
+        });
     }
     
     updateCarousel() {
-        // CORRECT CENTERING CALCULATION
-        const slideWidth = 33.33; // Each slide takes 33.33% of container
-        const visibleSlides = 3;
+        // RESPONSIVE CALCULATION
+        let slideWidth, visibleSlides, offset;
+        
+        // Get current screen width
+        const screenWidth = window.innerWidth;
+        
+        if (screenWidth <= 768) {
+            // Mobile: 1 slide visible
+            slideWidth = 100;
+            visibleSlides = 1;
+            offset = 0;
+        } else if (screenWidth <= 1024) {
+            // Tablet: 2 slides visible
+            slideWidth = 50;
+            visibleSlides = 2;
+            offset = 0.5;
+        } else {
+            // Desktop: 3 slides visible
+            slideWidth = 33.33;
+            visibleSlides = 3;
+            offset = 1;
+        }
         
         // Calculate the offset to center the active slide
-        // For 3 slides visible, we want the active slide in the middle (position 1 of 0,1,2)
-        const offset = (visibleSlides - 1) / 2; // This equals 1 (middle position)
         const transformValue = (this.currentIndex - offset) * -slideWidth;
         
         this.carouselTrack.style.transform = `translateX(${transformValue}%)`;
@@ -85,14 +107,26 @@ class Carousel {
     }
     
     goToSlide(index) {
-        // Ensure the index can be properly centered
-        // The index should allow for one slide on left and one on right when possible
-        if (index >= 1 && index <= this.slideCount - 2) {
+        // Responsive slide navigation
+        const screenWidth = window.innerWidth;
+        
+        if (screenWidth <= 768) {
+            // Mobile: allow any slide
             this.currentIndex = index;
-        } else if (index === 0) {
-            this.currentIndex = 1; // Adjust first slide to second position
-        } else if (index === this.slideCount - 1) {
-            this.currentIndex = this.slideCount - 2; // Adjust last slide to second last position
+        } else if (screenWidth <= 1024) {
+            // Tablet: allow slides that can be properly displayed
+            if (index >= 0 && index <= this.slideCount - 1) {
+                this.currentIndex = index;
+            }
+        } else {
+            // Desktop: ensure the index can be properly centered
+            if (index >= 1 && index <= this.slideCount - 2) {
+                this.currentIndex = index;
+            } else if (index === 0) {
+                this.currentIndex = 1;
+            } else if (index === this.slideCount - 1) {
+                this.currentIndex = this.slideCount - 2;
+            }
         }
         this.updateCarousel();
     }

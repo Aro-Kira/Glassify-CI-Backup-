@@ -44,7 +44,11 @@
                 <?php 
                 // Filter orders with 'Pending Review' status (including normalized 'Pending')
                 $pending_orders = array_filter($orders, function($o) { 
-                    return $o->Status === 'Pending Review' || $o->Status === 'Pending'; 
+                    $status = $o->Status ?? 'Pending Review';
+                    if (empty($status) || trim($status) === '') {
+                        $status = 'Pending Review';
+                    }
+                    return $status === 'Pending Review' || $status === 'Pending'; 
                 });
                 $row_num = 1;
                 foreach ($pending_orders as $order): 
@@ -86,7 +90,13 @@
             </thead>
             <tbody id="awaiting-tbody">
                 <?php 
-                $awaiting_orders = array_filter($orders, function($o) { return $o->Status === 'Awaiting Admin'; });
+                $awaiting_orders = array_filter($orders, function($o) { 
+                    $status = $o->Status ?? '';
+                    if (empty($status) || trim($status) === '') {
+                        return false;
+                    }
+                    return $status === 'Awaiting Admin'; 
+                });
                 $row_num = 1;
                 foreach ($awaiting_orders as $order): 
                     $order_id_formatted = '#' . $order->OrderID;
@@ -133,7 +143,11 @@
             <tbody id="ready-tbody">
                 <?php 
                 $ready_orders = array_filter($orders, function($o) { 
-                    return $o->Status === 'Ready to Approve'; 
+                    $status = $o->Status ?? '';
+                    if (empty($status) || trim($status) === '') {
+                        return false;
+                    }
+                    return $status === 'Ready to Approve'; 
                 });
                 $row_num = 1;
                 foreach ($ready_orders as $order): 
@@ -152,12 +166,15 @@
                         <?php 
                         // Display "Approved" or "Disapproved" based on AdminStatus from ready_to_approve_orders table
                         $display_status = 'Pending';
-                        if (isset($order->AdminStatus)) {
+                        $order_status = $order->Status ?? '';
+                        $admin_status = $order->AdminStatus ?? null;
+                        
+                        if (isset($admin_status) && !empty(trim($admin_status))) {
                             // For ready_to_approve_orders, use AdminStatus field
-                            $display_status = $order->AdminStatus === 'Approved' ? 'Approved' : 'Disapproved';
-                        } elseif ($order->Status === 'Ready to Approve' || $order->Status === 'Approved') {
+                            $display_status = $admin_status === 'Approved' ? 'Approved' : 'Disapproved';
+                        } elseif (!empty($order_status) && ($order_status === 'Ready to Approve' || $order_status === 'Approved')) {
                             $display_status = 'Approved';
-                        } elseif ($order->Status === 'Disapproved' || $order->Status === 'Rejected') {
+                        } elseif (!empty($order_status) && ($order_status === 'Disapproved' || $order_status === 'Rejected')) {
                             $display_status = 'Disapproved';
                         }
                         ?>

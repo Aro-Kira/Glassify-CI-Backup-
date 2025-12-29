@@ -13,7 +13,7 @@ body {
   background-color: #02455F;
   min-height: 100vh;
   padding: 2rem;
-
+  margin: 0;
 }
 
 .login-container {
@@ -24,6 +24,8 @@ body {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  margin: 0 auto;
+  margin-top: -10vh;
 }
 
 /* Left Side */
@@ -93,8 +95,7 @@ body {
   color: #032C3A;
 }
 
-/*/* Ensure input row and button share the same width */
-.login-input-row input,
+/* Ensure input row and button share the same width */
 .login-btn {
   width: 100%;
   box-sizing: border-box;
@@ -120,6 +121,28 @@ body {
   border-radius: 6px;
   background: #f1f1f1;
   box-sizing: border-box;
+}
+
+.login-toggle-password {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #032C3A;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  transition: color 0.3s;
+}
+
+.login-toggle-password:hover {
+  color: #02455F;
+}
+
+.login-toggle-password:focus {
+  outline: none;
 }
 
 .login-btn {
@@ -168,4 +191,215 @@ body {
 
 .login-register a:hover {
   text-decoration: underline;
+}
+
+/* ==========================================
+   RESPONSIVE STYLES
+   ========================================== */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .login-container {
+    max-width: 800px;
+  }
+
+  .login-left {
+    padding: 2.5rem 1.5rem;
+  }
+
+  .login-right {
+    padding: 2.5rem 2rem;
+  }
+
+  .login-brand {
+    font-size: 1.75rem;
+  }
+
+  .login-description {
+    font-size: 0.95rem;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 768px) {
+  .login-section {
+    padding: 1rem;
+    min-height: auto;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  .login-container {
+    flex-direction: column;
+    max-width: 100%;
+    border-radius: 12px;
+  }
+
+  .login-left {
+    padding: 2rem 1.5rem;
+    order: 2;
+    border-radius: 0 0 12px 12px;
+  }
+
+  .login-right {
+    padding: 2rem 1.5rem;
+    order: 1;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .login-logo img {
+    width: 100px;
+  }
+
+  .login-brand {
+    font-size: 1.5rem;
+    margin: 0.3rem 0;
+  }
+
+  .login-description {
+    font-size: 0.9rem;
+    margin: 0.8rem 0;
+  }
+
+  .login-user-icon {
+    font-size: 2.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .login-title {
+    font-size: 1.3rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .login-input-group label {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+  }
+
+  .login-input-row {
+    gap: 8px;
+  }
+
+  .login-input-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .login-input-row input {
+    padding: 0.7rem;
+    font-size: 0.95rem;
+  }
+
+  .login-toggle-password {
+    padding: 0.4rem;
+    font-size: 1rem;
+  }
+
+  .login-btn {
+    padding: 0.7rem;
+    font-size: 0.95rem;
+  }
+
+  .login-options {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+    margin: 0.8rem 0;
+    font-size: 0.85rem;
+  }
+
+  .login-register {
+    font-size: 0.85rem;
+    margin-top: 1rem;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .login-section {
+    padding: 0.5rem;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  .login-container {
+    border-radius: 8px;
+  }
+
+  .login-left {
+    padding: 1.5rem 1rem;
+    border-radius: 0 0 8px 8px;
+  }
+
+  .login-right {
+    padding: 1.5rem 1rem;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .login-logo img {
+    width: 80px;
+    margin-bottom: 0.8rem;
+  }
+
+  .login-brand {
+    font-size: 1.3rem;
+  }
+
+  .login-description {
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+
+  .login-user-icon {
+    font-size: 2rem;
+    margin-top: 1rem;
+  }
+
+  .login-title {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+
+  .login-input-group {
+    margin-bottom: 1rem;
+  }
+
+  .login-input-group label {
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .login-input-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .login-input-row input {
+    padding: 0.65rem;
+    font-size: 0.9rem;
+  }
+
+  .login-toggle-password {
+    padding: 0.3rem;
+    font-size: 0.95rem;
+  }
+
+  .login-btn {
+    padding: 0.65rem;
+    font-size: 0.9rem;
+    margin-top: 0.3rem;
+  }
+
+  .login-options {
+    font-size: 0.8rem;
+    gap: 0.6rem;
+  }
+
+  .login-options label {
+    font-size: 0.8rem;
+  }
+
+  .login-register {
+    font-size: 0.8rem;
+  }
 }

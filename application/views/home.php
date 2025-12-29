@@ -16,11 +16,27 @@
       height: 80vh;
       width: 100%;
       display: flex;
-      padding-top: 60px;
       flex-direction: column;
       z-index: 0;
       justify-content: center;
       align-items: center;
+      position: relative;
+      padding-top: 0;
+    }
+
+    .welcome-section > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .welcome-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 0;
     }
   </style>
 
