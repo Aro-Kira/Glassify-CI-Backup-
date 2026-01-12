@@ -196,29 +196,17 @@ function get_status_class($status) {
                         <input type="hidden" name="AddressID" id="addressesEditAddressID" value="">
                         
                         <div class="form-field-group">
-                            <label for="addressesUnitHouseNumber">Unit/House Number <span class="required-asterisk">*</span></label>
-                            <input type="text" name="UnitHouseNumber" id="addressesUnitHouseNumber" placeholder="Enter Unit/House Number" required>
+                            <label for="addressesCountry">Country</label>
+                            <input type="text" name="Country" id="addressesCountry" value="Philippines" readonly>
                         </div>
                         
                         <div class="form-field-group">
-                            <label for="addressesStreet">Street</label>
-                            <input type="text" name="Street" id="addressesStreet" placeholder="Enter Street (optional)">
-                        </div>
-                        
-                        <div class="form-field-group">
-                            <label for="addressesSubdivision">Subdivision</label>
-                            <input type="text" name="Subdivision" id="addressesSubdivision" placeholder="Enter Subdivision/Village (optional)">
-                        </div>
-                        
-                        <div class="form-field-group">
-                            <label for="addressesBarangay">Barangay <span class="required-asterisk">*</span></label>
-                            <input type="text" name="Barangay" id="addressesBarangay" placeholder="Enter Barangay" required>
-                        </div>
-                        
-                        <div class="form-field-group">
-                            <label for="addressesCity">City/Municipality <span class="required-asterisk">*</span></label>
-                            <select name="City" id="addressesCity" required>
-                                <option value="">Select City/Municipality</option>
+                            <label for="addressesRegion">Region <span class="required-asterisk">*</span></label>
+                            <select name="Region" id="addressesRegion" required>
+                                <option value="">Select Region</option>
+                                <option value="NCR">NCR (National Capital Region)</option>
+                                <option value="Region III">Region III (Central Luzon)</option>
+                                <option value="Region IV-A">Region IV-A (CALABARZON)</option>
                             </select>
                         </div>
                         
@@ -230,31 +218,30 @@ function get_status_class($status) {
                         </div>
                         
                         <div class="form-field-group">
-                            <label for="addressesRegion">Region <span class="required-asterisk">*</span></label>
-                            <select name="Region" id="addressesRegion" required>
-                                <option value="">Select Region</option>
-                                <option value="NCR">NCR (National Capital Region)</option>
-                                <option value="Region I">Region I (Ilocos Region)</option>
-                                <option value="Region II">Region II (Cagayan Valley)</option>
-                                <option value="Region III">Region III (Central Luzon)</option>
-                                <option value="Region IV-A">Region IV-A (CALABARZON)</option>
-                                <option value="Region IV-B">Region IV-B (MIMAROPA)</option>
-                                <option value="Region V">Region V (Bicol Region)</option>
-                                <option value="Region VI">Region VI (Western Visayas)</option>
-                                <option value="Region VII">Region VII (Central Visayas)</option>
-                                <option value="Region VIII">Region VIII (Eastern Visayas)</option>
-                                <option value="Region IX">Region IX (Zamboanga Peninsula)</option>
-                                <option value="Region X">Region X (Northern Mindanao)</option>
-                                <option value="Region XI">Region XI (Davao Region)</option>
-                                <option value="Region XII">Region XII (SOCCSKSARGEN)</option>
-                                <option value="BARMM">BARMM (Bangsamoro Autonomous Region)</option>
-                                <option value="CAR">CAR (Cordillera Administrative Region)</option>
+                            <label for="addressesCity">City/Municipality <span class="required-asterisk">*</span></label>
+                            <select name="City" id="addressesCity" required>
+                                <option value="">Select City/Municipality</option>
                             </select>
                         </div>
                         
                         <div class="form-field-group">
-                            <label for="addressesCountry">Country</label>
-                            <input type="text" name="Country" id="addressesCountry" value="Philippines" readonly>
+                            <label for="addressesBarangay">Barangay <span class="required-asterisk">*</span></label>
+                            <input type="text" name="Barangay" id="addressesBarangay" placeholder="Enter Barangay" required>
+                        </div>
+                        
+                        <div class="form-field-group">
+                            <label for="addressesSubdivision">Subdivision</label>
+                            <input type="text" name="Subdivision" id="addressesSubdivision" placeholder="Enter Subdivision/Village (optional)">
+                        </div>
+                        
+                        <div class="form-field-group">
+                            <label for="addressesUnitHouseNumber">Unit/House Number <span class="required-asterisk">*</span></label>
+                            <input type="text" name="UnitHouseNumber" id="addressesUnitHouseNumber" placeholder="Enter Unit/House Number" required>
+                        </div>
+                        
+                        <div class="form-field-group">
+                            <label for="addressesStreet">Street</label>
+                            <input type="text" name="Street" id="addressesStreet" placeholder="Enter Street (optional)">
                         </div>
                         
                         <div class="form-field-group">
@@ -290,23 +277,23 @@ function get_status_class($status) {
                 <!-- Account Details Section (Current Profile Form) -->
                 <div id="account-details" class="content-section">
                     <section class="settings-container">
-                        <section class="settings-form">
-                            <form id="accountForm">
+            <section class="settings-form">
+                <form id="accountForm">
                                 <!-- First Name, Middle Name, and Surname in a row -->
                                 <div class="form-row form-row-three">
                                     <div class="form-field">
                                         <label for="firstname">First name <span class="required">*</span></label>
-                                        <input type="text" id="firstname" name="firstname"
+                    <input type="text" id="firstname" name="firstname"
                                             value="<?= isset($user) ? htmlspecialchars($user->First_Name) : '' ?>" required>
                                     </div>
                                     <div class="form-field">
                                         <label for="middlename">Middle name</label>
-                                        <input type="text" id="middlename" name="middlename"
+                    <input type="text" id="middlename" name="middlename"
                                             value="<?= isset($user) ? htmlspecialchars($user->Middle_Name ?? '') : '' ?>">
                                     </div>
                                     <div class="form-field">
                                         <label for="lastname">Surname <span class="required">*</span></label>
-                                        <input type="text" id="lastname" name="lastname"
+                    <input type="text" id="lastname" name="lastname"
                                             value="<?= isset($user) ? htmlspecialchars($user->Last_Name) : '' ?>" required>
                                     </div>
                                 </div>
@@ -319,50 +306,50 @@ function get_status_class($status) {
 
                                 <!-- Phone Number -->
                                 <div class="form-field">
-                                    <label for="phone">Phone Number</label>
+                    <label for="phone">Phone Number</label>
                                     <input type="text" id="phone" name="phone" value="<?= isset($user) ? htmlspecialchars($user->PhoneNum ?? '') : '' ?>">
-                                </div>
+                    </div>
 
-                                <!-- Password Change Section -->
-                                <div class="password-section">
+                    <!-- Password Change Section -->
+                    <div class="password-section">
                                     <h4 class="password-section-title">Password change</h4>
                                     <div class="form-field">
                                         <label for="current_password">Current password (leave blank to leave unchanged)</label>
                                         <div class="password-input-wrapper">
-                                            <input type="password" id="current_password" name="current_password" placeholder="Enter your current password">
+                        <input type="password" id="current_password" name="current_password" placeholder="Enter your current password">
                                             <button type="button" class="toggle-password" data-target="current_password">
                                                 <i class="fa fa-eye"></i>
                                             </button>
                                         </div>
                                     </div>
-                                    
+                        
                                     <div class="form-field">
                                         <label for="new_password">New password (leave blank to leave unchanged)</label>
                                         <div class="password-input-wrapper">
-                                            <input type="password" id="new_password" name="new_password" placeholder="Enter new password">
+                        <input type="password" id="new_password" name="new_password" placeholder="Enter new password">
                                             <button type="button" class="toggle-password" data-target="new_password">
                                                 <i class="fa fa-eye"></i>
                                             </button>
                                         </div>
                                     </div>
-                                    
+                        
                                     <div class="form-field">
                                         <label for="confirm_password">Confirm new password</label>
                                         <div class="password-input-wrapper">
-                                            <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm new password">
+                        <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm new password">
                                             <button type="button" class="toggle-password" data-target="confirm_password">
                                                 <i class="fa fa-eye"></i>
                                             </button>
                                         </div>
                                     </div>
-                                    <small id="passwordError" style="color: #dc3545; display: none; margin-top: 5px;"></small>
-                                </div>
+                        <small id="passwordError" style="color: #dc3545; display: none; margin-top: 5px;"></small>
+                    </div>
 
-                                <div class="form-buttons">
+                    <div class="form-buttons">
                                     <button type="submit" class="btn-save" id="saveBtn" disabled>Save changes</button>
-                                </div>
-                            </form>
-                        </section>
+                    </div>
+                </form>
+            </section>
                     </section>
                 </div>
             </section>
@@ -471,29 +458,17 @@ function get_status_class($status) {
                             <input type="hidden" name="AddressID" id="editAddressID" value="">
                             
                             <div class="form-field-group">
-                                <label for="unitHouseNumber">Unit/House Number <span class="required-asterisk">*</span></label>
-                                <input type="text" name="UnitHouseNumber" id="unitHouseNumber" placeholder="Enter Unit/House Number" required>
+                                <label for="country">Country</label>
+                                <input type="text" name="Country" id="country" value="Philippines" readonly>
                             </div>
                             
                             <div class="form-field-group">
-                                <label for="street">Street</label>
-                                <input type="text" name="Street" id="street" placeholder="Enter Street (optional)">
-                            </div>
-                            
-                            <div class="form-field-group">
-                                <label for="subdivision">Subdivision</label>
-                                <input type="text" name="Subdivision" id="subdivision" placeholder="Enter Subdivision/Village (optional)">
-                            </div>
-                            
-                            <div class="form-field-group">
-                                <label for="barangay">Barangay <span class="required-asterisk">*</span></label>
-                                <input type="text" name="Barangay" id="barangay" placeholder="Enter Barangay" required>
-                            </div>
-                            
-                            <div class="form-field-group">
-                                <label for="city">City/Municipality <span class="required-asterisk">*</span></label>
-                                <select name="City" id="city" required>
-                                    <option value="">Select City/Municipality</option>
+                                <label for="region">Region <span class="required-asterisk">*</span></label>
+                                <select name="Region" id="region" required>
+                                    <option value="">Select Region</option>
+                                    <option value="NCR">NCR (National Capital Region)</option>
+                                    <option value="Region III">Region III (Central Luzon)</option>
+                                    <option value="Region IV-A">Region IV-A (CALABARZON)</option>
                                 </select>
                             </div>
                             
@@ -505,32 +480,30 @@ function get_status_class($status) {
                             </div>
                             
                             <div class="form-field-group">
-                                <label for="region">Region <span class="required-asterisk">*</span></label>
-                                <select name="Region" id="region" required>
-                                    <option value="">Select Region</option>
-                                    <option value="NCR">NCR (National Capital Region)</option>
-                                    <option value="Region I">Region I (Ilocos Region)</option>
-                                    <option value="Region II">Region II (Cagayan Valley)</option>
-                                    <option value="Region III">Region III (Central Luzon)</option>
-                                    <option value="Region IV-A">Region IV-A (CALABARZON)</option>
-                                    <option value="Region IV-B">Region IV-B (MIMAROPA)</option>
-                                    <option value="Region V">Region V (Bicol Region)</option>
-                                    <option value="Region VI">Region VI (Western Visayas)</option>
-                                    <option value="Region VII">Region VII (Central Visayas)</option>
-                                    <option value="Region VIII">Region VIII (Eastern Visayas)</option>
-                                    <option value="Region IX">Region IX (Zamboanga Peninsula)</option>
-                                    <option value="Region X">Region X (Northern Mindanao)</option>
-                                    <option value="Region XI">Region XI (Davao Region)</option>
-                                    <option value="Region XII">Region XII (SOCCSKSARGEN)</option>
-                                    <option value="Region XIII">Region XIII (Caraga)</option>
-                                    <option value="BARMM">BARMM (Bangsamoro Autonomous Region)</option>
-                                    <option value="CAR">CAR (Cordillera Administrative Region)</option>
+                                <label for="city">City/Municipality <span class="required-asterisk">*</span></label>
+                                <select name="City" id="city" required>
+                                    <option value="">Select City/Municipality</option>
                                 </select>
                             </div>
                             
                             <div class="form-field-group">
-                                <label for="country">Country</label>
-                                <input type="text" name="Country" id="country" value="Philippines" readonly>
+                                <label for="barangay">Barangay <span class="required-asterisk">*</span></label>
+                                <input type="text" name="Barangay" id="barangay" placeholder="Enter Barangay" required>
+                            </div>
+                            
+                            <div class="form-field-group">
+                                <label for="subdivision">Subdivision</label>
+                                <input type="text" name="Subdivision" id="subdivision" placeholder="Enter Subdivision/Village (optional)">
+                            </div>
+                            
+                            <div class="form-field-group">
+                                <label for="unitHouseNumber">Unit/House Number <span class="required-asterisk">*</span></label>
+                                <input type="text" name="UnitHouseNumber" id="unitHouseNumber" placeholder="Enter Unit/House Number" required>
+                            </div>
+                            
+                            <div class="form-field-group">
+                                <label for="street">Street</label>
+                                <input type="text" name="Street" id="street" placeholder="Enter Street (optional)">
                             </div>
                             
                             <div class="form-field-group">
@@ -601,6 +574,26 @@ function get_status_class($status) {
                 'Pasay', 'Pasig', 'Quezon City', 'San Juan', 'Taguig', 'Valenzuela'
             ];
 
+            // Region III (Central Luzon) - Provinces and Cities
+            const region3Provinces = {
+                'Aurora': ['Baler', 'Casiguran', 'Dilasag', 'Dinalungan', 'Dingalan', 'Dipaculao', 'Maria Aurora', 'San Luis'],
+                'Bataan': ['Abucay', 'Bagac', 'Balanga', 'Dinalupihan', 'Hermosa', 'Limay', 'Mariveles', 'Morong', 'Orani', 'Orion', 'Pilar', 'Samal'],
+                'Bulacan': ['Angat', 'Balagtas', 'Baliuag', 'Bocaue', 'Bulakan', 'Bustos', 'Calumpit', 'Doña Remedios Trinidad', 'Guiguinto', 'Hagonoy', 'Malolos', 'Marilao', 'Meycauayan', 'Norzagaray', 'Obando', 'Pandi', 'Paombong', 'Plaridel', 'Pulilan', 'San Ildefonso', 'San Jose del Monte', 'San Miguel', 'San Rafael', 'Santa Maria', 'Valenzuela'],
+                'Nueva Ecija': ['Aliaga', 'Bongabon', 'Cabanatuan', 'Cabiao', 'Carranglan', 'Cuyapo', 'Gabaldon', 'Gapan', 'General Mamerto Natividad', 'General Tinio', 'Guimba', 'Jaen', 'Laur', 'Licab', 'Llanera', 'Lupao', 'Muñoz', 'Nampicuan', 'Palayan', 'Pantabangan', 'Peñaranda', 'Quezon', 'Rizal', 'San Antonio', 'San Isidro', 'San Jose', 'San Leonardo', 'Santa Rosa', 'Santo Domingo', 'Talavera', 'Talugtug', 'Zaragoza'],
+                'Pampanga': ['Angeles', 'Apalit', 'Arayat', 'Bacolor', 'Candaba', 'Floridablanca', 'Guagua', 'Lubao', 'Mabalacat', 'Macabebe', 'Magalang', 'Masantol', 'Mexico', 'Minalin', 'Porac', 'San Fernando', 'San Luis', 'San Simon', 'Santa Ana', 'Santa Rita', 'Santo Tomas', 'Sasmuan'],
+                'Tarlac': ['Anao', 'Bamban', 'Camiling', 'Capas', 'Concepcion', 'Gerona', 'La Paz', 'Mayantoc', 'Moncada', 'Paniqui', 'Pura', 'Ramos', 'San Clemente', 'San Jose', 'San Manuel', 'Santa Ignacia', 'Tarlac City', 'Victoria'],
+                'Zambales': ['Botolan', 'Cabangan', 'Candelaria', 'Castillejos', 'Iba', 'Masinloc', 'Olongapo', 'Palauig', 'San Antonio', 'San Felipe', 'San Marcelino', 'San Narciso', 'Santa Cruz', 'Subic']
+            };
+
+            // Region IV-A (CALABARZON) - Provinces and Cities
+            const region4AProvinces = {
+                'Batangas': ['Agoncillo', 'Alitagtag', 'Balayan', 'Balete', 'Bauan', 'Calaca', 'Calatagan', 'Cuenca', 'Ibaan', 'Laurel', 'Lemery', 'Lian', 'Lipa', 'Lobo', 'Mabini', 'Malvar', 'Mataasnakahoy', 'Nasugbu', 'Padre Garcia', 'Rosario', 'San Jose', 'San Juan', 'San Luis', 'San Nicolas', 'San Pascual', 'Santa Teresita', 'Santo Tomas', 'Taal', 'Talisay', 'Tanauan', 'Taysan', 'Tingloy', 'Tuy'],
+                'Cavite': ['Alfonso', 'Amadeo', 'Bacoor', 'Carmona', 'Cavite City', 'Dasmariñas', 'General Emilio Aguinaldo', 'General Mariano Alvarez', 'General Trias', 'Imus', 'Indang', 'Kawit', 'Magallanes', 'Maragondon', 'Mendez', 'Naic', 'Noveleta', 'Rosario', 'Silang', 'Tagaytay', 'Tanza', 'Ternate', 'Trece Martires', 'Tagaytay'],
+                'Laguna': ['Alaminos', 'Bay', 'Biñan', 'Cabuyao', 'Calamba', 'Calauan', 'Cavinti', 'Famy', 'Kalayaan', 'Liliw', 'Los Baños', 'Luisiana', 'Lumban', 'Mabitac', 'Magdalena', 'Majayjay', 'Nagcarlan', 'Paete', 'Pagsanjan', 'Pakil', 'Pangil', 'Pila', 'Rizal', 'San Pablo', 'San Pedro', 'Santa Cruz', 'Santa Maria', 'Santa Rosa', 'Siniloan', 'Victoria'],
+                'Quezon': ['Agdangan', 'Alabat', 'Atimonan', 'Buenavista', 'Burdeos', 'Calauag', 'Candelaria', 'Catanauan', 'Dolores', 'General Luna', 'General Nakar', 'Guinayangan', 'Gumaca', 'Infanta', 'Jomalig', 'Lopez', 'Lucban', 'Lucena', 'Macalelon', 'Mauban', 'Mulanay', 'Padre Burgos', 'Pagbilao', 'Panukulan', 'Patnanungan', 'Perez', 'Pitogo', 'Plaridel', 'Polillo', 'Quezon', 'Real', 'Sampaloc', 'San Andres', 'San Antonio', 'San Francisco', 'San Narciso', 'Sariaya', 'Tagkawayan', 'Tayabas', 'Tiaong', 'Unisan'],
+                'Rizal': ['Angono', 'Antipolo', 'Baras', 'Binangonan', 'Cainta', 'Cardona', 'Jalajala', 'Morong', 'Pililla', 'Rodriguez', 'San Mateo', 'Tanay', 'Taytay', 'Teresa']
+            };
+
             // ========= REGION CHANGE HANDLER =========
             $("#region").on("change", function() {
                 const selectedRegion = $(this).val();
@@ -620,26 +613,43 @@ function get_status_class($status) {
                     metroManilaCities.forEach(city => {
                         citySelect.append(`<option value="${city}">${city}</option>`);
                     });
-                } else if (selectedRegion) {
-                    // For other regions, leave empty for now (to be populated later)
-                    provinceSelect.html('<option value="">Select Province</option>');
+                } else if (selectedRegion === "Region III") {
+                    // Populate Region III provinces
+                    Object.keys(region3Provinces).forEach(province => {
+                        provinceSelect.append(`<option value="${province}">${province}</option>`);
+                    });
+                } else if (selectedRegion === "Region IV-A") {
+                    // Populate Region IV-A provinces
+                    Object.keys(region4AProvinces).forEach(province => {
+                        provinceSelect.append(`<option value="${province}">${province}</option>`);
+                    });
                 }
             });
 
             // ========= PROVINCE CHANGE HANDLER =========
             $("#province").on("change", function() {
                 const selectedProvince = $(this).val();
+                const selectedRegion = $("#region").val();
                 const citySelect = $("#city");
+                
+                // Clear cities
+                citySelect.html('<option value="">Select City/Municipality</option>');
                 
                 if (selectedProvince === "Metro Manila") {
                     // Populate Metro Manila cities
-                    citySelect.html('<option value="">Select City/Municipality</option>');
                     metroManilaCities.forEach(city => {
                         citySelect.append(`<option value="${city}">${city}</option>`);
                     });
-                } else if (selectedProvince) {
-                    // For other provinces, leave empty for now
-                    citySelect.html('<option value="">Select City/Municipality</option>');
+                } else if (selectedRegion === "Region III" && region3Provinces[selectedProvince]) {
+                    // Populate Region III cities
+                    region3Provinces[selectedProvince].forEach(city => {
+                        citySelect.append(`<option value="${city}">${city}</option>`);
+                    });
+                } else if (selectedRegion === "Region IV-A" && region4AProvinces[selectedProvince]) {
+                    // Populate Region IV-A cities
+                    region4AProvinces[selectedProvince].forEach(city => {
+                        citySelect.append(`<option value="${city}">${city}</option>`);
+                    });
                 }
             });
 
@@ -1030,7 +1040,7 @@ function get_status_class($status) {
             // Edit icon click - directly open form modal with pre-filled data
             $(document).on("click", "#addresses .btn-edit-icon", function () {
                 currentAddressId = $(this).data("address-id");
-                
+
                 $.ajax({
                     url: "<?= base_url('UserCon/get_address') ?>",
                     method: "GET",
@@ -1119,7 +1129,7 @@ function get_status_class($status) {
                     }
                 });
             });
-            
+
             // Modals can only be closed by clicking buttons or X - no outside click or ESC key closing
 
             // Handle address form submission
@@ -1139,7 +1149,7 @@ function get_status_class($status) {
                         if (data.success) {
                             if (addressId) {
                                 alert("Address updated successfully!");
-                            } else {
+                        } else {
                                 alert("Address added successfully!");
                             }
                             closeAddressFormModal();
@@ -1151,6 +1161,31 @@ function get_status_class($status) {
             });
 
             // Region change handler for addresses section
+            // Define region data for addresses section
+            const addressesRegion3Provinces = {
+                'Aurora': ['Baler', 'Casiguran', 'Dilasag', 'Dinalungan', 'Dingalan', 'Dipaculao', 'Maria Aurora', 'San Luis'],
+                'Bataan': ['Abucay', 'Bagac', 'Balanga', 'Dinalupihan', 'Hermosa', 'Limay', 'Mariveles', 'Morong', 'Orani', 'Orion', 'Pilar', 'Samal'],
+                'Bulacan': ['Angat', 'Balagtas', 'Baliuag', 'Bocaue', 'Bulakan', 'Bustos', 'Calumpit', 'Doña Remedios Trinidad', 'Guiguinto', 'Hagonoy', 'Malolos', 'Marilao', 'Meycauayan', 'Norzagaray', 'Obando', 'Pandi', 'Paombong', 'Plaridel', 'Pulilan', 'San Ildefonso', 'San Jose del Monte', 'San Miguel', 'San Rafael', 'Santa Maria', 'Valenzuela'],
+                'Nueva Ecija': ['Aliaga', 'Bongabon', 'Cabanatuan', 'Cabiao', 'Carranglan', 'Cuyapo', 'Gabaldon', 'Gapan', 'General Mamerto Natividad', 'General Tinio', 'Guimba', 'Jaen', 'Laur', 'Licab', 'Llanera', 'Lupao', 'Muñoz', 'Nampicuan', 'Palayan', 'Pantabangan', 'Peñaranda', 'Quezon', 'Rizal', 'San Antonio', 'San Isidro', 'San Jose', 'San Leonardo', 'Santa Rosa', 'Santo Domingo', 'Talavera', 'Talugtug', 'Zaragoza'],
+                'Pampanga': ['Angeles', 'Apalit', 'Arayat', 'Bacolor', 'Candaba', 'Floridablanca', 'Guagua', 'Lubao', 'Mabalacat', 'Macabebe', 'Magalang', 'Masantol', 'Mexico', 'Minalin', 'Porac', 'San Fernando', 'San Luis', 'San Simon', 'Santa Ana', 'Santa Rita', 'Santo Tomas', 'Sasmuan'],
+                'Tarlac': ['Anao', 'Bamban', 'Camiling', 'Capas', 'Concepcion', 'Gerona', 'La Paz', 'Mayantoc', 'Moncada', 'Paniqui', 'Pura', 'Ramos', 'San Clemente', 'San Jose', 'San Manuel', 'Santa Ignacia', 'Tarlac City', 'Victoria'],
+                'Zambales': ['Botolan', 'Cabangan', 'Candelaria', 'Castillejos', 'Iba', 'Masinloc', 'Olongapo', 'Palauig', 'San Antonio', 'San Felipe', 'San Marcelino', 'San Narciso', 'Santa Cruz', 'Subic']
+            };
+
+            const addressesRegion4AProvinces = {
+                'Batangas': ['Agoncillo', 'Alitagtag', 'Balayan', 'Balete', 'Bauan', 'Calaca', 'Calatagan', 'Cuenca', 'Ibaan', 'Laurel', 'Lemery', 'Lian', 'Lipa', 'Lobo', 'Mabini', 'Malvar', 'Mataasnakahoy', 'Nasugbu', 'Padre Garcia', 'Rosario', 'San Jose', 'San Juan', 'San Luis', 'San Nicolas', 'San Pascual', 'Santa Teresita', 'Santo Tomas', 'Taal', 'Talisay', 'Tanauan', 'Taysan', 'Tingloy', 'Tuy'],
+                'Cavite': ['Alfonso', 'Amadeo', 'Bacoor', 'Carmona', 'Cavite City', 'Dasmariñas', 'General Emilio Aguinaldo', 'General Mariano Alvarez', 'General Trias', 'Imus', 'Indang', 'Kawit', 'Magallanes', 'Maragondon', 'Mendez', 'Naic', 'Noveleta', 'Rosario', 'Silang', 'Tagaytay', 'Tanza', 'Ternate', 'Trece Martires', 'Tagaytay'],
+                'Laguna': ['Alaminos', 'Bay', 'Biñan', 'Cabuyao', 'Calamba', 'Calauan', 'Cavinti', 'Famy', 'Kalayaan', 'Liliw', 'Los Baños', 'Luisiana', 'Lumban', 'Mabitac', 'Magdalena', 'Majayjay', 'Nagcarlan', 'Paete', 'Pagsanjan', 'Pakil', 'Pangil', 'Pila', 'Rizal', 'San Pablo', 'San Pedro', 'Santa Cruz', 'Santa Maria', 'Santa Rosa', 'Siniloan', 'Victoria'],
+                'Quezon': ['Agdangan', 'Alabat', 'Atimonan', 'Buenavista', 'Burdeos', 'Calauag', 'Candelaria', 'Catanauan', 'Dolores', 'General Luna', 'General Nakar', 'Guinayangan', 'Gumaca', 'Infanta', 'Jomalig', 'Lopez', 'Lucban', 'Lucena', 'Macalelon', 'Mauban', 'Mulanay', 'Padre Burgos', 'Pagbilao', 'Panukulan', 'Patnanungan', 'Perez', 'Pitogo', 'Plaridel', 'Polillo', 'Quezon', 'Real', 'Sampaloc', 'San Andres', 'San Antonio', 'San Francisco', 'San Narciso', 'Sariaya', 'Tagkawayan', 'Tayabas', 'Tiaong', 'Unisan'],
+                'Rizal': ['Angono', 'Antipolo', 'Baras', 'Binangonan', 'Cainta', 'Cardona', 'Jalajala', 'Morong', 'Pililla', 'Rodriguez', 'San Mateo', 'Tanay', 'Taytay', 'Teresa']
+            };
+
+            const addressesMetroManilaCities = [
+                'Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong',
+                'Manila', 'Marikina', 'Muntinlupa', 'Navotas', 'Parañaque',
+                'Pasay', 'Pasig', 'Quezon City', 'San Juan', 'Taguig', 'Valenzuela'
+            ];
+
             $("#addressesRegion").on("change", function() {
                 const selectedRegion = $(this).val();
                 const provinceSelect = $("#addressesProvince");
@@ -1166,39 +1201,46 @@ function get_status_class($status) {
                     provinceSelect.val("Metro Manila");
                     
                     // Populate cities
-                    const metroManilaCities = [
-                        'Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong',
-                        'Manila', 'Marikina', 'Muntinlupa', 'Navotas', 'Parañaque',
-                        'Pasay', 'Pasig', 'Quezon City', 'San Juan', 'Taguig', 'Valenzuela'
-                    ];
-                    metroManilaCities.forEach(city => {
+                    addressesMetroManilaCities.forEach(city => {
                         citySelect.append(`<option value="${city}">${city}</option>`);
                     });
-                } else if (selectedRegion) {
-                    // For other regions, leave empty for now
-                    provinceSelect.html('<option value="">Select Province</option>');
+                } else if (selectedRegion === "Region III") {
+                    // Populate Region III provinces
+                    Object.keys(addressesRegion3Provinces).forEach(province => {
+                        provinceSelect.append(`<option value="${province}">${province}</option>`);
+                    });
+                } else if (selectedRegion === "Region IV-A") {
+                    // Populate Region IV-A provinces
+                    Object.keys(addressesRegion4AProvinces).forEach(province => {
+                        provinceSelect.append(`<option value="${province}">${province}</option>`);
+                    });
                 }
             });
 
             // Province change handler for addresses section
             $("#addressesProvince").on("change", function() {
                 const selectedProvince = $(this).val();
+                const selectedRegion = $("#addressesRegion").val();
                 const citySelect = $("#addressesCity");
+                
+                // Clear cities
+                citySelect.html('<option value="">Select City/Municipality</option>');
                 
                 if (selectedProvince === "Metro Manila") {
                     // Populate Metro Manila cities
-                    citySelect.html('<option value="">Select City/Municipality</option>');
-                    const metroManilaCities = [
-                        'Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong',
-                        'Manila', 'Marikina', 'Muntinlupa', 'Navotas', 'Parañaque',
-                        'Pasay', 'Pasig', 'Quezon City', 'San Juan', 'Taguig', 'Valenzuela'
-                    ];
-                    metroManilaCities.forEach(city => {
+                    addressesMetroManilaCities.forEach(city => {
                         citySelect.append(`<option value="${city}">${city}</option>`);
                     });
-                } else if (selectedProvince) {
-                    // For other provinces, leave empty for now
-                    citySelect.html('<option value="">Select City/Municipality</option>');
+                } else if (selectedRegion === "Region III" && addressesRegion3Provinces[selectedProvince]) {
+                    // Populate Region III cities
+                    addressesRegion3Provinces[selectedProvince].forEach(city => {
+                        citySelect.append(`<option value="${city}">${city}</option>`);
+                    });
+                } else if (selectedRegion === "Region IV-A" && addressesRegion4AProvinces[selectedProvince]) {
+                    // Populate Region IV-A cities
+                    addressesRegion4AProvinces[selectedProvince].forEach(city => {
+                        citySelect.append(`<option value="${city}">${city}</option>`);
+                    });
                 }
             });
         });
