@@ -490,35 +490,61 @@
         </div>
     </section>
 
-    <section id="testimonials-section" class="full-width-section white-bg">
-        <div class="inner-content">
-            <h2 class="section-title-dark">Customer Testimonials</h2>
-            <div class="testimonial-slider">
-                <button class="slider-arrow left">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                </button>
+  <!-- Testimonials -->
+  <section class="testimonials">
+    <h2>Customer Testimonials</h2>
+    <div class="testimonial-content">
+      <button class="testimonial-arrow left">
+        <img src="<?php echo base_url(''); ?>assets/images/img-page/testimonials-arrow.png" alt="Previous">
+      </button>
 
-                <div class="testimonial-text-box">
-                    <p class="quote">"Highly recommending this shop! Very smooth and fast transaction. Despite
-                        unfortunate
-                        events, they were still able to deliver. Owner and staff are committed to great service. Exceeds
-                        expectations. Will definitely be our go-to-shop for glass and aluminum."</p>
-                    <div class="stars">
-                        <span>★</span><span>★</span><span>★</span><span>★</span><span>★</span>
-                    </div>
-                    <p class="author">Kris-Ann Munda-Rebullana</p>
-                </div>
-
-                <button class="slider-arrow right">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                </button>
-            </div>
+      <div class="testimonial-wrapper">
+        <div class="testimonial-text active">
+          <p>Highly recommending this shop! Very smooth and fast transaction. Despite unfortunate events, they were
+            still able to deliver. Owner and staff are committed at great service. Exceeds expectations. Will definitely
+            be our go-to-shop for glass and aluminum.</p>
+          <div class="stars">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+          </div>
+          <h3 class="author">Kris-Ann Munda-Rebullana</h3>
         </div>
-    </section>
+
+        <div class="testimonial-text">
+          <p>Highly recommended ⭐⭐⭐⭐⭐ Very accommodating staff. Responded immediately to queries and concerns. Quality
+            materials and great workmanship. We'll ask them DEFINITELY to do collab again in our next project 👍👍</p>
+          <div class="stars">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+          </div>
+          <h3 class="author">Anne Cruz</h3>
+        </div>
+
+        <div class="testimonial-text">
+          <p>Highly recommended! GlassWorth Builders service was excellent, and the quality of materials was top-notch.
+            Their installers were kind and demonstrated good workmanship. I'm thoroughly impressed!</p>
+          <div class="stars">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+          </div>
+          <h3 class="author">Jandoc Jun</h3>
+        </div>
+      </div>
+
+      <button class="testimonial-arrow right">
+        <img src="<?php echo base_url('assets/images/img-page/testimonials-arrow.png'); ?>" alt="Next">
+      </button>
+    </div>
+  </section>
 </body>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -531,6 +557,7 @@
 <script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtocustomization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtowishlist.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/products-page/testimonial.js'); ?>"></script>
 
 
 
