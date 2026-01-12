@@ -85,13 +85,13 @@
                         <label>Unit/House Number</label>
                         <input type="text" name="unit_house_number"
                             value="<?= htmlspecialchars($addresses['Shipping']->UnitHouseNumber ?? '') ?>"
-                            placeholder="Unit/House Number (optional)" readonly>
+                            placeholder="Unit/House Number (optional)">
                     </div>
                     <div class="form-group">
                         <label>Street</label>
                         <input type="text" name="street"
                             value="<?= htmlspecialchars($addresses['Shipping']->Street ?? '') ?>"
-                            placeholder="Street (optional)" readonly>
+                            placeholder="Street (optional)">
                     </div>
                 </div>
 
@@ -100,13 +100,13 @@
                         <label>Subdivision/Building</label>
                         <input type="text" name="subdivision"
                             value="<?= htmlspecialchars($addresses['Shipping']->Subdivision ?? '') ?>"
-                            placeholder="Subdivision/Building (optional)" readonly>
+                            placeholder="Subdivision/Building (optional)">
                     </div>
                     <div class="form-group">
                         <label>Barangay <span style="color: red;">*</span></label>
                         <input type="text" name="barangay"
                             value="<?= htmlspecialchars($addresses['Shipping']->Barangay ?? '') ?>"
-                            placeholder="Enter Barangay" required readonly>
+                            placeholder="Enter Barangay" required>
                     </div>
                 </div>
 
@@ -115,13 +115,13 @@
                         <label>Region <span style="color: red;">*</span></label>
                         <input type="text" name="region"
                             value="<?= htmlspecialchars($addresses['Shipping']->Region ?? '') ?>"
-                            placeholder="Enter Region" required readonly>
+                            placeholder="Enter Region" required>
                     </div>
                     <div class="form-group">
                         <label>Province <span style="color: red;">*</span></label>
                         <input type="text" name="province"
                             value="<?= htmlspecialchars($addresses['Shipping']->Province ?? '') ?>"
-                            placeholder="Enter Province" required readonly>
+                            placeholder="Enter Province" required>
                     </div>
                 </div>
 
@@ -129,13 +129,13 @@
                     <div class="form-group">
                         <label>City/Municipality <span style="color: red;">*</span></label>
                         <input type="text" name="city" value="<?= htmlspecialchars($addresses['Shipping']->City ?? '') ?>"
-                            placeholder="Enter City/Municipality" required readonly>
+                            placeholder="Enter City/Municipality" required>
                     </div>
                     <div class="form-group">
                         <label>Country</label>
                         <input type="text" name="country"
                             value="<?= htmlspecialchars($addresses['Shipping']->Country ?? 'Philippines') ?>"
-                            placeholder="Country" required readonly>
+                            placeholder="Country" required>
                     </div>
                 </div>
 
@@ -144,7 +144,7 @@
                         <label>Zip Code <span style="color: red;">*</span></label>
                         <input type="text" name="zipcode"
                             value="<?= htmlspecialchars($addresses['Shipping']->ZipCode ?? '') ?>"
-                            placeholder="Enter Zip Code" required readonly>
+                            placeholder="Enter Zip Code" required>
                     </div>
                 </div>
 
@@ -165,6 +165,10 @@
                         <small style="color: #666; font-size: 0.9em; display: block; margin-top: 5px;">
                             Please select a date at least 7 days from today. We'll do our best to accommodate your preference.
                         </small>
+                        <!-- Inline error message for installation date -->
+                        <div id="installation-date-error" class="inline-error" style="display: none; margin-top: 5px; padding: 8px 12px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px;">
+                            <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a Preferred Installation Date. This field is required.</span>
+                        </div>
                     </div>
                 </div>
 
@@ -206,6 +210,11 @@
                         <label for="COD-radio">Cash on Delivery</label>
                         <input type="radio" id="COD-radio" name="payment-method" title="Select COD as payment method">
                     </p>
+                </div>
+
+                <!-- Inline error message for payment method -->
+                <div id="payment-method-error" class="inline-error" style="display: none; margin-top: 10px; padding: 8px 12px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px;">
+                    <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a payment method before placing order.</span>
                 </div>
 
                 <!-- Removed <a> and kept only button -->
@@ -454,8 +463,164 @@
   </div>
 </div>
 
-
 <script>
+// =============================
+// TOAST NOTIFICATION SYSTEM
+// =============================
+function showToast(message, type = 'info', duration = 3000) {
+    // Remove existing toasts
+    const existingToasts = document.querySelectorAll('.toast-notification');
+    existingToasts.forEach(toast => {
+        toast.classList.add('toast-fade-out');
+        setTimeout(() => toast.remove(), 300);
+    });
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    
+    // Set icon and colors based on type
+    const config = {
+        success: { icon: '✓', bg: '#28a745', border: '#1e7e34' },
+        error: { icon: '✕', bg: '#dc3545', border: '#c82333' },
+        warning: { icon: '⚠', bg: '#ffc107', border: '#e0a800' },
+        info: { icon: 'ℹ', bg: '#17a2b8', border: '#138496' }
+    };
+    
+    const toastConfig = config[type] || config.info;
+    
+    toast.innerHTML = `
+        <div class="toast-icon">${toastConfig.icon}</div>
+        <div class="toast-message">${message}</div>
+        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+    `;
+    
+    // Add styles
+    toast.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        background: ${toastConfig.bg};
+        color: white;
+        padding: 16px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 300px;
+        max-width: 500px;
+        animation: toastSlideIn 0.3s ease;
+        font-family: 'Montserrat', sans-serif;
+        border-left: 4px solid ${toastConfig.border};
+    `;
+    
+    // Add animation styles if not already added
+    if (!document.getElementById('toast-styles')) {
+        const style = document.createElement('style');
+        style.id = 'toast-styles';
+        style.textContent = `
+            @keyframes toastSlideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes toastFadeOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+            }
+            .toast-notification {
+                transition: all 0.3s ease;
+            }
+            .toast-fade-out {
+                animation: toastFadeOut 0.3s ease forwards;
+            }
+            .toast-icon {
+                font-size: 20px;
+                font-weight: bold;
+                flex-shrink: 0;
+            }
+            .toast-message {
+                flex: 1;
+                font-size: 14px;
+                line-height: 1.4;
+            }
+            .toast-close {
+                background: none;
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+                padding: 0;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0.8;
+                transition: opacity 0.2s;
+                flex-shrink: 0;
+            }
+            .toast-close:hover {
+                opacity: 1;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after duration
+    setTimeout(() => {
+        toast.classList.add('toast-fade-out');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+    
+    return toast;
+}
+
+// Helper functions for field highlighting
+function highlightField(fieldId, errorContainerId, message) {
+    const field = document.getElementById(fieldId);
+    const errorContainer = document.getElementById(errorContainerId);
+    
+    if (field) {
+        field.style.borderColor = '#dc3545';
+        field.style.borderWidth = '2px';
+        field.focus();
+    }
+    
+    if (errorContainer) {
+        errorContainer.style.display = 'block';
+    }
+}
+
+function clearFieldError(fieldId, errorContainerId) {
+    const field = document.getElementById(fieldId);
+    const errorContainer = document.getElementById(errorContainerId);
+    
+    if (field) {
+        field.style.borderColor = '';
+        field.style.borderWidth = '';
+    }
+    
+    if (errorContainer) {
+        errorContainer.style.display = 'none';
+    }
+}
+
 $(document).ready(function() {
     // =============================
     // LOAD SELECTED ITEMS SUMMARY
@@ -463,8 +628,10 @@ $(document).ready(function() {
     function loadSelectedSummary() {
         // Check if we have selected items
         if (!SELECTED_CART_IDS) {
-            alert('No items selected. Redirecting to cart...');
-            window.location.href = BASE_URL + 'addtocart';
+            showToast('No items selected. Redirecting to cart...', 'warning', 2000);
+            setTimeout(() => {
+                window.location.href = BASE_URL + 'addtocart';
+            }, 2000);
             return;
         }
 
@@ -486,8 +653,10 @@ $(document).ready(function() {
 
                     // Check if cart is empty
                     if (res.items.length === 0) {
-                        alert('No valid items found. Redirecting to cart...');
-                        window.location.href = BASE_URL + 'addtocart';
+                        showToast('No valid items found. Redirecting to cart...', 'warning', 2000);
+                        setTimeout(() => {
+                            window.location.href = BASE_URL + 'addtocart';
+                        }, 2000);
                     }
                 }
             },
@@ -627,6 +796,26 @@ $(document).ready(function() {
             }
         });
     }
+
+    // Clear errors when user interacts with fields
+    document.getElementById('ewallet-radio')?.addEventListener('change', function() {
+        const errorDiv = document.getElementById('payment-method-error');
+        if (errorDiv) errorDiv.style.display = 'none';
+    });
+
+    document.getElementById('COD-radio')?.addEventListener('change', function() {
+        const errorDiv = document.getElementById('payment-method-error');
+        if (errorDiv) errorDiv.style.display = 'none';
+    });
+
+    document.getElementById('accept-terms')?.addEventListener('change', function() {
+        const errorDiv = document.getElementById('terms-error');
+        if (errorDiv) errorDiv.style.display = 'none';
+    });
+
+    document.getElementById('preferred_installation_date')?.addEventListener('change', function() {
+        clearFieldError('preferred_installation_date', 'installation-date-error');
+    });
 
     // === Order Confirmation Modal Functions ===
     const confirmModal = document.getElementById('orderConfirmModal');
@@ -805,21 +994,40 @@ $(document).ready(function() {
 
         // Validate payment method
         if (!ewallet && !cod) {
-            alert("Please select a payment method before placing order.");
+            const paymentSection = document.querySelector('.payment-section');
+            const errorDiv = document.getElementById('payment-method-error');
+            if (errorDiv) {
+                errorDiv.style.display = 'block';
+            }
+            showToast('Please select a payment method before placing order.', 'warning');
+            paymentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
         // Validate terms acceptance
         if (!termsAccepted) {
-            alert("Please accept the Terms and Conditions to proceed.");
+            const termsContainer = document.querySelector('.terms');
+            const errorDiv = document.getElementById('terms-error');
+            if (errorDiv) {
+                errorDiv.style.display = 'block';
+            }
+            showToast('Please accept the Terms and Conditions to proceed.', 'warning');
+            termsCheckbox.focus();
+            termsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
         // Validate Preferred Installation Date
         if (!preferredDate) {
-            alert("Please select a Preferred Installation Date. This field is required.");
+            const errorDiv = document.getElementById('installation-date-error');
+            if (errorDiv) {
+                errorDiv.style.display = 'block';
+            }
+            highlightField('preferred_installation_date', 'installation-date-error', 'Please select a Preferred Installation Date.');
+            showToast('Please select a Preferred Installation Date. This field is required.', 'warning');
             if (preferredDateInput) {
                 preferredDateInput.focus();
+                preferredDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             return;
         }
@@ -874,10 +1082,17 @@ $(document).ready(function() {
         const preferredDateInput = form.querySelector("input[name='preferred_installation_date']");
         if (preferredDateInput) {
             if (!preferredDateInput.value) {
-                alert("Preferred Installation Date is required. Please select a date.");
+                const errorDiv = document.getElementById('installation-date-error');
+                if (errorDiv) {
+                    errorDiv.style.display = 'block';
+                }
+                highlightField('preferred_installation_date', 'installation-date-error', 'Preferred Installation Date is required.');
+                showToast('Preferred Installation Date is required. Please select a date.', 'warning');
                 preferredDateInput.focus();
+                preferredDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 btn.disabled = false;
                 btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
+                closeConfirmModal();
                 return;
             }
             formData.append('preferred_installation_date', preferredDateInput.value);
@@ -887,12 +1102,40 @@ $(document).ready(function() {
         btn.disabled = true;
         btn.innerHTML = '<span class="btn-icon">⏳</span> Processing...';
 
+        // Store order summary in session before sending request
+        // This ensures ewallet page has access to the summary
+        const summaryItems = document.getElementById('summary-items').textContent;
+        const summarySubtotal = document.getElementById('summary-subtotal').textContent;
+        const summaryShipping = document.getElementById('summary-shipping').textContent;
+        const summaryHandling = document.getElementById('summary-handling').textContent;
+        const summaryTotal = document.getElementById('summary-total').textContent;
+        
+        // Store summary in sessionStorage as backup
+        sessionStorage.setItem('order_summary', JSON.stringify({
+            items: summaryItems,
+            subtotal: summarySubtotal,
+            shipping: summaryShipping,
+            handling: summaryHandling,
+            total: summaryTotal
+        }));
+        sessionStorage.setItem('selected_cart_ids', SELECTED_CART_IDS);
+
         // Send AJAX request
         fetch(BASE_URL + 'shopcon/place_order', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(async response => {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json();
+            } else {
+                // If response is not JSON, it's likely an error page
+                const text = await response.text();
+                console.error('Non-JSON response received:', text.substring(0, 500));
+                throw new Error('Server returned an error page instead of JSON. Check console for details.');
+            }
+        })
         .then(data => {
             // Log debug info to console
             console.log('=== Place Order Response ===');
@@ -920,10 +1163,11 @@ $(document).ready(function() {
             } else {
                 // Show error message with debug info
                 let errorMsg = data.message || 'An error occurred. Please try again.';
+                showToast(errorMsg, 'error', 5000);
                 if (data.debug) {
-                    errorMsg += '\n\nDebug: Check browser console (F12) for details.';
+                    console.error('Debug Info:', data.debug);
+                    showToast('Check browser console (F12) for debug details.', 'info', 3000);
                 }
-                alert(errorMsg);
                 btn.disabled = false;
                 btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
                 closeConfirmModal();
@@ -931,7 +1175,7 @@ $(document).ready(function() {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('An error occurred. Please try again.');
+            showToast('An error occurred. Please try again. Check console for details.', 'error', 5000);
             btn.disabled = false;
             btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
             closeConfirmModal();

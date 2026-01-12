@@ -89,84 +89,120 @@ class UserCon extends CI_Controller
     // =============================
     public function add_address()
     {
-        // Require login
-        $userID = $this->session->userdata('user_id');
-
-        if (!$userID) {
-            echo json_encode(['success' => false, 'message' => 'Not logged in']);
-            return;
-        }
-
-        // Validate required fields
-        $this->form_validation->set_rules('Barangay', 'Barangay', 'required|trim');
-        $this->form_validation->set_rules('City', 'City/Municipality', 'required|trim');
-        $this->form_validation->set_rules('Province', 'Province', 'required|trim');
-        $this->form_validation->set_rules('Region', 'Region', 'required|trim');
-        $this->form_validation->set_rules('ZipCode', 'Zip Code', 'required|trim');
-
-        if ($this->form_validation->run() === FALSE) {
-            echo json_encode([
-                'success' => false,
-                'message' => validation_errors()
-            ]);
-            return;
-        }
-
-        $data = [
-            'UserID'          => $userID,
-            'UnitHouseNumber' => $this->input->post('UnitHouseNumber', true),
-            'Street'          => $this->input->post('Street', true),
-            'Subdivision'     => $this->input->post('Subdivision', true),
-            'Barangay'        => $this->input->post('Barangay', true),
-            'City'            => $this->input->post('City', true),
-            'Province'        => $this->input->post('Province', true),
-            'Region'          => $this->input->post('Region', true),
-            'Country'         => $this->input->post('Country', true) ?: 'Philippines',
-            'ZipCode'         => $this->input->post('ZipCode', true),
-            'AddressType'     => 'Shipping', // default
-            'IsDefault'       => $this->input->post('IsDefault') ? 1 : 0
-        ];
+        // Set JSON header
+        header('Content-Type: application/json');
         
-        // If this is set as default, unset other defaults for this user
-        if ($data['IsDefault'] == 1) {
-            $this->db->where('UserID', $userID);
-            $this->db->update('user_address', ['IsDefault' => 0]);
-        }
+        try {
+            // Require login
+            $userID = $this->session->userdata('user_id');
 
-        // Build AddressLine from components for backward compatibility
-        $addressParts = array_filter([
-            $data['UnitHouseNumber'],
-            $data['Street'],
-            $data['Subdivision']
-        ]);
-        $data['AddressLine'] = !empty($addressParts) ? implode(', ', $addressParts) : null;
+            if (!$userID) {
+                echo json_encode(['success' => false, 'message' => 'Not logged in']);
+                return;
+            }
 
-        $this->load->model('User_model');
+            // Validate required fields
+            $this->form_validation->set_rules('Barangay', 'Barangay', 'required|trim');
+            $this->form_validation->set_rules('City', 'City/Municipality', 'required|trim');
+            $this->form_validation->set_rules('Province', 'Province', 'required|trim');
+            $this->form_validation->set_rules('Region', 'Region', 'required|trim');
+            $this->form_validation->set_rules('ZipCode', 'Zip Code', 'required|trim');
 
-        $insert_id = $this->User_model->add_address($data);
+            if ($this->form_validation->run() === FALSE) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => validation_errors()
+                ]);
+                return;
+            }
 
-        if ($insert_id) {
-            $full = trim(implode(', ', array_filter([
+            $data = [
+                'UserID'          => $userID,
+                'UnitHouseNumber' => $this->input->post('UnitHouseNumber', true),
+                'Street'          => $this->input->post('Street', true),
+                'Subdivision'     => $this->input->post('Subdivision', true),
+                'Barangay'        => $this->input->post('Barangay', true),
+                'City'            => $this->input->post('City', true),
+                'Province'        => $this->input->post('Province', true),
+                'Region'          => $this->input->post('Region', true),
+                'Country'         => $this->input->post('Country', true) ?: 'Philippines',
+                'ZipCode'         => $this->input->post('ZipCode', true),
+                'AddressType'     => 'Shipping', // default
+                'IsDefault'       => $this->input->post('IsDefault') ? 1 : 0
+            ];
+            
+            // If this is set as default, unset other defaults for this user
+            if ($data['IsDefault'] == 1) {
+                $this->db->where('UserID', $userID);
+                $this->db->update('user_address', ['IsDefault' => 0]);
+            }
+
+            // Build AddressLine from components for backward compatibility
+            $addressParts = array_filter([
                 $data['UnitHouseNumber'],
                 $data['Street'],
-                $data['Subdivision'],
-                $data['Barangay'],
-                $data['City'],
-                $data['Province'],
-                $data['Region'],
-                $data['Country'],
-                $data['ZipCode']
-            ])));
-
-            echo json_encode([
-                'success' => true,
-                'address_id' => $insert_id,
-                'full_address' => $full
+                $data['Subdivision']
             ]);
-        } else {
+            $data['AddressLine'] = !empty($addressParts) ? implode(', ', $addressParts) : null;
+
+            $this->load->model('User_model');
+
+            $insert_id = $this->User_model->add_address($data);
+
+            if ($insert_id) {
+                $full = trim(implode(', ', array_filter([
+                    $data['UnitHouseNumber'],
+                    $data['Street'],
+                    $data['Subdivision'],
+                    $data['Barangay'],
+                    $data['City'],
+                    $data['Province'],
+                    $data['Region'],
+                    $data['Country'],
+                    $data['ZipCode']
+                ])));
+
+                echo json_encode([
+                    'success' => true,
+                    'address_id' => $insert_id,
+                    'full_address' => $full
+                ]);
+            } else {
+                // Get database error
+                $db_error = $this->db->error();
+                $error_message = 'Failed to save address';
+                
+                if (!empty($db_error['message'])) {
+                    $error_message .= ': ' . $db_error['message'];
+                    log_message('error', 'UserCon->add_address: Database error - ' . $db_error['message'] . ' | Code: ' . $db_error['code']);
+                } else {
+                    $error_message .= '. Please check if the database table has all required columns (UnitHouseNumber, Street, Subdivision, Barangay, Region).';
+                }
+                
+                http_response_code(500);
+                echo json_encode([
+                    'success' => false,
+                    'message' => $error_message,
+                    'db_error' => $db_error
+                ]);
+            }
+        } catch (Exception $e) {
+            log_message('error', 'UserCon->add_address: Exception - ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
+            http_response_code(500);
             echo json_encode([
                 'success' => false,
-                'message' => 'Failed to save address'
+                'message' => 'Error: ' . $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+        } catch (Error $e) {
+            log_message('error', 'UserCon->add_address: Fatal Error - ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Fatal Error: ' . $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
             ]);
         }
     }

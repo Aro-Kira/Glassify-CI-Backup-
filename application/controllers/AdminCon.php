@@ -2178,9 +2178,14 @@ class AdminCon extends CI_Controller
      */
     private function map_status_to_display($status)
     {
+        // Handle empty/null status
+        if (empty($status) || $status === null) {
+            return 'Pending Review';
+        }
+        
         $status_map = [
-            'Pending' => 'Pending',
-            'Pending Review' => 'Ready to Approve',
+            'Pending' => 'Pending Review', // Normalize old 'Pending' to 'Pending Review'
+            'Pending Review' => 'Pending Review', // Display as 'Pending Review' for new orders
             'Approved' => 'Confirmed',
             'Completed' => 'Completed',
             'Cancelled' => 'Canceled',
@@ -2188,6 +2193,7 @@ class AdminCon extends CI_Controller
             'In Fabrication' => 'In Progress',
             'Ready for Installation' => 'In Progress',
             'Awaiting Admin' => 'Ready to Approve',
+            'Ready to Approve' => 'Ready to Approve',
             'Returned' => 'Returned'
         ];
         

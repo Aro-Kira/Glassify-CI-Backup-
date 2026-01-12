@@ -1,5 +1,162 @@
 document.addEventListener('DOMContentLoaded', async function () {
 
+    // =============================
+    // TOAST NOTIFICATION SYSTEM
+    // =============================
+    function showToast(message, type = 'info', duration = 3000) {
+        const existingToasts = document.querySelectorAll('.toast-notification');
+        existingToasts.forEach(toast => {
+            toast.classList.add('toast-fade-out');
+            setTimeout(() => toast.remove(), 300);
+        });
+
+        const toast = document.createElement('div');
+        toast.className = `toast-notification toast-${type}`;
+        
+        const config = {
+            success: { icon: '✓', bg: '#28a745', border: '#1e7e34' },
+            error: { icon: '✕', bg: '#dc3545', border: '#c82333' },
+            warning: { icon: '⚠', bg: '#ffc107', border: '#e0a800' },
+            info: { icon: 'ℹ', bg: '#17a2b8', border: '#138496' }
+        };
+        
+        const toastConfig = config[type] || config.info;
+        
+        toast.innerHTML = `
+            <div class="toast-icon">${toastConfig.icon}</div>
+            <div class="toast-message">${message}</div>
+            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+        `;
+        
+        toast.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: ${toastConfig.bg};
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            max-width: 500px;
+            animation: toastSlideIn 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+            border-left: 4px solid ${toastConfig.border};
+        `;
+        
+        if (!document.getElementById('toast-styles')) {
+            const style = document.createElement('style');
+            style.id = 'toast-styles';
+            style.textContent = `
+                @keyframes toastSlideIn {
+                    from { transform: translateX(400px); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes toastFadeOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(400px); opacity: 0; }
+                }
+                .toast-notification { transition: all 0.3s ease; }
+                .toast-fade-out { animation: toastFadeOut 0.3s ease forwards; }
+                .toast-icon { font-size: 20px; font-weight: bold; flex-shrink: 0; }
+                .toast-message { flex: 1; font-size: 14px; line-height: 1.4; }
+                .toast-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: opacity 0.2s; flex-shrink: 0; }
+                .toast-close:hover { opacity: 1; }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('toast-fade-out');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+        
+        return toast;
+    }
+
+    function showConfirmModal(message, onConfirm, onCancel = null) {
+        const existingModal = document.getElementById('confirm-modal-overlay');
+        if (existingModal) existingModal.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'confirm-modal-overlay';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); z-index: 10001;
+            display: flex; align-items: center; justify-content: center;
+            animation: fadeIn 0.2s ease;
+        `;
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: white; border-radius: 12px; padding: 30px;
+            max-width: 450px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: slideUp 0.3s ease;
+        `;
+        
+        modal.innerHTML = `
+            <h3 style="margin: 0 0 15px 0; font-size: 20px; color: #333; font-family: 'Montserrat', sans-serif;">Confirm Action</h3>
+            <p style="margin: 0 0 25px 0; color: #666; font-size: 15px; line-height: 1.5;">${message}</p>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="confirm-cancel-btn" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; color: #666; transition: all 0.2s;">Cancel</button>
+                <button id="confirm-ok-btn" style="padding: 10px 20px; border: none; background: #dc3545; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">Confirm</button>
+            </div>
+        `;
+        
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        if (!document.getElementById('modal-styles')) {
+            const style = document.createElement('style');
+            style.id = 'modal-styles';
+            style.textContent = `
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                #confirm-cancel-btn:hover { background: #f5f5f5; }
+                #confirm-ok-btn:hover { background: #c82333; }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        const cancelBtn = overlay.querySelector('#confirm-cancel-btn');
+        const okBtn = overlay.querySelector('#confirm-ok-btn');
+        
+        cancelBtn.addEventListener('click', () => {
+            overlay.style.animation = 'fadeIn 0.2s ease reverse';
+            setTimeout(() => overlay.remove(), 200);
+            if (onCancel) onCancel();
+        });
+        
+        okBtn.addEventListener('click', () => {
+            overlay.style.animation = 'fadeIn 0.2s ease reverse';
+            setTimeout(() => overlay.remove(), 200);
+            if (onConfirm) onConfirm();
+        });
+        
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.style.animation = 'fadeIn 0.2s ease reverse';
+                setTimeout(() => overlay.remove(), 200);
+                if (onCancel) onCancel();
+            }
+        });
+        
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                overlay.style.animation = 'fadeIn 0.2s ease reverse';
+                setTimeout(() => overlay.remove(), 200);
+                if (onCancel) onCancel();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    }
+
     // ======================
     // 1️⃣ Variables
     // ======================
@@ -365,11 +522,11 @@ document.addEventListener('DOMContentLoaded', async function () {
             } else {
                 const errorMsg = data.message || 'Failed to load order details';
                 console.error('Order details error:', errorMsg, data);
-                alert(errorMsg);
+                showToast(errorMsg, 'error');
             }
         } catch (error) {
             console.error("Error loading order details:", error);
-            alert('Failed to load order details. Please check the console for details and try again.');
+            showToast('Failed to load order details. Please check the console for details and try again.', 'error');
         }
     }
 
@@ -570,14 +727,14 @@ document.addEventListener('DOMContentLoaded', async function () {
             // Validate orderId
             if (!orderId) {
                 console.error('loadApprovalOrderDetails: orderId is required');
-                alert('Error: Order ID is missing. Please try again.');
+                showToast('Error: Order ID is missing. Please try again.', 'error');
                 return;
             }
 
             // Validate URL is defined
             if (typeof getApprovalOrderDetailsUrl === 'undefined') {
                 console.error('loadApprovalOrderDetails: getApprovalOrderDetailsUrl is not defined');
-                alert('Error: API endpoint configuration is missing. Please refresh the page.');
+                showToast('Error: API endpoint configuration is missing. Please refresh the page.', 'error');
                 return;
             }
 
@@ -643,9 +800,9 @@ document.addEventListener('DOMContentLoaded', async function () {
                 // Show user-friendly error message
                 const userMessage = errorData && errorData.message 
                     ? errorData.message 
-                    : `Failed to load order details.\n\nError: ${errorMessage}\n\nPlease check the browser console for more details.`;
+                    : `Failed to load order details. Error: ${errorMessage}. Please check the browser console for more details.`;
                 
-                alert(userMessage);
+                showToast(userMessage, 'error');
                 return;
             }
             
@@ -658,14 +815,14 @@ document.addEventListener('DOMContentLoaded', async function () {
             } catch (parseError) {
                 console.error('loadApprovalOrderDetails - JSON parse error:', parseError);
                 console.error('Response was not valid JSON');
-                alert('Error: Server returned invalid data. Please check the console for details.');
+                showToast('Error: Server returned invalid data. Please check the console for details.', 'error');
                 return;
             }
             
             // Validate response structure
             if (!data) {
                 console.error('loadApprovalOrderDetails - Empty response data');
-                alert('Error: Server returned empty response. Please try again.');
+                showToast('Error: Server returned empty response. Please try again.', 'error');
                 return;
             }
 
@@ -678,12 +835,12 @@ document.addEventListener('DOMContentLoaded', async function () {
                     approvalPopup.style.display = 'flex';
                 } else {
                     console.error('Approval popup element not found');
-                    alert('Error: Approval popup element is missing from the page.');
+                    showToast('Error: Approval popup element is missing from the page.', 'error');
                 }
             } else {
                 const errorMsg = data.message || 'Failed to load order details. The order may not exist or you may not have permission to view it.';
                 console.error('loadApprovalOrderDetails - API returned error:', errorMsg);
-                alert(errorMsg);
+                showToast(errorMsg, 'error');
             }
         } catch (error) {
             // Handle network errors and other exceptions
@@ -699,7 +856,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                 userMessage += 'An unexpected error occurred. Please try again.';
             }
             
-            alert(userMessage + '\n\nCheck the browser console for more details.');
+            showToast(userMessage + ' Check the browser console for more details.', 'error');
         }
     }
 
@@ -816,7 +973,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (approvalApproveBtn) {
         approvalApproveBtn.addEventListener('click', async () => {
             if (!currentApprovalOrderId) {
-                alert('No order selected');
+                showToast('No order selected', 'warning');
                 return;
             }
 
@@ -837,15 +994,15 @@ document.addEventListener('DOMContentLoaded', async function () {
                 const data = await response.json();
 
                 if (data.success) {
-                    alert(data.message || 'Order approved successfully!');
+                    showToast(data.message || 'Order approved successfully!', 'success');
                     if (approvalPopup) approvalPopup.style.display = 'none';
                     loadApprovalOrders(); // Reload approval orders
                 } else {
-                    alert(data.message || 'Failed to approve order');
+                    showToast(data.message || 'Failed to approve order', 'error');
                 }
             } catch (error) {
                 console.error("Error approving order:", error);
-                alert('Failed to approve order. Please try again.');
+                showToast('Failed to approve order. Please try again.', 'error');
             }
         });
     }
@@ -857,43 +1014,41 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (approvalDisapproveBtn) {
         approvalDisapproveBtn.addEventListener('click', async () => {
             if (!currentApprovalOrderId) {
-                alert('No order selected');
+                showToast('No order selected', 'warning');
                 return;
             }
 
             const disapprovalReason = document.getElementById('disapproval-reason').value.trim();
             if (!disapprovalReason) {
-                alert('Please provide a reason for disapproval');
+                showToast('Please provide a reason for disapproval', 'warning');
                 return;
             }
 
-            if (!confirm('Are you sure you want to disapprove this order?')) {
-                return;
-            }
+            showConfirmModal('Are you sure you want to disapprove this order?', async () => {
+                try {
+                    const formData = new FormData();
+                    formData.append('order_id', currentApprovalOrderId);
+                    formData.append('disapproval_reason', disapprovalReason);
 
-            try {
-                const formData = new FormData();
-                formData.append('order_id', currentApprovalOrderId);
-                formData.append('disapproval_reason', disapprovalReason);
+                    const response = await fetch(disapproveOrderUrl, {
+                        method: 'POST',
+                        body: formData
+                    });
 
-                const response = await fetch(disapproveOrderUrl, {
-                    method: 'POST',
-                    body: formData
-                });
+                    const data = await response.json();
 
-                const data = await response.json();
-
-                if (data.success) {
-                    alert(data.message || 'Order disapproved successfully!');
-                    if (approvalPopup) approvalPopup.style.display = 'none';
-                    loadApprovalOrders(); // Reload approval orders
-                } else {
-                    alert(data.message || 'Failed to disapprove order');
+                    if (data.success) {
+                        showToast(data.message || 'Order disapproved successfully!', 'success');
+                        if (approvalPopup) approvalPopup.style.display = 'none';
+                        loadApprovalOrders(); // Reload approval orders
+                    } else {
+                        showToast(data.message || 'Failed to disapprove order', 'error');
+                    }
+                } catch (error) {
+                    console.error("Error disapproving order:", error);
+                    showToast('Failed to disapprove order. Please try again.', 'error');
                 }
-            } catch (error) {
-                console.error("Error disapproving order:", error);
-                alert('Failed to disapprove order. Please try again.');
-            }
+            });
         });
     }
 
@@ -902,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     // ======================
     async function completeOrder(orderId) {
         if (!orderId) {
-            alert('No order selected');
+            showToast('No order selected', 'warning');
             return;
         }
 
@@ -912,40 +1067,38 @@ document.addEventListener('DOMContentLoaded', async function () {
         
         // Check if order is in "Awaiting Admin" status
         if (orderStatus && orderStatus.toLowerCase().includes('awaiting admin')) {
-            alert('This order is awaiting admin approval. Please approve it in the "Order Schedule Approval" section below first.');
+            showToast('This order is awaiting admin approval. Please approve it in the "Order Schedule Approval" section below first.', 'warning');
             return;
         }
 
-        if (!confirm('Are you sure you want to mark this order as completed?')) {
-            return;
-        }
+        showConfirmModal('Are you sure you want to mark this order as completed?', async () => {
+            try {
+                const formData = new FormData();
+                formData.append('order_id', orderId);
 
-        try {
-            const formData = new FormData();
-            formData.append('order_id', orderId);
+                const response = await fetch(completeOrderUrl, {
+                    method: 'POST',
+                    body: formData
+                });
 
-            const response = await fetch(completeOrderUrl, {
-                method: 'POST',
-                body: formData
-            });
+                const data = await response.json();
 
-            const data = await response.json();
-
-            if (data.success) {
-                alert(data.message || 'Order marked as completed successfully!');
-                loadOrders(); // Reload orders to reflect the status change
-            } else {
-                // Show helpful message if order can't be completed
-                if (data.message && data.message.includes('cannot be completed')) {
-                    alert(data.message + '\n\nNote: Orders in "Awaiting Admin" status must be approved in the "Order Schedule Approval" section first.');
+                if (data.success) {
+                    showToast(data.message || 'Order marked as completed successfully!', 'success');
+                    loadOrders(); // Reload orders to reflect the status change
                 } else {
-                    alert(data.message || 'Failed to complete order');
+                    // Show helpful message if order can't be completed
+                    if (data.message && data.message.includes('cannot be completed')) {
+                        showToast(data.message + ' Note: Orders in "Awaiting Admin" status must be approved in the "Order Schedule Approval" section first.', 'warning');
+                    } else {
+                        showToast(data.message || 'Failed to complete order', 'error');
+                    }
                 }
+            } catch (error) {
+                console.error("Error completing order:", error);
+                showToast('Failed to complete order. Please try again.', 'error');
             }
-        } catch (error) {
-            console.error("Error completing order:", error);
-            alert('Failed to complete order. Please try again.');
-        }
+        });
     }
 
     // ======================

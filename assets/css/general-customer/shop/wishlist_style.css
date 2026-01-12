@@ -245,6 +245,17 @@ tbody td {
     cursor: not-allowed;
 }
 
+.add-cart-btn.added-state {
+    background: #28a745 !important;
+    color: white !important;
+    cursor: default;
+}
+
+.add-cart-btn.added-state:hover {
+    background: #218838 !important;
+    transform: none;
+}
+
 .add-cart-btn svg {
     stroke: white;
 }

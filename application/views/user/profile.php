@@ -293,6 +293,269 @@
     <script>
         $(document).ready(function () {
 
+            // =============================
+            // TOAST NOTIFICATION SYSTEM
+            // =============================
+            function showToast(message, type = 'info', duration = 3000) {
+                // Remove existing toasts
+                const existingToasts = document.querySelectorAll('.toast-notification');
+                existingToasts.forEach(toast => {
+                    toast.classList.add('toast-fade-out');
+                    setTimeout(() => toast.remove(), 300);
+                });
+
+                // Create toast element
+                const toast = document.createElement('div');
+                toast.className = `toast-notification toast-${type}`;
+                
+                // Set icon and colors based on type
+                const config = {
+                    success: { icon: '✓', bg: '#28a745', border: '#1e7e34' },
+                    error: { icon: '✕', bg: '#dc3545', border: '#c82333' },
+                    warning: { icon: '⚠', bg: '#ffc107', border: '#e0a800' },
+                    info: { icon: 'ℹ', bg: '#17a2b8', border: '#138496' }
+                };
+                
+                const toastConfig = config[type] || config.info;
+                
+                toast.innerHTML = `
+                    <div class="toast-icon">${toastConfig.icon}</div>
+                    <div class="toast-message">${message}</div>
+                    <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+                `;
+                
+                // Add styles
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    background: ${toastConfig.bg};
+                    color: white;
+                    padding: 16px 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 10000;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    min-width: 300px;
+                    max-width: 500px;
+                    animation: toastSlideIn 0.3s ease;
+                    font-family: 'Montserrat', sans-serif;
+                    border-left: 4px solid ${toastConfig.border};
+                `;
+                
+                // Add animation styles if not already added
+                if (!document.getElementById('toast-styles')) {
+                    const style = document.createElement('style');
+                    style.id = 'toast-styles';
+                    style.textContent = `
+                        @keyframes toastSlideIn {
+                            from {
+                                transform: translateX(400px);
+                                opacity: 0;
+                            }
+                            to {
+                                transform: translateX(0);
+                                opacity: 1;
+                            }
+                        }
+                        @keyframes toastFadeOut {
+                            from {
+                                transform: translateX(0);
+                                opacity: 1;
+                            }
+                            to {
+                                transform: translateX(400px);
+                                opacity: 0;
+                            }
+                        }
+                        .toast-notification {
+                            transition: all 0.3s ease;
+                        }
+                        .toast-fade-out {
+                            animation: toastFadeOut 0.3s ease forwards;
+                        }
+                        .toast-icon {
+                            font-size: 20px;
+                            font-weight: bold;
+                            flex-shrink: 0;
+                        }
+                        .toast-message {
+                            flex: 1;
+                            font-size: 14px;
+                            line-height: 1.4;
+                        }
+                        .toast-close {
+                            background: none;
+                            border: none;
+                            color: white;
+                            font-size: 24px;
+                            cursor: pointer;
+                            padding: 0;
+                            width: 24px;
+                            height: 24px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            opacity: 0.8;
+                            transition: opacity 0.2s;
+                            flex-shrink: 0;
+                        }
+                        .toast-close:hover {
+                            opacity: 1;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                document.body.appendChild(toast);
+                
+                // Auto remove after duration
+                setTimeout(() => {
+                    toast.classList.add('toast-fade-out');
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+                
+                return toast;
+            }
+
+            // =============================
+            // CUSTOM CONFIRMATION MODAL
+            // =============================
+            function showConfirmModal(message, onConfirm, onCancel = null) {
+                // Remove existing modal if any
+                const existingModal = document.getElementById('confirm-modal-overlay');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Create modal overlay
+                const overlay = document.createElement('div');
+                overlay.id = 'confirm-modal-overlay';
+                overlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 10001;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    animation: fadeIn 0.2s ease;
+                `;
+                
+                // Create modal content
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    background: white;
+                    border-radius: 12px;
+                    padding: 30px;
+                    max-width: 450px;
+                    width: 90%;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                    animation: slideUp 0.3s ease;
+                `;
+                
+                modal.innerHTML = `
+                    <h3 style="margin: 0 0 15px 0; font-size: 20px; color: #333; font-family: 'Montserrat', sans-serif;">Confirm Action</h3>
+                    <p style="margin: 0 0 25px 0; color: #666; font-size: 15px; line-height: 1.5;">${message}</p>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button id="confirm-cancel-btn" style="
+                            padding: 10px 20px;
+                            border: 1px solid #ddd;
+                            background: white;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            color: #666;
+                            transition: all 0.2s;
+                        ">Cancel</button>
+                        <button id="confirm-ok-btn" style="
+                            padding: 10px 20px;
+                            border: none;
+                            background: #dc3545;
+                            color: white;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            font-weight: 600;
+                            transition: all 0.2s;
+                        ">Confirm</button>
+                    </div>
+                `;
+                
+                overlay.appendChild(modal);
+                document.body.appendChild(overlay);
+                
+                // Add animations if not already added
+                if (!document.getElementById('modal-styles')) {
+                    const style = document.createElement('style');
+                    style.id = 'modal-styles';
+                    style.textContent = `
+                        @keyframes fadeIn {
+                            from { opacity: 0; }
+                            to { opacity: 1; }
+                        }
+                        @keyframes slideUp {
+                            from {
+                                transform: translateY(20px);
+                                opacity: 0;
+                            }
+                            to {
+                                transform: translateY(0);
+                                opacity: 1;
+                            }
+                        }
+                        #confirm-cancel-btn:hover {
+                            background: #f5f5f5;
+                        }
+                        #confirm-ok-btn:hover {
+                            background: #c82333;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+                
+                // Handle button clicks
+                const cancelBtn = overlay.querySelector('#confirm-cancel-btn');
+                const okBtn = overlay.querySelector('#confirm-ok-btn');
+                
+                cancelBtn.addEventListener('click', () => {
+                    overlay.style.animation = 'fadeIn 0.2s ease reverse';
+                    setTimeout(() => overlay.remove(), 200);
+                    if (onCancel) onCancel();
+                });
+                
+                okBtn.addEventListener('click', () => {
+                    overlay.style.animation = 'fadeIn 0.2s ease reverse';
+                    setTimeout(() => overlay.remove(), 200);
+                    if (onConfirm) onConfirm();
+                });
+                
+                // Close on overlay click
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        overlay.style.animation = 'fadeIn 0.2s ease reverse';
+                        setTimeout(() => overlay.remove(), 200);
+                        if (onCancel) onCancel();
+                    }
+                });
+                
+                // Close on Escape key
+                const escapeHandler = (e) => {
+                    if (e.key === 'Escape') {
+                        overlay.style.animation = 'fadeIn 0.2s ease reverse';
+                        setTimeout(() => overlay.remove(), 200);
+                        if (onCancel) onCancel();
+                        document.removeEventListener('keydown', escapeHandler);
+                    }
+                };
+                document.addEventListener('keydown', escapeHandler);
+            }
+
             // ========= MODAL SETUP =========
             const modal = $("#addressModal");
             const openModalBtn = $("#chooseAddressBtn");
@@ -485,25 +748,75 @@
                 $("#region").trigger('change');
             });
 
-            // ========= ADD/UPDATE ADDRESS (AJAX + AUTO REFRESH) =========
-            $("#newAddressForm").submit(function (e) {
+            // ========= DIRECT BUTTON CLICK HANDLER (FALLBACK) =========
+            $("#addressSubmitBtn").on("click", function(e) {
+                console.log("Add Address button clicked");
+                // Prevent default form submission
                 e.preventDefault();
+                e.stopPropagation();
+                // Trigger form submit event
+                $("#newAddressForm").trigger('submit');
+            });
+
+            // ========= ADD/UPDATE ADDRESS (AJAX + AUTO REFRESH) =========
+            $("#newAddressForm").on("submit", function (e) {
+                e.preventDefault();
+                console.log("Form submit event triggered");
+
+                // Validate form before submission
+                const form = this;
+                if (!form.checkValidity()) {
+                    console.log("Form validation failed");
+                    // Trigger HTML5 validation
+                    form.reportValidity();
+                    return false;
+                }
+
+                console.log("Form validation passed, preparing to submit");
 
                 const fd = new FormData(this);
                 const addressId = $("#editAddressID").val();
                 const url = addressId ? "<?= base_url('UserCon/update_address') ?>" : "<?= base_url('UserCon/add_address') ?>";
+                
+                console.log("Submitting to:", url);
+                console.log("Address ID:", addressId);
+
+                // Disable submit button to prevent double submission
+                const submitBtn = $("#addressSubmitBtn");
+                const originalText = submitBtn.text();
+                submitBtn.prop('disabled', true).text('Saving...');
 
                 fetch(url, {
                     method: "POST",
                     body: fd
                 })
-                    .then(res => res.json())
+                    .then(async res => {
+                        console.log("Response status:", res.status);
+                        const responseText = await res.text();
+                        console.log("Response text:", responseText);
+                        
+                        let data;
+                        try {
+                            data = JSON.parse(responseText);
+                        } catch (e) {
+                            // If response is not JSON, it might be an HTML error page
+                            console.error("Failed to parse JSON response:", responseText);
+                            throw new Error('Server returned an error. Check browser console for details.');
+                        }
+                        
+                        if (!res.ok) {
+                            throw new Error(data.message || `Server error (${res.status}): ${responseText.substring(0, 200)}`);
+                        }
+                        
+                        return data;
+                    })
                     .then(data => {
+                        console.log("Response data:", data);
                         if (data.success) {
                             if (addressId) {
-                                alert("Address updated successfully!");
+                                showToast("Address updated successfully!", 'success');
                             } else {
-                                alert("Address added successfully!");
+                                showToast("Address added successfully!", 'success');
                             }
                             $("#newAddressForm")[0].reset();
                             $("#editAddressID").val('');
@@ -514,9 +827,21 @@
                             $("#region").trigger('change');
                             loadAddresses(); // refresh list
                         } else {
-                            alert(data.message || "Failed to save address.");
+                            const errorMsg = data.message || "Failed to save address.";
+                            console.error("Server error:", errorMsg);
+                            showToast(errorMsg, 'error');
                         }
+                    })
+                    .catch(error => {
+                        console.error('Fetch error:', error);
+                        showToast("Error: " + error.message + ". Please check the browser console (F12) for more details.", 'error');
+                    })
+                    .finally(() => {
+                        // Re-enable submit button
+                        submitBtn.prop('disabled', false).text(originalText);
                     });
+                
+                return false;
             });
 
             // ========= PROFILE FORM =========
@@ -649,7 +974,7 @@
                     dataType: "json",
                     success: function (res) {
                         if (res.status === "success") {
-                            alert("Profile updated!");
+                            showToast("Profile updated successfully!", 'success');
                             saveBtn.prop("disabled", true);
                             passwordError.hide();
 
@@ -664,7 +989,8 @@
                                 }
                             });
                         } else {
-                            alert(res.message || "Failed to update profile.");
+                            const errorMsg = res.message || "Failed to update profile.";
+                            showToast(errorMsg, 'error');
                             if (res.message && res.message.toLowerCase().includes("password")) {
                                 passwordError.text(res.message).show();
                             }
@@ -678,7 +1004,7 @@
                                 passwordError.text(errorMsg).show();
                             }
                         }
-                        alert(errorMsg);
+                        showToast(errorMsg, 'error');
                     }
                 });
             });
@@ -703,10 +1029,12 @@
                     dataType: "json",
                     success: function (res) {
                         if (res.status === "success") {
-                            $("#profilePreview").attr("src", res.image);
-                            alert("Photo updated!");
+                            // Add cache-busting parameter to force browser to reload the image
+                            const imageUrl = res.image + (res.image.indexOf('?') === -1 ? '?' : '&') + 't=' + new Date().getTime();
+                            $("#profilePreview").attr("src", imageUrl);
+                            showToast("Photo updated successfully!", 'success');
                         } else {
-                            alert(res.message || "Failed to upload photo");
+                            showToast(res.message || "Failed to upload photo", 'error');
                         }
                     },
                     error: function (xhr, status, error) {
@@ -716,23 +1044,29 @@
                         } else {
                             errorMsg += error || "Please try again.";
                         }
-                        alert(errorMsg);
+                        showToast(errorMsg, 'error');
                         console.error("Upload error:", xhr.responseText);
                     }
                 });
             });
 
             $("#deletePhotoBtn").click(function () {
-                if (confirm("Delete profile photo?")) {
-                    $.post("<?= base_url('UserCon/delete_photo') ?>", {}, function (res) {
-                        if (res.status === "success") {
-                            $("#profilePreview").attr("src", res.image);
-                            alert("Photo deleted!");
-                        } else {
-                            alert(res.message);
-                        }
-                    }, "json");
-                }
+                showConfirmModal(
+                    "Delete profile photo?",
+                    function() {
+                        // User confirmed - proceed with deletion
+                        $.post("<?= base_url('UserCon/delete_photo') ?>", {}, function (res) {
+                            if (res.status === "success") {
+                                // Add cache-busting parameter to force browser to reload the image
+                                const imageUrl = res.image + (res.image.indexOf('?') === -1 ? '?' : '&') + 't=' + new Date().getTime();
+                                $("#profilePreview").attr("src", imageUrl);
+                                showToast("Photo deleted successfully!", 'success');
+                            } else {
+                                showToast(res.message || "Failed to delete photo", 'error');
+                            }
+                        }, "json");
+                    }
+                );
             });
 
         });
