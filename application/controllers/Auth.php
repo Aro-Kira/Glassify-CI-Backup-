@@ -404,6 +404,8 @@ class Auth extends CI_Controller
             
             // If user is Customer and account is Inactive, they likely haven't confirmed email
             if ($user->Role === 'Customer' && $role === 'Customer') {
+                // Store email in session for resend confirmation
+                $this->session->set_flashdata('unconfirmed_email', $email);
                 $this->session->set_flashdata('error', 'Please confirm your email address before logging in. Check your inbox for the confirmation link.');
             } else {
                 $this->session->set_flashdata('error', 'Your account is inactive. Please contact administrator.');
@@ -871,18 +873,44 @@ class Auth extends CI_Controller
             redirect(base_url('login'));
         }
         
-        // Find user by token (using reset_token temporarily for confirmation)
-        $user = $this->User_model->get_by_reset_token($token);
+        // Find user by token (query directly without expiry check)
+        $user = $this->db->where('reset_token', $token)
+            ->where('Status', 'Inactive')
+            ->get('user')
+            ->row();
         
         if (!$user) {
-            $this->session->set_flashdata('error', 'Invalid or expired confirmation token. Please register again.');
-            redirect(base_url('register'));
+            $this->session->set_flashdata('error', 'Invalid confirmation token. Please request a new confirmation email.');
+            redirect(base_url('login'));
         }
         
-        // Check if token is expired
+        // Check if token is expired - if so, resend email
         if (strtotime($user->reset_token_expiry) < time()) {
-            $this->session->set_flashdata('error', 'Confirmation token has expired. Please register again.');
-            redirect(base_url('register'));
+            // Generate new confirmation token
+            $confirmation_token = bin2hex(random_bytes(32));
+            $confirmation_expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+            
+            // Update token in database
+            $this->db->where('UserID', $user->UserID);
+            $this->db->update('user', [
+                'reset_token' => $confirmation_token,
+                'reset_token_expiry' => $confirmation_expiry
+            ]);
+            
+            // Resend confirmation email
+            $first_name = $user->First_Name;
+            $confirmation_link = base_url('auth/confirm_email/' . $confirmation_token);
+            $email_sent = $this->send_confirmation_email($user->Email, $first_name, $confirmation_link);
+            
+            if ($email_sent) {
+                log_message('info', 'Confirmation email resent for expired token - UserID: ' . $user->UserID);
+                $this->session->set_flashdata('error', 'Your confirmation link has expired. A new confirmation email has been sent to ' . $user->Email . '. Please check your inbox and click the new confirmation link.');
+            } else {
+                log_message('error', 'Failed to resend confirmation email for expired token - UserID: ' . $user->UserID);
+                $this->session->set_flashdata('error', 'Your confirmation link has expired. Failed to send a new confirmation email. Please try logging in to resend the confirmation email.');
+            }
+            
+            redirect(base_url('login'));
         }
         
         // Activate account and clear token
@@ -900,7 +928,7 @@ class Auth extends CI_Controller
         } else {
             log_message('error', 'Failed to confirm email for UserID: ' . $user->UserID);
             $this->session->set_flashdata('error', 'Confirmation failed. Please try again or contact support.');
-            redirect(base_url('register'));
+            redirect(base_url('login'));
         }
     }
     
@@ -971,6 +999,66 @@ class Auth extends CI_Controller
             log_message('error', 'Exception in send_confirmation_email: ' . $e->getMessage());
             return false;
         }
+    }
+
+    // ===================== RESEND CONFIRMATION EMAIL =====================
+    /**
+     * Resend confirmation email to user
+     */
+    public function resend_confirmation_email()
+    {
+        $email = $this->input->post('email', TRUE);
+        
+        if (empty($email)) {
+            $this->session->set_flashdata('error', 'Email address is required.');
+            redirect(base_url('login'));
+        }
+        
+        // Find user by email
+        $user = $this->User_model->get_by_email($email);
+        
+        if (!$user) {
+            $this->session->set_flashdata('error', 'Account not found. Please check your email address.');
+            redirect(base_url('login'));
+        }
+        
+        // Check if account is already active
+        if ($user->Status === 'Active') {
+            $this->session->set_flashdata('success', 'Your account is already confirmed. You can log in now.');
+            redirect(base_url('login'));
+        }
+        
+        // Generate new confirmation token
+        $confirmation_token = bin2hex(random_bytes(32));
+        $confirmation_expiry = date('Y-m-d H:i:s', strtotime('+24 hours'));
+        
+        // Update token in database
+        $this->db->where('UserID', $user->UserID);
+        $update_result = $this->db->update('user', [
+            'reset_token' => $confirmation_token,
+            'reset_token_expiry' => $confirmation_expiry
+        ]);
+        
+        if (!$update_result) {
+            log_message('error', 'Failed to update confirmation token for UserID: ' . $user->UserID);
+            $this->session->set_flashdata('error', 'Failed to generate confirmation link. Please try again.');
+            redirect(base_url('login'));
+        }
+        
+        // Send confirmation email
+        $first_name = $user->First_Name;
+        $confirmation_link = base_url('auth/confirm_email/' . $confirmation_token);
+        $email_sent = $this->send_confirmation_email($user->Email, $first_name, $confirmation_link);
+        
+        if ($email_sent) {
+            log_message('info', 'Confirmation email resent successfully to: ' . $user->Email);
+            $this->session->set_flashdata('success', 'A new confirmation email has been sent to ' . $user->Email . '. Please check your inbox and click the confirmation link.');
+        } else {
+            log_message('error', 'Failed to resend confirmation email to: ' . $user->Email);
+            $this->session->set_flashdata('error', 'Failed to send confirmation email. Please try again later.');
+        }
+        
+        redirect(base_url('login'));
     }
 
     // ===================== LOGOUT =====================

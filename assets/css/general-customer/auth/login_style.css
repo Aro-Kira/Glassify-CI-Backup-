@@ -494,3 +494,165 @@ input.invalid {
     font-size: 0.8rem;
   }
 }
+
+/* Resend Confirmation Email Modal */
+.resend-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  display: none;
+}
+
+.resend-modal-content {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  max-width: 480px;
+  width: 90%;
+  overflow: hidden;
+}
+
+.resend-modal-header {
+  padding: 24px 24px 20px 24px;
+  border-bottom: 1px solid #e5e5e5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #fafafa;
+}
+
+.resend-modal-header h3 {
+  margin: 0;
+  color: #000;
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.resend-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.resend-modal-close:hover {
+  background-color: #e5e5e5;
+  color: #000;
+}
+
+.resend-modal-body {
+  padding: 24px;
+  color: #333;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.resend-modal-body p {
+  margin: 0 0 16px 0;
+}
+
+.resend-modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+.resend-modal-email {
+  display: block;
+  padding: 8px 12px;
+  background-color: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-weight: 600;
+  color: #000;
+  margin: 12px auto 0 auto;
+  font-size: 0.9rem;
+  text-align: center;
+  width: fit-content;
+}
+
+.resend-modal-footer {
+  padding: 20px 24px 24px 24px;
+  border-top: 1px solid #e5e5e5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background-color: #fafafa;
+}
+
+.resend-modal-btn-cancel,
+.resend-modal-btn-confirm {
+  padding: 10px 24px;
+  border: 1px solid #d0d0d0;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.resend-modal-btn-cancel {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.resend-modal-btn-cancel:hover {
+  background-color: #e8e8e8;
+  border-color: #c0c0c0;
+}
+
+.resend-modal-btn-confirm {
+  background-color: #f5f5f5;
+  color: #000;
+  font-weight: 600;
+}
+
+.resend-modal-btn-confirm:hover {
+  background-color: #e8e8e8;
+  border-color: #c0c0c0;
+}
+
+/* Responsive styles for modal */
+@media (max-width: 768px) {
+  .resend-modal-content {
+    width: 95%;
+    max-width: none;
+  }
+
+  .resend-modal-header {
+    padding: 20px;
+  }
+
+  .resend-modal-body {
+    padding: 20px;
+    font-size: 0.9rem;
+  }
+
+  .resend-modal-footer {
+    padding: 18px 20px 20px 20px;
+    flex-direction: column;
+  }
+
+  .resend-modal-btn-cancel,
+  .resend-modal-btn-confirm {
+    width: 100%;
+    padding: 12px 24px;
+  }
+}

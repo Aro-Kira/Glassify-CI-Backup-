@@ -144,6 +144,7 @@ $route['auth/process_reset_password/(:any)'] = 'auth/process_reset_password/$1';
 
 /*==============Email Confirmation Routes================*/
 $route['auth/confirm_email/(:any)'] = 'auth/confirm_email/$1';
+$route['auth/resend_confirmation'] = 'auth/resend_confirmation_email';
 
 /* 
 ======================================
