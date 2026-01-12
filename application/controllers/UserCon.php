@@ -264,6 +264,37 @@ class UserCon extends CI_Controller
     }
 
     // =============================
+    // SET DEFAULT ADDRESS (AJAX)
+    // =============================
+    public function set_default_address()
+    {
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized access.']);
+            return;
+        }
+
+        $userID = $this->session->userdata('user_id');
+        $addressID = $this->input->post('address_id');
+
+        if (!$addressID) {
+            echo json_encode(['success' => false, 'message' => 'Address ID is required.']);
+            return;
+        }
+
+        $this->load->model('User_model');
+        
+        // First, unset all default addresses for this user
+        $this->User_model->unset_default_address($userID);
+        
+        // Then set the selected address as default
+        if ($this->User_model->update_address_by_id($addressID, $userID, ['IsDefault' => 1])) {
+            echo json_encode(['success' => true, 'message' => 'Address set as default successfully!']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to set default address or address not found.']);
+        }
+    }
+
+    // =============================
     // UPDATE ADDRESS (AJAX)
     // =============================
     public function update_address()

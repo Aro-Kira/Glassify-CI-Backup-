@@ -110,9 +110,9 @@ function get_status_class($status) {
 
                 <!-- Addresses Section -->
                 <div id="addresses" class="content-section">
-                    <h3>Your Addresses</h3>
+                    <h3>Saved Addresses</h3>
                     <?php if (!empty($all_addresses)): ?>
-                        <div class="table-wrapper">
+                        <div class="table-wrapper addresses-table-wrapper">
                             <table class="styled-table">
                                 <thead>
                                     <tr>
@@ -125,15 +125,20 @@ function get_status_class($status) {
                                         <th>Region</th>
                                         <th>Country</th>
                                         <th>Zip Code</th>
-                                        <th>Type</th>
-                                        <th>Default</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($all_addresses as $addr): ?>
                                         <tr>
-                                            <td><?= htmlspecialchars($addr->UnitHouseNumber ?? '') ?></td>
+                                            <td>
+                                                <div class="unit-house-number-cell">
+                                                    <?= htmlspecialchars($addr->UnitHouseNumber ?? '') ?>
+                                                    <?php if ($addr->IsDefault == 1): ?>
+                                                        <div class="default-label">Default</div>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
                                             <td><?= htmlspecialchars($addr->Street ?? '') ?></td>
                                             <td><?= htmlspecialchars($addr->Subdivision ?? '') ?></td>
                                             <td><?= htmlspecialchars($addr->Barangay ?? '') ?></td>
@@ -142,11 +147,10 @@ function get_status_class($status) {
                                             <td><?= htmlspecialchars($addr->Region ?? '') ?></td>
                                             <td><?= htmlspecialchars($addr->Country ?? 'Philippines') ?></td>
                                             <td><?= htmlspecialchars($addr->ZipCode ?? '') ?></td>
-                                            <td><?= htmlspecialchars($addr->AddressType ?? 'N/A') ?></td>
-                                            <td><?= $addr->IsDefault == 1 ? 'Yes' : 'No' ?></td>
                                             <td>
-                                                <button class="btn-edit-address" data-address-id="<?= $addr->AddressID ?>">Edit</button>
-                                                <button class="btn-delete-address" data-address-id="<?= $addr->AddressID ?>">Delete</button>
+                                                <button class="btn-edit-icon" data-address-id="<?= $addr->AddressID ?>" title="Edit Address">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -154,16 +158,46 @@ function get_status_class($status) {
                             </table>
                         </div>
                     <?php else: ?>
-                        <p>No saved addresses. Add one using the form below.</p>
+                        <p>No saved addresses. <button class="btn-add-new-address" id="btnAddNewAddress">Add New Address</button></p>
                     <?php endif; ?>
                     
-                    <h4 class="section-title" id="addressFormTitle" style="margin-top: 2rem;">Add New Address</h4>
-                    <form id="addressesAddressForm" class="address-form">
+                    <button class="btn-add-new-address" id="btnAddNewAddressMain" style="margin-top: 2rem;">+ Add New Address</button>
+                    
+                    <!-- Address Action Modal -->
+                    <div id="addressActionModal" class="address-modal-overlay" style="display: none !important;">
+                        <div class="address-modal-content">
+                            <div class="address-modal-header">
+                                <h3>Address Options</h3>
+                                <button type="button" class="address-modal-close" onclick="closeAddressActionModal()">&times;</button>
+                            </div>
+                            <div class="address-modal-body">
+                                <p>What would you like to do with this address?</p>
+                                <div class="address-modal-actions">
+                                    <button class="address-action-btn address-action-edit" id="modalEditBtn">Edit Address</button>
+                                    <button class="address-action-btn address-action-delete" id="modalDeleteBtn">Delete Address</button>
+                                    <button class="address-action-btn address-action-default" id="modalSetDefaultBtn">Set as Default</button>
+                                </div>
+                            </div>
+                            <div class="address-modal-footer">
+                                <button type="button" class="address-modal-btn-cancel" onclick="closeAddressActionModal()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Add/Edit Address Modal -->
+                    <div id="addressFormModal" class="address-modal-overlay" style="display: none !important;">
+                        <div class="address-modal-content address-form-modal-content">
+                            <div class="address-modal-header">
+                                <h3 id="addressFormModalTitle">Add New Address</h3>
+                                <button type="button" class="address-modal-close" onclick="closeAddressFormModal()">&times;</button>
+                            </div>
+                            <div class="address-modal-body">
+                                <form id="addressesAddressForm" class="address-form">
                         <input type="hidden" name="AddressID" id="addressesEditAddressID" value="">
                         
                         <div class="form-field-group">
-                            <label for="addressesUnitHouseNumber">Unit/House Number</label>
-                            <input type="text" name="UnitHouseNumber" id="addressesUnitHouseNumber" placeholder="Enter Unit/House Number (optional)">
+                            <label for="addressesUnitHouseNumber">Unit/House Number <span class="required-asterisk">*</span></label>
+                            <input type="text" name="UnitHouseNumber" id="addressesUnitHouseNumber" placeholder="Enter Unit/House Number" required>
                         </div>
                         
                         <div class="form-field-group">
@@ -231,12 +265,26 @@ function get_status_class($status) {
                         <div class="form-field-group checkbox-group">
                             <label class="checkbox-label">
                                 <input type="checkbox" name="IsDefault" id="addressesIsDefault" value="1">
-                                <span>Set as default address</span>
+                                <span>Set this address as my default shipping address</span>
                             </label>
                         </div>
-                        <button type="submit" class="btn-add" id="addressesAddressSubmitBtn">+ Add Address</button>
-                        <button type="button" class="btn-cancel" id="addressesCancelEditBtn" style="display:none; margin-top:10px;">Cancel Edit</button>
-                    </form>
+                                </form>
+                            </div>
+                            <div class="address-modal-footer">
+                                <!-- Buttons shown when editing -->
+                                <div id="addressFormEditButtons" class="address-form-edit-buttons" style="display: none;">
+                                    <button type="submit" class="address-modal-btn-save" id="addressesAddressSubmitBtn" form="addressesAddressForm">Save Changes</button>
+                                    <button type="button" class="address-action-btn address-action-delete" id="formModalDeleteBtn">Delete</button>
+                                    <button type="button" class="address-modal-btn-cancel" onclick="closeAddressFormModal()">Cancel</button>
+                                </div>
+                                <!-- Buttons shown when adding new address -->
+                                <div id="addressFormAddButtons" class="address-modal-footer-buttons">
+                                    <button type="button" class="address-modal-btn-cancel" onclick="closeAddressFormModal()">Cancel</button>
+                                    <button type="submit" class="address-modal-btn-save" id="addressesAddressSubmitBtnAdd" form="addressesAddressForm">Save Address</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Account Details Section (Current Profile Form) -->
@@ -423,8 +471,8 @@ function get_status_class($status) {
                             <input type="hidden" name="AddressID" id="editAddressID" value="">
                             
                             <div class="form-field-group">
-                                <label for="unitHouseNumber">Unit/House Number</label>
-                                <input type="text" name="UnitHouseNumber" id="unitHouseNumber" placeholder="Enter Unit/House Number (optional)">
+                                <label for="unitHouseNumber">Unit/House Number <span class="required-asterisk">*</span></label>
+                                <input type="text" name="UnitHouseNumber" id="unitHouseNumber" placeholder="Enter Unit/House Number" required>
                             </div>
                             
                             <div class="form-field-group">
@@ -493,7 +541,7 @@ function get_status_class($status) {
                             <div class="form-field-group checkbox-group">
                                 <label class="checkbox-label">
                                     <input type="checkbox" name="IsDefault" id="isDefault" value="1">
-                                    <span>Set as default address</span>
+                                    <span>Set this address as my default shipping address</span>
                                 </label>
                             </div>
 
@@ -959,21 +1007,40 @@ function get_status_class($status) {
                 window.scrollTo(0, scrollPos);
             });
 
-            // ========= ADDRESS EDIT/DELETE IN ADDRESSES SECTION =========
-            // Edit address button in addresses section
-            $(document).on("click", "#addresses .btn-edit-address", function () {
-                const addressId = $(this).data("address-id");
+            // ========= ADDRESS MODAL HANDLERS =========
+            let currentAddressId = null;
+            
+            // Make close functions globally accessible
+            window.closeAddressActionModal = function() {
+                $("#addressActionModal").css("display", "none");
+                currentAddressId = null;
+            };
+            
+            window.closeAddressFormModal = function() {
+                $("#addressFormModal").css("display", "none");
+                $("#addressesAddressForm")[0].reset();
+                $("#addressesEditAddressID").val('');
+                $("#addressesIsDefault").prop('checked', false);
+                $("#addressFormModalTitle").text("Add New Address");
+                $("#addressFormEditButtons").hide();
+                $("#addressFormAddButtons").show();
+                currentAddressId = null;
+            };
+            
+            // Edit icon click - directly open form modal with pre-filled data
+            $(document).on("click", "#addresses .btn-edit-icon", function () {
+                currentAddressId = $(this).data("address-id");
                 
                 $.ajax({
                     url: "<?= base_url('UserCon/get_address') ?>",
                     method: "GET",
-                    data: { address_id: addressId },
+                    data: { address_id: currentAddressId },
                     dataType: "json",
                     success: function (res) {
                         if (res.success && res.data) {
                             const addr = res.data;
                             
-                            // Populate form fields in addresses section
+                            // Populate form fields
                             $("#addressesEditAddressID").val(addr.AddressID || '');
                             $("#addressesUnitHouseNumber").val(addr.UnitHouseNumber || '');
                             $("#addressesStreet").val(addr.Street || '');
@@ -981,7 +1048,6 @@ function get_status_class($status) {
                             $("#addressesBarangay").val(addr.Barangay || '');
                             $("#addressesRegion").val(addr.Region || '').trigger('change');
                             
-                            // Wait a bit for province to populate, then set city
                             setTimeout(function() {
                                 $("#addressesProvince").val(addr.Province || '');
                                 $("#addressesProvince").trigger('change');
@@ -995,23 +1061,40 @@ function get_status_class($status) {
                             $("#addressesZipCode").val(addr.ZipCode || '');
                             $("#addressesIsDefault").prop('checked', addr.IsDefault == 1);
                             
-                            // Change form title and button
-                            $("#addressFormTitle").text("Edit Address");
-                            $("#addressesAddressSubmitBtn").text("Update Address");
-                            $("#addressesCancelEditBtn").show();
+                            // Change form title
+                            $("#addressFormModalTitle").text("Edit Address");
                             
-                            // Scroll to form
-                            $('html, body').animate({
-                                scrollTop: $("#addressesAddressForm").offset().top - 100
-                            }, 500);
+                            // Show edit buttons, hide add buttons
+                            $("#addressFormEditButtons").show();
+                            $("#addressFormAddButtons").hide();
+                            
+                            // Store address ID for form modal actions
+                            currentAddressId = addr.AddressID;
+                            
+                            // Open form modal
+                            $("#addressFormModal").css("display", "flex");
                         }
                     }
                 });
             });
-
-            // Delete address button in addresses section
-            $(document).on("click", "#addresses .btn-delete-address", function () {
-                const addressId = $(this).data("address-id");
+            
+            
+            // Add New Address button
+            $("#btnAddNewAddress, #btnAddNewAddressMain").on("click", function() {
+                $("#addressesAddressForm")[0].reset();
+                $("#addressesEditAddressID").val('');
+                $("#addressesIsDefault").prop('checked', false);
+                $("#addressFormModalTitle").text("Add New Address");
+                $("#addressFormEditButtons").hide();
+                $("#addressFormAddButtons").show();
+                $("#addressesRegion").trigger('change');
+                currentAddressId = null;
+                $("#addressFormModal").css("display", "flex");
+            });
+            
+            // Form modal - Delete button (in edit mode)
+            $("#formModalDeleteBtn").on("click", function() {
+                if (!currentAddressId) return;
                 
                 if (!confirm("Are you sure you want to delete this address?")) {
                     return;
@@ -1020,12 +1103,12 @@ function get_status_class($status) {
                 $.ajax({
                     url: "<?= base_url('UserCon/delete_address') ?>",
                     method: "POST",
-                    data: { address_id: addressId },
+                    data: { address_id: currentAddressId },
                     dataType: "json",
                     success: function (res) {
                         if (res.success) {
                             alert("Address deleted successfully!");
-                            // Reload the page to refresh the addresses list
+                            closeAddressFormModal();
                             location.reload();
                         } else {
                             alert(res.message || "Failed to delete address.");
@@ -1036,8 +1119,10 @@ function get_status_class($status) {
                     }
                 });
             });
+            
+            // Modals can only be closed by clicking buttons or X - no outside click or ESC key closing
 
-            // Handle address form submission in addresses section
+            // Handle address form submission
             $("#addressesAddressForm").submit(function (e) {
                 e.preventDefault();
                 
@@ -1057,23 +1142,12 @@ function get_status_class($status) {
                             } else {
                                 alert("Address added successfully!");
                             }
-                            // Reload the page to refresh the addresses list
+                            closeAddressFormModal();
                             location.reload();
                         } else {
                             alert(data.message || "Failed to save address.");
                         }
                     });
-            });
-
-            // Cancel edit in addresses section
-            $("#addressesCancelEditBtn").on("click", function() {
-                $("#addressesAddressForm")[0].reset();
-                $("#addressesEditAddressID").val('');
-                $("#addressesIsDefault").prop('checked', false);
-                $("#addressFormTitle").text("Add New Address");
-                $("#addressesAddressSubmitBtn").text("+ Add Address");
-                $(this).hide();
-                $("#addressesRegion").trigger('change');
             });
 
             // Region change handler for addresses section
