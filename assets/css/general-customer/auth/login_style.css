@@ -157,6 +157,7 @@ input.invalid {
   display: flex;
   align-items: center;
   gap: 10px; /* space between icon and input */
+  position: relative; /* For absolute positioning of toggle button */
 }
 
 .login-input-icon {
@@ -168,13 +169,30 @@ input.invalid {
 .login-input-row input {
   flex: 1;  /* input fills remaining space */
   padding: 0.75rem;
+  padding-right: 40px; /* Make room for eye icon */
   border: 1px solid #ccc;
   border-radius: 6px;
   background: #f1f1f1;
   box-sizing: border-box;
 }
 
+/* Hide browser's native password visibility toggle */
+.login-input-row input[type="password"]::-webkit-credentials-auto-fill-button,
+.login-input-row input[type="password"]::-webkit-textfield-decoration-container {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.login-input-row input[type="password"]::-ms-reveal {
+  display: none !important;
+}
+
 .login-toggle-password {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
   cursor: pointer;
@@ -184,7 +202,7 @@ input.invalid {
   justify-content: center;
   color: #032C3A;
   font-size: 1.1rem;
-  flex-shrink: 0;
+  z-index: 2;
   transition: color 0.3s;
 }
 
@@ -338,10 +356,12 @@ input.invalid {
 
   .login-input-row input {
     padding: 0.7rem;
+    padding-right: 38px;
     font-size: 0.95rem;
   }
 
   .login-toggle-password {
+    right: 8px;
     padding: 0.4rem;
     font-size: 1rem;
   }
@@ -448,10 +468,12 @@ input.invalid {
 
   .login-input-row input {
     padding: 0.65rem;
+    padding-right: 36px;
     font-size: 0.9rem;
   }
 
   .login-toggle-password {
+    right: 10px;
     padding: 0.3rem;
     font-size: 0.95rem;
   }

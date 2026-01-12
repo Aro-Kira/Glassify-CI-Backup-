@@ -96,7 +96,7 @@
                 <button type="submit" class="register-btn">Sign Up</button>
 
                 <p class="register-login" style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
-                    Have an account? <a href="<?php echo base_url('login'); ?>" style="color: #032C3A; font-weight: bold; text-decoration: none;">Log in</a>
+                    Have an account? <a href="<?php echo base_url('login'); ?>" class="register-login-link">Log in</a>
                 </p>
 
             <?php echo form_close(); ?>
