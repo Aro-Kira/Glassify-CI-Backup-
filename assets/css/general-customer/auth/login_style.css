@@ -95,6 +95,57 @@ body {
   color: #032C3A;
 }
 
+/* Password Requirements */
+.password-requirements {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  display: block;
+}
+
+.requirements-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #032C3A;
+  font-size: 0.9rem;
+}
+
+.requirements-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.requirements-list li {
+  margin: 0.4rem 0;
+  display: flex;
+  align-items: center;
+  color: #666;
+  transition: color 0.2s;
+}
+
+.check-icon {
+  display: inline-block;
+  width: 18px;
+  margin-right: 0.5rem;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+/* Password input validation states */
+input.valid {
+  border-color: #28a745;
+  background: #f0fff4;
+}
+
+input.invalid {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
 /* Ensure input row and button share the same width */
 .login-btn {
   width: 100%;
@@ -312,6 +363,27 @@ body {
     font-size: 0.85rem;
     margin-top: 1rem;
   }
+
+  .password-requirements {
+    padding: 0.6rem;
+    font-size: 0.8rem;
+    margin-top: 0.4rem;
+  }
+
+  .requirements-title {
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .requirements-list li {
+    margin: 0.3rem 0;
+    font-size: 0.8rem;
+  }
+
+  .check-icon {
+    width: 16px;
+    font-size: 0.85rem;
+  }
 }
 
 /* Small mobile devices */
@@ -400,6 +472,25 @@ body {
   }
 
   .login-register {
+    font-size: 0.8rem;
+  }
+
+  .password-requirements {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .requirements-title {
+    font-size: 0.8rem;
+  }
+
+  .requirements-list li {
+    font-size: 0.75rem;
+    margin: 0.25rem 0;
+  }
+
+  .check-icon {
+    width: 14px;
     font-size: 0.8rem;
   }
 }

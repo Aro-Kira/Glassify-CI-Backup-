@@ -44,6 +44,10 @@ class Auth extends CI_Controller
             redirect(base_url('register'));
         }
 
+        // Generate email confirmation token
+        $confirmation_token = bin2hex(random_bytes(32));
+        $confirmation_expiry = date('Y-m-d H:i:s', strtotime('+24 hours')); // Token valid for 24 hours
+        
         $data = [
             'First_Name' => $this->input->post('first_name'),
             'Middle_Name' => $this->input->post('middle_initial') ?: '',
@@ -52,11 +56,27 @@ class Auth extends CI_Controller
             'Password' => password_hash($this->input->post('password'), PASSWORD_BCRYPT),
             'PhoneNum' => $this->input->post('phone'),
             'Role' => 'Customer', // default role
-            'Status' => 'Active'
+            'Status' => 'Inactive', // Set to Inactive until email is confirmed
+            'reset_token' => $confirmation_token, // Temporarily use reset_token for confirmation
+            'reset_token_expiry' => $confirmation_expiry
         ];
 
-        if ($this->User_model->register($data)) {
-            $this->session->set_flashdata('success', 'Registration successful! You can now log in.');
+        $user_id = $this->User_model->register($data);
+        
+        if ($user_id) {
+            // Send confirmation email
+            $first_name = $this->input->post('first_name');
+            $confirmation_link = base_url('auth/confirm_email/' . $confirmation_token);
+            $email_sent = $this->send_confirmation_email($email, $first_name, $confirmation_link);
+            
+            if ($email_sent) {
+                log_message('info', 'Confirmation email sent successfully to: ' . $email);
+                $this->session->set_flashdata('success', 'Registration successful! Please check your email to confirm your account before logging in.');
+            } else {
+                log_message('error', 'Failed to send confirmation email to: ' . $email);
+                $this->session->set_flashdata('success', 'Registration successful! Please check your email to confirm your account before logging in.');
+            }
+            
             redirect(base_url('login'));
         } else {
             $this->session->set_flashdata('error', 'Registration failed. Please try again.');
@@ -378,10 +398,17 @@ class Auth extends CI_Controller
             redirect(base_url($redirect_url));
         }
 
-        // Check if account is active
+        // Check if account is active (for Customers, also check if email is confirmed)
         if ($user->Status !== 'Active') {
             log_message('info', 'Login attempt failed: Inactive account - email=' . $email . ', role=' . $role);
-            $this->session->set_flashdata('error', 'Your account is inactive. Please contact administrator.');
+            
+            // If user is Customer and account is Inactive, they likely haven't confirmed email
+            if ($user->Role === 'Customer' && $role === 'Customer') {
+                $this->session->set_flashdata('error', 'Please confirm your email address before logging in. Check your inbox for the confirmation link.');
+            } else {
+                $this->session->set_flashdata('error', 'Your account is inactive. Please contact administrator.');
+            }
+            
             redirect(base_url($redirect_url));
         }
 
@@ -649,7 +676,7 @@ class Auth extends CI_Controller
     public function process_reset_password($role = 'Sales')
     {
         $this->form_validation->set_rules('token', 'Token', 'required|trim');
-        $this->form_validation->set_rules('password', 'Password', 'required|min_length[6]|trim');
+        $this->form_validation->set_rules('password', 'Password', 'required|min_length[8]|trim');
         $this->form_validation->set_rules('confirm_password', 'Confirm Password', 'required|matches[password]|trim');
 
         if ($this->form_validation->run() == FALSE) {
@@ -775,6 +802,9 @@ class Auth extends CI_Controller
     private function send_reset_email($user_email, $first_name, $reset_link, $role = 'Customer')
     {
         try {
+            // Clear any previous email data
+            $this->email->clear();
+            
             // Load email configuration
             $this->load->config('email');
             
@@ -826,6 +856,119 @@ class Auth extends CI_Controller
             
         } catch (Exception $e) {
             log_message('error', 'Exception in send_reset_email: ' . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // ===================== EMAIL CONFIRMATION =====================
+    /**
+     * Confirm user's email address using token
+     */
+    public function confirm_email($token = '')
+    {
+        if (empty($token)) {
+            $this->session->set_flashdata('error', 'Invalid confirmation token.');
+            redirect(base_url('login'));
+        }
+        
+        // Find user by token (using reset_token temporarily for confirmation)
+        $user = $this->User_model->get_by_reset_token($token);
+        
+        if (!$user) {
+            $this->session->set_flashdata('error', 'Invalid or expired confirmation token. Please register again.');
+            redirect(base_url('register'));
+        }
+        
+        // Check if token is expired
+        if (strtotime($user->reset_token_expiry) < time()) {
+            $this->session->set_flashdata('error', 'Confirmation token has expired. Please register again.');
+            redirect(base_url('register'));
+        }
+        
+        // Activate account and clear token
+        $this->db->where('UserID', $user->UserID);
+        $update_result = $this->db->update('user', [
+            'Status' => 'Active',
+            'reset_token' => NULL,
+            'reset_token_expiry' => NULL
+        ]);
+        
+        if ($update_result) {
+            log_message('info', 'Email confirmed successfully for UserID: ' . $user->UserID);
+            $this->session->set_flashdata('success', 'Email confirmed successfully! You can now log in.');
+            redirect(base_url('login'));
+        } else {
+            log_message('error', 'Failed to confirm email for UserID: ' . $user->UserID);
+            $this->session->set_flashdata('error', 'Confirmation failed. Please try again or contact support.');
+            redirect(base_url('register'));
+        }
+    }
+    
+    // ===================== SEND CONFIRMATION EMAIL =====================
+    /**
+     * Send email confirmation email to user
+     * 
+     * @param string $user_email User's email address
+     * @param string $first_name User's first name
+     * @param string $confirmation_link Email confirmation link with token
+     * @return bool True if email sent successfully, false otherwise
+     */
+    private function send_confirmation_email($user_email, $first_name, $confirmation_link)
+    {
+        try {
+            // Clear any previous email data
+            $this->email->clear();
+            
+            // Load email configuration
+            $this->load->config('email');
+            
+            // Initialize email library with SMTP settings
+            $this->email->initialize([
+                'protocol' => $this->config->item('protocol'),
+                'smtp_host' => $this->config->item('smtp_host'),
+                'smtp_user' => $this->config->item('smtp_user'),
+                'smtp_pass' => $this->config->item('smtp_pass'),
+                'smtp_port' => $this->config->item('smtp_port'),
+                'smtp_crypto' => $this->config->item('smtp_crypto'),
+                'smtp_timeout' => $this->config->item('smtp_timeout'),
+                'mailtype' => 'html',
+                'charset' => 'utf-8',
+                'newline' => "\r\n",
+                'crlf' => "\r\n"
+            ]);
+            
+            // Set email details
+            $this->email->from('glassifytesting@gmail.com', 'Glassify');
+            $this->email->to($user_email);
+            $this->email->subject('Confirm Your Email Address - Glassify');
+            
+            // Prepare email data for view
+            $email_data = [
+                'first_name' => $first_name,
+                'confirmation_link' => $confirmation_link,
+                'user_email' => $user_email
+            ];
+            
+            // Load email template
+            $email_body = $this->load->view('emails/email_confirmation', $email_data, TRUE);
+            
+            // Set email message
+            $this->email->message($email_body);
+            
+            // Send email
+            $result = $this->email->send();
+            
+            if (!$result) {
+                // Log email error for debugging
+                $error = $this->email->print_debugger();
+                log_message('error', 'Confirmation email sending failed: ' . $error);
+                return false;
+            }
+            
+            return true;
+            
+        } catch (Exception $e) {
+            log_message('error', 'Exception in send_confirmation_email: ' . $e->getMessage());
             return false;
         }
     }

@@ -56,7 +56,7 @@ if ($email_sent):
     <!-- Right Panel -->
     <div class="login-right">
       <h3 class="login-title">Forgot Password</h3>
-      <p style="text-align: center; color: #666; margin-bottom: 20px;">
+      <p style="text-align: left; color: #666; margin-bottom: 20px;">
         Enter your email address and we'll send you instructions to reset your password.
       </p>
 
