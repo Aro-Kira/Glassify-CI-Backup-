@@ -120,32 +120,10 @@ if ($is_customer) {
         <!-- ========== PROFILE / LOGIN ICON (ALWAYS LAST) ========== -->
         <div class="header-dropdown" style="display: inline-block; position: relative;">
             <?php if ($is_customer): ?>
-                <!-- When customer is logged in: show dropdown with Profile + Logout -->
-                <button class="header-dropbtn" style="background: none; border: none;">
-                    <img src="<?php echo base_url('assets/images/img-page/user.png'); ?>" alt="Profile">
-                </button>
-                <div class="dropdown-content"
-                    style="display: none; position: absolute; right: 0; background: white; border: 1px solid #ddd; border-radius: 5px; padding: 10px;">
-                    <a href="<?php echo base_url('Profile'); ?>">Profile</a><br>
-                    <a href="<?php echo base_url('logout'); ?>">Logout</a>
-                </div>
-
-                <!-- ========== DROPDOWN TOGGLE SCRIPT ========== -->
-                <script>
-                    document.addEventListener('DOMContentLoaded', function () {
-                        const btn = document.querySelector('.header-dropbtn');
-                        const dropdown = document.querySelector('.dropdown-content');
-                        btn.addEventListener('click', () => {
-                            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-                        });
-                        // Hide dropdown when clicking outside
-                        document.addEventListener('click', (e) => {
-                            if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
-                                dropdown.style.display = 'none';
-                            }
-                        });
-                    });
-                </script>
+                <!-- When customer is logged in: link directly to Profile page -->
+                <a href="<?php echo base_url('Profile'); ?>" style="display: inline-block;">
+                    <img src="<?php echo base_url('assets/images/img-page/user.png'); ?>" alt="Profile" style="cursor: pointer;">
+                </a>
             <?php else: ?>
                 <!-- When not logged in or on login pages: show login icon -->
                 <a href="<?php echo base_url('login'); ?>">
