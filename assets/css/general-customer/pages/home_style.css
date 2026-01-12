@@ -604,9 +604,236 @@ tbody tr:hover {
   .recommendation-card {
     height: auto;
   }
+
+  .dashboard-hero {
+    padding: 8%;
+  }
+
+  .hero-cards {
+    gap: 15px;
+  }
+
+  .hero-card {
+    min-width: 180px;
+  }
+
+  .order-progress,
+  .appointment,
+  .activity-feed,
+  .recommendations {
+    margin: 15px;
+    padding: 20px;
+  }
+
+  table {
+    font-size: 0.9em;
+  }
+
+  th, td {
+    padding: 10px;
+  }
 }
+
+/* Tablet */
+@media (max-width: 768px) {
+  .dashboard-hero {
+    padding: 5%;
+  }
+
+  h1 {
+    font-size: 3rem;
+  }
+
+  .dashboard-hero .subtle {
+    font-size: 1.2rem;
+  }
+
+  .hero-cards {
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+  }
+
+  .hero-card {
+    min-width: 100%;
+    max-width: 300px;
+  }
+
+  .order-progress,
+  .appointment,
+  .activity-feed,
+  .recommendations {
+    margin: 10px;
+    padding: 15px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .section-header h2 {
+    font-size: 1.3rem;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 0.85em;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tbody tr {
+    display: block;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px;
+    background: #fff;
+  }
+
+  tbody td {
+    display: block;
+    padding: 8px 0;
+    text-align: right;
+    border: none;
+  }
+
+  tbody td:before {
+    content: attr(data-label);
+    float: left;
+    font-weight: 600;
+    color: #04384c;
+  }
+
+  .product-cell {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .product-cell:before {
+    content: "Product: ";
+    float: left;
+    font-weight: 600;
+    color: #04384c;
+  }
+
+  .product-thumb {
+    width: 50px;
+    height: 50px;
+  }
+
+  .activity-feed {
+    padding: 20px;
+  }
+
+  .activity-text {
+    max-width: 100%;
+  }
+
+  .time-stamp {
+    text-align: left;
+    margin-top: 10px;
+  }
+
+  .activity-feed li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .recommendation-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+
+  .recommendation-card {
+    height: auto;
+    padding: 15px 10px;
+  }
+
+  .recommendation-card img {
+    height: 200px;
+  }
+
+  .recommendation-card h3 {
+    font-size: 12pt;
+    margin: 15px 5px 10px;
+  }
+
+  .recommendation-card button {
+    font-size: 11pt;
+    padding: 10px 0;
+  }
+}
+
 @media (max-width: 600px) {
   .recommendation-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-hero {
+    padding: 3%;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  .dashboard-hero .subtle {
+    font-size: 1rem;
+  }
+
+  .hero-card {
+    min-width: 100%;
+  }
+
+  .order-progress,
+  .appointment,
+  .activity-feed,
+  .recommendations {
+    margin: 5px;
+    padding: 10px;
+  }
+
+  .section-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .dropbtn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  table {
+    font-size: 0.8em;
+  }
+
+  .product-thumb {
+    width: 40px;
+    height: 40px;
+  }
+
+  .status {
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    min-width: 60px;
+  }
+
+  .recommendation-card img {
+    height: 180px;
+  }
+
+  .recommendation-card h3 {
+    font-size: 11pt;
+  }
+
+  .recommendation-card button {
+    font-size: 10pt;
   }
 }

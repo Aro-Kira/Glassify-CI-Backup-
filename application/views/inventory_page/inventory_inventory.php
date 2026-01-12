@@ -265,30 +265,6 @@
       </div>
     </div>
   </div>
-
-
-  <div class="order-tabs">
-    <h2>Recent Activities</h2>
-  </div>
-  <!-- Recent Activities -->
-  <section class="recent-activities">
-    <table>
-      <thead>
-        <tr>
-          <th>Action</th>
-          <th>Item</th>
-          <th>Change</th>
-          <th>Description</th>
-          <th>Timestamp</th>
-        </tr>
-      </thead>
-      <tbody id="activitiesTableBody">
-        <tr>
-          <td colspan="5" style="text-align: center; padding: 20px;">Loading activities...</td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
 </section>
 
 <!-- Only load scripts that exist and are needed -->
@@ -429,41 +405,6 @@
             });
     }
     
-    // Load activities from API
-    function loadActivities() {
-        fetch(baseUrl + 'api/inventory/get_activities')
-            .then(response => response.json())
-            .then(data => {
-                const tbody = document.getElementById('activitiesTableBody');
-                if (!tbody) return;
-                
-                if (data.success && data.data && data.data.length > 0) {
-                    tbody.innerHTML = '';
-                    
-                    data.data.forEach(activity => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${escapeHtml(activity.action || '')}</td>
-                            <td>${escapeHtml(activity.item_name || '')}</td>
-                            <td>${escapeHtml(activity.change_description || '')}</td>
-                            <td>${escapeHtml(activity.description || '')}</td>
-                            <td>${formatDate(activity.timestamp)}</td>
-                        `;
-                        tbody.appendChild(row);
-                    });
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No activities found</td></tr>';
-                }
-            })
-            .catch(error => {
-                console.error('Error loading activities:', error);
-                const tbody = document.getElementById('activitiesTableBody');
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #f44336;">Error loading activities</td></tr>';
-                }
-            });
-    }
-    
     // Attach action listeners
     function attachActionListeners() {
         // Action buttons
@@ -573,7 +514,6 @@
         // Load data
         loadStatistics();
         loadItems();
-        loadActivities();
         
         // Add item button
         document.getElementById('addItemBtn').addEventListener('click', function() {
@@ -773,7 +713,6 @@
                     closePopups();
                     loadItems();
                     loadStatistics();
-                    loadActivities();
                     document.getElementById('addItemForm').reset();
                 } else {
                     showToast('Error: ' + (data.message || 'Failed to add item'), 'error');
@@ -810,7 +749,6 @@
                     closePopups();
                     loadItems();
                     loadStatistics();
-                    loadActivities();
                 } else {
                     showToast('Error: ' + (data.message || 'Failed to update stock'), 'error');
                 }
@@ -845,7 +783,6 @@
                     closePopups();
                     loadItems();
                     loadStatistics();
-                    loadActivities();
                 } else {
                     showToast('Error: ' + (data.message || 'Failed to update item'), 'error');
                 }
@@ -874,7 +811,6 @@
                     closePopups();
                     loadItems();
                     loadStatistics();
-                    loadActivities();
                 } else {
                     showToast('Error: ' + (data.message || 'Failed to delete item'), 'error');
                 }
@@ -912,7 +848,6 @@
     // Auto-refresh every 30 seconds
     setInterval(function() {
         loadStatistics();
-        loadActivities();
     }, 30000);
     
 })();

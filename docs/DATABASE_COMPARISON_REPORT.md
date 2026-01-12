@@ -2,14 +2,14 @@
 ## Latest Database Analysis - Missing Tables & Fields
 
 **Generated:** December 2025  
-**Latest Database File:** `latest_glassifydb.sql` (Dec 07, 2025 at 07:55 PM)  
-**Optimized Schema:** `super-latest-optimized.sql`
+**Latest Database File:** `database/dumps/latest_glassifydb.sql` (Dec 07, 2025 at 07:55 PM)  
+**Optimized Schema:** `database/dumps/super-latest-optimized.sql`
 
 ---
 
 ## 📊 Summary
 
-The **`latest_glassifydb.sql`** appears to be the most recent database dump. This report identifies tables and fields that may be missing in your phpMyAdmin database.
+The **`database/dumps/latest_glassifydb.sql`** appears to be the most recent database dump. This report identifies tables and fields that may be missing in your phpMyAdmin database.
 
 ---
 
@@ -68,7 +68,7 @@ The **`latest_glassifydb.sql`** appears to be the most recent database dump. Thi
 The `latest_glassifydb.sql` has these additional fields that may be missing:
 
 ```sql
--- These fields are in latest_glassifydb.sql but may be missing in your database:
+-- These fields are in database/dumps/latest_glassifydb.sql but may be missing in your database:
 `PreferredInstallationDate` date DEFAULT NULL COMMENT 'Customer preferred installation date (captured at checkout)',
 `OcularDate` date DEFAULT NULL COMMENT 'Scheduled date for ocular visit',
 `FabricationDate` date DEFAULT NULL COMMENT 'Scheduled date for fabrication',
@@ -137,7 +137,7 @@ Create a file with this SQL to update your database:
 ```sql
 -- =====================================================
 -- Database Update Script
--- Add missing fields and tables from latest_glassifydb.sql
+-- Add missing fields and tables from database/dumps/latest_glassifydb.sql
 -- =====================================================
 
 -- 1. Add missing fields to order table
@@ -200,9 +200,9 @@ SHOW TABLES LIKE '%_orders';
 
 ## 📁 File References
 
-- **Latest Database Dump:** `latest_glassifydb.sql` (Dec 07, 2025 at 07:55 PM)
-- **Optimized Schema:** `super-latest-optimized.sql`
-- **Migration Files:** `database_migrations/` folder
+- **Latest Database Dump:** `database/dumps/latest_glassifydb.sql` (Dec 07, 2025 at 07:55 PM)
+- **Optimized Schema:** `database/dumps/super-latest-optimized.sql`
+- **Migration Files:** `database/migrations/` folder
 
 ---
 

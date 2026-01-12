@@ -96,7 +96,7 @@ SHOW TABLES LIKE '%_orders';
 
 If any items above are unchecked, you need to:
 
-1. **Missing Tables:** Run the `update_database_to_latest.sql` script
+1. **Missing Tables:** Run the `database/scripts/update_database_to_latest.sql` script
 2. **Missing Fields:** Run the ALTER TABLE statements from the update script
 3. **Missing Foreign Keys:** Check constraints and add if needed
 
@@ -106,7 +106,7 @@ If any items above are unchecked, you need to:
 
 1. ✅ Run verification queries above
 2. ✅ Check off items in the checklist
-3. ✅ Run `update_database_to_latest.sql` for missing items
+3. ✅ Run `database/scripts/update_database_to_latest.sql` for missing items
 4. ✅ Re-verify after updates
 5. ✅ Test your application
 
@@ -114,7 +114,7 @@ If any items above are unchecked, you need to:
 
 ## Files Reference
 
-- **Update Script:** `update_database_to_latest.sql`
-- **Detailed Report:** `DATABASE_COMPARISON_REPORT.md`
-- **Latest Database:** `latest_glassifydb.sql`
+- **Update Script:** `database/scripts/update_database_to_latest.sql`
+- **Detailed Report:** `docs/DATABASE_COMPARISON_REPORT.md`
+- **Latest Database:** `database/dumps/latest_glassifydb.sql`
 

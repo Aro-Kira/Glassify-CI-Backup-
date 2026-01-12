@@ -93,7 +93,7 @@
 
 
 <!-- Contact -->
-<section class="contact-section">
+<section id="contact" class="contact-section">
     <div class="contact-content">
         <!-- Left Side: Info -->
         <div class="contact-info">

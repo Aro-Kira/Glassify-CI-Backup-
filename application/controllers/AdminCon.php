@@ -1512,8 +1512,13 @@ class AdminCon extends CI_Controller
             }
             
             // Map status to display format
-            $status_display = $this->map_status_to_display($order->Status);
-            $status_class = $this->map_status_to_class($order->Status);
+            // Handle null or empty status
+            $order_status = $order->Status ?? 'Pending Review';
+            if (empty($order_status) || trim($order_status) === '') {
+                $order_status = 'Pending Review';
+            }
+            $status_display = $this->map_status_to_display($order_status);
+            $status_class = $this->map_status_to_class($order_status);
             
             $formatted_orders[] = [
                 'order_id' => $order_id_formatted,
@@ -2178,14 +2183,14 @@ class AdminCon extends CI_Controller
      */
     private function map_status_to_display($status)
     {
-        // Handle empty/null status
-        if (empty($status) || $status === null) {
+        // Handle null or empty status
+        if (empty($status) || trim($status) === '') {
             return 'Pending Review';
         }
         
         $status_map = [
-            'Pending' => 'Pending Review', // Normalize old 'Pending' to 'Pending Review'
-            'Pending Review' => 'Pending Review', // Display as 'Pending Review' for new orders
+            'Pending' => 'Pending',
+            'Pending Review' => 'Ready to Approve',
             'Approved' => 'Confirmed',
             'Completed' => 'Completed',
             'Cancelled' => 'Canceled',
@@ -2193,7 +2198,6 @@ class AdminCon extends CI_Controller
             'In Fabrication' => 'In Progress',
             'Ready for Installation' => 'In Progress',
             'Awaiting Admin' => 'Ready to Approve',
-            'Ready to Approve' => 'Ready to Approve',
             'Returned' => 'Returned'
         ];
         
@@ -2205,6 +2209,11 @@ class AdminCon extends CI_Controller
      */
     private function map_status_to_class($status)
     {
+        // Handle null or empty status
+        if (empty($status) || trim($status) === '') {
+            return 'pending';
+        }
+        
         $class_map = [
             'Pending' => 'pending',
             'Pending Review' => 'pending',

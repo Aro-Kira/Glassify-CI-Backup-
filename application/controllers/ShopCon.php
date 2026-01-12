@@ -159,65 +159,126 @@ public function checkout()
 
     public function ewallet()
     {
-        // Get order summary from session (set when order was placed)
-        $pending_summary = $this->session->userdata('last_order_summary');
-        $pending_cart_ids = $this->session->userdata('last_selected_cart_ids');
+        // Check if user is logged in
+        if (!$this->session->userdata('is_logged_in')) {
+            redirect('login');
+            return;
+        }
+
+        $data['title'] = "Glassify - Payment";
         
-        // If no summary in session, try to get from selected cart IDs
-        if (!$pending_summary && $pending_cart_ids) {
-            $this->load->model('Cart_model');
-            $customer_id = $this->session->userdata('customer_id');
+        // Initialize default summary
+        $data['pending_summary'] = [
+            'items' => 0,
+            'subtotal' => 0,
+            'shipping' => 0,
+            'handling' => 0,
+            'total' => 0
+        ];
+        $data['pending_cart_ids'] = '';
+        
+        $customer_id = $this->session->userdata('customer_id');
+        
+        if ($customer_id) {
+            // Priority 1: Check if order was just placed (from checkout -> ewallet redirect)
+            $last_order_id = $this->session->userdata('last_order_id');
             
-            if ($customer_id) {
-                // Parse selected cart IDs
-                $selected_ids = explode(',', $pending_cart_ids);
-                $selected_ids = array_map('trim', $selected_ids);
-                $selected_ids = array_filter($selected_ids);
+            if ($last_order_id) {
+                // Get order summary from the recently placed order
+                $this->load->model('Order_model');
+                $data['pending_summary'] = $this->Order_model->calculate_order_summary($last_order_id);
+            } else {
+                // Priority 2: Check for buy now customization ID (from session)
+                $buy_now_customization_id = $this->session->userdata('buy_now_customization_id');
                 
-                // Get cart items
-                $cart_items = $this->Cart_model->get_cart_items($customer_id);
+                if ($buy_now_customization_id) {
+                // Handle buy now: get customization data and calculate summary
+                $this->load->model('Cart_model');
+                $this->load->model('Customization_model');
                 
-                // Filter by selected IDs
-                $filtered_items = array_filter($cart_items, function($item) use ($selected_ids) {
-                    return in_array($item->CartID, $selected_ids);
-                });
+                // Get customization from database
+                // Verify it belongs to the current customer for security
+                $this->db->where('CustomizationID', $buy_now_customization_id);
+                $this->db->where('Customer_ID', $customer_id);
+                $customization = $this->db->get('customization')->row();
                 
-                // Calculate summary
-                $subtotal = 0;
-                $total_items = 0;
-                foreach ($filtered_items as $item) {
-                    $price = $item->EstimatePrice ?? $item->Price ?? 0;
-                    $subtotal += $price * $item->Quantity;
-                    $total_items += $item->Quantity;
+                if ($customization) {
+                    // Get product info
+                    $product_id = $customization->Product_ID ?? 0;
+                    if ($product_id) {
+                        $this->load->model('Product_model');
+                        $product = $this->Product_model->get_product($product_id);
+                        
+                        if ($product) {
+                            // Calculate summary for buy now (quantity is typically 1)
+                            $quantity = 1;
+                            $subtotal = floatval($customization->EstimatePrice ?? $customization->TotalQuotation ?? $product->Price ?? 0);
+                            $items_count = $quantity;
+                            $shipping = $items_count * 25;
+                            $handling = $items_count * 10;
+                            $total = $subtotal + $shipping + $handling;
+                            
+                            $data['pending_summary'] = [
+                                'items' => $items_count,
+                                'subtotal' => $subtotal,
+                                'shipping' => $shipping,
+                                'handling' => $handling,
+                                'total' => $total
+                            ];
+                        }
+                    }
                 }
-                $shipping = $total_items * 25;
-                $handling = $total_items * 10;
-                $total_amount = $subtotal + $shipping + $handling;
+                } else {
+                    // Priority 3: Handle regular cart checkout: get selected cart IDs from URL or session
+                $selected_ids_str = $this->input->get('selected') ?? '';
                 
-                $pending_summary = [
-                    'items' => $total_items,
-                    'subtotal' => $subtotal,
-                    'shipping' => $shipping,
-                    'handling' => $handling,
-                    'total' => $total_amount
-                ];
+                if (!empty($selected_ids_str)) {
+                    $data['pending_cart_ids'] = $selected_ids_str;
+                    
+                    // Get cart items for selected IDs
+                    $this->load->model('Cart_model');
+                    $cart_items = $this->Cart_model->get_cart_items_with_details($customer_id);
+                    
+                    // Parse selected IDs
+                    $selected_ids = array_map('intval', explode(',', $selected_ids_str));
+                    $selected_ids = array_filter($selected_ids);
+                    
+                    // Filter to only selected items
+                    $selected_items = [];
+                    foreach ($cart_items as $item) {
+                        if (in_array($item->Cart_ID, $selected_ids)) {
+                            $selected_items[] = $item;
+                        }
+                    }
+                    
+                    if (!empty($selected_items)) {
+                        // Calculate summary using same logic as CartCon
+                        $subtotal = 0;
+                        $total_items = 0;
+                        
+                        foreach ($selected_items as $item) {
+                            $price = $item->Price ?? $item->EstimatePrice ?? $item->BasePrice ?? 0;
+                            $subtotal += $price * $item->Quantity;
+                            $total_items += $item->Quantity;
+                        }
+                        
+                        $shipping = $total_items * 25;
+                        $handling = $total_items * 10;
+                        $total = $subtotal + $shipping + $handling;
+                        
+                        $data['pending_summary'] = [
+                            'items' => $total_items,
+                            'subtotal' => $subtotal,
+                            'shipping' => $shipping,
+                            'handling' => $handling,
+                            'total' => $total
+                        ];
+                    }
+                }
+                }
             }
         }
         
-        // Default values if no summary available
-        if (!$pending_summary) {
-            $pending_summary = [
-                'items' => 0,
-                'subtotal' => 0,
-                'shipping' => 0,
-                'handling' => 0,
-                'total' => 0
-            ];
-        }
-        
-        $data['title'] = "Glassify - Payment";
-        $data['pending_summary'] = $pending_summary;
-        $data['pending_cart_ids'] = $pending_cart_ids ?: '';
         $this->load->view('includes/header', $data);
         $this->load->view('shop/ewallet', $data);
         $this->load->view('includes/footer');
@@ -644,7 +705,7 @@ public function checkout()
                 'SalesRep_ID' => (int)$sales_rep_id,
                 'TotalAmount' => $total_amount,
                 'DeliveryAddress' => $delivery_address,
-                'Status' => 'Pending Review', // Set to 'Pending Review' for new orders
+                'Status' => 'Pending',
                 'PaymentStatus' => ($this->input->post('payment_method') === 'ewallet' && $this->input->post('receipt')) ? 'Pending' : 'Pending',
                 'SpecialInstructions' => $special_instructions_text
             ];
@@ -741,233 +802,159 @@ public function checkout()
      */
     public function place_order()
     {
-        // Disable error display and set JSON header immediately
-        @ini_set('display_errors', 0);
+        // Set JSON response header
         header('Content-Type: application/json');
-        
-        // Prevent any output before JSON (only if output buffering is active)
-        if (ob_get_level() > 0) {
-            ob_clean();
-        }
-        
-        try {
-            // Check if user is logged in
-            $customer_id = $this->session->userdata('customer_id');
-            if (!$customer_id) {
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Please log in to place an order.'
-                ]);
-                return;
-            }
 
-            // Get POST data
-            $payment_method = $this->input->post('payment_method');
-            $terms_accepted = $this->input->post('terms_accepted');
-
-            // Validate payment method
-            if (empty($payment_method)) {
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Please select a payment method.'
-                ]);
-                return;
-            }
-
-            // Validate terms acceptance
-            if ($terms_accepted !== 'true' && $terms_accepted !== '1') {
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Please accept the Terms and Conditions.'
-                ]);
-                return;
-            }
-
-            // Load models
-            $this->load->model('Cart_model');
-            $this->load->model('Order_model');
-            $this->load->model('User_model');
-
-            // Get selected cart IDs if provided
-            $selected_cart_ids = $this->input->post('selected_cart_ids');
-            
-            // Get cart items
-            $cart_items = $this->Cart_model->get_cart_items($customer_id);
-            if (empty($cart_items)) {
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Your cart is empty.'
-                ]);
-                return;
-            }
-            
-            // Filter by selected cart IDs if provided
-            if ($selected_cart_ids) {
-                $selected_ids = explode(',', $selected_cart_ids);
-                $selected_ids = array_map('trim', $selected_ids);
-                $selected_ids = array_filter($selected_ids);
-                $selected_ids = array_map('intval', $selected_ids); // Convert to integers for comparison
-                
-                if (!empty($selected_ids)) {
-                    $cart_items_before = count($cart_items);
-                    $cart_items = array_filter($cart_items, function($item) use ($selected_ids) {
-                        // Cart_ID is the correct field name (with underscore)
-                        return in_array((int)$item->Cart_ID, $selected_ids);
-                    });
-                    // Re-index array after filtering
-                    $cart_items = array_values($cart_items);
-                    
-                    // Debug logging
-                    log_message('debug', 'place_order: Filtered cart items. Before: ' . $cart_items_before . ', After: ' . count($cart_items) . ', Selected IDs: ' . implode(',', $selected_ids));
-                }
-            }
-            
-            if (empty($cart_items)) {
-                $debug_info = [
-                    'selected_cart_ids' => $selected_cart_ids,
-                    'total_cart_items' => count($this->Cart_model->get_cart_items($customer_id)),
-                    'selected_ids_parsed' => isset($selected_ids) ? $selected_ids : []
-                ];
-                
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'No items selected for order. Please ensure items are selected in your cart.',
-                    'debug' => ENVIRONMENT === 'development' ? $debug_info : null
-                ]);
-                return;
-            }
-
-            // Calculate totals
-            $subtotal = 0;
-            $total_items = 0;
-            foreach ($cart_items as $item) {
-                $price = $item->EstimatePrice ?? $item->Price ?? 0;
-                $subtotal += $price * $item->Quantity;
-                $total_items += $item->Quantity;
-            }
-            $shipping = $total_items * 25;
-            $handling = $total_items * 10;
-            $total_amount = $subtotal + $shipping + $handling;
-
-            // Get shipping address
-            $addresses = $this->User_model->get_addresses($customer_id);
-            $shipping_address = '';
-            if (isset($addresses['Shipping']) && $addresses['Shipping']) {
-                $addr = $addresses['Shipping'];
-                $shipping_address = implode(', ', array_filter([
-                    $addr->AddressLine,
-                    $addr->City,
-                    $addr->Province,
-                    $addr->Country,
-                    $addr->ZipCode
-                ]));
-            }
-
-            // Get form data for shipping info update (optional)
-            $firstname = $this->input->post('firstname');
-            $lastname = $this->input->post('lastname');
-            $address = $this->input->post('address');
-            $city = $this->input->post('city');
-            $province = $this->input->post('province');
-            $country = $this->input->post('country');
-            $zipcode = $this->input->post('zipcode');
-            $note = $this->input->post('note');
-            $preferred_installation_date = $this->input->post('preferred_installation_date');
-
-            // Build delivery address from form if provided
-            if (!empty($address)) {
-                $shipping_address = implode(', ', array_filter([
-                    $address, $city, $province, $country, $zipcode
-                ]));
-            }
-
-            // Combine note and preferred installation date in SpecialInstructions
-            $special_instructions = [];
-            if ($note) {
-                $special_instructions[] = 'Note: ' . $note;
-            }
-            if ($preferred_installation_date) {
-                $special_instructions[] = 'Preferred Installation Date: ' . date('F j, Y', strtotime($preferred_installation_date));
-            }
-            $special_instructions_text = !empty($special_instructions) ? implode(' | ', $special_instructions) : null;
-
-            // Get default sales rep
-            $sales_rep_id = $this->Order_model->get_default_sales_rep();
-
-            // Prepare order data
-            $order_data = [
-                'Customer_ID' => $customer_id,
-                'SalesRep_ID' => $sales_rep_id,
-                'TotalAmount' => $total_amount,
-                'Status' => 'Pending Review', // Set to 'Pending Review' for new orders
-                'PaymentStatus' => 'Pending',
-                'DeliveryAddress' => $shipping_address,
-                'SpecialInstructions' => $special_instructions_text
-            ];
-
-            // Create order
-            $order_id = $this->Order_model->create_order($order_data);
-
-            if (!$order_id) {
-                echo json_encode([
-                    'status' => 'error',
-                    'message' => 'Failed to create order. Please try again.'
-                ]);
-                return;
-            }
-
-            // Save order customizations from cart items
-            $this->Order_model->save_order_customizations($order_id, $cart_items);
-
-            // Calculate summary for ewallet page
-            $order_summary = [
-                'items' => $total_items,
-                'subtotal' => $subtotal,
-                'shipping' => $shipping,
-                'handling' => $handling,
-                'total' => $total_amount
-            ];
-            
-            // Store order info in session for payment/complete page
-            $this->session->set_userdata([
-                'last_order_id' => $order_id,
-                'last_order_total' => $total_amount,
-                'last_payment_method' => $payment_method,
-                'last_order_summary' => $order_summary,
-                'last_selected_cart_ids' => $this->input->post('selected_cart_ids') ?: ''
-            ]);
-
-            // Clear cart after successful order
-            $this->Cart_model->clear_cart($customer_id);
-
-            // Determine redirect URL based on payment method
-            $redirect_url = ($payment_method === 'E-Wallet') 
-                ? base_url('paying') 
-                : base_url('complete');
-
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Order placed successfully!',
-                'order_id' => $order_id,
-                'redirect_url' => $redirect_url
-            ]);
-        } catch (Exception $e) {
-            log_message('error', 'ShopCon->place_order: Exception - ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
-            http_response_code(500);
+        // Check if user is logged in
+        $customer_id = $this->session->userdata('customer_id');
+        if (!$customer_id) {
             echo json_encode([
                 'status' => 'error',
-                'message' => 'An error occurred while placing your order. Please try again.',
-                'error' => ENVIRONMENT === 'development' ? $e->getMessage() : null
+                'message' => 'Please log in to place an order.'
             ]);
-        } catch (Error $e) {
-            log_message('error', 'ShopCon->place_order: Fatal Error - ' . $e->getMessage() . ' | Trace: ' . $e->getTraceAsString());
-            http_response_code(500);
+            return;
+        }
+
+        // Get POST data
+        $payment_method = $this->input->post('payment_method');
+        $terms_accepted = $this->input->post('terms_accepted');
+
+        // Validate payment method
+        if (empty($payment_method)) {
             echo json_encode([
                 'status' => 'error',
-                'message' => 'A fatal error occurred. Please try again.',
-                'error' => ENVIRONMENT === 'development' ? $e->getMessage() : null
+                'message' => 'Please select a payment method.'
             ]);
+            return;
         }
+
+        // Validate terms acceptance
+        if ($terms_accepted !== 'true' && $terms_accepted !== '1') {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Please accept the Terms and Conditions.'
+            ]);
+            return;
+        }
+
+        // Load models
+        $this->load->model('Cart_model');
+        $this->load->model('Order_model');
+        $this->load->model('User_model');
+
+        // Get cart items
+        $cart_items = $this->Cart_model->get_cart_items($customer_id);
+        if (empty($cart_items)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Your cart is empty.'
+            ]);
+            return;
+        }
+
+        // Calculate totals
+        $subtotal = 0;
+        $total_items = 0;
+        foreach ($cart_items as $item) {
+            $price = $item->EstimatePrice ?? $item->Price ?? 0;
+            $subtotal += $price * $item->Quantity;
+            $total_items += $item->Quantity;
+        }
+        $shipping = $total_items * 25;
+        $handling = $total_items * 10;
+        $total_amount = $subtotal + $shipping + $handling;
+
+        // Get shipping address
+        $addresses = $this->User_model->get_addresses($customer_id);
+        $shipping_address = '';
+        if (isset($addresses['Shipping']) && $addresses['Shipping']) {
+            $addr = $addresses['Shipping'];
+            $shipping_address = implode(', ', array_filter([
+                $addr->AddressLine,
+                $addr->City,
+                $addr->Province,
+                $addr->Country,
+                $addr->ZipCode
+            ]));
+        }
+
+        // Get form data for shipping info update (optional)
+        $firstname = $this->input->post('firstname');
+        $lastname = $this->input->post('lastname');
+        $address = $this->input->post('address');
+        $city = $this->input->post('city');
+        $province = $this->input->post('province');
+        $country = $this->input->post('country');
+        $zipcode = $this->input->post('zipcode');
+        $note = $this->input->post('note');
+        $preferred_installation_date = $this->input->post('preferred_installation_date');
+
+        // Build delivery address from form if provided
+        if (!empty($address)) {
+            $shipping_address = implode(', ', array_filter([
+                $address, $city, $province, $country, $zipcode
+            ]));
+        }
+
+        // Combine note and preferred installation date in SpecialInstructions
+        $special_instructions = [];
+        if ($note) {
+            $special_instructions[] = 'Note: ' . $note;
+        }
+        if ($preferred_installation_date) {
+            $special_instructions[] = 'Preferred Installation Date: ' . date('F j, Y', strtotime($preferred_installation_date));
+        }
+        $special_instructions_text = !empty($special_instructions) ? implode(' | ', $special_instructions) : null;
+
+        // Get default sales rep
+        $sales_rep_id = $this->Order_model->get_default_sales_rep();
+
+        // Prepare order data
+        $order_data = [
+            'Customer_ID' => $customer_id,
+            'SalesRep_ID' => $sales_rep_id,
+            'TotalAmount' => $total_amount,
+            'Status' => 'Pending',
+            'PaymentStatus' => 'Pending',
+            'DeliveryAddress' => $shipping_address,
+            'SpecialInstructions' => $special_instructions_text
+        ];
+
+        // Create order
+        $order_id = $this->Order_model->create_order($order_data);
+
+        if (!$order_id) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Failed to create order. Please try again.'
+            ]);
+            return;
+        }
+
+        // Save order customizations from cart items
+        $this->Order_model->save_order_customizations($order_id, $cart_items);
+
+        // Store order info in session for payment/complete page
+        $this->session->set_userdata([
+            'last_order_id' => $order_id,
+            'last_order_total' => $total_amount,
+            'last_payment_method' => $payment_method
+        ]);
+
+        // Clear cart after successful order
+        $this->Cart_model->clear_cart($customer_id);
+
+        // Determine redirect URL based on payment method
+        $redirect_url = ($payment_method === 'E-Wallet') 
+            ? base_url('paying') 
+            : base_url('complete');
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Order placed successfully!',
+            'order_id' => $order_id,
+            'redirect_url' => $redirect_url
+        ]);
     }
 
     public function list_products()

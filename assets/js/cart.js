@@ -451,15 +451,24 @@ $(document).ready(function () {
         $('#summary-handling').text(handling.toFixed(2));
         $('#summary-total').text(total.toFixed(2));
 
+        // Update mobile summary display
+        $('#summary-items-mobile').text(selectedItems);
+        $('#summary-shipping-mobile').text(shipping.toFixed(2));
+        $('#summary-handling-mobile').text(handling.toFixed(2));
+        $('#summary-total-mobile').text(total.toFixed(2));
+
         // Update selected count in checkout button
         const selectedCount = $('.item-checkbox:checked').length;
         $('#selected-count').text(selectedCount);
+        $('#selected-count-mobile').text(selectedCount);
 
         // Enable/disable checkout button based on selection
         if (selectedCount === 0) {
             $('#checkout-selected-btn').prop('disabled', true).addClass('disabled');
+            $('#checkout-selected-btn-mobile').prop('disabled', true).addClass('disabled');
         } else {
             $('#checkout-selected-btn').prop('disabled', false).removeClass('disabled');
+            $('#checkout-selected-btn-mobile').prop('disabled', false).removeClass('disabled');
         }
 
         return { selectedItems, subtotal, shipping, handling, total };
@@ -499,9 +508,13 @@ $(document).ready(function () {
     // =============================
     // SELECT ALL CHECKBOX
     // =============================
-    $('#select-all-items').on('change', function() {
+    $('#select-all-items, #select-all-items-mobile').on('change', function() {
         const isChecked = $(this).prop('checked');
         $('.item-checkbox').prop('checked', isChecked);
+        
+        // Sync both select all checkboxes
+        $('#select-all-items').prop('checked', isChecked);
+        $('#select-all-items-mobile').prop('checked', isChecked);
         
         // Update row styling
         $('.cart-row').each(function() {
@@ -533,10 +546,13 @@ $(document).ready(function () {
         
         if (checkedItems === 0) {
             $('#select-all-items').prop('checked', false).prop('indeterminate', false);
+            $('#select-all-items-mobile').prop('checked', false).prop('indeterminate', false);
         } else if (checkedItems === totalItems) {
             $('#select-all-items').prop('checked', true).prop('indeterminate', false);
+            $('#select-all-items-mobile').prop('checked', true).prop('indeterminate', false);
         } else {
             $('#select-all-items').prop('checked', false).prop('indeterminate', true);
+            $('#select-all-items-mobile').prop('checked', false).prop('indeterminate', true);
         }
 
         calculateSelectedSummary();
@@ -545,7 +561,7 @@ $(document).ready(function () {
     // =============================
     // CHECKOUT SELECTED ITEMS
     // =============================
-    $('#checkout-selected-btn').on('click', function() {
+    $('#checkout-selected-btn, #checkout-selected-btn-mobile').on('click', function() {
         const selectedIds = [];
         $('.item-checkbox:checked').each(function() {
             selectedIds.push($(this).data('id'));

@@ -838,3 +838,13 @@ input[type="text"] {
     height: 24px;
   }
 }
+
+@media (max-width: 480px) {
+  .testimonials {
+    padding: 30px 15px;
+  }
+
+  .testimonials h2 {
+    font-size: 28px;
+  }
+}

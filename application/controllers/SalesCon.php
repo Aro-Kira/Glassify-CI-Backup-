@@ -746,16 +746,31 @@ class SalesCon extends CI_Controller
             }
         }
         
-        // Count orders by status (also handle legacy 'Pending' status)
-        $pending_count = $this->Order_model->count_sales_rep_orders_by_status($sales_rep_id, 'Pending Review');
-        // Also count old 'Pending' status for backward compatibility
-        $pending_legacy = $this->db->where('SalesRep_ID', $sales_rep_id)
-                                   ->where('Status', 'Pending')
-                                   ->count_all_results('order');
-        $pending_count += $pending_legacy;
+        // Count orders by status from the filtered $orders array to ensure accuracy
+        // This ensures the count matches what's actually displayed
+        $pending_count = 0;
+        $awaiting_count = 0;
+        $ready_count = 0;
         
-        $awaiting_count = $this->Order_model->count_sales_rep_orders_by_status($sales_rep_id, 'Awaiting Admin');
-        $ready_count = $this->Order_model->count_sales_rep_orders_by_status($sales_rep_id, 'Ready to Approve');
+        foreach ($orders as $order) {
+            $status = $order->Status ?? 'Pending Review';
+            if (empty($status) || trim($status) === '') {
+                $status = 'Pending Review';
+            }
+            
+            // Normalize 'Pending' to 'Pending Review'
+            if ($status === 'Pending') {
+                $status = 'Pending Review';
+            }
+            
+            if ($status === 'Pending Review') {
+                $pending_count++;
+            } elseif ($status === 'Awaiting Admin') {
+                $awaiting_count++;
+            } elseif ($status === 'Ready to Approve') {
+                $ready_count++;
+            }
+        }
         
         $data['orders'] = $orders;
         $data['total_orders'] = count($orders);

@@ -220,3 +220,89 @@ overflow: visible; /* ✅ allow the notch to stick out */
     display: block;
     margin-bottom: 15px;
 }
+
+/* ==========================================
+   RESPONSIVE STYLES
+   ========================================== */
+
+/* Tablet */
+@media (max-width: 1024px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+
+    .menu-notch {
+        right: -50px;
+    }
+}
+
+/* Mobile devices */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 220px;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1000;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .sidebar.collapsed {
+        width: 220px;
+        transform: translateX(-100%);
+    }
+
+    .sidebar.collapsed.open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0;
+        padding: 10px;
+    }
+
+    .menu-notch {
+        right: -50px;
+    }
+
+    .logo {
+        width: 120px;
+        height: 120px;
+    }
+
+    .sidebar.collapsed .logo {
+        width: 120px;
+        height: 120px;
+    }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+    .sidebar {
+        width: 100%;
+        max-width: 280px;
+    }
+
+    .logo {
+        width: 100px;
+        height: 100px;
+    }
+
+    .sidebar-nav ul li a,
+    .general-section ul li a,
+    .user-section ul li a {
+        padding: 10px 15px;
+        font-size: 16px;
+    }
+}

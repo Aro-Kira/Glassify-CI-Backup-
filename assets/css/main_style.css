@@ -35,19 +35,27 @@ body {
 }
 
 
+.welcome-section {
+  position: relative;
+}
+
 .welcome-section h1 {
   color: white;
   font-size: 6em;
   padding: 20px;
+  margin: 0;
+  text-align: center;
+  transform: translateY(-40px);
 }
 
 .welcome-section p {
   color: white;
   font-size: 20px;
-  margin-top: -5%;
+  margin-top: 0;
   padding: 20px;
   font-weight: 600;
   text-align: center;
+  transform: translateY(-40px);
 }
 
 
@@ -92,7 +100,12 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  transform: translateY(-150px); /* Adjust this value: negative = up, positive = down */
+  transform: translateY(-40px);
+}
+
+.buildtd-btn {
+  transform: translateY(-40px);
+  margin-bottom: 10px;
 }
 
 .contus {
@@ -101,6 +114,7 @@ body {
   text-decoration: underline;
   margin-top: 15px;
   font-size: 16px;
+  transform: translateY(-40px);
 }
 
 
@@ -265,6 +279,7 @@ body {
     max-width: 1200px;
     margin: 0 auto;
     overflow: hidden;
+    width: 100%;
 }
 
 .carousel-track {
@@ -272,6 +287,7 @@ body {
     transition: transform 0.5s ease-in-out;
     height: 500px;
     width: 100%;
+    position: relative;
 }
 
 /* EACH SLIDE TAKES 33.33% (1/3) OF CONTAINER */
@@ -294,19 +310,23 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
 }
 
 .slide-content h3 {
     font-size: 1.8rem;
     font-weight: 600;
     margin-bottom: 20px;
+    margin-top: 15px;
     color: #dbdbdb;
 }
 
 
 .slide-image {
     width: 100%;
-    height: 600px;
+    max-width: 100%;
+    height: 400px;
+    max-height: 400px;
     background: linear-gradient(135deg, #ffffff 0%, #bdbdbd 100%);
     background-size: cover;
     background-position: center;
@@ -314,34 +334,40 @@ body {
     border-radius: 10px;
     opacity: 0.9;
     transition: all 0.3s ease;
+    object-fit: cover;
 }
 
 .carousel-btn {
     position: absolute;
-    top: 55%;
+    top: 50%;
     transform: translateY(-50%);
-    background: none;
+    background: rgba(0, 0, 0, 0.3);
     border: none;
-    width: 80px;
-    height: 80px;
-    font-size: 5.5rem;
+    width: 50px;
+    height: 50px;
+    font-size: 2.5rem;
     cursor: pointer;
     transition: all 0.3s ease;
     z-index: 10;
     color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }
 
 .carousel-btn:hover {
-    background: none;
+    background: rgba(0, 0, 0, 0.5);
     transform: translateY(-50%) scale(1.1);
 }
 
 .carousel-btn-prev {
-    left: 30%;
+    left: 10px;
 }
 
 .carousel-btn-next {
-    right: 30%;
+    right: 10px;
 }
 
 /* ACTIVE SLIDE STYLING */
@@ -375,32 +401,166 @@ body {
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
+    .carousel {
+        width: 100%;
+    }
+
+    .carousel-track {
+        height: 450px;
+        width: 100%;
+    }
+
     .carousel-slide {
         min-width: 50%; /* 2 slides on tablet */
+    }
+
+    .slide-image {
+        height: 350px;
+        max-height: 350px;
+        width: 100%;
+    }
+
+    .carousel-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 2rem;
+        background: rgba(0, 0, 0, 0.4);
+    }
+
+    .carousel-btn-prev {
+        left: 5px;
+    }
+
+    .carousel-btn-next {
+        right: 5px;
     }
 }
 
 @media (max-width: 768px) {
+    .featured-projects {
+        padding: 50px 0;
+    }
+
+    .container-featured {
+        padding: 0 15px;
+    }
+
+    .section-title {
+        font-size: 2.5rem;
+        margin-bottom: 8px;
+    }
+
+    .section-subtitle {
+        font-size: 1.2rem;
+        margin-bottom: 50px;
+    }
+
+    .carousel {
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+    }
+
+    .carousel-track {
+        height: 400px;
+        width: 100%;
+    }
+
     .carousel-slide {
         min-width: 100%; /* 1 slide on mobile */
+        padding: 0 5px;
     }
     
+    .slide-content {
+        padding: 20px 15px;
+        width: 100%;
+    }
+
     .slide-content h3 {
-        font-size: 1.5rem;
+        font-size: 1.4rem;
+        margin-bottom: 15px;
+        margin-top: 10px;
     }
     
     .slide-image {
-        height: 250px;
+        height: 280px;
+        max-height: 280px;
+        width: 100%;
+    }
+
+    .carousel-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1.8rem;
+        top: 45%;
+        background: rgba(0, 0, 0, 0.5);
+    }
+
+    .carousel-btn-prev {
+        left: 5px;
+    }
+
+    .carousel-btn-next {
+        right: 5px;
+    }
+
+    /* Fix active slide styling on mobile */
+    .carousel-slide.active .slide-image {
+        transform: scale(1);
+        border: 2px solid #667eea;
+    }
+
+    .carousel-slide:not(.active) .slide-image {
+        transform: scale(0.95);
+        opacity: 0.4;
     }
 }
 
 @media (max-width: 480px) {
+    .featured-projects {
+        padding: 40px 0;
+    }
+
+    .section-title {
+        font-size: 2rem;
+    }
+
+    .section-subtitle {
+        font-size: 1rem;
+        margin-bottom: 40px;
+    }
+
+    .carousel-track {
+        height: 350px;
+    }
+
     .slide-image {
-        height: 200px;
+        height: 220px;
+        max-height: 220px;
     }
     
     .slide-content {
-        padding: 20px;
+        padding: 15px 10px;
+    }
+
+    .slide-content h3 {
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+        margin-top: 8px;
+    }
+
+    .carousel-btn {
+        width: 35px;
+        height: 35px;
+        font-size: 1.5rem;
+    }
+
+    .carousel-btn-prev {
+        left: 3px;
+    }
+
+    .carousel-btn-next {
+        right: 3px;
     }
 }
 
@@ -413,14 +573,19 @@ body {
 
 /* Heading */
 .testimonials h2 {
-  font-size: 2rem;
-  margin-bottom: 10px;
+  color: #02455F;
+  margin-bottom: 20px;
+  font-size: 60.5px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .subtitle {
   font-size: 1rem;
   color: #334;
-  margin-bottom: 70px;
+  margin-bottom: 50px;
+  position: relative;
+  z-index: 1;
 }
 
 .subtitle .highlight {
@@ -433,7 +598,8 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 30px;
+  gap: 50px;
+  margin-top: 40px;
 }
 
 /* Individual card */
@@ -445,6 +611,7 @@ body {
   max-width: 280px;
   position: relative;
   text-align: center;
+  margin-top: 50px;
 }
 
 .card .avatar {
@@ -453,13 +620,18 @@ body {
   background-color: #e0a500;
   border-radius: 50%;
   overflow: hidden;
-  margin: -25% auto 15px;
+  margin: -50px auto 20px;
+  position: relative;
+  z-index: 2;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .card .avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
 .card h3 {
@@ -514,4 +686,329 @@ body {
 .btn:focus {
   text-decoration: none; /* No underline on focus */
   outline: none; /* Remove default focus outline */
+}
+
+/* ==========================================
+   RESPONSIVE STYLES
+   ========================================== */
+
+/* Tablet */
+@media (max-width: 1024px) {
+  .welcome-section h1 {
+    font-size: 4em;
+  }
+
+  .welcome-section p {
+    font-size: 18px;
+  }
+
+  .container {
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .left {
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .left h1 {
+    font-size: 48px;
+  }
+
+  .right {
+    margin-right: 0;
+  }
+
+  .feature {
+    margin: 3%;
+  }
+
+  .carousel-btn-prev {
+    left: 10%;
+  }
+
+  .carousel-btn-next {
+    right: 10%;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 768px) {
+  .welcome-section {
+    height: 60vh;
+    padding-top: 0;
+  }
+
+  .welcome-section h1 {
+    font-size: 3em;
+    padding: 10px;
+    transform: translateY(-30px);
+  }
+
+  .welcome-section p {
+    font-size: 16px;
+    margin-top: 0;
+    padding: 10px;
+    transform: translateY(-30px);
+  }
+
+  .buildtd-btn {
+    transform: translateY(-30px);
+  }
+
+  .contus {
+    transform: translateY(-30px);
+  }
+
+  .buildtd-btn {
+    padding: 15px 25px;
+    font-size: 16px;
+  }
+
+  .contus {
+    font-size: 14px;
+    margin-top: 10px;
+  }
+
+  .what-we-offer {
+    padding: 40px 15px;
+  }
+
+  .container {
+    padding: 0 15px;
+  }
+
+  .left {
+    margin-left: 0;
+    text-align: center;
+  }
+
+  .left h1 {
+    font-size: 36px;
+  }
+
+  .left p {
+    font-size: 16px;
+    margin: -5% 0 15% 0;
+  }
+
+  .left button,
+  .left a {
+    padding: 15px 25px;
+    font-size: 16px;
+  }
+
+  .right {
+    margin-right: 0;
+  }
+
+  .feature {
+    flex-direction: column;
+    text-align: center;
+    margin: 3% 0;
+  }
+
+  .feature .icon {
+    width: 80px;
+    height: 80px;
+  }
+
+  .feature h2 {
+    font-size: 24px;
+  }
+
+  .feature .text p {
+    font-size: 14px;
+  }
+
+  .featured-projects {
+    padding: 40px 0;
+  }
+
+  .section-title {
+    font-size: 2.5rem;
+  }
+
+  .section-subtitle {
+    font-size: 1.2rem;
+    margin-bottom: 50px;
+  }
+
+  .carousel-btn {
+    width: 50px;
+    height: 50px;
+    font-size: 3rem;
+  }
+
+  .carousel-btn-prev {
+    left: 5%;
+  }
+
+  .carousel-btn-next {
+    right: 5%;
+  }
+
+  .testimonials {
+    padding: 40px 15px;
+  }
+
+  .testimonials h2 {
+    font-size: 36px;
+    margin-bottom: 15px;
+  }
+
+  .subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 40px;
+  }
+
+  .cards {
+    flex-direction: column;
+    align-items: center;
+    gap: 60px;
+    margin-top: 30px;
+  }
+
+  .card {
+    max-width: 100%;
+    margin-top: 50px;
+    padding: 25px 20px;
+  }
+
+  .card .avatar {
+    margin: -45px auto 18px;
+    width: 70px;
+    height: 70px;
+    border: 3px solid #fff;
+  }
+
+  .btn-container {
+    margin-top: 50px;
+  }
+
+  .btn {
+    padding: 12px 25px;
+    font-size: 1.1em;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .welcome-section {
+    height: 50vh;
+    padding-top: 0;
+  }
+
+  .welcome-section h1 {
+    font-size: 2.5em;
+    padding: 5px;
+    transform: translateY(-20px);
+  }
+
+  .welcome-section p {
+    font-size: 14px;
+    margin-top: 0;
+    padding: 5px;
+    transform: translateY(-20px);
+  }
+
+  .buildtd-btn {
+    transform: translateY(-20px);
+  }
+
+  .contus {
+    transform: translateY(-20px);
+  }
+
+  .buildtd-btn {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .what-we-offer {
+    padding: 30px 10px;
+  }
+
+  .left h1 {
+    font-size: 28px;
+  }
+
+  .left p {
+    font-size: 14px;
+  }
+
+  .left button,
+  .left a {
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .feature .icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .feature h2 {
+    font-size: 20px;
+  }
+
+  .feature .text p {
+    font-size: 13px;
+  }
+
+  .section-title {
+    font-size: 2rem;
+  }
+
+  .section-subtitle {
+    font-size: 1rem;
+    margin-bottom: 30px;
+  }
+
+  .carousel-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 2.5rem;
+  }
+
+  .testimonials h2 {
+    font-size: 28px;
+    margin-bottom: 12px;
+  }
+
+  .subtitle {
+    font-size: 0.85rem;
+    margin-bottom: 35px;
+  }
+
+  .cards {
+    gap: 50px;
+    margin-top: 25px;
+  }
+
+  .card {
+    padding: 20px 15px;
+    margin-top: 45px;
+  }
+
+  .card .avatar {
+    width: 60px;
+    height: 60px;
+    margin: -40px auto 15px;
+    border: 3px solid #fff;
+  }
+
+  .card h3 {
+    font-size: 1rem;
+  }
+
+  .card .review {
+    font-size: 0.85rem;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    font-size: 1em;
+  }
 }

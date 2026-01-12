@@ -39,6 +39,20 @@ class UserCon extends CI_Controller
         $data['title'] = "Glassify - User Profile";
         $data['user'] = $this->User_model->get_by_id($userID);
         
+        // Get Customer_ID
+        $this->load->model('Customer_model');
+        $customer_id = $this->Customer_model->get_customer_id($userID);
+        
+        // Get customer orders
+        $this->load->model('Order_model');
+        $data['orders'] = $customer_id ? $this->Order_model->get_customer_orders($customer_id) : [];
+        
+        // Get customer orders with products for display
+        $data['orders_with_products'] = $customer_id ? $this->Order_model->get_customer_orders_with_products($customer_id, 50) : [];
+        
+        // Get all user addresses (not just Shipping/Billing)
+        $data['all_addresses'] = $this->User_model->get_user_addresses($userID);
+        
         // Get default address or first available
         $default_address = $this->User_model->get_default_address($userID);
         $data['addresses'] = $this->User_model->get_addresses($userID);
@@ -47,6 +61,10 @@ class UserCon extends CI_Controller
         if ($default_address) {
             $data['addresses']['Shipping'] = $default_address;
         }
+        
+        // Load downloads
+        $this->load->model('Download_model');
+        $data['downloads'] = $customer_id ? $this->Download_model->get_customer_downloads($customer_id) : [];
 
         // Fallback if user not found
         if (!$data['user']) {
@@ -252,6 +270,63 @@ class UserCon extends CI_Controller
                 'success' => false,
                 'message' => 'Address not found'
             ]);
+        }
+    }
+
+    // =============================
+    // DELETE ADDRESS (AJAX)
+    // =============================
+    public function delete_address()
+    {
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized access.']);
+            return;
+        }
+
+        $userID = $this->session->userdata('user_id');
+        $addressID = $this->input->post('address_id');
+
+        if (!$addressID) {
+            echo json_encode(['success' => false, 'message' => 'Address ID is required.']);
+            return;
+        }
+
+        $this->load->model('User_model');
+        if ($this->User_model->delete_address_by_id($addressID, $userID)) {
+            echo json_encode(['success' => true, 'message' => 'Address deleted successfully!']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to delete address or address not found.']);
+        }
+    }
+
+    // =============================
+    // SET DEFAULT ADDRESS (AJAX)
+    // =============================
+    public function set_default_address()
+    {
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized access.']);
+            return;
+        }
+
+        $userID = $this->session->userdata('user_id');
+        $addressID = $this->input->post('address_id');
+
+        if (!$addressID) {
+            echo json_encode(['success' => false, 'message' => 'Address ID is required.']);
+            return;
+        }
+
+        $this->load->model('User_model');
+        
+        // First, unset all default addresses for this user
+        $this->User_model->unset_default_address($userID);
+        
+        // Then set the selected address as default
+        if ($this->User_model->update_address_by_id($addressID, $userID, ['IsDefault' => 1])) {
+            echo json_encode(['success' => true, 'message' => 'Address set as default successfully!']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to set default address or address not found.']);
         }
     }
 

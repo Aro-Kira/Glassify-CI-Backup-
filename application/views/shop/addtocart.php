@@ -104,7 +104,20 @@
                     <span class="no-custom">Standard</span>
                   <?php endif; ?>
                 </td>
-                <td class="item-price" data-price="<?= $item->Price ?>">₱<?= number_format($item->Price, 2) ?></td>
+                <td class="item-price" data-price="<?= $item->Price ?>">
+                  <?php 
+                    $basePrice = $item->BasePrice ?? $item->Price;
+                    $currentPrice = $item->Price;
+                    if ($basePrice > $currentPrice): 
+                  ?>
+                    <div class="price-container">
+                      <span class="original-price">₱<?= number_format($basePrice, 2) ?></span>
+                      <span class="current-price">₱<?= number_format($currentPrice, 2) ?></span>
+                    </div>
+                  <?php else: ?>
+                    <span class="current-price">₱<?= number_format($currentPrice, 2) ?></span>
+                  <?php endif; ?>
+                </td>
                 <td>
                   <div class="qty-wrapper">
                     <button type="button" class="qty-btn qty-minus" data-id="<?= $item->Cart_ID ?>">−</button>
@@ -134,6 +147,7 @@
 
     <!-- Order Summary Section -->
     <section class="order-summary">
+      <!-- Desktop Order Summary -->
       <div class="order-summary-content">
         <h3>Order Summary</h3>
         <p><span>Items:</span> <span id="summary-items">0</span></p>
@@ -149,6 +163,31 @@
 
       <div class="quotation-content">
         <button class="generate-btn" id="openModal">Generate Quotation</button>
+      </div>
+
+      <!-- Mobile Order Summary Bar (Shopee style) -->
+      <div class="order-summary-mobile">
+        <div class="order-summary-mobile-left">
+          <label class="custom-checkbox">
+            <input type="checkbox" id="select-all-items-mobile" checked>
+            <span class="checkmark"></span>
+          </label>
+          <div class="order-summary-mobile-info">
+            <div class="order-summary-mobile-items">
+              <span id="summary-items-mobile">0</span> item(s)
+            </div>
+            <div class="order-summary-mobile-fees">
+              <span class="fee-item">Shipping: ₱<span id="summary-shipping-mobile">0.00</span></span>
+              <span class="fee-item">Handling: ₱<span id="summary-handling-mobile">0.00</span></span>
+            </div>
+            <div class="order-summary-mobile-total">
+              Total: ₱<span id="summary-total-mobile">0.00</span>
+            </div>
+          </div>
+        </div>
+        <div class="order-summary-mobile-right">
+          <button class="checkout-btn" id="checkout-selected-btn-mobile">Check Out (<span id="selected-count-mobile">0</span>)</button>
+        </div>
       </div>
     </section>
   </div> <!-- End cart-container -->
