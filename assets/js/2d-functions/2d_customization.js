@@ -277,6 +277,13 @@ btnStandard.addEventListener('click', () => {
     if (isStandardMode) return;
     isStandardMode = true;
 
+    // Set standard mode defaults for summary
+    currentShape = 'rectangle';
+    currentGlassType = 'tempered';
+    currentThickness = '5mm';
+    currentEdgeWork = 'flat-polish';
+    currentFrameType = 'vinyl';
+
     // UI Updates
     btnStandard.classList.add('active'); btnStandard.classList.remove('inactive');
     btnCustomize.classList.remove('active'); btnCustomize.classList.add('inactive');
@@ -288,8 +295,10 @@ btnStandard.addEventListener('click', () => {
     // Get the currently selected standard card values
     const activeStdCard = document.querySelector('#standard-wrapper .option-card.active');
     if (activeStdCard) {
-        const h = activeStdCard.dataset.height;
-        const w = activeStdCard.dataset.width;
+        const h = parseFloat(activeStdCard.dataset.height);
+        const w = parseFloat(activeStdCard.dataset.width);
+        currentDimensions.height = { value: h, unit: 'in' };
+        currentDimensions.width = { value: w, unit: 'in' };
         renderStandardState(w, h);
     }
 });
@@ -303,9 +312,13 @@ standardCards.forEach(card => {
         standardCards.forEach(c => c.classList.remove('active'));
         this.classList.add('active');
 
+        // Update dimensions for summary display
+        const h = parseFloat(this.dataset.height);
+        const w = parseFloat(this.dataset.width);
+        currentDimensions.height = { value: h, unit: 'in' };
+        currentDimensions.width = { value: w, unit: 'in' };
+
         // Render Standard
-        const h = this.dataset.height;
-        const w = this.dataset.width;
         renderStandardState(w, h);
     });
 });
@@ -829,13 +842,18 @@ function showOrderSummary() {
     document.querySelector('.build-toggle').classList.add('hidden-step');
     document.getElementById('standard-subtitle').classList.add('hidden-step');
 
-    // --- Hide Related Products & Testimonials ---
+    // --- Hide Related Products only (Keep Testimonials visible) ---
     document.getElementById('related-products-section').classList.add('hidden-step');
-    document.getElementById('testimonials-section').classList.add('hidden-step');
+    // Keep testimonials visible - don't hide them
 
     // 2. Show Summary UI
     const summaryWrapper = document.getElementById('summary-wrapper');
     summaryWrapper.classList.remove('hidden-step');
+    
+    // Scroll to review section so user can see it
+    setTimeout(() => {
+        summaryWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
 
     // 3. Generate and display design preview image
     currentDesignImageData = getKonvaImageData(3);
@@ -906,8 +924,11 @@ function showOrderSummary() {
             : frameData.desc;
     }
 
-    // Engraving
-    const engravingInput = document.querySelector('#step-3 .engraving-section input');
+    // Engraving - Check both custom step-3 and standard wrapper
+    let engravingInput = document.querySelector('#step-3 .engraving-section input');
+    if (!engravingInput || !engravingInput.value) {
+        engravingInput = document.querySelector('#standard-wrapper .engraving-section input');
+    }
     const engravingText = engravingInput ? engravingInput.value : '';
     document.getElementById('sum-engrave').textContent = engravingText || 'None';
 
@@ -926,9 +947,9 @@ function editConfiguration() {
     // Hide Summary
     document.getElementById('summary-wrapper').classList.add('hidden-step');
 
-    // --- NEW: Show Related Products & Testimonials again ---
+    // --- Show Related Products again (Testimonials should already be visible) ---
     document.getElementById('related-products-section').classList.remove('hidden-step');
-    document.getElementById('testimonials-section').classList.remove('hidden-step');
+    // Testimonials are always visible, no need to show/hide
 
     // Show Toggle and Subtitle
     document.querySelector('.build-toggle').classList.remove('hidden-step');

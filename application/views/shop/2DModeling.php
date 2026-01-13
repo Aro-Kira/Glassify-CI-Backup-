@@ -491,7 +491,7 @@
     </section>
 
   <!-- Testimonials -->
-  <section class="testimonials">
+  <section id="testimonials-section" class="testimonials">
     <h2>Customer Testimonials</h2>
     <div class="testimonial-content">
       <button class="testimonial-arrow left">
