@@ -1,4 +1,161 @@
 document.addEventListener("DOMContentLoaded", () => {
+    // =============================
+    // TOAST NOTIFICATION SYSTEM
+    // =============================
+    function showToast(message, type = 'info', duration = 3000) {
+        const existingToasts = document.querySelectorAll('.toast-notification');
+        existingToasts.forEach(toast => {
+            toast.classList.add('toast-fade-out');
+            setTimeout(() => toast.remove(), 300);
+        });
+
+        const toast = document.createElement('div');
+        toast.className = `toast-notification toast-${type}`;
+        
+        const config = {
+            success: { icon: '✓', bg: '#28a745', border: '#1e7e34' },
+            error: { icon: '✕', bg: '#dc3545', border: '#c82333' },
+            warning: { icon: '⚠', bg: '#ffc107', border: '#e0a800' },
+            info: { icon: 'ℹ', bg: '#17a2b8', border: '#138496' }
+        };
+        
+        const toastConfig = config[type] || config.info;
+        
+        toast.innerHTML = `
+            <div class="toast-icon">${toastConfig.icon}</div>
+            <div class="toast-message">${message}</div>
+            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+        `;
+        
+        toast.style.cssText = `
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: ${toastConfig.bg};
+            color: white;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+            max-width: 500px;
+            animation: toastSlideIn 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+            border-left: 4px solid ${toastConfig.border};
+        `;
+        
+        if (!document.getElementById('toast-styles')) {
+            const style = document.createElement('style');
+            style.id = 'toast-styles';
+            style.textContent = `
+                @keyframes toastSlideIn {
+                    from { transform: translateX(400px); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes toastFadeOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(400px); opacity: 0; }
+                }
+                .toast-notification { transition: all 0.3s ease; }
+                .toast-fade-out { animation: toastFadeOut 0.3s ease forwards; }
+                .toast-icon { font-size: 20px; font-weight: bold; flex-shrink: 0; }
+                .toast-message { flex: 1; font-size: 14px; line-height: 1.4; }
+                .toast-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: opacity 0.2s; flex-shrink: 0; }
+                .toast-close:hover { opacity: 1; }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('toast-fade-out');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+        
+        return toast;
+    }
+
+    function showConfirmModal(message, onConfirm, onCancel = null) {
+        const existingModal = document.getElementById('confirm-modal-overlay');
+        if (existingModal) existingModal.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'confirm-modal-overlay';
+        overlay.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5); z-index: 10001;
+            display: flex; align-items: center; justify-content: center;
+            animation: fadeIn 0.2s ease;
+        `;
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: white; border-radius: 12px; padding: 30px;
+            max-width: 450px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            animation: slideUp 0.3s ease;
+        `;
+        
+        modal.innerHTML = `
+            <h3 style="margin: 0 0 15px 0; font-size: 20px; color: #333; font-family: 'Montserrat', sans-serif;">Confirm Action</h3>
+            <p style="margin: 0 0 25px 0; color: #666; font-size: 15px; line-height: 1.5;">${message}</p>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="confirm-cancel-btn" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; color: #666; transition: all 0.2s;">Cancel</button>
+                <button id="confirm-ok-btn" style="padding: 10px 20px; border: none; background: #dc3545; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">Confirm</button>
+            </div>
+        `;
+        
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        if (!document.getElementById('modal-styles')) {
+            const style = document.createElement('style');
+            style.id = 'modal-styles';
+            style.textContent = `
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                #confirm-cancel-btn:hover { background: #f5f5f5; }
+                #confirm-ok-btn:hover { background: #c82333; }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        const cancelBtn = overlay.querySelector('#confirm-cancel-btn');
+        const okBtn = overlay.querySelector('#confirm-ok-btn');
+        
+        cancelBtn.addEventListener('click', () => {
+            overlay.style.animation = 'fadeIn 0.2s ease reverse';
+            setTimeout(() => overlay.remove(), 200);
+            if (onCancel) onCancel();
+        });
+        
+        okBtn.addEventListener('click', () => {
+            overlay.style.animation = 'fadeIn 0.2s ease reverse';
+            setTimeout(() => overlay.remove(), 200);
+            if (onConfirm) onConfirm();
+        });
+        
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) {
+                overlay.style.animation = 'fadeIn 0.2s ease reverse';
+                setTimeout(() => overlay.remove(), 200);
+                if (onCancel) onCancel();
+            }
+        });
+        
+        const escapeHandler = (e) => {
+            if (e.key === 'Escape') {
+                overlay.style.animation = 'fadeIn 0.2s ease reverse';
+                setTimeout(() => overlay.remove(), 200);
+                if (onCancel) onCancel();
+                document.removeEventListener('keydown', escapeHandler);
+            }
+        };
+        document.addEventListener('keydown', escapeHandler);
+    }
+
   const popup = document.getElementById("productPopup");
   const closeBtn = document.getElementById("closePopup");
   const cancelBtn = popup ? popup.querySelector(".cancel-btn") : null;
@@ -199,14 +356,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
             } else {
-                alert('Failed to load payment details: ' + (data.message || 'Unknown error'));
+                showToast('Failed to load payment details: ' + (data.message || 'Unknown error'), 'error');
             }
         })
         .catch(error => {
             console.error('Error fetching payment details:', error);
             console.error('Order ID:', orderId);
             console.error('Base URL:', base_url);
-            alert('An error occurred while loading payment details: ' + error.message + '. Please check the console for details.');
+            showToast('An error occurred while loading payment details: ' + error.message + '. Please check the console for details.', 'error');
         });
         });
       }
@@ -263,68 +420,66 @@ document.addEventListener("DOMContentLoaded", () => {
                    }
                    
                    if (!orderId || orderId === '#') {
-                       alert('Order ID not found. Please try closing and reopening the popup.');
+                       showToast('Order ID not found. Please try closing and reopening the popup.', 'warning');
                        console.error('Order ID not found. Popup HTML:', popup.innerHTML);
                        return;
                    }
                    
                    // Confirm action
-                   if (!confirm('Are you sure you want to mark this payment as paid?')) {
-                       return;
-                   }
-                   
-                   // Disable button to prevent double-clicking
-                   markAsPaidBtn.disabled = true;
-                   markAsPaidBtn.textContent = 'Processing...';
-                   
-                   // Send AJAX request to mark payment as paid (Admin version)
-                   fetch(base_url + 'AdminCon/mark_payment_paid', {
-                       method: 'POST',
-                       headers: {
-                           'Content-Type': 'application/x-www-form-urlencoded'
-                       },
-                       body: 'order_id=' + encodeURIComponent(orderId)
-                   })
-                   .then(response => {
-                       // First check if response is ok
-                       if (!response.ok) {
-                           // Try to get error message from response
-                           return response.text().then(text => {
-                               let errorData;
-                               try {
-                                   errorData = JSON.parse(text);
-                               } catch (e) {
-                                   errorData = { message: text || 'Server error: ' + response.status };
-                               }
-                               throw new Error(errorData.message || 'Server error: ' + response.status);
-                           });
-                       }
-                       return response.json();
-                   })
-                   .then(data => {
-                       if (data.success) {
-                           // Update the table row without reloading the page
-                           updatePaymentStatusInTable(orderId, 'Paid');
-                           
-                           alert('Payment marked as paid successfully!');
-                           // Close popup
-                           if (popup) popup.style.display = "none";
-                       } else {
-                           let errorMsg = 'Failed to mark payment as paid: ' + (data.message || 'Unknown error');
-                           if (data.error_details) {
-                               errorMsg += '\n\nDetails:\n' + JSON.stringify(data.error_details, null, 2);
+                   showConfirmModal('Are you sure you want to mark this payment as paid?', () => {
+                       // Disable button to prevent double-clicking
+                       markAsPaidBtn.disabled = true;
+                       markAsPaidBtn.textContent = 'Processing...';
+                       
+                       // Send AJAX request to mark payment as paid (Admin version)
+                       fetch(base_url + 'AdminCon/mark_payment_paid', {
+                           method: 'POST',
+                           headers: {
+                               'Content-Type': 'application/x-www-form-urlencoded'
+                           },
+                           body: 'order_id=' + encodeURIComponent(orderId)
+                       })
+                       .then(response => {
+                           // First check if response is ok
+                           if (!response.ok) {
+                               // Try to get error message from response
+                               return response.text().then(text => {
+                                   let errorData;
+                                   try {
+                                       errorData = JSON.parse(text);
+                                   } catch (e) {
+                                       errorData = { message: text || 'Server error: ' + response.status };
+                                   }
+                                   throw new Error(errorData.message || 'Server error: ' + response.status);
+                               });
                            }
-                           alert(errorMsg);
-                           console.error('Payment update failed:', data);
+                           return response.json();
+                       })
+                       .then(data => {
+                           if (data.success) {
+                               // Update the table row without reloading the page
+                               updatePaymentStatusInTable(orderId, 'Paid');
+                               
+                               showToast('Payment marked as paid successfully!', 'success');
+                               // Close popup
+                               if (popup) popup.style.display = "none";
+                           } else {
+                               let errorMsg = 'Failed to mark payment as paid: ' + (data.message || 'Unknown error');
+                               if (data.error_details) {
+                                   errorMsg += ' Details: ' + JSON.stringify(data.error_details);
+                               }
+                               showToast(errorMsg, 'error');
+                               console.error('Payment update failed:', data);
+                               markAsPaidBtn.disabled = false;
+                               markAsPaidBtn.textContent = 'Mark as Paid';
+                           }
+                       })
+                       .catch(error => {
+                           console.error('Error marking payment as paid:', error);
+                           showToast('An error occurred while marking payment as paid: ' + error.message + '. Please check the browser console for more details.', 'error');
                            markAsPaidBtn.disabled = false;
                            markAsPaidBtn.textContent = 'Mark as Paid';
-                       }
-                   })
-                   .catch(error => {
-                       console.error('Error marking payment as paid:', error);
-                       alert('An error occurred while marking payment as paid:\n\n' + error.message + '\n\nPlease check the browser console for more details.');
-                       markAsPaidBtn.disabled = false;
-                       markAsPaidBtn.textContent = 'Mark as Paid';
+                       });
                    });
                });
            }

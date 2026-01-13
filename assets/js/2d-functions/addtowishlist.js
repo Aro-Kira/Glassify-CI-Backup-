@@ -240,7 +240,7 @@ $(document).ready(function() {
         }
 
         if (!product_id) {
-            alert('Product ID not found');
+            showNotification('Product ID not found', 'error');
             return;
         }
 

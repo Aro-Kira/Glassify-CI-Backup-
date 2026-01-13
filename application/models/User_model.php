@@ -240,7 +240,14 @@ class User_model extends CI_Model
     // ====================================
     public function add_address($data)
     {
-        $this->db->insert($this->addressTable, $data);
+        $result = $this->db->insert($this->addressTable, $data);
+        
+        if (!$result) {
+            $error = $this->db->error();
+            log_message('error', 'User_model->add_address: Database insert failed - ' . json_encode($error));
+            return false;
+        }
+        
         return $this->db->insert_id();
     }
 

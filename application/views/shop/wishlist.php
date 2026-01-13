@@ -104,13 +104,14 @@ JAVASCRIPT FILES:
                                 </td>
                                 <td class="item-price">₱<?= number_format($item->Price, 2) ?></td>
                                 <td class="actions">
-                                    <button class="add-cart-btn" data-id="<?= $item->Wishlist_ID ?>">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="9" cy="21" r="1"></circle>
-                                            <circle cx="20" cy="21" r="1"></circle>
-                                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                                        </svg>
-                                        Add to Cart
+                                    <?php 
+                                    $is_in_cart = isset($in_cart_wishlist_ids) && in_array($item->Wishlist_ID, $in_cart_wishlist_ids);
+                                    $button_class = $is_in_cart ? 'add-cart-btn added-state' : 'add-cart-btn';
+                                    $button_text = $is_in_cart ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Added' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> Add to Cart';
+                                    $button_style = $is_in_cart ? 'style="background: #28a745; color: white;"' : '';
+                                    ?>
+                                    <button class="<?= $button_class ?>" data-id="<?= $item->Wishlist_ID ?>" <?= $button_style ?>>
+                                        <?= $button_text ?>
                                     </button>
                                 </td>
                             </tr>
