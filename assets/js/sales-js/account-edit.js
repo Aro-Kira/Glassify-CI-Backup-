@@ -4,6 +4,85 @@ console.log('account-edit.js file is being parsed and executed');
 document.addEventListener("DOMContentLoaded", () => {
   console.log('=== account-edit.js loaded ===');
   
+  // =============================
+  // TOAST NOTIFICATION SYSTEM
+  // =============================
+  function showToast(message, type = 'info', duration = 3000) {
+      const existingToasts = document.querySelectorAll('.toast-notification');
+      existingToasts.forEach(toast => {
+          toast.classList.add('toast-fade-out');
+          setTimeout(() => toast.remove(), 300);
+      });
+
+      const toast = document.createElement('div');
+      toast.className = `toast-notification toast-${type}`;
+      
+      const config = {
+          success: { icon: '✓', bg: '#28a745', border: '#1e7e34' },
+          error: { icon: '✕', bg: '#dc3545', border: '#c82333' },
+          warning: { icon: '⚠', bg: '#ffc107', border: '#e0a800' },
+          info: { icon: 'ℹ', bg: '#17a2b8', border: '#138496' }
+      };
+      
+      const toastConfig = config[type] || config.info;
+      
+      toast.innerHTML = `
+          <div class="toast-icon">${toastConfig.icon}</div>
+          <div class="toast-message">${message}</div>
+          <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+      `;
+      
+      toast.style.cssText = `
+          position: fixed;
+          top: 80px;
+          right: 20px;
+          background: ${toastConfig.bg};
+          color: white;
+          padding: 16px 20px;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-width: 300px;
+          max-width: 500px;
+          animation: toastSlideIn 0.3s ease;
+          font-family: 'Montserrat', sans-serif;
+          border-left: 4px solid ${toastConfig.border};
+      `;
+      
+      if (!document.getElementById('toast-styles')) {
+          const style = document.createElement('style');
+          style.id = 'toast-styles';
+          style.textContent = `
+              @keyframes toastSlideIn {
+                  from { transform: translateX(400px); opacity: 0; }
+                  to { transform: translateX(0); opacity: 1; }
+              }
+              @keyframes toastFadeOut {
+                  from { transform: translateX(0); opacity: 1; }
+                  to { transform: translateX(400px); opacity: 0; }
+              }
+              .toast-notification { transition: all 0.3s ease; }
+              .toast-fade-out { animation: toastFadeOut 0.3s ease forwards; }
+              .toast-icon { font-size: 20px; font-weight: bold; flex-shrink: 0; }
+              .toast-message { flex: 1; font-size: 14px; line-height: 1.4; }
+              .toast-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: opacity 0.2s; flex-shrink: 0; }
+              .toast-close:hover { opacity: 1; }
+          `;
+          document.head.appendChild(style);
+      }
+      
+      document.body.appendChild(toast);
+      setTimeout(() => {
+          toast.classList.add('toast-fade-out');
+          setTimeout(() => toast.remove(), 300);
+      }, duration);
+      
+      return toast;
+  }
+  
   const popup = document.getElementById("editPopup");
   const closeBtn = document.getElementById("closePopup");
   const cancelBtn = document.getElementById("cancelPopup");
@@ -235,7 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Verify that Save button was clicked (not accidental submission)
     if (!activeInput || !activeField) {
       console.error('No field selected for editing');
-      alert("No field selected for editing.");
+      showToast("No field selected for editing.", 'warning');
       return;
     }
 
@@ -247,7 +326,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Check if value actually changed (client-side check)
     const currentValue = activeInput.value;
     if (activeField !== 'Password' && currentValue === newValue) {
-      alert("No changes detected. The value is the same as the current value.");
+      showToast("No changes detected. The value is the same as the current value.", 'info');
       return;
     }
 
@@ -255,28 +334,28 @@ document.addEventListener("DOMContentLoaded", () => {
     if (activeField === 'Password') {
       // Require current password
       if (!currentPassword) {
-        alert("Please enter your current password first.");
+        showToast("Please enter your current password first.", 'warning');
         if (popupCurrentPassword) popupCurrentPassword.focus();
         return;
       }
       
       // Require new password
       if (!newPassword) {
-        alert("Please enter a new password.");
+        showToast("Please enter a new password.", 'warning');
         if (popupNewPassword) popupNewPassword.focus();
         return;
       }
       
       // Validate new password length
       if (newPassword.length < 6) {
-        alert("New password must be at least 6 characters long.");
+        showToast("New password must be at least 6 characters long.", 'warning');
         if (popupNewPassword) popupNewPassword.focus();
         return;
       }
       
       // Validate password match
       if (newPassword !== confirmPassword) {
-        alert("New passwords do not match. Please try again.");
+        showToast("New passwords do not match. Please try again.", 'error');
         if (popupConfirmPassword) popupConfirmPassword.focus();
         return;
       }
@@ -287,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // Validate phone number format (digits only, 10-13 characters)
       const phoneRegex = /^[0-9]{10,13}$/;
       if (!phoneRegex.test(newValue)) {
-        alert("Phone number must be 10-13 digits only.");
+        showToast("Phone number must be 10-13 digits only.", 'warning');
         popupInput.focus();
         return;
       }
@@ -295,12 +374,12 @@ document.addEventListener("DOMContentLoaded", () => {
       // Validate name (letters, spaces, hyphens, apostrophes only)
       const nameRegex = /^[a-zA-Z\s\-']+$/;
       if (!nameRegex.test(newValue)) {
-        alert("Name can only contain letters, spaces, hyphens, and apostrophes.");
+        showToast("Name can only contain letters, spaces, hyphens, and apostrophes.", 'warning');
         popupInput.focus();
         return;
       }
       if (newValue.length < 2) {
-        alert("Name must be at least 2 characters long.");
+        showToast("Name must be at least 2 characters long.", 'warning');
         popupInput.focus();
         return;
       }
@@ -316,7 +395,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (newValue && newValue.length > 0) {
         const nameRegex = /^[a-zA-Z\s\-'.]+$/;
         if (!nameRegex.test(newValue)) {
-          alert("Middle name can only contain letters, spaces, hyphens, apostrophes, and periods.");
+          showToast("Middle name can only contain letters, spaces, hyphens, apostrophes, and periods.", 'warning');
           popupInput.focus();
           return;
         }
@@ -329,7 +408,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }).join(' ');
       }
     } else if (activeField !== 'Middle_Name' && !newValue) {
-      alert("This field cannot be empty.");
+      showToast("This field cannot be empty.", 'warning');
       popupInput.focus();
       return;
     }
@@ -338,7 +417,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveBtn = editForm.querySelector('.save-btn') || document.getElementById('saveBtn');
     if (!saveBtn) {
       console.error('Save button not found!');
-      alert('Error: Save button not found. Please refresh the page.');
+      showToast('Error: Save button not found. Please refresh the page.', 'error');
       return;
     }
     
@@ -420,10 +499,10 @@ document.addEventListener("DOMContentLoaded", () => {
         
         // If name changed, reload page to update header
         if (activeField === 'First_Name' || activeField === 'Last_Name') {
-          alert("Account updated successfully! Page will reload to reflect changes.");
+          showToast("Account updated successfully! Page will reload to reflect changes.", 'success');
           window.location.reload();
         } else {
-          alert("Account updated successfully!");
+          showToast("Account updated successfully!", 'success');
           popup.style.display = "none";
           popupInput.value = "";
           if (popupCurrentPassword) popupCurrentPassword.value = "";
@@ -440,7 +519,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         // Display error message from server
         const errorMsg = data.message || "Failed to update account";
-        alert("Error: " + errorMsg);
+        showToast("Error: " + errorMsg, 'error');
         saveBtn.textContent = originalText;
         saveBtn.disabled = false;
       }
@@ -450,7 +529,7 @@ document.addEventListener("DOMContentLoaded", () => {
       console.error('Error name:', error.name);
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
-      alert("An error occurred while updating the account: " + error.message + "\n\nPlease check the browser console (F12) for more details.");
+      showToast("An error occurred while updating the account: " + error.message + "\n\nPlease check the browser console (F12) for more details.", 'error');
       const errorSaveBtn = editForm.querySelector('.save-btn') || document.getElementById('saveBtn');
       if (errorSaveBtn) {
         errorSaveBtn.textContent = originalText;

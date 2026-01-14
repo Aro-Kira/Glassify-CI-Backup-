@@ -38,8 +38,17 @@ class WishlistCon extends CI_Controller
 
         $wishlist_items = $this->Wishlist_model->get_wishlist_items($customer_id);
 
+        // Check which wishlist items are currently in cart
+        $in_cart_wishlist_ids = [];
+        foreach ($wishlist_items as $item) {
+            if ($this->Wishlist_model->is_in_cart($item->Wishlist_ID, $customer_id)) {
+                $in_cart_wishlist_ids[] = $item->Wishlist_ID;
+            }
+        }
+
         $data['title'] = "Glassify - MY WISHLIST";
         $data['wishlist_items'] = $wishlist_items;
+        $data['in_cart_wishlist_ids'] = $in_cart_wishlist_ids; // Pass cart status to view
 
         $this->load->view('includes/header', $data);
         $this->load->view('shop/wishlist', $data);
@@ -217,15 +226,50 @@ class WishlistCon extends CI_Controller
             $this->load->model('Cart_model');
             $cart_items = $this->Cart_model->get_cart_items($customer_id);
             
+            // Get the wishlist item to return product_id
+            $wishlist_item = $this->Wishlist_model->get_wishlist_item($wishlist_id);
+            
             echo json_encode([
                 'status' => 'success',
                 'message' => 'Item moved to cart!',
                 'cart_count' => count($cart_items),
-                'wishlist_count' => $this->Wishlist_model->get_wishlist_count($customer_id)
+                'wishlist_count' => $this->Wishlist_model->get_wishlist_count($customer_id),
+                'wishlist_id' => $wishlist_id,
+                'product_id' => $wishlist_item ? $wishlist_item->Product_ID : null,
+                'in_cart' => true
             ]);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Failed to move item to cart']);
         }
+    }
+
+    /**
+     * Check if wishlist items are in cart (AJAX)
+     * Returns array of wishlist_ids that are currently in cart
+     */
+    public function check_cart_status_ajax()
+    {
+        $customer_id = $this->session->userdata('customer_id');
+
+        if (!$customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
+            return;
+        }
+
+        // Get all wishlist items for this customer
+        $wishlist_items = $this->Wishlist_model->get_wishlist_items($customer_id);
+        
+        $in_cart_items = [];
+        foreach ($wishlist_items as $item) {
+            if ($this->Wishlist_model->is_in_cart($item->Wishlist_ID, $customer_id)) {
+                $in_cart_items[] = $item->Wishlist_ID;
+            }
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'in_cart_wishlist_ids' => $in_cart_items
+        ]);
     }
 
     /**

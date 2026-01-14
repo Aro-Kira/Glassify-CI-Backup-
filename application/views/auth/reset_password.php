@@ -38,8 +38,8 @@
     <!-- Right Panel -->
     <div class="login-right">
       <h3 class="login-title">Reset Password</h3>
-      <p style="text-align: center; color: #666; margin-bottom: 20px;">
-        Please enter your new password. It must be at least 6 characters long.
+      <p style="text-align: left; color: #666; margin-bottom: 20px;">
+        Please enter your new password.
       </p>
 
       <form method="POST" action="<?= base_url('auth/process_reset_password/' . $role) ?>">
@@ -50,7 +50,19 @@
           <div class="login-input-row">
             <img src="<?php echo base_url('assets/images/img-page/solar_password-outline.svg'); ?>" alt="Password Icon"
               class="login-input-icon">
-            <input type="password" id="password" name="password" placeholder="Enter new password" required minlength="6">
+            <input type="password" id="password" name="password" placeholder="Enter new password" required minlength="8">
+            <button type="button" class="login-toggle-password" id="togglePassword">
+              <i class="fa fa-eye"></i>
+            </button>
+          </div>
+          <div class="password-requirements" id="passwordRequirements" style="display: none;">
+            <p class="requirements-title">Password must contain:</p>
+            <ul class="requirements-list">
+              <li id="req-length"><span class="check-icon">✗</span> At least 8 characters</li>
+              <li id="req-uppercase"><span class="check-icon">✗</span> One uppercase letter (A-Z)</li>
+              <li id="req-lowercase"><span class="check-icon">✗</span> One lowercase letter (a-z)</li>
+              <li id="req-number"><span class="check-icon">✗</span> One number (0-9)</li>
+            </ul>
           </div>
         </div>
 
@@ -59,7 +71,10 @@
           <div class="login-input-row">
             <img src="<?php echo base_url('assets/images/img-page/solar_password-outline.svg'); ?>" alt="Password Icon"
               class="login-input-icon">
-            <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm new password" required minlength="6">
+            <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm new password" required minlength="8">
+            <button type="button" class="login-toggle-password" id="toggleConfirmPassword">
+              <i class="fa fa-eye"></i>
+            </button>
           </div>
         </div>
 
@@ -84,3 +99,116 @@
   </div>
 </section>
 
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // Toggle password visibility
+    const togglePassword = document.getElementById("togglePassword");
+    const passwordInput = document.getElementById("password");
+    
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener("click", function() {
+            const type = passwordInput.getAttribute("type") === "password" ? "text" : "password";
+            passwordInput.setAttribute("type", type);
+            
+            // Toggle icon
+            const icon = this.querySelector("i");
+            if (icon) {
+                icon.classList.toggle("fa-eye");
+                icon.classList.toggle("fa-eye-slash");
+            }
+        });
+    }
+
+    // Toggle confirm password visibility
+    const toggleConfirmPassword = document.getElementById("toggleConfirmPassword");
+    const confirmPasswordInput = document.getElementById("confirm_password");
+    
+    if (toggleConfirmPassword && confirmPasswordInput) {
+        toggleConfirmPassword.addEventListener("click", function() {
+            const type = confirmPasswordInput.getAttribute("type") === "password" ? "text" : "password";
+            confirmPasswordInput.setAttribute("type", type);
+            
+            // Toggle icon
+            const icon = this.querySelector("i");
+            if (icon) {
+                icon.classList.toggle("fa-eye");
+                icon.classList.toggle("fa-eye-slash");
+            }
+        });
+    }
+
+    // Show password requirements when password field is focused
+    if (passwordInput) {
+        passwordInput.addEventListener('focus', function() {
+            const requirements = document.getElementById('passwordRequirements');
+            if (requirements) {
+                requirements.style.display = 'block';
+            }
+        });
+
+        passwordInput.addEventListener('blur', function() {
+            if (this.value === '') {
+                const requirements = document.getElementById('passwordRequirements');
+                if (requirements) {
+                    requirements.style.display = 'none';
+                }
+            }
+        });
+
+        passwordInput.addEventListener('input', function() {
+            validatePasswordStrength(this.value);
+        });
+
+        // Validate password match
+        if (confirmPasswordInput) {
+            confirmPasswordInput.addEventListener('input', function() {
+                validatePasswordMatch();
+            });
+        }
+    }
+
+    function validatePasswordStrength(password) {
+        const requirements = {
+            length: password.length >= 8,
+            uppercase: /[A-Z]/.test(password),
+            lowercase: /[a-z]/.test(password),
+            number: /[0-9]/.test(password)
+        };
+
+        // Update visual feedback for each requirement
+        updateRequirement('req-length', requirements.length);
+        updateRequirement('req-uppercase', requirements.uppercase);
+        updateRequirement('req-lowercase', requirements.lowercase);
+        updateRequirement('req-number', requirements.number);
+    }
+
+    function updateRequirement(elementId, isValid) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            const icon = element.querySelector('.check-icon');
+            if (icon) {
+                if (isValid) {
+                    icon.textContent = '✓';
+                    icon.style.color = '#28a745';
+                    element.style.color = '#28a745';
+                } else {
+                    icon.textContent = '✗';
+                    icon.style.color = '#dc3545';
+                    element.style.color = '#666';
+                }
+            }
+        }
+    }
+
+    function validatePasswordMatch() {
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        
+        if (confirmPassword && password !== confirmPassword) {
+            confirmPasswordInput.setCustomValidity('Passwords do not match');
+        } else if (confirmPassword) {
+            confirmPasswordInput.setCustomValidity('');
+        }
+    }
+});
+</script>

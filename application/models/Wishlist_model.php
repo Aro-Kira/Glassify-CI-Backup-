@@ -270,10 +270,95 @@ class Wishlist_model extends CI_Model
             $this->db->insert('cart', $cart_data);
         }
 
-        // Remove from wishlist (but keep the original customization for wishlist history)
-        $this->db->where('Wishlist_ID', $wishlist_id);
-        $this->db->delete($this->table);
+        // DO NOT remove from wishlist - keep item in wishlist with "Added" state
+        // Item will only be removed when customer clicks X button or when order is completed
 
         return true;
+    }
+
+    /**
+     * Check if a wishlist item is currently in the cart
+     * @param int $wishlist_id Wishlist ID
+     * @param int $customer_id Customer ID
+     * @return bool True if item is in cart, false otherwise
+     */
+    public function is_in_cart($wishlist_id, $customer_id)
+    {
+        $wishlist_item = $this->get_wishlist_item($wishlist_id);
+        
+        if (!$wishlist_item || $wishlist_item->Customer_ID != $customer_id) {
+            return false;
+        }
+
+        // Get all cart items for this customer with the same product
+        $this->db->where('Customer_ID', $customer_id);
+        $this->db->where('Product_ID', $wishlist_item->Product_ID);
+        $cart_items = $this->db->get('cart')->result();
+        
+        if (empty($cart_items)) {
+            return false;
+        }
+
+        // If wishlist item has no customization, check for cart items with no customization
+        if (!$wishlist_item->CustomizationID) {
+            foreach ($cart_items as $cart_item) {
+                if (!$cart_item->CustomizationID) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // If wishlist item has customization, try to match by comparing customization details
+        // Get the wishlist item's customization details
+        $wishlist_custom = $this->db
+            ->where('CustomizationID', $wishlist_item->CustomizationID)
+            ->get('customization')
+            ->row();
+        
+        if (!$wishlist_custom) {
+            return false;
+        }
+
+        // Check each cart item's customization to see if it matches
+        foreach ($cart_items as $cart_item) {
+            if (!$cart_item->CustomizationID) {
+                continue; // Skip non-customized cart items
+            }
+            
+            // Get cart item's customization
+            $cart_custom = $this->db
+                ->where('CustomizationID', $cart_item->CustomizationID)
+                ->get('customization')
+                ->row();
+            
+            if (!$cart_custom) {
+                continue;
+            }
+            
+            // Compare key customization fields
+            $matches = true;
+            $fields_to_compare = ['Dimensions', 'GlassShape', 'GlassType', 'GlassThickness', 'EdgeWork', 'FrameType', 'Engraving'];
+            
+            foreach ($fields_to_compare as $field) {
+                $wishlist_val = $wishlist_custom->$field ?? null;
+                $cart_val = $cart_custom->$field ?? null;
+                
+                // Normalize null/empty values
+                $wishlist_val = ($wishlist_val === null || $wishlist_val === '') ? null : trim($wishlist_val);
+                $cart_val = ($cart_val === null || $cart_val === '') ? null : trim($cart_val);
+                
+                if ($wishlist_val !== $cart_val) {
+                    $matches = false;
+                    break;
+                }
+            }
+            
+            if ($matches) {
+                return true; // Found a matching cart item
+            }
+        }
+        
+        return false; // No matching cart item found
     }
 }

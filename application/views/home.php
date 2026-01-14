@@ -47,7 +47,7 @@
   </p>
 
   <a href="<?php echo base_url('products'); ?>" class="buildtd-btn">Build Today</a>
-  <a href="#contact-footer" class="contus">Contact Us?</a>
+  <a href="<?php echo base_url('projects#contact'); ?>" class="contus">Contact Us?</a>
 </div>
 
 <section class="what-we-offer">

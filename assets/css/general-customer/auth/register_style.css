@@ -102,20 +102,68 @@ body {
 }
 
 .register-input-row {
+  position: relative;
   display: flex;
   align-items: center;
 }
 
 .register-input-row input {
   flex: 1;
+  padding-right: 40px; /* Make room for eye icon */
+}
+
+/* Hide browser's native password visibility toggle */
+.register-input-row input[type="password"]::-webkit-credentials-auto-fill-button,
+.register-input-row input[type="password"]::-webkit-textfield-decoration-container {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.register-input-row input[type="password"]::-ms-reveal {
+  display: none !important;
 }
 
 .toggle-password {
-  margin-left: 8px;
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   background: transparent;
   border: none;
   cursor: pointer;
   font-size: 1rem;
+  color: #032C3A;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: color 0.3s;
+}
+
+.toggle-password:hover {
+  color: #02455F;
+}
+
+.toggle-password:focus {
+  outline: none;
+}
+
+.register-login {
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.register-login-link {
+  color: #032C3A;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.register-login-link:hover {
+  text-decoration: underline;
 }
 
 .required {
@@ -322,12 +370,12 @@ input.invalid {
     font-size: 0.95rem;
   }
 
-  .register-input-row {
-    gap: 8px;
+  .register-input-row input {
+    padding-right: 38px;
   }
 
   .toggle-password {
-    margin-left: 6px;
+    right: 8px;
     font-size: 0.95rem;
     padding: 0.4rem;
   }
@@ -438,8 +486,12 @@ input.invalid {
     font-size: 0.9rem;
   }
 
+  .register-input-row input {
+    padding-right: 36px;
+  }
+
   .toggle-password {
-    margin-left: 5px;
+    right: 6px;
     font-size: 0.9rem;
     padding: 0.3rem;
   }

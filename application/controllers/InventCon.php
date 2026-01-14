@@ -384,10 +384,29 @@ class InventCon extends CI_Controller
 
     public function inventory_notif()
     {
-        $data['title'] = "Glassify - Inventory Notifications";
+        // Get ALL notifications from inventory_notifications table
+        $this->db->order_by('Created_Date', 'DESC');
+        $notifications = $this->db->get('inventory_notifications')->result();
+        
+        // Format notifications for display
+        $all_notifications = [];
+        foreach ($notifications as $notif) {
+            // Format notifications similar to sales/admin
+            $all_notifications[] = (object)[
+                'Action' => 'Inventory Alert',
+                'Description' => $notif->Message ?? '',
+                'Icon' => 'fa-box-open',
+                'Role' => 'System',
+                'Timestamp' => $notif->Created_Date ?? date('Y-m-d H:i:s'),
+                'Status' => strtolower($notif->Status ?? 'read') // 'unread' or 'read'
+            ];
+        }
+        
+        $data['notifications'] = $all_notifications;
+        $data['title'] = "Glassify - Notifications";
         $data['active'] = 'notif';
         $data['content_view'] = 'inventory_page/inventory_notif';
-        $data['page_css'] = 'admin_css/admin_notif.css';
+        $data['page_css'] = 'sales_css/sales_notif.css';
         $this->load->view('inventory_page/layout', $data);
     }
     

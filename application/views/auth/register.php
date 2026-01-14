@@ -42,7 +42,7 @@
                 </div>
 
                 <div class="register-input-group">
-                    <label for="middleInitial">Middle Initial (optional)</label>
+                    <label for="middleInitial">Middle Initial</label>
                     <input type="text" name="middle_initial" id="middleInitial" placeholder="Enter your middle initial" value="<?= set_value('middle_initial'); ?>">
                 </div>
 
@@ -56,13 +56,18 @@
                     <input type="email" name="email" id="email" placeholder="Enter your email" value="<?= set_value('email'); ?>" required>
                 </div>
 
+                <div class="register-input-group">
+                    <label for="phone">Phone Number <span class="required">*</span></label>
+                    <input type="tel" name="phone" id="phone" placeholder="Enter your phone number" value="<?= set_value('phone'); ?>" required>
+                </div>
+
                 <div class="register-input-group password-group">
                     <label for="password">Password <span class="required">*</span></label>
                     <div class="register-input-row">
                         <input type="password" name="password" id="password" placeholder="Enter your password" required minlength="8">
                         <button type="button" class="toggle-password"><i class="fa fa-eye"></i></button>
                     </div>
-                    <div class="password-requirements" id="passwordRequirements">
+                    <div class="password-requirements" id="passwordRequirements" style="display: none;">
                         <p class="requirements-title">Password must contain:</p>
                         <ul class="requirements-list">
                             <li id="req-length"><span class="check-icon">✗</span> At least 8 characters</li>
@@ -81,11 +86,6 @@
                     </div>
                 </div>
 
-                <div class="register-input-group">
-                    <label for="phone">Phone Number <span class="required">*</span></label>
-                    <input type="tel" name="phone" id="phone" placeholder="Enter your phone number" value="<?= set_value('phone'); ?>" required>
-                </div>
-
                 <div class="register-options">
                     <label>
                         <input type="checkbox" required> I agree to Glassify's 
@@ -94,6 +94,10 @@
                 </div>
 
                 <button type="submit" class="register-btn">Sign Up</button>
+
+                <p class="register-login" style="text-align: center; margin-top: 1rem; font-size: 0.9rem;">
+                    Have an account? <a href="<?php echo base_url('login'); ?>" class="register-login-link">Log in</a>
+                </p>
 
             <?php echo form_close(); ?>
         </div>
@@ -119,11 +123,17 @@ document.addEventListener("DOMContentLoaded", function() {
     const confirmPasswordInput = document.getElementById('confirmPassword');
     
     if (passwordInput) {
+        // Show password requirements when password field is focused
+        passwordInput.addEventListener('focus', function() {
+            const requirements = document.getElementById('passwordRequirements');
+            if (requirements) {
+                requirements.style.display = 'block';
+            }
+        });
+
         passwordInput.addEventListener('input', function() {
             validatePasswordStrength(this.value);
         });
-
-        // Password requirements are always visible
 
         // Validate password match
         if (confirmPasswordInput) {

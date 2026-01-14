@@ -230,7 +230,7 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
                         </td>
                         <td><?= htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) ?></td>
                         <td><?= date('M j, Y', strtotime($order->OrderDate)) ?></td>
-                        <td><span class="status <?= get_status_class($order->Status) ?>"><?= htmlspecialchars($order->Status) ?></span></td>
+                        <td><span class="status <?= get_status_class($order->Status ?? 'Pending Review') ?>"><?= htmlspecialchars($order->Status ?? 'Pending Review') ?></span></td>
                         <td><a href="<?= base_url('track_order?order=' . $order->OrderID) ?>" class="view-details">View details</a></td>
                     </tr>
                 <?php endforeach; ?>

@@ -247,7 +247,7 @@ deleteConfirmBtn?.addEventListener("click", () => {
         cardToDelete.remove();
         closeDeletePopup();
       } else {
-        alert("Failed to delete product.");
+        showToast("Failed to delete product.", 'error');
       }
     });
 });
@@ -948,7 +948,7 @@ function setupProductPopups() {
         if (data.status === "success") {
           location.reload();
         } else {
-          alert("Error saving product.");
+          showToast("Error saving product.", 'error');
         }
       });
   });
@@ -1044,7 +1044,7 @@ editSaveBtn?.addEventListener("click", () => {
       if (data.status === "updated") {
         location.reload();
       } else {
-        alert("Failed to update product.");
+        showToast("Failed to update product.", 'error');
       }
     });
 });
