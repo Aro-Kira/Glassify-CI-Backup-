@@ -137,8 +137,17 @@ class AdminCon extends CI_Controller
     // Orders
     public function admin_orders()
     {
+        // Determine active state based on type parameter
+        $type = $this->input->get('type');
+        if ($type == 'direct') {
+            $data['active'] = 'direct-orders';
+        } elseif ($type == 'site-assessed') {
+            $data['active'] = 'site-assessed-orders';
+        } else {
+            $data['active'] = 'orders'; // Default fallback
+        }
+        
         $data['title'] = "Glassify - Orders";
-        $data['active'] = 'orders';
         $data['content_view'] = 'admin_page/admin_orders';
         $data['page_css'] = 'admin_css/admin_orders.css';
         $this->load->view('admin_page/layout', $data);
@@ -147,8 +156,17 @@ class AdminCon extends CI_Controller
     // Appointments
     public function admin_appointment()
     {
+        // Determine active state based on type parameter
+        $type = $this->input->get('type');
+        if ($type == 'ocular') {
+            $data['active'] = 'ocular-appointment';
+        } elseif ($type == 'installation') {
+            $data['active'] = 'installation-appointment';
+        } else {
+            $data['active'] = 'appointment'; // Default fallback
+        }
+        
         $data['title'] = "Glassify - Appointments";
-        $data['active'] = 'appointment';
         $data['content_view'] = 'admin_page/admin_appointment';
         $data['page_css'] = 'admin_css/admin_appointment.css';
         $this->load->view('admin_page/layout', $data);
@@ -162,22 +180,45 @@ class AdminCon extends CI_Controller
     {
         header('Content-Type: application/json');
         
-        $status_filter = $this->input->get('status');
-        $service_filter = $this->input->get('service');
-        $search = $this->input->get('search');
-        $date_filter = $this->input->get('date');
+        try {
+            $status_filter = $this->input->get('status');
+            $service_filter = $this->input->get('service');
+            $appointment_type = $this->input->get('appointment_type'); // 'ocular' or 'installation'
+            $search = $this->input->get('search');
+            $client_search = $this->input->get('client_search');
+            $date_filter = $this->input->get('date');
+            $staff_filter = $this->input->get('staff');
+            $ocular_completed = $this->input->get('ocular_completed'); // 'yes' or 'no'
+            $page = $this->input->get('page') ?: 1;
+            $limit = $this->input->get('limit') ?: 10;
+            $offset = ($page - 1) * $limit;
+            
+            // First, ensure all approved orders have appointment records
+            // Reset query builder before sync to avoid conflicts
+            $this->db->reset_query();
+            try {
+                $this->sync_approved_orders_to_appointments();
+            } catch (Exception $e) {
+                // Log error but don't fail the request
+                log_message('error', 'AdminCon::get_appointments_ajax - Sync error: ' . $e->getMessage());
+            }
+            // Reset again after sync to ensure clean state
+            $this->db->reset_query();
         
-        // First, ensure all approved orders have appointment records
-        $this->sync_approved_orders_to_appointments();
-        
-        // Build query
-        // Join with order table and get ProductName from order_items -> product
-        $this->db->select('a.*, p.ProductName, o.OrderID, o.OrderNumber as ApprovedOrderID');
+        // Build base query structure (from, joins) - without select or group_by yet
         $this->db->from('appointments a');
         $this->db->join('`order` o', 'a.OrderID = o.OrderID', 'left');
         $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
         $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
-        $this->db->group_by('a.AppointmentID'); // Group to avoid duplicates from multiple order_items
+        
+        // Apply appointment type filter (ocular or installation)
+        if ($appointment_type) {
+            if ($appointment_type === 'ocular') {
+                $this->db->where('a.Service', 'Ocular Visit');
+            } elseif ($appointment_type === 'installation') {
+                $this->db->where('a.Service', 'Installed');
+            }
+        }
         
         // Apply status filter (In Progress, Complete, Cancelled)
         if ($status_filter && $status_filter !== 'all' && $status_filter !== 'All Statuses') {
@@ -189,14 +230,34 @@ class AdminCon extends CI_Controller
             $this->db->where('a.Service', $service_filter);
         }
         
-        // Apply search filter (searches client name, product name, or order ID)
-        if ($search && trim($search) !== '') {
+        // Apply client search filter
+        if ($client_search && trim($client_search) !== '') {
+            $this->db->like('a.ClientName', $client_search);
+        }
+        
+        // Apply search filter (searches client name, product name, order ID, or order number) - legacy support
+        if ($search && trim($search) !== '' && !$client_search) {
             $this->db->group_start();
             $this->db->like('a.ClientName', $search);
             $this->db->or_like('a.ProductName', $search);
-            $this->db->or_like('a.OrderID', $search);
+            // If search looks like an order number (GI001), search by OrderNumber
+            if (preg_match('/^GI\d+$/i', $search)) {
+                $this->db->or_like('o.OrderNumber', $search);
+            } else {
+                // Otherwise, try numeric OrderID
+                if (is_numeric($search)) {
+                    $this->db->or_where('a.OrderID', (int)$search);
+                } else {
+                    $this->db->or_like('a.OrderID', $search);
+                }
+            }
             $this->db->or_like('a.AssignedStaff', $search);
             $this->db->group_end();
+        }
+        
+        // Apply staff filter
+        if ($staff_filter && $staff_filter !== 'all') {
+            $this->db->like('a.AssignedStaff', $staff_filter);
         }
         
         // Apply date filter
@@ -204,10 +265,103 @@ class AdminCon extends CI_Controller
             $this->db->where('a.AppointmentDate', $date_filter);
         }
         
+        // Apply ocular completed filter (for ocular appointments)
+        if ($appointment_type === 'ocular' && $ocular_completed && $ocular_completed !== 'all') {
+            // Check if order has OcularCompleted flag or if appointment status is Complete
+            if ($ocular_completed === 'yes') {
+                $this->db->where('a.Status', 'Complete');
+            } elseif ($ocular_completed === 'no') {
+                $this->db->where('a.Status !=', 'Complete');
+            }
+        }
+        
+        // Get total count - use a simpler approach to avoid query builder conflicts
+        // Build count query separately
+        $this->db->select('COUNT(DISTINCT a.AppointmentID) as total', false);
+        $count_result = $this->db->get()->row();
+        $total_count = $count_result ? (int)$count_result->total : 0;
+        
+        // Check for database errors in count query
+        $db_error = $this->db->error();
+        if (!empty($db_error['message'])) {
+            log_message('error', 'AdminCon::get_appointments_ajax - Count query DB error: ' . $db_error['message']);
+            $total_count = 0; // Will use result count as fallback
+        }
+        
+        // Reset query builder for data retrieval
+        $this->db->reset_query();
+        $this->db->select('a.*, p.ProductName, o.OrderID, o.OrderNumber as ApprovedOrderID, o.OrderType');
+        $this->db->from('appointments a');
+        $this->db->join('`order` o', 'a.OrderID = o.OrderID', 'left');
+        $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+        $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+        $this->db->group_by('a.AppointmentID');
+        
+        // Reapply all filters
+        if ($appointment_type) {
+            if ($appointment_type === 'ocular') {
+                $this->db->where('a.Service', 'Ocular Visit');
+            } elseif ($appointment_type === 'installation') {
+                $this->db->where('a.Service', 'Installed');
+            }
+        }
+        if ($status_filter && $status_filter !== 'all' && $status_filter !== 'All Statuses') {
+            $this->db->where('a.Status', $status_filter);
+        }
+        if ($service_filter && $service_filter !== 'all' && $service_filter !== 'All Services') {
+            $this->db->where('a.Service', $service_filter);
+        }
+        if ($client_search && trim($client_search) !== '') {
+            $this->db->like('a.ClientName', $client_search);
+        }
+        if ($search && trim($search) !== '' && !$client_search) {
+            $this->db->group_start();
+            $this->db->like('a.ClientName', $search);
+            $this->db->or_like('a.ProductName', $search);
+            if (preg_match('/^GI\d+$/i', $search)) {
+                $this->db->or_like('o.OrderNumber', $search);
+            } else {
+                if (is_numeric($search)) {
+                    $this->db->or_where('a.OrderID', (int)$search);
+                } else {
+                    $this->db->or_like('a.OrderID', $search);
+                }
+            }
+            $this->db->or_like('a.AssignedStaff', $search);
+            $this->db->group_end();
+        }
+        if ($staff_filter && $staff_filter !== 'all') {
+            $this->db->like('a.AssignedStaff', $staff_filter);
+        }
+        if ($date_filter && trim($date_filter) !== '') {
+            $this->db->where('a.AppointmentDate', $date_filter);
+        }
+        if ($appointment_type === 'ocular' && $ocular_completed && $ocular_completed !== 'all') {
+            if ($ocular_completed === 'yes') {
+                $this->db->where('a.Status', 'Complete');
+            } elseif ($ocular_completed === 'no') {
+                $this->db->where('a.Status !=', 'Complete');
+            }
+        }
+        
+        // Apply pagination and ordering
+        $this->db->limit($limit, $offset);
         $this->db->order_by('a.AppointmentDate', 'ASC');
         $this->db->order_by('a.AppointmentTime', 'ASC');
         
         $appointments = $this->db->get()->result();
+        
+        // Check for database errors in data query
+        $db_error = $this->db->error();
+        if (!empty($db_error['message'])) {
+            log_message('error', 'AdminCon::get_appointments_ajax - Data query DB error: ' . $db_error['message']);
+            throw new Exception('Database error: ' . $db_error['message']);
+        }
+        
+        // Fallback: if count query failed, use result count
+        if ($total_count === 0 && !empty($appointments)) {
+            $total_count = count($appointments);
+        }
         
         // Format response
         $formatted_appointments = [];
@@ -237,6 +391,7 @@ class AdminCon extends CI_Controller
             $formatted_appointments[] = [
                 'id' => $apt->AppointmentID,
                 'order_id' => $apt->OrderID,
+                'order_number' => $apt->ApprovedOrderID ?? ($apt->OrderNumber ?? 'N/A'),
                 'client' => $apt->ClientName ?: 'N/A',
                 'product' => $apt->ProductName ?: 'N/A',
                 'service' => $apt->Service,
@@ -247,15 +402,49 @@ class AdminCon extends CI_Controller
                 'assigned_staff' => $apt->AssignedStaff ?: 'N/A',
                 'status' => $status_display,
                 'status_class' => $status_class,
-                'notes' => $apt->Notes ?: ''
+                'notes' => $apt->Notes ?: '',
+                'ocular_notes' => $apt->OcularNotes ?? '',
+                'installation_notes' => $apt->InstallationNotes ?? ''
             ];
         }
         
         echo json_encode([
             'success' => true,
             'appointments' => $formatted_appointments,
-            'total' => count($formatted_appointments)
+            'total' => $total_count ?? count($formatted_appointments),
+            'page' => (int)($page ?? 1),
+            'limit' => (int)($limit ?? 10),
+            'total_pages' => isset($total_count) ? ceil($total_count / ($limit ?? 10)) : 1
         ]);
+        } catch (Exception $e) {
+            log_message('error', 'AdminCon::get_appointments_ajax - Exception: ' . $e->getMessage());
+            log_message('error', 'AdminCon::get_appointments_ajax - Stack trace: ' . $e->getTraceAsString());
+            $db_error = $this->db->error();
+            if (!empty($db_error['message'])) {
+                log_message('error', 'AdminCon::get_appointments_ajax - DB Error: ' . $db_error['message']);
+            }
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error loading appointments: ' . $e->getMessage(),
+                'appointments' => [],
+                'total' => 0
+            ]);
+        } catch (Error $e) {
+            log_message('error', 'AdminCon::get_appointments_ajax - Fatal Error: ' . $e->getMessage());
+            log_message('error', 'AdminCon::get_appointments_ajax - Stack trace: ' . $e->getTraceAsString());
+            $db_error = $this->db->error();
+            if (!empty($db_error['message'])) {
+                log_message('error', 'AdminCon::get_appointments_ajax - DB Error: ' . $db_error['message']);
+            }
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Fatal error loading appointments: ' . $e->getMessage(),
+                'appointments' => [],
+                'total' => 0
+            ]);
+        }
     }
     
     /**
@@ -312,6 +501,7 @@ class AdminCon extends CI_Controller
             $appointment_date = $preferred_date ?: date('Y-m-d');
             
             // Check if appointment already exists (use OrderID integer)
+            $this->db->reset_query();
             $this->db->where('OrderID', $order->OrderID);
             $existing = $this->db->get('appointments')->row();
             
@@ -330,6 +520,7 @@ class AdminCon extends CI_Controller
                     'AppointmentTime' => '10:00:00' // Default time
                 ];
                 
+                $this->db->reset_query();
                 $this->db->insert('appointments', $appointment_data);
             } else {
                 // Update existing appointment if it has NULL date or needs preferred date update
@@ -343,6 +534,7 @@ class AdminCon extends CI_Controller
                         $update_data['AppointmentDate'] = $preferred_date;
                     }
                     if (!empty($update_data)) {
+                        $this->db->reset_query();
                         $this->db->where('AppointmentID', $existing->AppointmentID);
                         $this->db->update('appointments', $update_data);
                     }
@@ -645,6 +837,53 @@ class AdminCon extends CI_Controller
                 'success' => true,
                 'message' => 'Appointment updated successfully',
                 'order_updated' => !empty($order_update)
+            ]);
+        }
+    }
+    
+    /**
+     * Delete appointment
+     */
+    public function delete_appointment_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $appointment_id = $this->input->post('appointment_id');
+        
+        if (!$appointment_id) {
+            echo json_encode(['success' => false, 'message' => 'Appointment ID is required']);
+            return;
+        }
+        
+        // Get appointment to verify it exists
+        $this->db->where('AppointmentID', $appointment_id);
+        $appointment = $this->db->get('appointments')->row();
+        
+        if (!$appointment) {
+            echo json_encode(['success' => false, 'message' => 'Appointment not found']);
+            return;
+        }
+        
+        // Start transaction
+        $this->db->trans_start();
+        
+        // Delete the appointment
+        $this->db->where('AppointmentID', $appointment_id);
+        $this->db->delete('appointments');
+        
+        $this->db->trans_complete();
+        
+        if ($this->db->trans_status() === FALSE) {
+            echo json_encode(['success' => false, 'message' => 'Failed to delete appointment']);
+        } else {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Appointment deleted successfully'
             ]);
         }
     }
@@ -1267,6 +1506,169 @@ class AdminCon extends CI_Controller
         $this->load->view('admin_page/layout', $data);
     }
 
+    // Issues/Support
+    public function admin_issues()
+    {
+        $this->load->model('Issue_model');
+        $data['title'] = "Glassify - Issues/Support";
+        $data['active'] = 'issues';
+        $data['content_view'] = 'admin_page/admin_issues';
+        $data['page_css'] = 'admin_css/admin_issues.css';
+        $this->load->view('admin_page/layout', $data);
+    }
+
+    // ===================== ISSUE/SUPPORT API ENDPOINTS =====================
+
+    /**
+     * Get all issues (AJAX endpoint)
+     */
+    public function get_issues_ajax()
+    {
+        $this->load->model('Issue_model');
+        
+        $filters = [
+            'status' => $this->input->get('status') ?: 'Open',
+            'priority' => $this->input->get('priority'),
+            'category' => $this->input->get('category'),
+            'search' => $this->input->get('search')
+        ];
+        
+        $issues = $this->Issue_model->get_all_issues($filters);
+        
+        // Format issues for frontend
+        $formatted_issues = [];
+        foreach ($issues as $issue) {
+            $formatted_issues[] = [
+                'issue_id' => $issue->Issue_ID,
+                'ticket_id' => '#TC-' . str_pad($issue->Issue_ID, 2, '0', STR_PAD_LEFT),
+                'category' => $issue->Category,
+                'priority' => $issue->Priority,
+                'email' => $issue->Email,
+                'first_name' => $issue->First_Name,
+                'last_name' => $issue->Last_Name,
+                'status' => $issue->Status,
+                'report_date' => $issue->Report_Date
+            ];
+        }
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'issues' => $formatted_issues,
+            'count' => count($formatted_issues)
+        ]);
+    }
+
+    /**
+     * Get issue details by ID (AJAX endpoint)
+     */
+    public function get_issue_details_ajax($issue_id)
+    {
+        $this->load->model('Issue_model');
+        $issue = $this->Issue_model->get_issue_by_id($issue_id);
+        
+        if (!$issue) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Issue not found'
+            ]);
+            return;
+        }
+        
+        // Format order ID
+        $order_id_display = $issue->Order_ID > 0 ? '#G' . str_pad($issue->Order_ID, 4, '0', STR_PAD_LEFT) : 'N/A';
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'issue' => [
+                'issue_id' => $issue->Issue_ID,
+                'ticket_id' => '#TC-' . str_pad($issue->Issue_ID, 2, '0', STR_PAD_LEFT),
+                'first_name' => $issue->First_Name,
+                'last_name' => $issue->Last_Name,
+                'email' => $issue->Email,
+                'phone' => $issue->PhoneNum,
+                'order_id' => $order_id_display,
+                'order_id_raw' => $issue->Order_ID,
+                'category' => $issue->Category,
+                'priority' => $issue->Priority,
+                'description' => $issue->Description,
+                'status' => $issue->Status,
+                'report_date' => $issue->Report_Date
+            ]
+        ]);
+    }
+
+    /**
+     * Mark issue as resolved (AJAX endpoint)
+     */
+    public function mark_resolved_ajax()
+    {
+        $this->load->model('Issue_model');
+        $issue_id = $this->input->post('issue_id');
+        
+        if (!$issue_id) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Issue ID is required'
+            ]);
+            return;
+        }
+        
+        $result = $this->Issue_model->mark_as_resolved($issue_id);
+        
+        if ($result) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'message' => 'Issue marked as resolved'
+            ]);
+        } else {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Failed to update issue'
+            ]);
+        }
+    }
+
+    /**
+     * Update issue priority (AJAX endpoint)
+     */
+    public function update_priority_ajax()
+    {
+        $this->load->model('Issue_model');
+        $issue_id = $this->input->post('issue_id');
+        $priority = $this->input->post('priority');
+        
+        if (!$issue_id || !in_array($priority, ['Low', 'Medium', 'High'])) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Invalid request'
+            ]);
+            return;
+        }
+        
+        $result = $this->Issue_model->update_priority($issue_id, $priority);
+        
+        if ($result) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'message' => 'Priority updated successfully'
+            ]);
+        } else {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Failed to update priority'
+            ]);
+        }
+    }
+
     /**
      * Update admin account information via AJAX
      */
@@ -1391,35 +1793,90 @@ class AdminCon extends CI_Controller
     {
         header('Content-Type: application/json');
         
-        $status_filter = $this->input->get('status');
+        try {
+            $status_filter = $this->input->get('status');
+        $order_type = $this->input->get('order_type'); // 'direct' or 'site-assessed'
         $search = $this->input->get('search');
-        $month = $this->input->get('month'); // 0-11
-        $year = $this->input->get('year');
+        $client_search = $this->input->get('client_search');
+        $order_search = $this->input->get('order_search');
+        $date_start = $this->input->get('date_start');
+        $date_end = $this->input->get('date_end');
+        $month_year = $this->input->get('month_year'); // Format: YYYY-MM
+        $ocular_status = $this->input->get('ocular_status'); // For site-assessed orders
+        $month = $this->input->get('month'); // 0-11 (legacy)
+        $year = $this->input->get('year'); // (legacy)
         $page = $this->input->get('page') ?: 1;
         $limit = $this->input->get('limit') ?: 10;
         $offset = ($page - 1) * $limit;
         
         // Build count query first (simple, no joins to avoid duplication)
+        $this->db->reset_query();
         $this->db->from('`order` o');
         
-        // Apply status filter
-        if ($status_filter && $status_filter !== 'all orders') {
-            switch ($status_filter) {
-                case 'completed':
-                    $this->db->where('o.Status', 'Completed');
-                    break;
-                case 'pending':
-                    // Use 'Pending Review' status (legacy 'Pending' status is deprecated)
-                    $this->db->where('o.Status', 'Pending Review');
-                    break;
-                case 'cancel':
-                    $this->db->where('o.Status', 'Cancelled');
-                    break;
+        // Apply order type filter (if OrderType column exists)
+        if ($order_type) {
+            if ($this->db->field_exists('OrderType', 'order')) {
+                if ($order_type === 'direct') {
+                    $this->db->where('(o.OrderType = "Direct" OR o.OrderType IS NULL)');
+                } elseif ($order_type === 'site-assessed') {
+                    $this->db->where('o.OrderType', 'Site-Assessed');
+                }
+            } else {
+                // Fallback: If OrderType doesn't exist, we can't filter by type
+                // This allows the system to work even if the column hasn't been added yet
             }
         }
         
-        // Apply search filter for count
-        if ($search) {
+        // Apply status filter
+        if ($status_filter && $status_filter !== 'all' && $status_filter !== 'all orders') {
+            $this->db->where('o.Status', $status_filter);
+        }
+        
+        // Apply ocular status filter for site-assessed orders
+        if ($order_type === 'site-assessed' && $ocular_status && $ocular_status !== 'all') {
+            // This would require checking appointments table for ocular completion
+            // For now, we'll implement a basic check if OcularCompleted field exists
+            if ($this->db->field_exists('OcularCompleted', 'order')) {
+                if ($ocular_status === 'completed') {
+                    $this->db->where('o.OcularCompleted', 1);
+                } elseif ($ocular_status === 'pending') {
+                    $this->db->where('(o.OcularCompleted = 0 OR o.OcularCompleted IS NULL)');
+                }
+            }
+        }
+        
+        // Apply date range filter
+        if ($date_start) {
+            $this->db->where('o.OrderDate >=', $date_start . ' 00:00:00');
+        }
+        if ($date_end) {
+            $this->db->where('o.OrderDate <=', $date_end . ' 23:59:59');
+        }
+        
+        // Apply month/year filter (new format)
+        if ($month_year) {
+            $parts = explode('-', $month_year);
+            if (count($parts) == 2) {
+                $this->db->where('MONTH(o.OrderDate)', (int)$parts[1]);
+                $this->db->where('YEAR(o.OrderDate)', (int)$parts[0]);
+            }
+        }
+        
+        // Apply client search (name, email, phone)
+        // For count query, we'll skip client search filter to avoid join complexity
+        // The main query will handle it properly with joins
+        // This is acceptable since client search is typically used with the main query anyway
+        
+        // Apply order number search
+        if ($order_search) {
+            $this->db->group_start();
+            $this->db->like('o.OrderNumber', $order_search);
+            $this->db->or_like('o.OrderID', $order_search);
+            $this->db->group_end();
+        }
+        
+        // Apply general search filter for count (legacy support)
+        if ($search && !$client_search && !$order_search) {
             $this->db->group_start();
             $this->db->like('o.OrderNumber', $search);
             $this->db->or_like('o.OrderID', $search);
@@ -1429,13 +1886,26 @@ class AdminCon extends CI_Controller
             $this->db->group_end();
         }
         
-        // Apply date filter
-        if ($month !== null && $month !== '' && $year) {
+        // Apply legacy date filter
+        if ($month !== null && $month !== '' && $year && !$month_year) {
             $this->db->where('MONTH(o.OrderDate)', $month + 1);
             $this->db->where('YEAR(o.OrderDate)', $year);
         }
         
+        // Get total count
+        // Use get_compiled_select to debug if needed
         $total_count = $this->db->count_all_results();
+        
+        // Check for database errors
+        $db_error = $this->db->error();
+        if (!empty($db_error['code'])) {
+            log_message('error', 'AdminCon::get_orders_ajax - Count query error: ' . $db_error['message']);
+            log_message('error', 'AdminCon::get_orders_ajax - Count query SQL: ' . $this->db->last_query());
+            throw new Exception('Database error in count query: ' . $db_error['message']);
+        }
+        
+        // Reset query for data retrieval
+        $this->db->reset_query();
         
         // Now build the data query with joins
         $this->db->select('
@@ -1445,11 +1915,14 @@ class AdminCon extends CI_Controller
             o.TotalAmount, 
             o.Status, 
             o.PaymentStatus, 
-            o.DeliveryAddress, 
+            o.DeliveryAddress,
+            o.OrderType,
             c.Customer_ID, 
             u.First_Name, 
             u.Last_Name, 
             u.Middle_Name,
+            u.Email,
+            u.PhoneNum,
             p.ProductName
         ');
         $this->db->from('`order` o');
@@ -1460,22 +1933,62 @@ class AdminCon extends CI_Controller
         $this->db->group_by('o.OrderID');
         
         // Reapply filters for data query
-        if ($status_filter && $status_filter !== 'all orders') {
-            switch ($status_filter) {
-                case 'completed':
-                    $this->db->where('o.Status', 'Completed');
-                    break;
-                case 'pending':
-                    // Use 'Pending Review' status (legacy 'Pending' status is deprecated)
-                    $this->db->where('o.Status', 'Pending Review');
-                    break;
-                case 'cancel':
-                    $this->db->where('o.Status', 'Cancelled');
-                    break;
+        if ($order_type) {
+            if ($this->db->field_exists('OrderType', 'order')) {
+                if ($order_type === 'direct') {
+                    $this->db->where('(o.OrderType = "Direct" OR o.OrderType IS NULL)');
+                } elseif ($order_type === 'site-assessed') {
+                    $this->db->where('o.OrderType', 'Site-Assessed');
+                }
             }
         }
         
-        if ($search) {
+        if ($status_filter && $status_filter !== 'all' && $status_filter !== 'all orders') {
+            $this->db->where('o.Status', $status_filter);
+        }
+        
+        if ($order_type === 'site-assessed' && $ocular_status && $ocular_status !== 'all') {
+            if ($this->db->field_exists('OcularCompleted', 'order')) {
+                if ($ocular_status === 'completed') {
+                    $this->db->where('o.OcularCompleted', 1);
+                } elseif ($ocular_status === 'pending') {
+                    $this->db->where('(o.OcularCompleted = 0 OR o.OcularCompleted IS NULL)');
+                }
+            }
+        }
+        
+        if ($date_start) {
+            $this->db->where('o.OrderDate >=', $date_start . ' 00:00:00');
+        }
+        if ($date_end) {
+            $this->db->where('o.OrderDate <=', $date_end . ' 23:59:59');
+        }
+        
+        if ($month_year) {
+            $parts = explode('-', $month_year);
+            if (count($parts) == 2) {
+                $this->db->where('MONTH(o.OrderDate)', (int)$parts[1]);
+                $this->db->where('YEAR(o.OrderDate)', (int)$parts[0]);
+            }
+        }
+        
+        if ($client_search) {
+            $this->db->group_start();
+            $this->db->like('u.First_Name', $client_search);
+            $this->db->or_like('u.Last_Name', $client_search);
+            $this->db->or_like('u.Email', $client_search);
+            $this->db->or_like('u.PhoneNum', $client_search);
+            $this->db->group_end();
+        }
+        
+        if ($order_search) {
+            $this->db->group_start();
+            $this->db->like('o.OrderNumber', $order_search);
+            $this->db->or_like('o.OrderID', $order_search);
+            $this->db->group_end();
+        }
+        
+        if ($search && !$client_search && !$order_search) {
             $this->db->group_start();
             $this->db->like('o.OrderNumber', $search);
             $this->db->or_like('o.OrderID', $search);
@@ -1484,7 +1997,7 @@ class AdminCon extends CI_Controller
             $this->db->group_end();
         }
         
-        if ($month !== null && $month !== '' && $year) {
+        if ($month !== null && $month !== '' && $year && !$month_year) {
             $this->db->where('MONTH(o.OrderDate)', $month + 1);
             $this->db->where('YEAR(o.OrderDate)', $year);
         }
@@ -1520,17 +2033,36 @@ class AdminCon extends CI_Controller
             $status_display = $this->map_status_to_display($order_status);
             $status_class = $this->map_status_to_class($order_status);
             
-            $formatted_orders[] = [
+            $customer_name = trim(($order->First_Name ?? '') . ' ' . ($order->Middle_Name ?? '') . ' ' . ($order->Last_Name ?? ''));
+            if (empty($customer_name)) {
+                $customer_name = 'N/A';
+            }
+            
+            $formatted_order = [
                 'order_id' => $order_id_formatted,
+                'order_id_raw' => $order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT),
                 'product_name' => $product_name,
                 'address' => $address,
                 'date' => $order_date,
                 'price' => number_format($order->TotalAmount, 2, '.', ''),
                 'status' => $status_display,
                 'status_class' => $status_class,
+                'status_raw' => $order_status,
                 'full_address' => $order->DeliveryAddress,
-                'customer_name' => trim(($order->First_Name ?? '') . ' ' . ($order->Middle_Name ?? '') . ' ' . ($order->Last_Name ?? ''))
+                'customer_name' => $customer_name,
+                'customer_email' => $order->Email ?? '',
+                'customer_phone' => $order->PhoneNum ?? ''
             ];
+            
+            // Add ocular status for site-assessed orders
+            if ($order_type === 'site-assessed') {
+                $formatted_order['ocular_status'] = 'Pending'; // Default, will be updated if field exists
+                if ($this->db->field_exists('OcularCompleted', 'order')) {
+                    $formatted_order['ocular_status'] = (isset($order->OcularCompleted) && $order->OcularCompleted) ? 'Completed' : 'Pending';
+                }
+            }
+            
+            $formatted_orders[] = $formatted_order;
         }
         
         echo json_encode([
@@ -1540,6 +2072,46 @@ class AdminCon extends CI_Controller
             'limit' => (int)$limit,
             'total_pages' => ceil($total_count / $limit)
         ]);
+        
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
+            $db_error = $this->db->error();
+            if (!empty($db_error['message'])) {
+                $error_message .= ' | DB Error: ' . $db_error['message'];
+            }
+            log_message('error', 'AdminCon::get_orders_ajax - Error: ' . $error_message);
+            log_message('error', 'AdminCon::get_orders_ajax - Stack trace: ' . $e->getTraceAsString());
+            log_message('error', 'AdminCon::get_orders_ajax - Last query: ' . $this->db->last_query());
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error loading orders: ' . $error_message,
+                'orders' => [],
+                'total' => 0,
+                'page' => 1,
+                'limit' => 10,
+                'total_pages' => 0
+            ]);
+        } catch (Error $e) {
+            $error_message = $e->getMessage();
+            $db_error = $this->db->error();
+            if (!empty($db_error['message'])) {
+                $error_message .= ' | DB Error: ' . $db_error['message'];
+            }
+            log_message('error', 'AdminCon::get_orders_ajax - Fatal error: ' . $error_message);
+            log_message('error', 'AdminCon::get_orders_ajax - Stack trace: ' . $e->getTraceAsString());
+            log_message('error', 'AdminCon::get_orders_ajax - Last query: ' . $this->db->last_query());
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Fatal error loading orders: ' . $error_message,
+                'orders' => [],
+                'total' => 0,
+                'page' => 1,
+                'limit' => 10,
+                'total_pages' => 0
+            ]);
+        }
     }
 
     /**
@@ -1550,21 +2122,22 @@ class AdminCon extends CI_Controller
     {
         header('Content-Type: application/json');
         
-        $order_id = $this->input->get('order_id');
-        if (!$order_id) {
-            echo json_encode(['success' => false, 'message' => 'Order ID required']);
-            return;
-        }
-        
-        // Remove # prefix if present
-        $order_id_clean = str_replace('#', '', $order_id);
-        
-        // Load Order_model
-        $this->load->model('Order_model');
-        
-        // Pass the order_id directly to the model - it handles both numeric ID and OrderNumber format
-        // The model will look up by OrderNumber (GI001) first if it's a string, then by numeric ID
-        $order = $this->Order_model->get_order_details_for_popup($order_id_clean);
+        try {
+            $order_id = $this->input->get('order_id');
+            if (!$order_id) {
+                echo json_encode(['success' => false, 'message' => 'Order ID required']);
+                return;
+            }
+            
+            // Remove # prefix if present
+            $order_id_clean = str_replace('#', '', $order_id);
+            
+            // Load Order_model
+            $this->load->model('Order_model');
+            
+            // Pass the order_id directly to the model - it handles both numeric ID and OrderNumber format
+            // The model will look up by OrderNumber (GI001) first if it's a string, then by numeric ID
+            $order = $this->Order_model->get_order_details_for_popup($order_id_clean);
         
         if (!$order) {
             // Fallback: Try to get basic order info to see if it exists at all
@@ -1669,21 +2242,123 @@ class AdminCon extends CI_Controller
         }
         
         // Format order ID
+        if (!isset($order->OrderID)) {
+            log_message('error', 'AdminCon::get_order_details_ajax - Order object missing OrderID property');
+            echo json_encode(['success' => false, 'message' => 'Invalid order data: missing OrderID']);
+            return;
+        }
+        
         $order_id_formatted = '#' . ($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT));
+        $order_id_numeric = $order->OrderID;
+        
+        // Get staff assignments
+        $fabrication_staff_name = 'Unassigned';
+        $installation_staff_name = 'Unassigned';
+        
+        if ($this->db->field_exists('FabricationStaff_ID', 'order') && !empty($order->FabricationStaff_ID)) {
+            $fab_staff = $this->db->where('UserID', $order->FabricationStaff_ID)->get('user')->row();
+            if ($fab_staff) {
+                $fabrication_staff_name = trim(($fab_staff->First_Name ?? '') . ' ' . ($fab_staff->Last_Name ?? ''));
+            }
+        }
+        
+        if ($this->db->field_exists('InstallationStaff_ID', 'order') && !empty($order->InstallationStaff_ID)) {
+            $inst_staff = $this->db->where('UserID', $order->InstallationStaff_ID)->get('user')->row();
+            if ($inst_staff) {
+                $installation_staff_name = trim(($inst_staff->First_Name ?? '') . ' ' . ($inst_staff->Last_Name ?? ''));
+            }
+        }
+        
+        // Get ocular notes and related info (for site-assessed orders)
+        $ocular_notes = '';
+        $ocular_date = 'N/A';
+        $ocular_staff_name = 'N/A';
+        $ocular_completed = false;
+        
+        $ocular_appointment = $this->db->where('OrderID', $order_id_numeric)
+                                       ->where('Service', 'Ocular Visit')
+                                       ->get('appointments')
+                                       ->row();
+        
+        if ($ocular_appointment) {
+            $ocular_notes = $ocular_appointment->OcularNotes ?? '';
+            $ocular_date = $ocular_appointment->AppointmentDate ? date('F j, Y', strtotime($ocular_appointment->AppointmentDate)) : 'N/A';
+            $ocular_completed = ($ocular_appointment->Status === 'Complete');
+            
+            if (!empty($ocular_appointment->AssignedStaff)) {
+                $ocular_staff_name = $ocular_appointment->AssignedStaff;
+            }
+        }
+        
+        // Get order items for the items table
+        $order_items = $this->Order_model->get_order_customizations($order_id_numeric);
+        $items = [];
+        foreach ($order_items as $item) {
+            $items[] = [
+                'product_name' => $item->ProductName ?? 'N/A',
+                'quantity' => $item->Quantity ?? 0,
+                'unit_price' => number_format($item->UnitPrice ?? 0, 2, '.', ''),
+                'shape' => $item->GlassShape ?? 'N/A',
+                'dimension' => $item->Dimensions ?? 'N/A',
+                'type' => $item->GlassType ?? 'N/A',
+                'thickness' => $item->GlassThickness ?? 'N/A',
+                'edge_work' => $item->EdgeWork ?? 'N/A',
+                'frame_type' => $item->FrameType ?? 'N/A',
+                'engraving' => $item->Engraving ?? 'N/A',
+                'design_file' => $item->DesignRef ? base_url($item->DesignRef) : null
+            ];
+        }
+        
+        // Get sales rep info
+        $sales_rep_name = 'N/A';
+        $sales_rep_email = 'N/A';
+        $sales_rep_phone = 'N/A';
+        $sales_rep_status = 'N/A';
+        
+        if (!empty($order->SalesRep_ID)) {
+            $sales_rep = $this->db->where('UserID', $order->SalesRep_ID)->get('user')->row();
+            if ($sales_rep) {
+                $sales_rep_name = trim(($sales_rep->First_Name ?? '') . ' ' . ($sales_rep->Last_Name ?? ''));
+                $sales_rep_email = $sales_rep->Email ?? 'N/A';
+                $sales_rep_phone = $sales_rep->PhoneNum ?? 'N/A';
+                $sales_rep_status = $sales_rep->Status ?? 'N/A';
+            }
+        }
+        
+        // Get payment info
+        $payment = $this->db->where('OrderID', $order_id_numeric)->order_by('Payment_Date', 'DESC')->get('payment')->row();
+        $payment_status = $payment ? ($payment->Status ?? 'N/A') : 'N/A';
+        $payment_method = $payment ? ($payment->PaymentMethod ?? 'N/A') : 'N/A';
+        $payment_date = $payment && $payment->Payment_Date ? date('F j, Y', strtotime($payment->Payment_Date)) : 'N/A';
         
         // Format response
         $response = [
             'success' => true,
             'order' => [
                 'order_id' => $order_id_formatted,
+                'order_id_raw' => $order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT),
                 'product_name' => $order->ProductName ?? 'N/A',
                 'address' => $order->DeliveryAddress ?? 'N/A',
+                'full_address' => $order->DeliveryAddress ?? 'N/A',
                 'date' => $order->OrderDate ? date('d/m/Y', strtotime($order->OrderDate)) : 'N/A',
                 'status' => $this->map_status_to_display($order->Status ?? 'Pending Review'),
+                'status_raw' => $order->Status ?? 'Pending Review',
                 'total_quotation' => number_format($order->TotalAmount ?? 0, 2, '.', ''),
+                'subtotal' => number_format($order->TotalAmount ?? 0, 2, '.', ''),
+                'tax' => '0.00',
                 'customer_name' => $customer_name,
                 'customer_email' => $order->Email ?? 'N/A',
                 'customer_phone' => $order->PhoneNum ?? 'N/A',
+                'sales_rep_name' => $sales_rep_name,
+                'sales_rep_email' => $sales_rep_email,
+                'sales_rep_phone' => $sales_rep_phone,
+                'sales_rep_status' => $sales_rep_status,
+                'fabrication_staff_name' => $fabrication_staff_name,
+                'installation_staff_name' => $installation_staff_name,
+                'ocular_notes' => $ocular_notes,
+                'ocular_date' => $ocular_date,
+                'ocular_staff_name' => $ocular_staff_name,
+                'ocular_completed' => $ocular_completed,
                 'shape' => $order->GlassShape ?? 'N/A',
                 'dimension' => $order->Dimensions ?? 'N/A',
                 'type' => $order->GlassType ?? 'N/A',
@@ -1694,11 +2369,30 @@ class AdminCon extends CI_Controller
                 'file_attached' => $order->DesignRef ?? 'N/A',
                 'file_url' => $order->DesignRef ? base_url($order->DesignRef) : null,
                 'special_instructions' => $order->SpecialInstructions ?? 'N/A',
-                'preferred_installation_date' => $preferred_installation_date
+                'preferred_installation_date' => $preferred_installation_date,
+                'items' => $items,
+                'payment_status' => $payment_status,
+                'payment_method' => $payment_method,
+                'payment_date' => $payment_date
             ]
         ];
         
         echo json_encode($response);
+        } catch (Exception $e) {
+            log_message('error', 'AdminCon::get_order_details_ajax - Exception: ' . $e->getMessage());
+            log_message('error', 'AdminCon::get_order_details_ajax - Stack trace: ' . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Error loading order details: ' . $e->getMessage()
+            ]);
+        } catch (Error $e) {
+            log_message('error', 'AdminCon::get_order_details_ajax - Fatal Error: ' . $e->getMessage());
+            log_message('error', 'AdminCon::get_order_details_ajax - Stack trace: ' . $e->getTraceAsString());
+            echo json_encode([
+                'success' => false,
+                'message' => 'Fatal error loading order details: ' . $e->getMessage()
+            ]);
+        }
     }
 
     /**
@@ -1828,19 +2522,38 @@ class AdminCon extends CI_Controller
                 return;
             }
             
-            // Get sales rep name
+            // Get sales rep information
             $sales_rep_name = 'N/A';
+            $sales_rep_status = 'N/A';
+            $sales_rep_email = 'N/A';
+            $sales_rep_phone = 'N/A';
+            
             if (isset($order->SalesRep_First_Name) && !empty($order->SalesRep_First_Name)) {
                 $sales_rep_name = trim(($order->SalesRep_First_Name ?? '') . ' ' . ($order->SalesRep_Last_Name ?? ''));
                 if (empty(trim($sales_rep_name))) {
                     $sales_rep_name = 'N/A';
                 }
+                // Get status from order object if available
+                if (isset($order->SalesRep_Status)) {
+                    $sales_rep_status = $order->SalesRep_Status;
+                }
+                if (isset($order->SalesRep_Email)) {
+                    $sales_rep_email = $order->SalesRep_Email;
+                }
+                if (isset($order->SalesRep_Phone)) {
+                    $sales_rep_phone = $order->SalesRep_Phone;
+                }
             } elseif (isset($order->SalesRep_ID) && !empty($order->SalesRep_ID)) {
                 try {
                     $sales_rep = $this->User_model->get_by_id($order->SalesRep_ID);
-                    $sales_rep_name = ($sales_rep && isset($sales_rep->First_Name)) 
-                        ? trim($sales_rep->First_Name . ' ' . ($sales_rep->Last_Name ?? '')) 
-                        : 'N/A';
+                    if ($sales_rep) {
+                        $sales_rep_name = isset($sales_rep->First_Name) 
+                            ? trim($sales_rep->First_Name . ' ' . ($sales_rep->Last_Name ?? '')) 
+                            : 'N/A';
+                        $sales_rep_status = isset($sales_rep->Status) ? $sales_rep->Status : 'N/A';
+                        $sales_rep_email = isset($sales_rep->Email) ? $sales_rep->Email : 'N/A';
+                        $sales_rep_phone = isset($sales_rep->PhoneNum) ? $sales_rep->PhoneNum : 'N/A';
+                    }
                 } catch (Exception $e) {
                     log_message('error', 'AdminCon::get_approval_order_details - Error fetching sales rep: ' . $e->getMessage());
                     $sales_rep_name = 'N/A';
@@ -1942,7 +2655,12 @@ class AdminCon extends CI_Controller
                         'status' => isset($order->Status) ? (string)$order->Status : 'Awaiting Admin',
                         'total_quotation' => $total_amount,
                         'customer_name' => $customer_name,
+                        'customer_email' => isset($order->Customer_Email) ? (string)$order->Customer_Email : 'N/A',
+                        'customer_phone' => isset($order->Customer_Phone) ? (string)$order->Customer_Phone : 'N/A',
                         'sales_rep_name' => $sales_rep_name,
+                        'sales_rep_status' => $sales_rep_status,
+                        'sales_rep_email' => $sales_rep_email,
+                        'sales_rep_phone' => $sales_rep_phone,
                         'shape' => isset($order->GlassShape) ? (string)$order->GlassShape : 'N/A',
                         'dimension' => isset($order->Dimensions) ? (string)$order->Dimensions : 'N/A',
                         'type' => isset($order->GlassType) ? (string)$order->GlassType : 'N/A',
@@ -1954,6 +2672,7 @@ class AdminCon extends CI_Controller
                         'file_url' => (isset($order->DesignRef) && !empty($order->DesignRef)) ? base_url($order->DesignRef) : null,
                         'requested_date' => $requested_date,
                         'preferred_installation_date' => $preferred_installation_date,
+                        'special_instructions' => isset($order->SpecialInstructions) ? (string)$order->SpecialInstructions : '',
                         'notes' => $notes
                     ]
                 ];
@@ -2083,99 +2802,6 @@ class AdminCon extends CI_Controller
         }
         
         echo json_encode($result);
-        return;
-        
-        // Get admin ID
-        $admin_id = $this->session->userdata('user_id');
-        $admin = $this->User_model->get_by_id($admin_id);
-        $admin_name = $admin ? trim($admin->First_Name . ' ' . $admin->Last_Name) : 'Admin';
-        
-        // Start transaction
-        $this->db->trans_start();
-        
-        // Get order from awaiting_admin_orders
-        $this->db->where('OrderID', $order_id_clean);
-        $order = $this->db->get('awaiting_admin_orders')->row();
-        
-        if (!$order) {
-            $this->db->trans_rollback();
-            echo json_encode(['success' => false, 'message' => 'Order not found in awaiting approval']);
-            return;
-        }
-        
-        // Extract numeric OrderID for unified order table
-        $order_id_numeric = (int)str_replace('GI', '', $order_id_clean);
-        
-        // Update order status using Order_model transaction function
-        $this->load->model('Order_model');
-        // Note: update_order_status doesn't handle disapproval reason, so we'll update manually
-        $this->db->where('OrderID', $order_id_numeric);
-        $this->db->update('order', [
-            'Status' => 'Disapproved',
-            'DisapprovedBy' => 'Admin',
-            'DisapprovedBy_ID' => $admin_id,
-            'DisapprovalReason' => $disapproval_reason,
-            'Disapproved_Date' => date('Y-m-d H:i:s')
-        ]);
-        
-        // Insert into disapproved_orders (legacy table for backward compatibility)
-        $disapproved_data = [
-            'OrderID' => $order->OrderID,
-            'ProductName' => $order->ProductName,
-            'Address' => $order->Address,
-            'OrderDate' => $order->OrderDate,
-            'Shape' => $order->Shape,
-            'Dimension' => $order->Dimension,
-            'Type' => $order->Type,
-            'Thickness' => $order->Thickness,
-            'EdgeWork' => $order->EdgeWork,
-            'FrameType' => $order->FrameType,
-            'Engraving' => $order->Engraving,
-            'FileAttached' => $order->FileAttached,
-            'TotalQuotation' => $order->TotalQuotation,
-            'Customer_ID' => $order->Customer_ID,
-            'SalesRep_ID' => $order->SalesRep_ID,
-            'DisapprovedBy' => 'Admin',
-            'DisapprovedBy_ID' => $admin_id,
-            'DisapprovalReason' => $disapproval_reason,
-            'Disapproved_Date' => date('Y-m-d H:i:s'),
-            'CustomerNotified' => 0
-        ];
-        
-        $this->db->insert('disapproved_orders', $disapproved_data);
-        
-        // Delete from awaiting_admin_orders
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->delete('awaiting_admin_orders');
-        
-        // Update order_page status if exists
-        $this->db->where('OrderID', $order_id_clean);
-        $this->db->update('order_page', ['Status' => 'Disapproved']);
-        
-        // Complete transaction
-        $this->db->trans_complete();
-        
-        if ($this->db->trans_status() === FALSE) {
-            echo json_encode(['success' => false, 'message' => 'Failed to disapprove order']);
-            return;
-        }
-        
-        // Log activity
-        $this->log_activity(
-            'Order Disapproved by Admin',
-            "Order {$order_id_clean} has been disapproved by {$admin_name}. Reason: {$disapproval_reason}",
-            'Admin',
-            $admin_id,
-            $admin_name,
-            $order_id_clean,
-            'Order'
-        );
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Order disapproved. Sales representative and customer will be notified.',
-            'order_id' => $order_id_clean
-        ]);
     }
 
     /**
@@ -2481,8 +3107,27 @@ class AdminCon extends CI_Controller
     }
     
     /**
+     * Mark all notifications as viewed (AJAX endpoint)
+     * Stores the current timestamp in session to track when admin last viewed notifications
+     */
+    public function mark_all_notifications_viewed()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        // Store current timestamp as last viewed time
+        $this->session->set_userdata('admin_last_viewed_notifications', date('Y-m-d H:i:s'));
+        
+        echo json_encode(['status' => 'success', 'message' => 'All notifications marked as viewed']);
+    }
+    
+    /**
      * Get notification count (AJAX endpoint)
-     * Admin uses system_activity_log - count all recent notifications
+     * Admin uses system_activity_log - count only unviewed recent notifications
      */
     public function get_notification_count_ajax()
     {
@@ -2493,10 +3138,19 @@ class AdminCon extends CI_Controller
             return;
         }
         
-        // Count all notifications from system_activity_log (admin treats all as notifications)
+        // Count unviewed notifications from system_activity_log
         if ($this->db->table_exists('system_activity_log')) {
+            // Get last viewed timestamp from session
+            $last_viewed = $this->session->userdata('admin_last_viewed_notifications');
+            
             // Count notifications from last 30 days
             $this->db->where('Timestamp >=', date('Y-m-d H:i:s', strtotime('-30 days')));
+            
+            // If admin has viewed notifications before, only count newer ones
+            if ($last_viewed) {
+                $this->db->where('Timestamp >', $last_viewed);
+            }
+            
             $count = $this->db->count_all_results('system_activity_log');
         } else {
             $count = 0;
@@ -2510,6 +3164,1933 @@ class AdminCon extends CI_Controller
         }
         
         echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
+    }
+
+    // ======================
+    // ORDER MANAGEMENT - NEW METHODS
+    // ======================
+
+    /**
+     * Update order status
+     */
+    public function update_order_status()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        $new_status = $this->input->post('status');
+        $notes = $this->input->post('notes');
+        
+        if (!$order_id || !$new_status) {
+            echo json_encode(['success' => false, 'message' => 'Order ID and status are required']);
+            return;
+        }
+        
+        // Remove # prefix if present
+        $order_id_clean = str_replace('#', '', $order_id);
+        
+        // Get current order
+        $order = $this->db->where('OrderNumber', $order_id_clean)
+                          ->or_where('OrderID', $order_id_clean)
+                          ->get('`order`')->row();
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+        
+        // Validate status transition
+        $current_status = $order->Status ?? 'Pending Review';
+        $valid_transitions = $this->get_valid_status_transitions($current_status);
+        
+        if (!in_array($new_status, $valid_transitions)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid status transition']);
+            return;
+        }
+        
+        // Update order status
+        $update_data = ['Status' => $new_status];
+        if ($new_status === 'Approved' && !$order->Approved_Date) {
+            $update_data['Approved_Date'] = date('Y-m-d H:i:s');
+        }
+        
+        $this->db->where('OrderID', $order->OrderID)->update('`order`', $update_data);
+        
+        // Log status change
+        $this->log_activity(
+            'Order Status Updated',
+            "Order {$order_id_clean} status changed from {$current_status} to {$new_status}",
+            'Admin',
+            $this->session->userdata('user_id'),
+            $this->session->userdata('user_name'),
+            $order->OrderID,
+            'Order'
+        );
+        
+        // Save admin notes if provided
+        if ($notes) {
+            // Store notes in a notes table or order table if column exists
+            if ($this->db->field_exists('AdminNotes', 'order')) {
+                $this->db->where('OrderID', $order->OrderID)
+                         ->update('`order`', ['AdminNotes' => $notes]);
+            }
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Order status updated successfully']);
+    }
+    
+    /**
+     * Get valid status transitions for an order
+     */
+    private function get_valid_status_transitions($current_status)
+    {
+        $transitions = [
+            'Pending Review' => ['Approved', 'Cancelled'],
+            'Approved' => ['In Fabrication', 'Cancelled'],
+            'Ocular Pending' => ['Approved', 'Cancelled'],
+            'In Fabrication' => ['Ready for Installation', 'Cancelled'],
+            'Ready for Installation' => ['Completed', 'Cancelled'],
+            'Completed' => [], // Final state
+            'Cancelled' => [] // Final state
+        ];
+        
+        return $transitions[$current_status] ?? [];
+    }
+    
+    /**
+     * Assign staff to order
+     */
+    public function assign_staff()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        $staff_type = $this->input->post('staff_type'); // 'fabrication' or 'installation'
+        $staff_id = $this->input->post('staff_id');
+        
+        if (!$order_id || !$staff_type) {
+            echo json_encode(['success' => false, 'message' => 'Order ID and staff type are required']);
+            return;
+        }
+        
+        // Remove # prefix if present
+        $order_id_clean = str_replace('#', '', $order_id);
+        
+        // Get order
+        $order = $this->db->where('OrderNumber', $order_id_clean)
+                          ->or_where('OrderID', $order_id_clean)
+                          ->get('`order`')->row();
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+        
+        // Update staff assignment
+        $field_name = $staff_type === 'fabrication' ? 'FabricationStaff_ID' : 'InstallationStaff_ID';
+        
+        if ($this->db->field_exists($field_name, 'order')) {
+            $update_data = [$field_name => $staff_id ?: null];
+            $this->db->where('OrderID', $order->OrderID)->update('`order`', $update_data);
+            
+            // Get staff name for logging
+            $staff_name = 'Unassigned';
+            if ($staff_id) {
+                $staff = $this->db->where('UserID', $staff_id)->get('user')->row();
+                if ($staff) {
+                    $staff_name = ($staff->First_Name ?? '') . ' ' . ($staff->Last_Name ?? '');
+                }
+            }
+            
+            $this->log_activity(
+                'Staff Assigned',
+                "{$staff_type} staff assigned to order {$order_id_clean}: {$staff_name}",
+                'Admin',
+                $this->session->userdata('user_id'),
+                $this->session->userdata('user_name'),
+                $order->OrderID,
+                'Order'
+            );
+            
+            echo json_encode(['success' => true, 'message' => 'Staff assigned successfully']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Staff assignment field not found in database']);
+        }
+    }
+    
+    /**
+     * Get staff list for dropdown
+     */
+    public function get_staff_list()
+    {
+        header('Content-Type: application/json');
+        
+        $role = $this->input->get('role'); // 'Fabrication' or 'Installation'
+        
+        $this->db->select('UserID, First_Name, Last_Name, Middle_Name, Role');
+        $this->db->from('user');
+        
+        // Filter by role if provided (for Fabrication/Installation, use Admin or Sales Representative)
+        // Since there's no specific Fabrication/Installation role, we'll get all active staff
+        // The frontend can filter as needed
+        if ($role) {
+            // For now, get Admin and Sales Representative roles as they can be assigned
+            $this->db->where_in('Role', ['Admin', 'Sales Representative', 'Inventory Officer']);
+        } else {
+            // Get all active staff (Admin, Sales Rep, Inventory Officer)
+            $this->db->where_in('Role', ['Admin', 'Sales Representative', 'Inventory Officer']);
+        }
+        
+        $this->db->where('Status', 'Active');
+        $this->db->order_by('First_Name', 'ASC');
+        
+        $staff = $this->db->get()->result();
+        
+        $formatted_staff = [];
+        foreach ($staff as $s) {
+            $formatted_staff[] = [
+                'id' => $s->UserID,
+                'name' => trim(($s->First_Name ?? '') . ' ' . ($s->Middle_Name ?? '') . ' ' . ($s->Last_Name ?? ''))
+            ];
+        }
+        
+        echo json_encode(['success' => true, 'staff' => $formatted_staff]);
+    }
+    
+    /**
+     * Update ocular notes for an order
+     */
+    public function update_ocular_notes()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        $ocular_notes = $this->input->post('ocular_notes');
+        
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+            return;
+        }
+        
+        // Remove # prefix if present
+        $order_id_clean = str_replace('#', '', $order_id);
+        
+        // Get order to find OrderID
+        $order = $this->db->where('OrderNumber', $order_id_clean)
+                          ->or_where('OrderID', $order_id_clean)
+                          ->get('`order`')->row();
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+        
+        $order_id_numeric = $order->OrderID;
+        
+        // Find or create ocular appointment
+        $ocular_appointment = $this->db->where('OrderID', $order_id_numeric)
+                                       ->where('Service', 'Ocular Visit')
+                                       ->get('appointments')
+                                       ->row();
+        
+        if ($ocular_appointment) {
+            // Update existing appointment
+            $this->db->where('AppointmentID', $ocular_appointment->AppointmentID)
+                     ->update('appointments', [
+                         'OcularNotes' => $ocular_notes,
+                         'Updated_Date' => date('Y-m-d H:i:s')
+                     ]);
+        } else {
+            // Create new ocular appointment if it doesn't exist
+            $appointment_data = [
+                'OrderID' => $order_id_numeric,
+                'Customer_ID' => $order->Customer_ID,
+                'Service' => 'Ocular Visit',
+                'Status' => 'In Progress',
+                'OcularNotes' => $ocular_notes,
+                'AppointmentDate' => date('Y-m-d'),
+                'AppointmentTime' => '10:00:00'
+            ];
+            
+            // Get customer name
+            $customer = $this->db->where('Customer_ID', $order->Customer_ID)
+                                 ->join('user u', 'u.UserID = customer.UserID', 'left')
+                                 ->get('customer')
+                                 ->row();
+            
+            if ($customer) {
+                $appointment_data['ClientName'] = trim(($customer->First_Name ?? '') . ' ' . ($customer->Last_Name ?? ''));
+            }
+            
+            $this->db->insert('appointments', $appointment_data);
+        }
+        
+        // Log activity
+        $this->log_activity(
+            'Ocular Notes Updated',
+            "Ocular notes updated for order {$order_id_clean}",
+            'Admin',
+            $this->session->userdata('user_id'),
+            $this->session->userdata('user_name'),
+            $order_id_numeric,
+            'Order'
+        );
+        
+        echo json_encode(['success' => true, 'message' => 'Ocular notes updated successfully']);
+    }
+    
+    /**
+     * Export order (placeholder - can be enhanced for PDF/Excel generation)
+     */
+    public function export_order()
+    {
+        header('Content-Type: application/json');
+        
+        $order_id = $this->input->get('order_id');
+        
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID required']);
+            return;
+        }
+        
+        // This is a placeholder - implement actual export logic
+        echo json_encode(['success' => true, 'message' => 'Export functionality to be implemented']);
+    }
+    
+    // ======================
+    // CALENDAR MODULE
+    // ======================
+    
+    public function admin_calendar()
+    {
+        $data['title'] = "Glassify - Calendar / Project Timeline";
+        $data['active'] = 'calendar';
+        $data['content_view'] = 'admin_page/admin_calendar';
+        $data['page_css'] = 'admin_css/admin_calendar.css';
+        $data['page_js'] = 'admin-js/calendar.js';
+        $this->load->view('admin_page/layout', $data);
+    }
+    
+    /**
+     * Get calendar events (orders and appointments)
+     */
+    public function get_calendar_events()
+    {
+        header('Content-Type: application/json');
+        
+        try {
+            $start_date = $this->input->get('start');
+            $end_date = $this->input->get('end');
+            $order_type = $this->input->get('order_type'); // 'direct', 'site-assessed', or 'all'
+            $status_filter = $this->input->get('status'); // Status filter
+            $search = $this->input->get('search'); // Search by order number or client name
+            
+            $events = [];
+            
+            // Get orders with additional fields for timeline
+            $this->db->select('o.OrderID, o.OrderNumber, o.OrderDate, o.Status, o.OrderType, o.TotalAmount, 
+                              u.First_Name, u.Last_Name, o.FabricationStartDate, o.FabricationEndDate,
+                              o.InstallationDate');
+            $this->db->from('`order` o');
+            $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+            $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+            
+            if ($start_date) {
+                $this->db->where('o.OrderDate >=', $start_date);
+            }
+            if ($end_date) {
+                $this->db->where('o.OrderDate <=', $end_date);
+            }
+            
+            if ($order_type && $order_type !== 'all') {
+                // Check if OrderType column exists by trying to query it
+                try {
+                    if ($order_type === 'direct') {
+                        $this->db->where('(o.OrderType = "Direct" OR o.OrderType IS NULL)');
+                    } elseif ($order_type === 'site-assessed') {
+                        $this->db->where('o.OrderType', 'Site-Assessed');
+                    }
+                } catch (Exception $e) {
+                    // If OrderType doesn't exist, skip this filter
+                    log_message('debug', 'OrderType field may not exist: ' . $e->getMessage());
+                }
+            }
+            
+            if ($status_filter && $status_filter !== 'all') {
+                $this->db->where('o.Status', $status_filter);
+            }
+            
+            if ($search) {
+                $this->db->group_start();
+                $this->db->like('o.OrderNumber', $search);
+                $this->db->or_like('u.First_Name', $search);
+                $this->db->or_like('u.Last_Name', $search);
+                $this->db->group_end();
+            }
+            
+            $orders_query = $this->db->get();
+            $db_error = $this->db->error();
+            if ($db_error['code'] != 0) {
+                throw new Exception('Orders query failed: ' . $db_error['message']);
+            }
+            $orders = $orders_query->result();
+            
+            foreach ($orders as $order) {
+                $first_name = isset($order->First_Name) ? $order->First_Name : '';
+                $last_name = isset($order->Last_Name) ? $order->Last_Name : '';
+                $customer_name = trim($first_name . ' ' . $last_name);
+                $order_type_value = isset($order->OrderType) ? $order->OrderType : 'Direct';
+                $progress = $this->calculate_order_progress($order->Status, $order_type_value);
+                
+                $order_number = isset($order->OrderNumber) && $order->OrderNumber ? 
+                    $order->OrderNumber : 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT);
+                
+                $events[] = [
+                    'id' => 'order_' . $order->OrderID,
+                    'title' => 'Order: ' . $order_number,
+                    'start' => $order->OrderDate,
+                    'type' => 'order',
+                    'order_id' => $order->OrderID,
+                    'order_number' => $order_number,
+                    'status' => $order->Status,
+                    'customer' => $customer_name,
+                    'order_type' => $order_type_value,
+                    'color' => $this->get_order_calendar_color($order->Status, $order_type_value),
+                    'progress' => $progress,
+                    'fabrication_start' => isset($order->FabricationStartDate) ? $order->FabricationStartDate : null,
+                    'fabrication_end' => isset($order->FabricationEndDate) ? $order->FabricationEndDate : null,
+                    'installation_date' => isset($order->InstallationDate) ? $order->InstallationDate : null,
+                    'total_amount' => isset($order->TotalAmount) ? $order->TotalAmount : 0
+                ];
+            }
+        
+            // Get appointments with additional details
+            $this->db->select('a.*, o.OrderNumber, o.OrderType, u.First_Name, u.Last_Name');
+            $this->db->from('appointments a');
+            $this->db->join('`order` o', 'a.OrderID = o.OrderID', 'left');
+            $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+            $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+            
+            if ($start_date) {
+                $this->db->where('a.AppointmentDate >=', $start_date);
+            }
+            if ($end_date) {
+                $this->db->where('a.AppointmentDate <=', $end_date);
+            }
+            
+            if ($search) {
+                $this->db->group_start();
+                $this->db->like('o.OrderNumber', $search);
+                $this->db->or_like('a.ClientName', $search);
+                $this->db->or_like('u.First_Name', $search);
+                $this->db->or_like('u.Last_Name', $search);
+                $this->db->group_end();
+            }
+            
+            $appointments_query = $this->db->get();
+            $db_error = $this->db->error();
+            if ($db_error['code'] != 0) {
+                throw new Exception('Appointments query failed: ' . $db_error['message']);
+            }
+            $appointments = $appointments_query->result();
+            
+            foreach ($appointments as $apt) {
+                $appointment_time = isset($apt->AppointmentTime) && $apt->AppointmentTime ? $apt->AppointmentTime : '00:00:00';
+                $start_datetime = $apt->AppointmentDate . ' ' . $appointment_time;
+                
+                $client_name = isset($apt->ClientName) && $apt->ClientName ? $apt->ClientName : '';
+                $apt_first_name = isset($apt->First_Name) ? $apt->First_Name : '';
+                $apt_last_name = isset($apt->Last_Name) ? $apt->Last_Name : '';
+                $customer_name = !empty($client_name) ? $client_name : trim($apt_first_name . ' ' . $apt_last_name);
+                
+                $events[] = [
+                    'id' => 'appt_' . $apt->AppointmentID,
+                    'title' => $apt->Service . ' - ' . (!empty($customer_name) ? $customer_name : 'N/A'),
+                    'start' => $start_datetime,
+                    'type' => 'appointment',
+                    'appointment_id' => $apt->AppointmentID,
+                    'order_id' => isset($apt->OrderID) ? $apt->OrderID : null,
+                    'order_number' => isset($apt->OrderNumber) && $apt->OrderNumber ? $apt->OrderNumber : 'N/A',
+                    'service' => $apt->Service,
+                    'client_name' => $customer_name,
+                    'assigned_staff' => isset($apt->AssignedStaff) && $apt->AssignedStaff ? $apt->AssignedStaff : 'N/A',
+                    'status' => isset($apt->Status) && $apt->Status ? $apt->Status : 'Scheduled',
+                    'color' => $this->get_appointment_calendar_color($apt->Service, isset($apt->Status) ? $apt->Status : 'Scheduled'),
+                    'notes' => isset($apt->Notes) ? $apt->Notes : ''
+                ];
+            }
+            
+            echo json_encode($events);
+            
+        } catch (Exception $e) {
+            $error_message = $e->getMessage();
+            $error_trace = $e->getTraceAsString();
+            log_message('error', 'get_calendar_events error: ' . $error_message);
+            log_message('error', 'get_calendar_events trace: ' . substr($error_trace, 0, 500));
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'error' => 'Failed to load calendar events',
+                'message' => $error_message
+            ]);
+            exit;
+        } catch (Error $e) {
+            $error_message = $e->getMessage();
+            log_message('error', 'get_calendar_events fatal error: ' . $error_message);
+            http_response_code(500);
+            header('Content-Type: application/json');
+            echo json_encode([
+                'error' => 'Failed to load calendar events',
+                'message' => $error_message
+            ]);
+            exit;
+        }
+    }
+    
+    /**
+     * Calculate order progress percentage based on status and order type
+     */
+    private function calculate_order_progress($status, $order_type)
+    {
+        if ($order_type === 'Site-Assessed') {
+            $progress_map = [
+                'Pending Review' => 0,
+                'Ocular Pending' => 0,
+                'Ocular Completed' => 20,
+                'Approved' => 35,
+                'In Fabrication' => 55,
+                'Ready for Installation' => 80,
+                'Installed' => 95,
+                'Completed' => 100,
+                'Cancelled' => 0
+            ];
+        } else {
+            // Direct Orders
+            $progress_map = [
+                'Pending Review' => 0,
+                'Approved' => 25,
+                'In Fabrication' => 50,
+                'Ready for Installation' => 75,
+                'Installed' => 90,
+                'Completed' => 100,
+                'Cancelled' => 0
+            ];
+        }
+        
+        return $progress_map[$status] ?? 0;
+    }
+    
+    private function get_order_calendar_color($status, $order_type)
+    {
+        // Color coding as per documentation
+        if ($status === 'Cancelled') {
+            return '#f44336'; // Red
+        }
+        if ($status === 'Completed') {
+            return '#2e7d32'; // Dark Green
+        }
+        if ($order_type === 'Site-Assessed') {
+            return '#FF9800'; // Orange
+        }
+        return '#2196F3'; // Blue for Direct
+    }
+    
+    private function get_appointment_calendar_color($service, $status)
+    {
+        if (stripos($service, 'Ocular') !== false || stripos($service, 'Site Assessment') !== false) {
+            return '#FFC107'; // Light Orange
+        }
+        if (stripos($service, 'Installation') !== false) {
+            return '#4CAF50'; // Green
+        }
+        return '#9C27B0'; // Purple (Fabrication)
+    }
+    
+    /**
+     * Get day details (orders and appointments for a specific date)
+     */
+    public function get_day_details()
+    {
+        header('Content-Type: application/json');
+        
+        $date = $this->input->get('date');
+        if (!$date) {
+            echo json_encode(['success' => false, 'message' => 'Date is required']);
+            return;
+        }
+        
+        $events = [];
+        
+        // Get orders for this date
+        $this->db->select('o.OrderID, o.OrderNumber, o.OrderDate, o.Status, o.OrderType, o.TotalAmount, u.First_Name, u.Last_Name');
+        $this->db->from('`order` o');
+        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+        $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+        $this->db->where('DATE(o.OrderDate)', $date);
+        
+        $orders = $this->db->get()->result();
+        
+        foreach ($orders as $order) {
+            $customer_name = trim(($order->First_Name ?? '') . ' ' . ($order->Last_Name ?? ''));
+            $events[] = [
+                'id' => 'order_' . $order->OrderID,
+                'type' => 'order',
+                'order_id' => $order->OrderID,
+                'order_number' => $order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT),
+                'status' => $order->Status,
+                'customer' => $customer_name,
+                'order_type' => $order->OrderType ?? 'Direct',
+                'color' => $this->get_order_calendar_color($order->Status, $order->OrderType ?? 'Direct'),
+                'time' => null,
+                'total_amount' => $order->TotalAmount ?? 0
+            ];
+        }
+        
+        // Get appointments for this date
+        $this->db->select('a.*, o.OrderNumber');
+        $this->db->from('appointments a');
+        $this->db->join('`order` o', 'a.OrderID = o.OrderID', 'left');
+        $this->db->where('DATE(a.AppointmentDate)', $date);
+        $this->db->order_by('a.AppointmentTime', 'ASC');
+        
+        $appointments = $this->db->get()->result();
+        
+        foreach ($appointments as $apt) {
+            $events[] = [
+                'id' => 'appt_' . $apt->AppointmentID,
+                'type' => 'appointment',
+                'appointment_id' => $apt->AppointmentID,
+                'order_id' => $apt->OrderID,
+                'order_number' => $apt->OrderNumber ?? 'N/A',
+                'service' => $apt->Service,
+                'client_name' => $apt->ClientName ?? 'N/A',
+                'status' => $apt->Status ?? 'Scheduled',
+                'color' => $this->get_appointment_calendar_color($apt->Service, $apt->Status ?? 'Scheduled'),
+                'time' => $apt->AppointmentTime ?? '00:00:00',
+                'assigned_staff' => $apt->AssignedStaff ?? 'N/A'
+            ];
+        }
+        
+        echo json_encode(['success' => true, 'events' => $events]);
+    }
+    
+    // ======================
+    // PRODUCTION / FABRICATION QUEUE MODULE
+    // ======================
+    
+    public function admin_production()
+    {
+        $data['title'] = "Glassify - Production / Fabrication Queue";
+        $data['active'] = 'fabrication-queue';
+        $data['content_view'] = 'admin_page/admin_production';
+        $data['page_css'] = 'admin_css/admin_production.css';
+        $data['page_js'] = 'admin-js/production.js';
+        $this->load->view('admin_page/layout', $data);
+    }
+    
+    /**
+     * Get fabrication queue orders
+     */
+    public function get_fabrication_queue()
+    {
+        header('Content-Type: application/json');
+        
+        $status_filter = $this->input->get('status');
+        $order_type = $this->input->get('order_type');
+        $staff_filter = $this->input->get('staff');
+        $date_start = $this->input->get('date_start');
+        $date_end = $this->input->get('date_end');
+        $search = $this->input->get('search');
+        
+        // Get orders that are approved or in fabrication
+        $this->db->select('o.*, u.First_Name, u.Last_Name, p.ProductName, oi.Quantity,
+                          staff.First_Name as Staff_First_Name, staff.Last_Name as Staff_Last_Name');
+        $this->db->from('`order` o');
+        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+        $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+        $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+        $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+        $this->db->join('user staff', 'staff.UserID = o.FabricationStaff_ID', 'left');
+        $this->db->group_by('o.OrderID');
+        
+        $this->db->where_in('o.Status', ['Approved', 'In Fabrication', 'Ready for Installation', 'Completed', 'Installed']);
+        
+        // Map status filter to actual statuses
+        if ($status_filter && $status_filter !== 'all') {
+            if ($status_filter === 'queued') {
+                $this->db->where('(o.Status = "Approved" AND (o.FabricationStatus IS NULL OR o.FabricationStatus = "Queued"))');
+            } elseif ($status_filter === 'in-progress') {
+                $this->db->where('o.Status', 'In Fabrication');
+                $this->db->where('(o.FabricationStatus IS NULL OR o.FabricationStatus = "In Progress")');
+            } elseif ($status_filter === 'quality-check') {
+                // Quality check uses FabricationStatus field
+                $this->db->where('o.FabricationStatus', 'Quality Check');
+            } elseif ($status_filter === 'ready') {
+                $this->db->where('(o.Status = "Ready for Installation" OR o.FabricationStatus = "Ready")');
+            } elseif ($status_filter === 'completed') {
+                $this->db->where_in('o.Status', ['Completed', 'Installed']);
+            } else {
+                $this->db->where('o.Status', $status_filter);
+            }
+        }
+        
+        if ($order_type && $order_type !== 'all') {
+            if ($this->db->field_exists('OrderType', 'order')) {
+                if ($order_type === 'direct') {
+                    $this->db->where('(o.OrderType = "Direct" OR o.OrderType IS NULL)');
+                } elseif ($order_type === 'site-assessed') {
+                    $this->db->where('o.OrderType', 'Site-Assessed');
+                }
+            }
+        }
+        
+        if ($staff_filter && $staff_filter !== 'all') {
+            $this->db->where('o.FabricationStaff_ID', $staff_filter);
+        }
+        
+        if ($date_start) {
+            $this->db->where('o.FabricationStartDate >=', $date_start);
+        }
+        if ($date_end) {
+            $this->db->where('o.FabricationEndDate <=', $date_end);
+        }
+        
+        if ($search) {
+            $this->db->group_start();
+            $this->db->like('o.OrderNumber', $search);
+            $this->db->or_like('u.First_Name', $search);
+            $this->db->or_like('u.Last_Name', $search);
+            $this->db->or_like('p.ProductName', $search);
+            $this->db->group_end();
+        }
+        
+        $orders = $this->db->get()->result();
+        
+        $formatted_orders = [];
+        foreach ($orders as $order) {
+            $customer_name = trim(($order->First_Name ?? '') . ' ' . ($order->Last_Name ?? ''));
+            $staff_name = trim(($order->Staff_First_Name ?? '') . ' ' . ($order->Staff_Last_Name ?? ''));
+            
+            // Determine queue status based on FabricationStatus if available, otherwise use Status
+            $queue_status = $this->map_status_to_queue($order->Status, $order->FabricationStatus ?? null);
+            
+            // Get progress - use FabricationProgress if set, otherwise calculate based on status
+            $fabrication_status = $order->FabricationStatus ?? null;
+            $progress = $order->FabricationProgress ?? null;
+            
+            // If no progress set, use status-based defaults
+            if ($progress === null && $fabrication_status) {
+                $status_progress_map = [
+                    'Queued' => 0,
+                    'In Progress' => 25,
+                    'Quality Check' => 50,
+                    'Ready' => 75,
+                    'Completed' => 100
+                ];
+                $progress = $status_progress_map[$fabrication_status] ?? $this->calculate_fabrication_progress($order->Status, $order->FabricationStartDate, $order->FabricationEndDate);
+            } elseif ($progress === null) {
+                $progress = $this->calculate_fabrication_progress($order->Status, $order->FabricationStartDate, $order->FabricationEndDate);
+            }
+            
+            $formatted_orders[] = [
+                'order_id' => $order->OrderID,
+                'order_number' => $order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT),
+                'customer_name' => $customer_name,
+                'product_name' => $order->ProductName ?? 'N/A',
+                'quantity' => $order->Quantity ?? 1,
+                'status' => $order->Status,
+                'queue_status' => $queue_status,
+                'order_type' => $order->OrderType ?? 'Direct',
+                'fabrication_start' => $order->FabricationStartDate ?? null,
+                'fabrication_end' => $order->FabricationEndDate ?? null,
+                'fabrication_staff_id' => $order->FabricationStaff_ID ?? null,
+                'fabrication_staff_name' => $staff_name ?: 'Unassigned',
+                'progress' => $progress,
+                'total_amount' => $order->TotalAmount ?? 0
+            ];
+        }
+        
+        echo json_encode(['success' => true, 'orders' => $formatted_orders]);
+    }
+    
+    /**
+     * Map order status to queue status
+     * Uses FabricationStatus if available, otherwise falls back to Status
+     */
+    private function map_status_to_queue($status, $fabrication_status = null)
+    {
+        // If FabricationStatus is set, use it to determine queue status
+        if ($fabrication_status) {
+            $fabrication_map = [
+                'Queued' => 'queued',
+                'In Progress' => 'in-progress',
+                'Quality Check' => 'quality-check',
+                'Ready' => 'ready',
+                'Completed' => 'completed'
+            ];
+            
+            if (isset($fabrication_map[$fabrication_status])) {
+                return $fabrication_map[$fabrication_status];
+            }
+        }
+        
+        // Fallback to Status field
+        $status_map = [
+            'Approved' => 'queued',
+            'In Fabrication' => 'in-progress',
+            'Ready for Installation' => 'ready',
+            'Completed' => 'completed',
+            'Installed' => 'completed'
+        ];
+        
+        return $status_map[$status] ?? 'queued';
+    }
+    
+    /**
+     * Get detailed order information for production queue
+     */
+    public function get_production_order_details()
+    {
+        header('Content-Type: application/json');
+        
+        $order_id = $this->input->get('order_id');
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+            return;
+        }
+        
+        // Get order details
+        $this->db->select('o.*, u.First_Name, u.Last_Name, u.Email, u.PhoneNum,
+                          staff.First_Name as Staff_First_Name, staff.Last_Name as Staff_Last_Name,
+                          staff.UserID as Staff_UserID');
+        $this->db->from('`order` o');
+        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+        $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+        $this->db->join('user staff', 'staff.UserID = o.FabricationStaff_ID', 'left');
+        $this->db->where('o.OrderID', $order_id);
+        
+        $order = $this->db->get()->row();
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+        
+        // Get order items
+        $this->db->select('oi.*, p.ProductName, p.Product_ID');
+        $this->db->from('order_items oi');
+        $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+        $this->db->where('oi.OrderID', $order_id);
+        $order_items = $this->db->get()->result();
+        
+        $customer_name = trim(($order->First_Name ?? '') . ' ' . ($order->Last_Name ?? ''));
+        $staff_name = trim(($order->Staff_First_Name ?? '') . ' ' . ($order->Staff_Last_Name ?? ''));
+        
+        $result = [
+            'success' => true,
+            'order' => [
+                'order_id' => $order->OrderID,
+                'order_number' => $order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT),
+                'order_type' => $order->OrderType ?? 'Direct',
+                'status' => $order->Status,
+                'order_date' => $order->OrderDate,
+                'customer' => [
+                    'name' => $customer_name,
+                    'email' => $order->Email ?? '',
+                    'phone' => $order->PhoneNum ?? ''
+                ],
+                'fabrication' => [
+                    'start_date' => $order->FabricationStartDate ?? null,
+                    'end_date' => $order->FabricationEndDate ?? null,
+                    'actual_start_date' => $order->ActualFabricationStartDate ?? null,
+                    'actual_end_date' => $order->ActualFabricationEndDate ?? null,
+                    'staff_id' => $order->FabricationStaff_ID ?? null,
+                    'staff_name' => $staff_name ?: 'Unassigned',
+                    'progress' => $this->get_fabrication_progress($order->FabricationStatus ?? null, $order->FabricationProgress ?? null, $order->Status, $order->FabricationStartDate ?? null, $order->FabricationEndDate ?? null),
+                    'status' => $order->FabricationStatus ?? null,
+                    'notes' => $order->FabricationNotes ?? '',
+                    'quality_check_notes' => $order->QualityCheckNotes ?? '',
+                    'issues' => $order->FabricationIssues ?? ''
+                ],
+                'items' => [],
+                'total_amount' => $order->TotalAmount ?? 0
+            ]
+        ];
+        
+        foreach ($order_items as $item) {
+            $result['order']['items'][] = [
+                'product_id' => $item->Product_ID,
+                'product_name' => $item->ProductName ?? 'N/A',
+                'quantity' => $item->Quantity ?? 1,
+                'unit_price' => $item->UnitPrice ?? 0,
+                'subtotal' => ($item->Quantity ?? 1) * ($item->UnitPrice ?? 0)
+            ];
+        }
+        
+        echo json_encode($result);
+    }
+    
+    /**
+     * Update fabrication progress
+     */
+    public function update_fabrication_progress()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        $progress = $this->input->post('progress');
+        $status = $this->input->post('status');
+        $fabrication_status = $this->input->post('fabrication_status');
+        $start_date = $this->input->post('start_date');
+        $end_date = $this->input->post('end_date');
+        $staff_id = $this->input->post('staff_id');
+        $notes = $this->input->post('notes');
+        $quality_check_notes = $this->input->post('quality_check_notes');
+        $issues = $this->input->post('issues');
+        
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+            return;
+        }
+        
+        $update_data = [];
+        
+        if ($progress !== null) {
+            $update_data['FabricationProgress'] = (int)$progress;
+        }
+        
+        if ($status) {
+            $update_data['Status'] = $status;
+        }
+        
+        if ($fabrication_status !== null) {
+            $update_data['FabricationStatus'] = $fabrication_status;
+            // Automatically set progress based on fabrication status
+            $status_progress_map = [
+                'Queued' => 0,
+                'In Progress' => 25,
+                'Quality Check' => 50,
+                'Ready' => 75,
+                'Completed' => 100
+            ];
+            if (isset($status_progress_map[$fabrication_status])) {
+                $update_data['FabricationProgress'] = $status_progress_map[$fabrication_status];
+            }
+        }
+        
+        if ($start_date) {
+            $update_data['FabricationStartDate'] = $start_date;
+            if (!$this->db->get_where('`order`', ['OrderID' => $order_id])->row()->ActualFabricationStartDate) {
+                $update_data['ActualFabricationStartDate'] = date('Y-m-d');
+            }
+        }
+        
+        if ($end_date) {
+            $update_data['FabricationEndDate'] = $end_date;
+        }
+        
+        if ($staff_id !== null) {
+            $update_data['FabricationStaff_ID'] = $staff_id ?: null;
+        }
+        
+        if ($notes !== null) {
+            $update_data['FabricationNotes'] = $notes;
+        }
+        
+        if ($quality_check_notes !== null) {
+            $update_data['QualityCheckNotes'] = $quality_check_notes;
+        }
+        
+        if ($issues !== null) {
+            $update_data['FabricationIssues'] = $issues;
+        }
+        
+        $this->db->where('OrderID', $order_id);
+        $this->db->update('`order`', $update_data);
+        
+        if ($this->db->affected_rows() >= 0) {
+            echo json_encode(['success' => true, 'message' => 'Progress updated successfully']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to update progress']);
+        }
+    }
+    
+    /**
+     * Get staff members for assignment
+     */
+    public function get_fabrication_staff()
+    {
+        header('Content-Type: application/json');
+        
+        // Get employees (Admin, Sales, Inventory - anyone who can be assigned)
+        $this->db->select('UserID, First_Name, Last_Name, Middle_Name, Role');
+        $this->db->from('user');
+        $this->db->where_in('Role', ['Admin', 'Sales Representative', 'Inventory Officer']);
+        $this->db->where('Status', 'Active');
+        $this->db->order_by('First_Name', 'ASC');
+        
+        $staff = $this->db->get()->result();
+        
+        $formatted_staff = [];
+        foreach ($staff as $member) {
+            $formatted_staff[] = [
+                'id' => $member->UserID,
+                'name' => trim($member->First_Name . ' ' . ($member->Middle_Name ? $member->Middle_Name . ' ' : '') . $member->Last_Name),
+                'role' => $member->Role
+            ];
+        }
+        
+        echo json_encode(['success' => true, 'staff' => $formatted_staff]);
+    }
+    
+    /**
+     * Move order to quality check
+     */
+    public function move_to_quality_check()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+            return;
+        }
+        
+        // Update FabricationStatus to Quality Check
+        $this->db->where('OrderID', $order_id);
+        $this->db->update('`order`', [
+            'Status' => 'In Fabrication',
+            'FabricationStatus' => 'Quality Check',
+            'FabricationProgress' => 50
+        ]);
+        
+        echo json_encode(['success' => true, 'message' => 'Order moved to quality check']);
+    }
+    
+    /**
+     * Mark fabrication as complete
+     */
+    public function mark_fabrication_complete()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+            return;
+        }
+        
+        $this->db->where('OrderID', $order_id);
+        $this->db->update('`order`', [
+            'Status' => 'Ready for Installation',
+            'FabricationStatus' => 'Completed',
+            'FabricationProgress' => 100,
+            'ActualFabricationEndDate' => date('Y-m-d')
+        ]);
+        
+        echo json_encode(['success' => true, 'message' => 'Fabrication marked as complete']);
+    }
+    
+    /**
+     * Get fabrication progress based on FabricationStatus or calculate from Status
+     */
+    private function get_fabrication_progress($fabrication_status = null, $fabrication_progress = null, $order_status = null, $start_date = null, $end_date = null)
+    {
+        // If progress is explicitly set, use it
+        if ($fabrication_progress !== null) {
+            return (int)$fabrication_progress;
+        }
+        
+        // If FabricationStatus is set, use status-based defaults
+        if ($fabrication_status) {
+            $status_progress_map = [
+                'Queued' => 0,
+                'In Progress' => 25,
+                'Quality Check' => 50,
+                'Ready' => 75,
+                'Completed' => 100
+            ];
+            if (isset($status_progress_map[$fabrication_status])) {
+                return $status_progress_map[$fabrication_status];
+            }
+        }
+        
+        // Fallback to calculating from order status
+        return $this->calculate_fabrication_progress($order_status, $start_date, $end_date);
+    }
+    
+    private function calculate_fabrication_progress($status, $start_date = null, $end_date = null)
+    {
+        // Base progress from status
+        $status_map = [
+            'Approved' => 0,
+            'In Fabrication' => 50,
+            'Ready for Installation' => 75,
+            'Installed' => 90,
+            'Completed' => 100
+        ];
+        
+        $base_progress = $status_map[$status] ?? 0;
+        
+        // If we have dates, calculate time-based progress
+        if ($start_date && $end_date) {
+            $start = strtotime($start_date);
+            $end = strtotime($end_date);
+            $now = time();
+            
+            if ($end > $start) {
+                $total_days = ($end - $start) / (60 * 60 * 24);
+                $elapsed_days = ($now - $start) / (60 * 60 * 24);
+                
+                if ($elapsed_days > 0 && $total_days > 0) {
+                    $time_progress = min(100, ($elapsed_days / $total_days) * 100);
+                    // Combine status and time progress
+                    $base_progress = max($base_progress, min(100, ($base_progress + $time_progress) / 2));
+                }
+            }
+        }
+        
+        return (int)$base_progress;
+    }
+    
+    // ======================
+    // QUOTATIONS MODULE
+    // ======================
+    
+    public function admin_quotations()
+    {
+        $data['title'] = "Glassify - Quotations";
+        $data['active'] = 'quotations';
+        $data['content_view'] = 'admin_page/admin_quotations';
+        $data['page_css'] = ['admin_css/admin_orders.css', 'admin_css/admin_quotations.css'];
+        $data['page_js'] = 'admin-js/quotations.js';
+        $this->load->view('admin_page/layout', $data);
+    }
+    
+    // ======================
+    // RETURN ORDERS MODULE
+    // ======================
+    
+    public function admin_return_orders()
+    {
+        $data['title'] = "Glassify - Return Orders";
+        $data['active'] = 'return-orders';
+        $data['content_view'] = 'admin_page/admin_return_orders';
+        $data['page_css'] = ['admin_css/admin_orders.css', 'admin_css/admin_return_orders.css'];
+        $data['page_js'] = 'admin-js/return-orders.js';
+        $this->load->view('admin_page/layout', $data);
+    }
+
+    // ======================
+    // QUOTATIONS AJAX METHODS
+    // ======================
+    
+    public function get_quotations_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        $status_filter = $this->input->get('status');
+        $date_start = $this->input->get('date_start');
+        $date_end = $this->input->get('date_end');
+        $client_search = $this->input->get('client_search');
+        $sales_rep = $this->input->get('sales_rep');
+        $amount_min = $this->input->get('amount_min');
+        $amount_max = $this->input->get('amount_max');
+        $page = $this->input->get('page') ?: 1;
+        $limit = $this->input->get('limit') ?: 10;
+        $offset = ($page - 1) * $limit;
+        
+        // Build query - Note: Adjust table/column names based on your actual database schema
+        $this->db->select('q.*, o.OrderID, o.OrderNumber, o.Customer_ID, o.TotalAmount, o.CreatedDate, 
+                          CONCAT(u.First_Name, " ", u.Last_Name) as customer_name,
+                          u.Email as customer_email, u.Phone as customer_phone,
+                          CONCAT(sr.First_Name, " ", sr.Last_Name) as sales_rep_name,
+                          p.ProductName as product_name');
+        $this->db->from('quotation q');
+        $this->db->join('`order` o', 'q.OrderID = o.OrderID', 'left');
+        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+        $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+        $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+        $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+        $this->db->join('employee e', 'o.SalesRep_ID = e.EmployeeID', 'left');
+        $this->db->join('user sr', 'e.UserID = sr.UserID', 'left');
+        $this->db->group_by('q.QuotationID');
+        
+        // Apply filters
+        if ($status_filter && $status_filter !== 'all') {
+            // Assuming Status column exists in quotation table, adjust if needed
+            if ($this->db->field_exists('Status', 'quotation')) {
+                $this->db->where('q.Status', $status_filter);
+            }
+        }
+        
+        if ($date_start) {
+            $this->db->where('DATE(q.Created_date) >=', $date_start);
+        }
+        if ($date_end) {
+            $this->db->where('DATE(q.Created_date) <=', $date_end);
+        }
+        
+        if ($client_search) {
+            $this->db->group_start();
+            $this->db->like('u.First_Name', $client_search);
+            $this->db->or_like('u.Last_Name', $client_search);
+            $this->db->or_like('u.Email', $client_search);
+            $this->db->or_like('u.Phone', $client_search);
+            $this->db->group_end();
+        }
+        
+        if ($sales_rep && $sales_rep !== 'all') {
+            $this->db->where('e.EmployeeID', $sales_rep);
+        }
+        
+        if ($amount_min) {
+            $this->db->where('q.Total_amount >=', $amount_min);
+        }
+        if ($amount_max) {
+            $this->db->where('q.Total_amount <=', $amount_max);
+        }
+        
+        // Get total count
+        $total_query = $this->db->get_compiled_select('', false);
+        $total = $this->db->query("SELECT COUNT(*) as total FROM ($total_query) as count_query")->row()->total;
+        
+        // Apply pagination
+        $this->db->limit($limit, $offset);
+        
+        // Get results
+        $quotations = $this->db->get()->result();
+        
+        // Format results
+        $formatted_quotations = [];
+        foreach ($quotations as $q) {
+            $formatted_quotations[] = [
+                'quotation_id' => $q->QuotationID,
+                'quotation_number' => $q->Quotation_num,
+                'client_name' => $q->customer_name,
+                'sales_rep_name' => $q->sales_rep_name,
+                'product_name' => $q->product_name,
+                'total_amount' => $q->Total_amount,
+                'created_date' => $q->Created_date ? date('m/d/Y', strtotime($q->Created_date)) : 'N/A',
+                'status' => isset($q->Status) ? $q->Status : 'Pending'
+            ];
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'quotations' => $formatted_quotations,
+            'total' => $total,
+            'total_pages' => ceil($total / $limit),
+            'current_page' => $page
+        ]);
+    }
+    
+    public function get_quotation_details_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        $quotation_id = $this->input->get('quotation_id');
+        if (!$quotation_id) {
+            echo json_encode(['success' => false, 'message' => 'Quotation ID required']);
+            return;
+        }
+        
+        // Get quotation details with related data
+        $this->db->select('q.*, o.OrderID, o.OrderNumber, o.Customer_ID, o.TotalAmount, o.CreatedDate,
+                          CONCAT(u.First_Name, " ", u.Last_Name) as customer_name,
+                          u.Email as customer_email, u.Phone as customer_phone,
+                          CONCAT(sr.First_Name, " ", sr.Last_Name) as sales_rep_name,
+                          c.Address as customer_address');
+        $this->db->from('quotation q');
+        $this->db->join('`order` o', 'q.OrderID = o.OrderID', 'left');
+        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+        $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+        $this->db->join('employee e', 'o.SalesRep_ID = e.EmployeeID', 'left');
+        $this->db->join('user sr', 'e.UserID = sr.UserID', 'left');
+        $this->db->where('q.QuotationID', $quotation_id);
+        $quotation = $this->db->get()->row();
+        
+        if (!$quotation) {
+            echo json_encode(['success' => false, 'message' => 'Quotation not found']);
+            return;
+        }
+        
+        // Get quotation items
+        $this->db->select('oi.*, p.ProductName');
+        $this->db->from('order_items oi');
+        $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+        $this->db->where('oi.OrderID', $quotation->OrderID);
+        $items = $this->db->get()->result();
+        
+        $formatted_items = [];
+        foreach ($items as $item) {
+            $formatted_items[] = [
+                'product_name' => $item->ProductName,
+                'specifications' => $item->Specifications ?? 'N/A',
+                'quantity' => $item->Quantity ?? 1,
+                'unit_price' => $item->UnitPrice ?? 0,
+                'subtotal' => ($item->UnitPrice ?? 0) * ($item->Quantity ?? 1)
+            ];
+        }
+        
+        // Check if converted to order
+        $linked_order_id = null;
+        if (isset($quotation->Status) && $quotation->Status === 'Converted to Order') {
+            $linked_order_id = $quotation->OrderNumber;
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'quotation' => [
+                'quotation_id' => $quotation->QuotationID,
+                'quotation_number' => $quotation->Quotation_num,
+                'created_date' => $quotation->Created_date ? date('m/d/Y', strtotime($quotation->Created_date)) : 'N/A',
+                'expiry_date' => isset($quotation->ExpiryDate) ? date('m/d/Y', strtotime($quotation->ExpiryDate)) : 'N/A',
+                'status' => isset($quotation->Status) ? $quotation->Status : 'Pending',
+                'customer_name' => $quotation->customer_name,
+                'customer_email' => $quotation->customer_email,
+                'customer_phone' => $quotation->customer_phone,
+                'customer_address' => $quotation->customer_address,
+                'sales_rep_name' => $quotation->sales_rep_name,
+                'total_amount' => $quotation->Total_amount,
+                'items' => $formatted_items,
+                'linked_order_id' => $linked_order_id,
+                'admin_notes' => isset($quotation->AdminNotes) ? $quotation->AdminNotes : ''
+            ]
+        ]);
+    }
+    
+    public function get_sales_reps_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        $this->db->select('e.EmployeeID as user_id, CONCAT(u.First_Name, " ", u.Last_Name) as name, u.First_Name as first_name, u.Last_Name as last_name');
+        $this->db->from('employee e');
+        $this->db->join('user u', 'e.UserID = u.UserID', 'left');
+        $this->db->where('e.Role', 'Sales Representative');
+        $sales_reps = $this->db->get()->result();
+        
+        echo json_encode([
+            'success' => true,
+            'sales_reps' => $sales_reps
+        ]);
+    }
+    
+    public function approve_quotation()
+    {
+        header('Content-Type: application/json');
+        
+        $quotation_id = $this->input->post('quotation_id');
+        if (!$quotation_id) {
+            echo json_encode(['success' => false, 'message' => 'Quotation ID required']);
+            return;
+        }
+        
+        // Update quotation status
+        if ($this->db->field_exists('Status', 'quotation')) {
+            $this->db->where('QuotationID', $quotation_id);
+            $this->db->update('quotation', ['Status' => 'Approved']);
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Quotation approved successfully']);
+    }
+    
+    public function reject_quotation()
+    {
+        header('Content-Type: application/json');
+        
+        $quotation_id = $this->input->post('quotation_id');
+        $reason = $this->input->post('reason');
+        
+        if (!$quotation_id) {
+            echo json_encode(['success' => false, 'message' => 'Quotation ID required']);
+            return;
+        }
+        
+        // Update quotation status
+        $update_data = [];
+        if ($this->db->field_exists('Status', 'quotation')) {
+            $update_data['Status'] = 'Rejected';
+        }
+        if ($this->db->field_exists('RejectionReason', 'quotation')) {
+            $update_data['RejectionReason'] = $reason;
+        }
+        
+        if (!empty($update_data)) {
+            $this->db->where('QuotationID', $quotation_id);
+            $this->db->update('quotation', $update_data);
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Quotation rejected successfully']);
+    }
+    
+    public function convert_quotation_to_order()
+    {
+        header('Content-Type: application/json');
+        
+        $quotation_id = $this->input->post('quotation_id');
+        if (!$quotation_id) {
+            echo json_encode(['success' => false, 'message' => 'Quotation ID required']);
+            return;
+        }
+        
+        // Get quotation
+        $this->db->where('QuotationID', $quotation_id);
+        $quotation = $this->db->get('quotation')->row();
+        
+        if (!$quotation) {
+            echo json_encode(['success' => false, 'message' => 'Quotation not found']);
+            return;
+        }
+        
+        // Update quotation status
+        if ($this->db->field_exists('Status', 'quotation')) {
+            $this->db->where('QuotationID', $quotation_id);
+            $this->db->update('quotation', ['Status' => 'Converted to Order']);
+        }
+        
+        // The order already exists (quotation is linked to an order)
+        // Just update the order status if needed
+        $this->db->where('OrderID', $quotation->OrderID);
+        $this->db->update('`order`', ['Status' => 'Pending Review']);
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Quotation converted to order successfully',
+            'order_id' => $quotation->OrderNumber
+        ]);
+    }
+    
+    public function save_quotation_notes()
+    {
+        header('Content-Type: application/json');
+        
+        $quotation_id = $this->input->post('quotation_id');
+        $notes = $this->input->post('notes');
+        
+        if (!$quotation_id) {
+            echo json_encode(['success' => false, 'message' => 'Quotation ID required']);
+            return;
+        }
+        
+        // Update admin notes if column exists
+        if ($this->db->field_exists('AdminNotes', 'quotation')) {
+            $this->db->where('QuotationID', $quotation_id);
+            $this->db->update('quotation', ['AdminNotes' => $notes]);
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Notes saved successfully']);
+    }
+    
+    // ======================
+    // RETURN ORDERS AJAX METHODS
+    // ======================
+    
+    public function get_return_orders_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        $status_filter = $this->input->get('status');
+        $date_start = $this->input->get('date_start');
+        $date_end = $this->input->get('date_end');
+        $client_search = $this->input->get('client_search');
+        $order_search = $this->input->get('order_search');
+        $return_type = $this->input->get('return_type');
+        $page = $this->input->get('page') ?: 1;
+        $limit = $this->input->get('limit') ?: 10;
+        $offset = ($page - 1) * $limit;
+        
+        // Note: Adjust table/column names based on your actual database schema
+        // Assuming a return_orders table exists, adjust as needed
+        if (!$this->db->table_exists('return_orders')) {
+            echo json_encode([
+                'success' => true,
+                'return_orders' => [],
+                'total' => 0,
+                'total_pages' => 0,
+                'current_page' => $page
+            ]);
+            return;
+        }
+        
+        $this->db->select('r.*, o.OrderNumber, o.CreatedDate as order_date,
+                          CONCAT(u.First_Name, " ", u.Last_Name) as client_name,
+                          p.ProductName as product_name');
+        $this->db->from('return_orders r');
+        $this->db->join('`order` o', 'r.OrderID = o.OrderID', 'left');
+        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+        $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+        $this->db->join('product p', 'r.Product_ID = p.Product_ID', 'left');
+        
+        // Apply filters
+        if ($status_filter && $status_filter !== 'all') {
+            if ($this->db->field_exists('ReturnStatus', 'return_orders')) {
+                $this->db->where('r.ReturnStatus', $status_filter);
+            } elseif ($this->db->field_exists('Status', 'return_orders')) {
+                $this->db->where('r.Status', $status_filter);
+            }
+        }
+        
+        if ($date_start) {
+            if ($this->db->field_exists('ReturnDate', 'return_orders')) {
+                $this->db->where('DATE(r.ReturnDate) >=', $date_start);
+            }
+        }
+        if ($date_end) {
+            if ($this->db->field_exists('ReturnDate', 'return_orders')) {
+                $this->db->where('DATE(r.ReturnDate) <=', $date_end);
+            }
+        }
+        
+        if ($client_search) {
+            $this->db->group_start();
+            $this->db->like('u.First_Name', $client_search);
+            $this->db->or_like('u.Last_Name', $client_search);
+            $this->db->or_like('u.Email', $client_search);
+            $this->db->or_like('u.Phone', $client_search);
+            $this->db->group_end();
+        }
+        
+        if ($order_search) {
+            $this->db->like('o.OrderNumber', $order_search);
+        }
+        
+        if ($return_type && $return_type !== 'all') {
+            if ($this->db->field_exists('ReturnType', 'return_orders')) {
+                $this->db->where('r.ReturnType', $return_type);
+            } elseif ($this->db->field_exists('ReturnReason', 'return_orders')) {
+                $this->db->like('r.ReturnReason', $return_type);
+            }
+        }
+        
+        // Get total count
+        $total_query = $this->db->get_compiled_select('', false);
+        $total = $this->db->query("SELECT COUNT(*) as total FROM ($total_query) as count_query")->row()->total;
+        
+        // Apply pagination
+        $this->db->limit($limit, $offset);
+        
+        // Get results
+        $return_orders = $this->db->get()->result();
+        
+        // Format results
+        $formatted_returns = [];
+        foreach ($return_orders as $r) {
+            $status_field = $this->db->field_exists('ReturnStatus', 'return_orders') ? 'ReturnStatus' : 'Status';
+            $return_date_field = $this->db->field_exists('ReturnDate', 'return_orders') ? 'ReturnDate' : 'CreatedDate';
+            $reason_field = $this->db->field_exists('ReturnReason', 'return_orders') ? 'ReturnReason' : 'Reason';
+            
+            $formatted_returns[] = [
+                'return_id' => $r->ReturnID ?? $r->ID,
+                'return_number' => isset($r->ReturnNumber) ? $r->ReturnNumber : ($r->ReturnID ?? $r->ID),
+                'original_order_id' => $r->OrderNumber,
+                'client_name' => $r->client_name,
+                'product_name' => $r->product_name,
+                'return_date' => isset($r->$return_date_field) ? date('m/d/Y', strtotime($r->$return_date_field)) : 'N/A',
+                'return_reason' => isset($r->$reason_field) ? $r->$reason_field : 'N/A',
+                'status' => isset($r->$status_field) ? $r->$status_field : 'Pending'
+            ];
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'return_orders' => $formatted_returns,
+            'total' => $total,
+            'total_pages' => ceil($total / $limit),
+            'current_page' => $page
+        ]);
+    }
+    
+    public function get_return_details_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        $return_id = $this->input->get('return_id');
+        if (!$return_id) {
+            echo json_encode(['success' => false, 'message' => 'Return ID required']);
+            return;
+        }
+        
+        if (!$this->db->table_exists('return_orders')) {
+            echo json_encode(['success' => false, 'message' => 'Return orders table not found']);
+            return;
+        }
+        
+        // Get return order details
+        $this->db->select('r.*, o.OrderNumber, o.CreatedDate as order_date, o.TotalAmount as original_amount,
+                          CONCAT(u.First_Name, " ", u.Last_Name) as client_name,
+                          p.ProductName as product_name');
+        $this->db->from('return_orders r');
+        $this->db->join('`order` o', 'r.OrderID = o.OrderID', 'left');
+        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+        $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+        $this->db->join('product p', 'r.Product_ID = p.Product_ID', 'left');
+        $this->db->where('r.ReturnID', $return_id);
+        $return_order = $this->db->get()->row();
+        
+        if (!$return_order) {
+            echo json_encode(['success' => false, 'message' => 'Return order not found']);
+            return;
+        }
+        
+        // Get photos if field exists
+        $photos = [];
+        if ($this->db->field_exists('Photos', 'return_orders') && !empty($return_order->Photos)) {
+            $photos = json_decode($return_order->Photos, true) ?: [];
+        }
+        
+        $status_field = $this->db->field_exists('ReturnStatus', 'return_orders') ? 'ReturnStatus' : 'Status';
+        $return_date_field = $this->db->field_exists('ReturnDate', 'return_orders') ? 'ReturnDate' : 'CreatedDate';
+        $reason_field = $this->db->field_exists('ReturnReason', 'return_orders') ? 'ReturnReason' : 'Reason';
+        $type_field = $this->db->field_exists('ReturnType', 'return_orders') ? 'ReturnType' : 'Type';
+        
+        echo json_encode([
+            'success' => true,
+            'return_order' => [
+                'return_id' => $return_order->ReturnID ?? $return_order->ID,
+                'return_number' => isset($return_order->ReturnNumber) ? $return_order->ReturnNumber : ($return_order->ReturnID ?? $return_order->ID),
+                'return_date' => isset($return_order->$return_date_field) ? date('m/d/Y', strtotime($return_order->$return_date_field)) : 'N/A',
+                'return_type' => isset($return_order->$type_field) ? $return_order->$type_field : 'N/A',
+                'status' => isset($return_order->$status_field) ? $return_order->$status_field : 'Pending',
+                'original_order_id' => $return_order->OrderNumber,
+                'original_order_date' => $return_order->order_date ? date('m/d/Y', strtotime($return_order->order_date)) : 'N/A',
+                'original_product_name' => $return_order->product_name,
+                'original_amount' => $return_order->original_amount,
+                'product_name' => $return_order->product_name,
+                'quantity_returned' => isset($return_order->Quantity) ? $return_order->Quantity : 1,
+                'return_reason' => isset($return_order->$reason_field) ? $return_order->$reason_field : 'N/A',
+                'return_description' => isset($return_order->ReturnDescription) ? $return_order->ReturnDescription : 'N/A',
+                'photos' => $photos,
+                'replacement_required' => isset($return_order->ReplacementRequired) ? (bool)$return_order->ReplacementRequired : false,
+                'replacement_product_name' => isset($return_order->ReplacementProductName) ? $return_order->ReplacementProductName : 'N/A',
+                'replacement_order_id' => isset($return_order->ReplacementOrderID) ? $return_order->ReplacementOrderID : null,
+                'replacement_appointment_id' => isset($return_order->ReplacementAppointmentID) ? $return_order->ReplacementAppointmentID : null,
+                'refund_amount' => isset($return_order->RefundAmount) ? $return_order->RefundAmount : '',
+                'refund_method' => isset($return_order->RefundMethod) ? $return_order->RefundMethod : '',
+                'refund_status' => isset($return_order->RefundStatus) ? $return_order->RefundStatus : 'Pending',
+                'refund_date' => isset($return_order->RefundDate) ? date('m/d/Y', strtotime($return_order->RefundDate)) : 'N/A',
+                'admin_notes' => isset($return_order->AdminNotes) ? $return_order->AdminNotes : ''
+            ]
+        ]);
+    }
+    
+    public function approve_return()
+    {
+        header('Content-Type: application/json');
+        
+        $return_id = $this->input->post('return_id');
+        if (!$return_id) {
+            echo json_encode(['success' => false, 'message' => 'Return ID required']);
+            return;
+        }
+        
+        if (!$this->db->table_exists('return_orders')) {
+            echo json_encode(['success' => false, 'message' => 'Return orders table not found']);
+            return;
+        }
+        
+        $status_field = $this->db->field_exists('ReturnStatus', 'return_orders') ? 'ReturnStatus' : 'Status';
+        $this->db->where('ReturnID', $return_id);
+        $this->db->update('return_orders', [$status_field => 'Approved']);
+        
+        echo json_encode(['success' => true, 'message' => 'Return approved successfully']);
+    }
+    
+    public function reject_return()
+    {
+        header('Content-Type: application/json');
+        
+        $return_id = $this->input->post('return_id');
+        $reason = $this->input->post('reason');
+        
+        if (!$return_id) {
+            echo json_encode(['success' => false, 'message' => 'Return ID required']);
+            return;
+        }
+        
+        if (!$this->db->table_exists('return_orders')) {
+            echo json_encode(['success' => false, 'message' => 'Return orders table not found']);
+            return;
+        }
+        
+        $status_field = $this->db->field_exists('ReturnStatus', 'return_orders') ? 'ReturnStatus' : 'Status';
+        $update_data = [$status_field => 'Rejected'];
+        
+        if ($this->db->field_exists('RejectionReason', 'return_orders')) {
+            $update_data['RejectionReason'] = $reason;
+        }
+        
+        $this->db->where('ReturnID', $return_id);
+        $this->db->update('return_orders', $update_data);
+        
+        echo json_encode(['success' => true, 'message' => 'Return rejected successfully']);
+    }
+    
+    public function process_refund()
+    {
+        header('Content-Type: application/json');
+        
+        $return_id = $this->input->post('return_id');
+        $refund_amount = $this->input->post('refund_amount');
+        $refund_method = $this->input->post('refund_method');
+        
+        if (!$return_id || !$refund_amount || !$refund_method) {
+            echo json_encode(['success' => false, 'message' => 'Missing required fields']);
+            return;
+        }
+        
+        if (!$this->db->table_exists('return_orders')) {
+            echo json_encode(['success' => false, 'message' => 'Return orders table not found']);
+            return;
+        }
+        
+        $update_data = [];
+        if ($this->db->field_exists('RefundAmount', 'return_orders')) {
+            $update_data['RefundAmount'] = $refund_amount;
+        }
+        if ($this->db->field_exists('RefundMethod', 'return_orders')) {
+            $update_data['RefundMethod'] = $refund_method;
+        }
+        if ($this->db->field_exists('RefundStatus', 'return_orders')) {
+            $update_data['RefundStatus'] = 'Processed';
+        }
+        if ($this->db->field_exists('RefundDate', 'return_orders')) {
+            $update_data['RefundDate'] = date('Y-m-d H:i:s');
+        }
+        
+        $this->db->where('ReturnID', $return_id);
+        $this->db->update('return_orders', $update_data);
+        
+        echo json_encode(['success' => true, 'message' => 'Refund processed successfully']);
+    }
+    
+    public function create_replacement_order()
+    {
+        header('Content-Type: application/json');
+        
+        $return_id = $this->input->post('return_id');
+        if (!$return_id) {
+            echo json_encode(['success' => false, 'message' => 'Return ID required']);
+            return;
+        }
+        
+        if (!$this->db->table_exists('return_orders')) {
+            echo json_encode(['success' => false, 'message' => 'Return orders table not found']);
+            return;
+        }
+        
+        // Get return order details
+        $this->db->where('ReturnID', $return_id);
+        $return_order = $this->db->get('return_orders')->row();
+        
+        if (!$return_order) {
+            echo json_encode(['success' => false, 'message' => 'Return order not found']);
+            return;
+        }
+        
+        // Get original order
+        $this->db->where('OrderID', $return_order->OrderID);
+        $original_order = $this->db->get('`order`')->row();
+        
+        if (!$original_order) {
+            echo json_encode(['success' => false, 'message' => 'Original order not found']);
+            return;
+        }
+        
+        // Create new order based on original order
+        $new_order_data = [
+            'Customer_ID' => $original_order->Customer_ID,
+            'SalesRep_ID' => $original_order->SalesRep_ID,
+            'OrderType' => $original_order->OrderType ?? 'Direct',
+            'Status' => 'Pending Review',
+            'TotalAmount' => $original_order->TotalAmount,
+            'CreatedDate' => date('Y-m-d H:i:s'),
+            'SpecialInstructions' => 'Replacement order for Return ID: ' . $return_id
+        ];
+        
+        $this->db->insert('`order`', $new_order_data);
+        $new_order_id = $this->db->insert_id();
+        
+        // Generate order number
+        $order_number = 'ORD-' . str_pad($new_order_id, 6, '0', STR_PAD_LEFT);
+        $this->db->where('OrderID', $new_order_id);
+        $this->db->update('`order`', ['OrderNumber' => $order_number]);
+        
+        // Copy order items
+        $this->db->where('OrderID', $original_order->OrderID);
+        $order_items = $this->db->get('order_items')->result();
+        
+        foreach ($order_items as $item) {
+            $new_item = [
+                'OrderID' => $new_order_id,
+                'Product_ID' => $item->Product_ID,
+                'Quantity' => $item->Quantity,
+                'UnitPrice' => $item->UnitPrice,
+                'Specifications' => $item->Specifications
+            ];
+            $this->db->insert('order_items', $new_item);
+        }
+        
+        // Update return order with replacement order ID
+        if ($this->db->field_exists('ReplacementOrderID', 'return_orders')) {
+            $this->db->where('ReturnID', $return_id);
+            $this->db->update('return_orders', ['ReplacementOrderID' => $order_number]);
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Replacement order created successfully',
+            'order_id' => $order_number
+        ]);
+    }
+    
+    public function schedule_replacement_appointment()
+    {
+        header('Content-Type: application/json');
+        
+        $return_id = $this->input->post('return_id');
+        if (!$return_id) {
+            echo json_encode(['success' => false, 'message' => 'Return ID required']);
+            return;
+        }
+        
+        if (!$this->db->table_exists('return_orders')) {
+            echo json_encode(['success' => false, 'message' => 'Return orders table not found']);
+            return;
+        }
+        
+        // Get return order
+        $this->db->where('ReturnID', $return_id);
+        $return_order = $this->db->get('return_orders')->row();
+        
+        if (!$return_order) {
+            echo json_encode(['success' => false, 'message' => 'Return order not found']);
+            return;
+        }
+        
+        // Get replacement order ID
+        $replacement_order_id = null;
+        if ($this->db->field_exists('ReplacementOrderID', 'return_orders') && !empty($return_order->ReplacementOrderID)) {
+            $replacement_order_id = $return_order->ReplacementOrderID;
+        }
+        
+        if (!$replacement_order_id) {
+            echo json_encode(['success' => false, 'message' => 'Replacement order must be created first']);
+            return;
+        }
+        
+        // Get order details
+        $this->db->where('OrderNumber', $replacement_order_id);
+        $order = $this->db->get('`order`')->row();
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Replacement order not found']);
+            return;
+        }
+        
+        // Create appointment
+        $appointment_data = [
+            'OrderID' => $order->OrderID,
+            'Customer_ID' => $order->Customer_ID,
+            'Service' => 'Installation',
+            'Status' => 'Scheduled',
+            'AppointmentDate' => date('Y-m-d', strtotime('+7 days')),
+            'AppointmentTime' => '10:00:00'
+        ];
+        
+        $this->db->insert('appointments', $appointment_data);
+        $appointment_id = $this->db->insert_id();
+        
+        // Update return order with appointment ID
+        if ($this->db->field_exists('ReplacementAppointmentID', 'return_orders')) {
+            $this->db->where('ReturnID', $return_id);
+            $this->db->update('return_orders', ['ReplacementAppointmentID' => $appointment_id]);
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Replacement appointment scheduled successfully',
+            'appointment_id' => $appointment_id
+        ]);
+    }
+    
+    public function update_return_status()
+    {
+        header('Content-Type: application/json');
+        
+        $return_id = $this->input->post('return_id');
+        $status = $this->input->post('status');
+        
+        if (!$return_id || !$status) {
+            echo json_encode(['success' => false, 'message' => 'Return ID and status required']);
+            return;
+        }
+        
+        if (!$this->db->table_exists('return_orders')) {
+            echo json_encode(['success' => false, 'message' => 'Return orders table not found']);
+            return;
+        }
+        
+        $status_field = $this->db->field_exists('ReturnStatus', 'return_orders') ? 'ReturnStatus' : 'Status';
+        $this->db->where('ReturnID', $return_id);
+        $this->db->update('return_orders', [$status_field => $status]);
+        
+        echo json_encode(['success' => true, 'message' => 'Return status updated successfully']);
+    }
+    
+    public function save_return_notes()
+    {
+        header('Content-Type: application/json');
+        
+        $return_id = $this->input->post('return_id');
+        $notes = $this->input->post('notes');
+        
+        if (!$return_id) {
+            echo json_encode(['success' => false, 'message' => 'Return ID required']);
+            return;
+        }
+        
+        if (!$this->db->table_exists('return_orders')) {
+            echo json_encode(['success' => false, 'message' => 'Return orders table not found']);
+            return;
+        }
+        
+        if ($this->db->field_exists('AdminNotes', 'return_orders')) {
+            $this->db->where('ReturnID', $return_id);
+            $this->db->update('return_orders', ['AdminNotes' => $notes]);
+        }
+        
+        echo json_encode(['success' => true, 'message' => 'Notes saved successfully']);
     }
 
   

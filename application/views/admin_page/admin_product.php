@@ -51,7 +51,23 @@
         <div class="product-card" data-id="<?= $product->Product_ID; ?>" data-category="<?= $product->Category; ?>"
           data-material="<?= $product->Material; ?>">
           <div class="product-image">
-            <img src="<?= base_url('uploads/products/' . ($product->ImageUrl ?? 'default.png')); ?>"
+            <?php
+              // Handle both JSON array and single string formats
+              $imageUrl = $product->ImageUrl ?? '';
+              $firstImage = 'default.png';
+              
+              if (!empty($imageUrl)) {
+                // Check if it's a JSON array
+                $decoded = json_decode($imageUrl, true);
+                if (is_array($decoded) && !empty($decoded)) {
+                  $firstImage = $decoded[0];
+                } else {
+                  // Single image (backward compatibility)
+                  $firstImage = $imageUrl;
+                }
+              }
+            ?>
+            <img src="<?= base_url('uploads/products/' . $firstImage); ?>"
               alt="<?= $product->ProductName; ?>">
           </div>
           <p class="product-name"><?= $product->ProductName; ?></p>
@@ -86,20 +102,34 @@
     <span class="close-btn" id="closePopup">&times;</span>
     <h3>Add New Product</h3>
 
-    <!-- Image Preview -->
+    <!-- Multiple Image Upload -->
     <div class="form-group">
-
-      <!-- preview box -->
-      <div class="image-preview">
-        <img src="#" alt="">
+      <label>Product Images <span class="required-indicator">*</span></label>
+      <small class="image-requirement">Minimum 3-4 images required</small>
+      
+      <!-- Image Upload Area -->
+      <div class="multiple-image-upload-container">
+        <input type="file" id="productImageInput" accept="image/*" multiple style="display:none">
+        
+        <!-- Upload Dropzone -->
+        <div class="image-upload-dropzone" id="imageUploadDropzone">
+          <div class="dropzone-content">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p class="dropzone-text">Drag & drop images here or <span class="browse-link">browse</span></p>
+            <p class="dropzone-subtext">Upload at least 3-4 images (JPG, PNG, GIF)</p>
+          </div>
+        </div>
+        
+        <!-- Image Preview Grid -->
+        <div class="image-preview-grid" id="imagePreviewGrid">
+          <!-- Preview items will be added dynamically -->
+        </div>
+        
+        <!-- Image Count Indicator -->
+        <div class="image-count-indicator">
+          <span id="imageCount">0</span> / 4+ images uploaded
+        </div>
       </div>
-      <input type="file" id="productImageInput" accept="image/*" style="display:none">
-
-      <!-- styled label acting like a button -->
-      <label for="productImageInput" class="upload-btn">
-        <i class="fas fa-upload"></i>
-        <span>Upload Image</span>
-      </label>
     </div>
 
 
@@ -109,17 +139,31 @@
       <input type="text" id="productName" class="text-input" placeholder="Enter product name">
     </div>
 
+    <!-- Main Category Selection -->
     <div class="form-group">
       <label for="productCategory">Category</label>
       <select id="productCategory" class="input-text">
         <option value="" disabled selected>Select category</option>
-        <option value="Mirrors">Mirrors</option>
-        <option value="Shower Enclosure / Partition">Shower Enclosure / Partition</option>
-        <option value="Aluminum Doors">Aluminum Doors</option>
-        <option value="Stair Railings">Stair Railings</option>
         <option value="Windows">Windows</option>
-        <option value="Glass Partition">Glass Partition</option>
+        <option value="Doors">Doors</option>
+        <option value="Glass Partitions & Enclosures">Glass Partitions & Enclosures</option>
+        <option value="Mirrors & Specialty Glass">Mirrors & Specialty Glass</option>
+        <option value="Cabinets & Furniture">Cabinets & Furniture</option>
+        <option value="Commercial & Exterior">Commercial & Exterior</option>
       </select>
+    </div>
+
+    <!-- Subcategory Selection (appears after category is selected) -->
+    <div class="form-group" id="subcategoryGroup" style="display: none;">
+      <label for="productSubcategory">Subcategory</label>
+      <select id="productSubcategory" class="input-text">
+        <option value="" disabled selected>Select subcategory</option>
+      </select>
+    </div>
+
+    <!-- Dynamic Customization Fields Container -->
+    <div id="customizationFields" class="customization-fields-container">
+      <!-- Fields will be dynamically generated here based on category/subcategory selection -->
     </div>
 
     <div class="form-group">
@@ -153,17 +197,34 @@
     <span class="close-btn" id="closeEditPopup">&times;</span>
     <h3>Edit Product</h3>
 
-    <!-- Image Preview -->
+    <!-- Multiple Image Upload (Edit) -->
     <div class="form-group">
-      <label>Product Image</label>
-      <div class="image-preview">
-        <img src="" alt="Preview">
+      <label>Product Images</label>
+      <small class="image-requirement">Upload 3-4 images minimum</small>
+      
+      <!-- Image Upload Area -->
+      <div class="multiple-image-upload-container">
+        <input type="file" id="editProductImageInput" accept="image/*" multiple style="display:none">
+        
+        <!-- Upload Dropzone -->
+        <div class="image-upload-dropzone" id="editImageUploadDropzone">
+          <div class="dropzone-content">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p class="dropzone-text">Drag & drop images here or <span class="browse-link">browse</span></p>
+            <p class="dropzone-subtext">Upload at least 3-4 images (JPG, PNG, GIF)</p>
+          </div>
+        </div>
+        
+        <!-- Image Preview Grid -->
+        <div class="image-preview-grid" id="editImagePreviewGrid">
+          <!-- Preview items will be added dynamically -->
+        </div>
+        
+        <!-- Image Count Indicator -->
+        <div class="image-count-indicator">
+          <span id="editImageCount">0</span> / 4+ images uploaded
+        </div>
       </div>
-      <input type="file" id="editProductImageInput" accept="image/*" style="display:none">
-      <label for="editProductImageInput" class="upload-btn">
-        <i class="fas fa-upload"></i>
-        <span>Upload Image</span>
-      </label>
     </div>
 
     <!-- Product Name -->
@@ -177,13 +238,26 @@
       <label for="editProductCategory">Category</label>
       <select id="editProductCategory" class="input-text">
         <option value="" disabled>Select category</option>
-        <option value="Mirrors">Mirrors</option>
-        <option value="Shower Enclosure / Partition">Shower Enclosure / Partition</option>
-        <option value="Aluminum Doors">Aluminum Doors</option>
-        <option value="Stair Railings">Stair Railings</option>
         <option value="Windows">Windows</option>
-        <option value="Glass Partition">Glass Partition</option>
+        <option value="Doors">Doors</option>
+        <option value="Glass Partitions & Enclosures">Glass Partitions & Enclosures</option>
+        <option value="Mirrors & Specialty Glass">Mirrors & Specialty Glass</option>
+        <option value="Cabinets & Furniture">Cabinets & Furniture</option>
+        <option value="Commercial & Exterior">Commercial & Exterior</option>
       </select>
+    </div>
+
+    <!-- Subcategory Selection (appears after category is selected) -->
+    <div class="form-group" id="editSubcategoryGroup" style="display: none;">
+      <label for="editProductSubcategory">Subcategory</label>
+      <select id="editProductSubcategory" class="input-text">
+        <option value="" disabled selected>Select subcategory</option>
+      </select>
+    </div>
+
+    <!-- Dynamic Customization Fields Container -->
+    <div id="editCustomizationFields" class="customization-fields-container">
+      <!-- Fields will be dynamically generated here based on category/subcategory selection -->
     </div>
 
     <!-- Material (Read-only for Admin) -->
@@ -212,15 +286,6 @@
       <button class="cancel-btn" id="cancelEdit">Cancel</button>
     </div>
   </div>
-</div>
-
-
-<!-- Action Buttons -->
-<div class="popup-actions">
-  <button class="save-btn" id="editSaveBtn">Save</button>
-  <button class="cancel-btn" id="cancelEdit">Cancel</button>
-</div>
-</div>
 </div>
 
 

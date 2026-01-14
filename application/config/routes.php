@@ -159,6 +159,12 @@ $route['Profile'] = 'UserCon/profile';
 $route['admin-dashboard'] = 'AdminCon/admin_dashboard';
 $route['admin-orders'] = 'AdminCon/admin_orders';
 $route['admin-appointment'] = 'AdminCon/admin_appointment';
+$route['admin-calendar'] = 'AdminCon/admin_calendar';
+$route['AdminCon/get_calendar_events'] = 'AdminCon/get_calendar_events';
+$route['AdminCon/get_day_details'] = 'AdminCon/get_day_details';
+$route['admin-production'] = 'AdminCon/admin_production';
+$route['admin-quotations'] = 'AdminCon/admin_quotations';
+$route['admin-return-orders'] = 'AdminCon/admin_return_orders';
 $route['admin-employee'] = 'AdminCon/admin_employee';
 $route['admin-endUser'] = 'AdminCon/admin_endUser';
 $route['admin-inventory'] = 'AdminCon/admin_inventory';
@@ -168,6 +174,12 @@ $route['admin-reports'] = 'AdminCon/admin_reports';
 $route['admin-account'] = 'AdminCon/admin_account';
 $route['admin-notif'] = 'AdminCon/admin_notif';
 $route['admin-get-notification-count'] = 'AdminCon/get_notification_count_ajax';
+$route['admin-mark-notifications-viewed'] = 'AdminCon/mark_all_notifications_viewed';
+$route['admin-issues'] = 'AdminCon/admin_issues';
+$route['admin-get-issues'] = 'AdminCon/get_issues_ajax';
+$route['admin-get-issue-details/(:num)'] = 'AdminCon/get_issue_details_ajax/$1';
+$route['admin-mark-resolved'] = 'AdminCon/mark_resolved_ajax';
+$route['admin-update-priority'] = 'AdminCon/update_priority_ajax';
 
 
 /* 
@@ -191,6 +203,7 @@ $route['sales-update-priority'] = 'SalesCon/update_priority_ajax';
 $route['sales-get-issue-stats'] = 'SalesCon/get_issue_stats_ajax';
 $route['sales-notif'] = 'SalesCon/sales_notif';
 $route['sales-get-notification-count'] = 'SalesCon/get_notification_count_ajax';
+$route['sales-mark-notifications-viewed'] = 'SalesCon/mark_all_notifications_viewed';
 $route['SalesCon/update_account'] = 'SalesCon/update_account';
 $route['AdminCon/update_account'] = 'AdminCon/update_account';
 $route['SalesCon/get_order_details'] = 'SalesCon/get_order_details';

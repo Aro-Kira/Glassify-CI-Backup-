@@ -8,6 +8,11 @@ defined('BASEPATH') or exit('No direct script access allowed');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= isset($title) ? $title : 'sales Panel'; ?></title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="<?= base_url('assets/images/img-page/logo-with-bg.png'); ?>">
+    <link rel="shortcut icon" type="image/png" href="<?= base_url('assets/images/img-page/logo-with-bg.png'); ?>">
+    <link rel="apple-touch-icon" href="<?= base_url('assets/images/img-page/logo-with-bg.png'); ?>">
 
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">

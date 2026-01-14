@@ -3,6 +3,7 @@
     display: flex;
     min-height: 100vh;
     background-color: #f4f6f9;
+    overflow-x: visible; /* ✅ allow notch to overflow */
 }
     
 /* Push main content beside the sidebar */
@@ -20,8 +21,9 @@
 
 /* === Menu Notch (Toggle Button) === */
 .menu-notch {
-  position: absolute;
-  right: -50px; /* sits outside the sidebar */
+  position: fixed; /* ✅ fixed to viewport, not clipped by sidebar overflow */
+  left: 220px; /* positioned at right edge of expanded sidebar */
+  top: 0;
   width: 50px;
   height: 50px;
   background-color: #FDC103; /* yellow */
@@ -32,7 +34,7 @@
   justify-content: center;
   cursor: pointer;
   z-index: 101;
-  transition: right 0.3s ease;
+  transition: left 0.3s ease; /* ✅ transition left position when sidebar collapses */
 }
 
 /* Icon inside the notch */
@@ -43,7 +45,7 @@
 
 /* Move notch closer when sidebar collapses */
 .sidebar.collapsed .menu-notch {
-  right: -50px;
+  left: 65px; /* positioned at right edge of collapsed sidebar */
 }
 
 /* Optional hover glow effect */
@@ -62,19 +64,42 @@
     /* Added padding transition */
     flex-shrink: 0;
     font-family: 'Montserrat', sans-serif;
-    font-size: 20px;
+    font-size: clamp(13px, 1.1vw, 16px); /* Responsive base font size - reduced max for better fit */
     position: fixed;
     top: 0;
     left: 0;
     height: 100vh;
-overflow: visible; /* ✅ allow the notch to stick out */
+    overflow-y: auto; /* ✅ make sidebar scrollable */
+    overflow-x: hidden; /* ✅ prevent horizontal scrollbar */
 
     z-index: 100;
 }
 
-.sidebar li.active a {
-    background-color: #FDC103;
-    color: #fff;
+/* Custom Scrollbar Styles */
+/* Webkit browsers (Chrome, Safari, Edge) */
+.sidebar::-webkit-scrollbar {
+    width: 6px; /* ✅ thin scrollbar */
+}
+
+.sidebar::-webkit-scrollbar-track {
+    background: #01374C; /* matches sidebar background */
+    border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: #02455F; /* darker teal for thumb */
+    border-radius: 3px;
+    transition: background 0.3s ease;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background: #FDC103; /* yellow accent on hover */
+}
+
+/* Firefox */
+.sidebar {
+    scrollbar-width: thin; /* ✅ thin scrollbar */
+    scrollbar-color: #02455F #01374C; /* thumb color, track color */
 }
 
 .sidebar.collapsed {
@@ -125,6 +150,10 @@ overflow: visible; /* ✅ allow the notch to stick out */
 .general-section ul li a span,
 .user-section ul li a span {
     transition: opacity 0.3s ease;
+    font-size: inherit; /* Inherit responsive font size from parent */
+    flex: 1; /* Allow span to take available space */
+    min-width: 0; /* Allow text wrapping */
+    line-height: 1.4; /* Better line spacing for wrapped text */
 }
 
 /* Grouped selectors for hiding link text span on collapse */
@@ -163,6 +192,9 @@ overflow: visible; /* ✅ allow the notch to stick out */
     transition: background-color 0.3s, color 0.3s, padding 0.3s;
     justify-content: flex-start;
     background-color: #02455F;
+    font-size: clamp(13px, 1.1vw, 16px); /* Responsive link text */
+    word-wrap: break-word; /* Allow text to wrap if needed */
+    hyphens: auto; /* Add hyphens for better wrapping */
 }
 
 /* Grouped selectors for Collapsed link styles */
@@ -173,18 +205,25 @@ overflow: visible; /* ✅ allow the notch to stick out */
     padding: 12px;
 }
 
-/* Grouped selectors for Active and Hover states */
-.sidebar-nav ul li.active a,
+/* Grouped selectors for Hover states */
 .sidebar-nav ul li a:hover,
 .general-section ul li a:hover,
 .user-section ul li a:hover {
-    background-color: #1a273b;
     color: #fff;
 }
 
-.sidebar-nav ul li.active a {
-    background-color: #FDC103;
-    color: #fff;
+/* Active states override hover - ensure active items stay highlighted */
+.sidebar-nav ul li.active > a:hover,
+.general-section ul li.active > a:hover,
+.user-section ul li.active > a:hover,
+.has-submenu.active > a:hover,
+.has-submenu.active > a.submenu-toggle:hover,
+.submenu > li.active > a:hover,
+.submenu-item.active > a:hover,
+.submenu .submenu-item.active > a:hover,
+.submenu-nested li.active > a:hover {
+    background-color: #FDC103 !important;
+    color: #fff !important;
 }
 
 /* Grouped selectors for Icon base styles */
@@ -219,8 +258,237 @@ overflow: visible; /* ✅ allow the notch to stick out */
     margin-left: 20px;
     display: block;
     margin-bottom: 15px;
+    font-size: clamp(11px, 1vw, 15px); /* Responsive section title - reduced max */
 }
 
+/* ==========================================
+   SUBMENU STYLES
+   ========================================== */
+
+/* Main menu item with submenu */
+.has-submenu > a {
+    position: relative;
+}
+
+.submenu-icon {
+    margin-left: auto;
+    font-size: 12px;
+    transition: transform 0.3s ease;
+}
+
+/* Icon rotation based on expanded state only */
+.has-submenu.expanded > a .submenu-icon {
+    transform: rotate(180deg);
+}
+
+/* Submenu container */
+.submenu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background-color: #01374C;
+    position: relative;
+    margin-left: 20px;
+    padding-left: 15px;
+    border-left: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Only show submenu when expanded - active class only affects styling, not visibility */
+.has-submenu.expanded > .submenu {
+    max-height: 2000px;
+}
+
+/* Submenu items */
+.submenu-item {
+    position: relative;
+}
+
+.submenu > li > a,
+.submenu-item > a,
+.submenu a {
+    padding-left: 20px;
+    font-size: clamp(12px, 1vw, 15px); /* Responsive submenu font size - reduced max */
+    background-color: #02455F;
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Show ellipsis if text is too long */
+}
+
+/* Override base styles for active items */
+.submenu > li.active > a,
+.submenu-item.active > a,
+.submenu .submenu-item.active > a {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+.submenu > li > a:hover,
+.submenu-item > a:hover,
+.submenu a:hover {
+    background-color: #1a273b;
+}
+
+/* Active submenu items should remain highlighted even on hover */
+.sidebar .submenu-item.active > a:hover,
+.sidebar .submenu-nested li.active > a:hover,
+.submenu-item.active > a:hover,
+.submenu-nested li.active > a:hover {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+.submenu-nested {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background-color: #012a38;
+}
+
+/* Nested submenu visibility controlled by expanded class only */
+.submenu-item.expanded > .submenu-nested {
+    max-height: 500px;
+}
+
+/* Icon rotation for nested submenu items based on expanded state only */
+.submenu-item.expanded > a .submenu-icon {
+    transform: rotate(180deg);
+}
+
+.submenu-nested {
+    margin-left: 0;
+    padding-left: 15px;
+    border-left: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.submenu-nested li a {
+    padding-left: 20px;
+    font-size: clamp(11px, 0.95vw, 14px); /* Responsive nested submenu font size - reduced max */
+    background-color: #012a38;
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Show ellipsis if text is too long */
+}
+
+.submenu-nested li a:hover {
+    background-color: #1a273b;
+}
+
+/* Active nested items - must override base styles */
+.submenu-nested li.active > a,
+.submenu-nested li.active a {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+.sidebar .submenu-nested li.active > a:hover,
+.sidebar .submenu-nested li.active a:hover,
+.submenu-nested li.active > a:hover,
+.submenu-nested li.active a:hover {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+/* Hide submenu when sidebar is collapsed */
+.sidebar.collapsed .submenu,
+.sidebar.collapsed .submenu-nested {
+    display: none;
+}
+
+.sidebar.collapsed .has-submenu > a .submenu-icon,
+.sidebar.collapsed .submenu-item > a .submenu-icon {
+    display: none;
+}
+
+/* Submenu header styling */
+.submenu-header {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.submenu-header:hover {
+    background-color: #1a273b;
+}
+
+/* Active submenu headers should remain highlighted even on hover */
+.sidebar .submenu-item.active > a.submenu-header:hover,
+.submenu-item.active > a.submenu-header:hover {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+/* ==========================================
+   ACTIVE PATH HIGHLIGHTING
+   Highlights only the active path from root to leaf
+   ========================================== */
+
+/* Main menu items (Dashboard, etc.) */
+.sidebar-nav ul li.active > a {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+/* Order Management - highlighted when any child is active */
+.sidebar .has-submenu.active > a,
+.sidebar .has-submenu.active > a.submenu-toggle,
+.has-submenu.active > a,
+/* .has-submenu.active > a.submenu-toggle {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+ */
+/* Submenu items - highlighted when in active path */
+.sidebar .submenu > li.active > a,
+.sidebar .submenu-item.active > a,
+.sidebar .submenu-item.active > a.submenu-header,
+.submenu > li.active > a,
+.submenu-item.active > a.submenu-header,
+.submenu-item.active > a,
+.submenu .submenu-item.active > a {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+/* Direct submenu-item links (Calendar, Quotations, Return Orders) */
+.sidebar .submenu-item.active > a:not(.submenu-header),
+.submenu-item.active > a:not(.submenu-header) {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+/* Nested submenu items (Direct Orders, Site-Assessed Orders, etc.) */
+.sidebar .submenu-nested li.active > a,
+.sidebar .submenu-nested li.active a,
+.submenu-nested li.active > a,
+.submenu-nested li.active a {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+/* General section items (Reports, Products, Inventory, Payments) */
+.general-section ul li.active > a {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+/* User section items (Employees, End User) */
+.user-section ul li.active > a {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+}
+
+/* ==========================================
+   FINAL OVERRIDE - Ensure all active states are highlighted
+   ========================================== */
+/* .sidebar li.active > a,
+.sidebar li.active a,
+.sidebar .has-submenu.active > a,
+.sidebar .submenu-item.active > a,
+.sidebar .submenu-nested li.active > a {
+    background-color: #FDC103 !important;
+    color: #fff !important;
+} */
 /* ==========================================
    RESPONSIVE STYLES
    ========================================== */
@@ -230,6 +498,7 @@ overflow: visible; /* ✅ allow the notch to stick out */
     .sidebar {
         transform: translateX(-100%);
         transition: transform 0.3s ease;
+        font-size: clamp(13px, 1.3vw, 16px); /* Responsive font for tablet - reduced max */
     }
 
     .sidebar.open {
@@ -243,6 +512,26 @@ overflow: visible; /* ✅ allow the notch to stick out */
     .menu-notch {
         right: -50px;
     }
+
+    .sidebar-nav ul li a,
+    .general-section ul li a,
+    .user-section ul li a {
+        font-size: clamp(13px, 1.3vw, 16px); /* Responsive link text for tablet */
+    }
+
+    .section-title {
+        font-size: clamp(12px, 1.2vw, 15px); /* Responsive section title for tablet - reduced max */
+    }
+
+    .submenu > li > a,
+    .submenu-item > a,
+    .submenu a {
+        font-size: clamp(12px, 1.2vw, 15px); /* Responsive submenu for tablet - reduced max */
+    }
+
+    .submenu-nested li a {
+        font-size: clamp(11px, 1.1vw, 14px); /* Responsive nested submenu for tablet - reduced max */
+    }
 }
 
 /* Mobile devices */
@@ -252,6 +541,7 @@ overflow: visible; /* ✅ allow the notch to stick out */
         transform: translateX(-100%);
         transition: transform 0.3s ease;
         z-index: 1000;
+        font-size: clamp(13px, 1.8vw, 16px); /* Responsive font for mobile - reduced max */
     }
 
     .sidebar.open {
@@ -285,6 +575,26 @@ overflow: visible; /* ✅ allow the notch to stick out */
         width: 120px;
         height: 120px;
     }
+
+    .sidebar-nav ul li a,
+    .general-section ul li a,
+    .user-section ul li a {
+        font-size: clamp(13px, 1.8vw, 16px); /* Responsive link text for mobile */
+    }
+
+    .section-title {
+        font-size: clamp(12px, 1.6vw, 15px); /* Responsive section title for mobile - reduced max */
+    }
+
+    .submenu > li > a,
+    .submenu-item > a,
+    .submenu a {
+        font-size: clamp(12px, 1.6vw, 14px); /* Responsive submenu for mobile - reduced max */
+    }
+
+    .submenu-nested li a {
+        font-size: clamp(11px, 1.4vw, 13px); /* Responsive nested submenu for mobile - reduced max */
+    }
 }
 
 /* Small mobile devices */
@@ -292,6 +602,7 @@ overflow: visible; /* ✅ allow the notch to stick out */
     .sidebar {
         width: 100%;
         max-width: 280px;
+        font-size: clamp(12px, 2.2vw, 15px); /* Responsive font for small mobile - reduced max */
     }
 
     .logo {
@@ -303,6 +614,20 @@ overflow: visible; /* ✅ allow the notch to stick out */
     .general-section ul li a,
     .user-section ul li a {
         padding: 10px 15px;
-        font-size: 16px;
+        font-size: clamp(12px, 2.2vw, 15px); /* Responsive link text for small mobile - reduced max */
+    }
+
+    .section-title {
+        font-size: clamp(11px, 2vw, 14px); /* Responsive section title for small mobile - reduced max */
+    }
+
+    .submenu > li > a,
+    .submenu-item > a,
+    .submenu a {
+        font-size: clamp(11px, 2vw, 13px); /* Responsive submenu for small mobile - reduced max */
+    }
+
+    .submenu-nested li a {
+        font-size: clamp(10px, 1.8vw, 12px); /* Responsive nested submenu for small mobile - reduced max */
     }
 }

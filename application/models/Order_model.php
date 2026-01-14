@@ -41,8 +41,26 @@ class Order_model extends CI_Model
         
         // Set default status if not provided
         if (!isset($order_data['Status'])) {
-            $order_data['Status'] = 'Pending Review';
+            $order_data['Status'] = 'Pending Payment';
         }
+        
+        // Auto-transition logic for orders without sales rep
+        // Orders start in 'Pending Payment' status regardless of sales rep assignment
+        $sales_rep_id = isset($order_data['SalesRep_ID']) ? $order_data['SalesRep_ID'] : null;
+        $sales_rep_status = null;
+        
+        if ($sales_rep_id) {
+            // Check if Sales Rep exists and is active
+            $this->db->select('Status');
+            $this->db->from('user');
+            $this->db->where('UserID', $sales_rep_id);
+            $this->db->where('Role', 'Sales Representative');
+            $sales_rep = $this->db->get()->row();
+            $sales_rep_status = $sales_rep ? $sales_rep->Status : null;
+        }
+        
+        // All new orders start in 'Pending Payment' status
+        // (Removed auto-transition to 'Awaiting Admin' as it's no longer a valid status)
         
         // Set default payment status if not provided
         if (!isset($order_data['PaymentStatus'])) {
@@ -71,10 +89,11 @@ class Order_model extends CI_Model
             ]);
         }
         
-        // Create sales notification for new order
+        // Create sales notification for new order (only if Sales Rep is active)
         if ($this->db->table_exists('sales_notif')) {
             $sales_rep_id = isset($order_data['SalesRep_ID']) ? $order_data['SalesRep_ID'] : null;
-            if ($sales_rep_id) {
+            // Only create notification if Sales Rep is assigned and active
+            if ($sales_rep_id && $sales_rep_status === 'Active') {
                 $this->db->insert('sales_notif', [
                     'Icon' => 'fa-shopping-cart',
                     'Role' => 'Client/Customer',
@@ -951,18 +970,30 @@ class Order_model extends CI_Model
             return ['success' => false, 'message' => 'Order not found'];
         }
 
-        // Normalize status - handle empty string, NULL, or old 'Pending' status
+        // Normalize status - handle empty string, NULL, or old status values
         $order_status = $order->Status ?? '';
         if (empty($order_status) || trim($order_status) === '' || $order_status === 'Pending') {
-            $order_status = 'Pending Review';
+            $order_status = 'Pending Payment';
             // Update the order status if it was empty
-            $this->db->where('OrderID', $order->OrderID)->update('`order`', ['Status' => 'Pending Review']);
+            $this->db->where('OrderID', $order->OrderID)->update('`order`', ['Status' => 'Pending Payment']);
+        }
+        
+        // Map old statuses to new ones for backward compatibility
+        $status_mapping = [
+            'Pending Review' => 'Pending Payment',
+            'Awaiting Admin' => 'Pending Payment',
+            'Ready to Approve' => 'Pending Payment'
+        ];
+        if (isset($status_mapping[$order_status])) {
+            $order_status = $status_mapping[$order_status];
         }
 
-        if ($order_status !== 'Pending Review') {
+        // For new workflow, orders in 'Pending Payment' can be processed for payment
+        // This function may need to be updated or deprecated based on new workflow
+        if ($order_status !== 'Pending Payment') {
             $this->db->trans_rollback();
             log_message('error', 'Order_model::request_admin_approval - Order status invalid. OrderID: ' . $order->OrderID . ', Status: ' . $order_status);
-            return ['success' => false, 'message' => 'Order is not in Pending Review status. Current status: ' . $order_status];
+            return ['success' => false, 'message' => 'Order is not in Pending Payment status. Current status: ' . $order_status];
         }
 
         if ($order->SalesRep_ID != $sales_rep_id) {
@@ -1029,9 +1060,9 @@ class Order_model extends CI_Model
     }
 
     /**
-     * Stage 4: Admin Approve Order
+     * Stage 4: Admin Approve Order (Direct Approval - Sales Rep Archived)
      * Admin approves an order awaiting review
-     * Status: 'Awaiting Admin' → 'Ready to Approve' (with AdminStatus = 'Approved')
+     * Status: 'Awaiting Admin' → 'Approved' (Direct approval, no Sales Rep step)
      * 
      * @param int $order_id Order ID
      * @param int $admin_id Admin ID
@@ -1049,14 +1080,17 @@ class Order_model extends CI_Model
             return ['success' => false, 'message' => 'Order not found'];
         }
 
-        if ($order->Status !== 'Awaiting Admin') {
+        // Check if order is in a status that can be approved
+        // In new workflow: Payment Verified -> Approved
+        $valid_statuses_for_approval = ['Payment Verified', 'Pending Payment']; // Allow both for migration
+        if (!in_array($order->Status, $valid_statuses_for_approval)) {
             $this->db->trans_rollback();
-            return ['success' => false, 'message' => 'Order is not awaiting admin approval'];
+            return ['success' => false, 'message' => 'Order is not in a status that can be approved. Current status: ' . $order->Status];
         }
 
-        // Update order status
+        // Update order status to 'Approved' (after payment is verified)
         $update_data = [
-            'Status' => 'Ready to Approve',
+            'Status' => 'Approved',
             'ApprovedBy_Admin_ID' => $admin_id,
             'Approved_Date' => date('Y-m-d H:i:s')
         ];
@@ -1067,41 +1101,10 @@ class Order_model extends CI_Model
             return ['success' => false, 'message' => 'Failed to update order status'];
         }
 
-        // Insert into ready_to_approve_orders (legacy table)
-        if ($this->db->table_exists('ready_to_approve_orders')) {
-            // Get order details
-            $this->db->select('o.*, oi.*, p.ProductName');
-            $this->db->from('`order` o');
-            $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
-            $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
-            $this->db->where('o.OrderID', $order_id);
-            $this->db->limit(1);
-            $order_details = $this->db->get()->row();
-
-            if ($order_details) {
-                $ready_data = [
-                    'OrderID' => $order->OrderNumber,
-                    'ProductName' => $order_details->ProductName ?? 'N/A',
-                    'Address' => $order->DeliveryAddress ?? '',
-                    'OrderDate' => $order->OrderDate,
-                    'Shape' => $order_details->GlassShape ?? '',
-                    'Dimension' => $order_details->Dimensions ?? '',
-                    'Type' => $order_details->GlassType ?? '',
-                    'Thickness' => $order_details->GlassThickness ?? '',
-                    'EdgeWork' => $order_details->EdgeWork ?? '',
-                    'FrameType' => $order_details->FrameType ?? '',
-                    'Engraving' => $order_details->Engraving ?? '',
-                    'FileAttached' => $order_details->DesignRef ?? null,
-                    'TotalQuotation' => $order->TotalAmount,
-                    'Customer_ID' => $order->Customer_ID,
-                    'SalesRep_ID' => $order->SalesRep_ID,
-                    'AdminStatus' => 'Approved',
-                    'AdminNotes' => $admin_notes,
-                    'AdminReviewed_Date' => date('Y-m-d H:i:s')
-                ];
-
-                $this->db->insert('ready_to_approve_orders', $ready_data);
-            }
+        // Create payment record (Status = 'Pending')
+        if (!$this->create_payment_record($order_id)) {
+            log_message('warning', 'Failed to create payment record for OrderID: ' . $order_id);
+            // Don't fail the transaction, but log the warning
         }
 
         // Delete from awaiting_admin_orders (legacy table)
@@ -1130,13 +1133,13 @@ class Order_model extends CI_Model
             return ['success' => false, 'message' => 'Transaction failed'];
         }
 
-        return ['success' => true, 'message' => 'Order approved successfully. Ready for sales rep final approval.'];
+        return ['success' => true, 'message' => 'Order approved successfully.'];
     }
 
     /**
-     * Stage 4: Admin Disapprove Order
+     * Stage 4: Admin Disapprove Order (Direct Disapproval - Sales Rep Archived)
      * Admin disapproves an order awaiting review
-     * Status: 'Awaiting Admin' → 'Ready to Approve' (with AdminStatus = 'Disapproved')
+     * Status: 'Awaiting Admin' → 'Disapproved' (Direct disapproval, no Sales Rep step)
      * 
      * @param int $order_id Order ID
      * @param int $admin_id Admin ID
@@ -1158,14 +1161,17 @@ class Order_model extends CI_Model
             return ['success' => false, 'message' => 'Order not found'];
         }
 
-        if ($order->Status !== 'Awaiting Admin') {
+        // Check if order is in a status that can be cancelled/disapproved
+        // In new workflow: orders can be cancelled from most statuses
+        $valid_statuses_for_disapproval = ['Pending Payment', 'Paid', 'Payment Verified']; // Allow cancellation before approval
+        if (!in_array($order->Status, $valid_statuses_for_disapproval)) {
             $this->db->trans_rollback();
-            return ['success' => false, 'message' => 'Order is not awaiting admin approval'];
+            return ['success' => false, 'message' => 'Order is not in a status that can be cancelled. Current status: ' . $order->Status];
         }
 
-        // Update order status
+        // Update order status to 'Cancelled' (replaces old 'Disapproved')
         $update_data = [
-            'Status' => 'Ready to Approve',
+            'Status' => 'Cancelled',
             'DisapprovedBy' => 'Admin',
             'DisapprovedBy_ID' => $admin_id,
             'DisapprovalReason' => $disapproval_reason,
@@ -1178,48 +1184,73 @@ class Order_model extends CI_Model
             return ['success' => false, 'message' => 'Failed to update order status'];
         }
 
-        // Insert into ready_to_approve_orders (legacy table)
-        if ($this->db->table_exists('ready_to_approve_orders')) {
-            // Get order details
-            $this->db->select('o.*, oi.*, p.ProductName');
-            $this->db->from('`order` o');
-            $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
-            $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
-            $this->db->where('o.OrderID', $order_id);
-            $this->db->limit(1);
-            $order_details = $this->db->get()->row();
-
-            if ($order_details) {
-                $ready_data = [
-                    'OrderID' => $order->OrderNumber,
-                    'ProductName' => $order_details->ProductName ?? 'N/A',
-                    'Address' => $order->DeliveryAddress ?? '',
-                    'OrderDate' => $order->OrderDate,
-                    'Shape' => $order_details->GlassShape ?? '',
-                    'Dimension' => $order_details->Dimensions ?? '',
-                    'Type' => $order_details->GlassType ?? '',
-                    'Thickness' => $order_details->GlassThickness ?? '',
-                    'EdgeWork' => $order_details->EdgeWork ?? '',
-                    'FrameType' => $order_details->FrameType ?? '',
-                    'Engraving' => $order_details->Engraving ?? '',
-                    'FileAttached' => $order_details->DesignRef ?? null,
-                    'TotalQuotation' => $order->TotalAmount,
-                    'Customer_ID' => $order->Customer_ID,
-                    'SalesRep_ID' => $order->SalesRep_ID,
-                    'AdminStatus' => 'Disapproved',
-                    'AdminNotes' => $disapproval_reason,
-                    'AdminReviewed_Date' => date('Y-m-d H:i:s')
-                ];
-
-                $this->db->insert('ready_to_approve_orders', $ready_data);
-            }
-        }
-
         // Delete from awaiting_admin_orders (legacy table)
         if ($this->db->table_exists('awaiting_admin_orders')) {
             $this->db->where('OrderID', $order->OrderID); // Use numeric OrderID
             $this->db->or_where('OrderNumber', $order->OrderNumber); // Also check OrderNumber for safety
             $this->db->delete('awaiting_admin_orders');
+        }
+
+        // Insert into disapproved_orders (legacy table for backward compatibility)
+        if ($this->db->table_exists('disapproved_orders')) {
+            try {
+                $this->db->select('o.*, oi.*, p.ProductName');
+                $this->db->from('`order` o');
+                $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+                $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+                $this->db->where('o.OrderID', $order_id);
+                $this->db->limit(1);
+                $order_details = $this->db->get()->row();
+
+                if ($order_details) {
+                    // Build data array with only fields that exist in the table
+                    $disapproved_data = [
+                        'OrderID' => (int)$order_id,
+                        'OrderNumber' => $order->OrderNumber ?? 'GI' . str_pad($order_id, 3, '0', STR_PAD_LEFT),
+                        'ProductName' => $order_details->ProductName ?? 'N/A',
+                        'Address' => $order->DeliveryAddress ?? '',
+                        'OrderDate' => $order->OrderDate ?? date('Y-m-d H:i:s'),
+                        'TotalQuotation' => $order->TotalAmount ?? 0.00,
+                        'Customer_ID' => $order->Customer_ID ?? null,
+                        'SalesRep_ID' => $order->SalesRep_ID ?? null,
+                        'DisapprovedBy' => 'Admin',
+                        'DisapprovedBy_ID' => $admin_id,
+                        'DisapprovalReason' => $disapproval_reason,
+                        'Disapproved_Date' => date('Y-m-d H:i:s')
+                    ];
+                    
+                    // Only add fields that exist in the table (check if columns exist)
+                    $table_fields = $this->db->list_fields('disapproved_orders');
+                    $fields_to_add = [
+                        'Shape' => $order_details->GlassShape ?? '',
+                        'Dimension' => $order_details->Dimensions ?? '',
+                        'Type' => $order_details->GlassType ?? '',
+                        'Thickness' => $order_details->GlassThickness ?? '',
+                        'EdgeWork' => $order_details->EdgeWork ?? '',
+                        'FrameType' => $order_details->FrameType ?? '',
+                        'Engraving' => $order_details->Engraving ?? '',
+                        'FileAttached' => $order_details->DesignRef ?? null
+                    ];
+                    
+                    foreach ($fields_to_add as $field => $value) {
+                        if (in_array($field, $table_fields)) {
+                            $disapproved_data[$field] = $value;
+                        }
+                    }
+
+                    $insert_result = $this->db->insert('disapproved_orders', $disapproved_data);
+                    if (!$insert_result) {
+                        $error = $this->db->error();
+                        log_message('error', 'Order_model::admin_disapprove_order - Failed to insert into disapproved_orders: ' . json_encode($error) . ' | Data: ' . json_encode($disapproved_data));
+                        // Don't fail the transaction for legacy table insert failure
+                    }
+                } else {
+                    log_message('debug', 'Order_model::admin_disapprove_order - No order_details found for order_id: ' . $order_id);
+                }
+            } catch (Exception $e) {
+                log_message('error', 'Order_model::admin_disapprove_order - Exception inserting into disapproved_orders: ' . $e->getMessage());
+                // Don't fail the transaction for legacy table insert failure
+            }
         }
 
         // Log activity
@@ -1241,7 +1272,7 @@ class Order_model extends CI_Model
             return ['success' => false, 'message' => 'Transaction failed'];
         }
 
-        return ['success' => true, 'message' => 'Order disapproved. Sales rep will be notified.'];
+        return ['success' => true, 'message' => 'Order disapproved successfully.'];
     }
 
     /**
@@ -1603,6 +1634,8 @@ class Order_model extends CI_Model
 
     /**
      * Get orders awaiting admin approval
+     * Returns all orders with Status = 'Awaiting Admin'
+     * (Orders are auto-transitioned to this status if SalesRep_ID is NULL or Sales Rep is archived)
      * 
      * @return array Array of order objects
      */
@@ -1622,10 +1655,14 @@ class Order_model extends CI_Model
             p.ProductName,
             u.First_Name as Customer_First_Name,
             u.Last_Name as Customer_Last_Name,
+            u.Middle_Name as Customer_Middle_Name,
             u.Email as Customer_Email,
             u.PhoneNum as Customer_Phone,
             sr.First_Name as SalesRep_First_Name,
-            sr.Last_Name as SalesRep_Last_Name
+            sr.Last_Name as SalesRep_Last_Name,
+            sr.Status as SalesRep_Status,
+            sr.Email as SalesRep_Email,
+            sr.PhoneNum as SalesRep_Phone
         ');
         $this->db->from('`order` o');
         $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
@@ -1712,6 +1749,9 @@ class Order_model extends CI_Model
      * Validate status transition
      * Ensures order status transitions follow the defined flow
      * 
+     * New Status Flow:
+     * Pending Payment -> Paid -> Payment Verified -> Approved -> In Fabrication -> Scheduling -> For Installation / Shipping -> Completed
+     * 
      * @param string $current_status Current order status
      * @param string $new_status Desired new status
      * @param string $role User role performing the transition
@@ -1719,14 +1759,31 @@ class Order_model extends CI_Model
      */
     public function validate_status_transition($current_status, $new_status, $role = 'System')
     {
+        // Support both old and new status values for backward compatibility during migration
+        $status_mapping = [
+            'Pending Review' => 'Pending Payment',
+            'Awaiting Admin' => 'Pending Payment',
+            'Ready to Approve' => 'Pending Payment',
+            'Disapproved' => 'Cancelled',
+            'Ready for Installation' => 'For Installation / Shipping'
+        ];
+        
+        // Normalize old statuses to new ones
+        if (isset($status_mapping[$current_status])) {
+            $current_status = $status_mapping[$current_status];
+        }
+        if (isset($status_mapping[$new_status])) {
+            $new_status = $status_mapping[$new_status];
+        }
+        
         $valid_transitions = [
-            'Pending Review' => ['Awaiting Admin', 'Disapproved'],
-            'Awaiting Admin' => ['Ready to Approve', 'Disapproved'],
-            'Ready to Approve' => ['Approved', 'Disapproved'],
+            'Pending Payment' => ['Paid', 'Cancelled'],
+            'Paid' => ['Payment Verified', 'Cancelled'],
+            'Payment Verified' => ['Approved', 'Cancelled'],
             'Approved' => ['In Fabrication', 'Cancelled'],
-            'In Fabrication' => ['Ready for Installation', 'Cancelled'],
-            'Ready for Installation' => ['Completed', 'Cancelled'],
-            'Disapproved' => [], // Terminal state
+            'In Fabrication' => ['Scheduling', 'Cancelled'],
+            'Scheduling' => ['For Installation / Shipping', 'Cancelled'],
+            'For Installation / Shipping' => ['Completed', 'Cancelled'],
             'Completed' => [], // Terminal state
             'Cancelled' => [], // Terminal state
             'Returned' => [] // Terminal state
@@ -1747,11 +1804,17 @@ class Order_model extends CI_Model
         // Role-based validation
         $role_restrictions = [
             'Sales Representative' => [
-                'Pending Review' => ['Awaiting Admin'],
-                'Ready to Approve' => ['Approved', 'Disapproved']
+                'Pending Payment' => ['Paid'], // Sales rep can mark payment as paid
+                'Paid' => ['Payment Verified'] // Sales rep can verify payment
             ],
             'Admin' => [
-                'Awaiting Admin' => ['Ready to Approve']
+                'Pending Payment' => ['Paid', 'Cancelled'],
+                'Paid' => ['Payment Verified', 'Cancelled'],
+                'Payment Verified' => ['Approved', 'Cancelled'],
+                'Approved' => ['In Fabrication', 'Cancelled'],
+                'In Fabrication' => ['Scheduling', 'Cancelled'],
+                'Scheduling' => ['For Installation / Shipping', 'Cancelled'],
+                'For Installation / Shipping' => ['Completed', 'Cancelled']
             ]
         ];
 
@@ -1767,6 +1830,59 @@ class Order_model extends CI_Model
         }
 
         return ['valid' => true, 'message' => 'Transition is valid'];
+    }
+
+    /**
+     * Map old order statuses to new status values
+     * Provides backward compatibility during migration
+     * 
+     * @param string $old_status Old status value
+     * @return string New status value
+     */
+    public function map_old_status_to_new($old_status)
+    {
+        $mapping = [
+            'Pending Review' => 'Pending Payment',
+            'Awaiting Admin' => 'Pending Payment',
+            'Ready to Approve' => 'Pending Payment',
+            'Disapproved' => 'Cancelled',
+            'Ready for Installation' => 'For Installation / Shipping',
+            'Pending' => 'Pending Payment',
+            // New statuses remain unchanged
+            'Pending Payment' => 'Pending Payment',
+            'Paid' => 'Paid',
+            'Payment Verified' => 'Payment Verified',
+            'Approved' => 'Approved',
+            'In Fabrication' => 'In Fabrication',
+            'Scheduling' => 'Scheduling',
+            'For Installation / Shipping' => 'For Installation / Shipping',
+            'Completed' => 'Completed',
+            'Cancelled' => 'Cancelled',
+            'Returned' => 'Returned'
+        ];
+        
+        return isset($mapping[$old_status]) ? $mapping[$old_status] : $old_status;
+    }
+    
+    /**
+     * Get all valid order statuses (new system)
+     * 
+     * @return array List of valid status values
+     */
+    public function get_valid_order_statuses()
+    {
+        return [
+            'Pending Payment',
+            'Paid',
+            'Payment Verified',
+            'Approved',
+            'In Fabrication',
+            'Scheduling',
+            'For Installation / Shipping',
+            'Completed',
+            'Cancelled',
+            'Returned'
+        ];
     }
 
     /**
@@ -1927,93 +2043,50 @@ class Order_model extends CI_Model
             return null;
         }
 
-        // Get order with all related data
-        // Use COALESCE to handle NULL values from LEFT JOINs
-        $this->db->select('
-            o.*,
-            COALESCE(oi.Product_ID, NULL) as Product_ID,
-            COALESCE(oi.Dimensions, NULL) as Dimensions,
-            COALESCE(oi.GlassShape, NULL) as GlassShape,
-            COALESCE(oi.GlassType, NULL) as GlassType,
-            COALESCE(oi.GlassThickness, NULL) as GlassThickness,
-            COALESCE(oi.EdgeWork, NULL) as EdgeWork,
-            COALESCE(oi.FrameType, NULL) as FrameType,
-            COALESCE(oi.Engraving, NULL) as Engraving,
-            COALESCE(oi.DesignRef, NULL) as DesignRef,
-            COALESCE(oi.Quantity, 0) as Quantity,
-            COALESCE(oi.UnitPrice, 0) as UnitPrice,
-            COALESCE(oi.EstimatePrice, 0) as EstimatePrice,
-            COALESCE(p.ProductName, NULL) as ProductName,
-            COALESCE(p.ImageUrl, NULL) as ProductImage,
-            COALESCE(p.Category, NULL) as ProductCategory,
-            COALESCE(u.First_Name, NULL) as First_Name,
-            COALESCE(u.Middle_Name, NULL) as Middle_Name,
-            COALESCE(u.Last_Name, NULL) as Last_Name,
-            COALESCE(u.Email, NULL) as Email,
-            COALESCE(u.PhoneNum, NULL) as PhoneNum,
-            COALESCE(c.Customer_ID, NULL) as Customer_ID
-        ');
-        $this->db->from('`order` o');
-        $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
-        $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
-        $this->db->join('customer c', 'c.Customer_ID = o.Customer_ID', 'left');
-        $this->db->join('user u', 'u.UserID = c.UserID', 'left');
-        $this->db->where('o.OrderID', $order_id);
-        // Group by OrderID only - MySQL will pick the first matching row for other fields
-        // This works because we're using LEFT JOINs and only need one result
-        $this->db->group_by('o.OrderID');
-        $this->db->limit(1);
-
-        $result = $this->db->get()->row();
+        // Use simpler approach: get order first, then get related data separately
+        // This avoids GROUP BY issues in MySQL strict mode
+        $simple_order = $this->db->where('OrderID', $order_id)->get('`order`')->row();
         
-        // If query failed or returned no results, try a simpler query without GROUP BY
-        if (!$result) {
-            log_message('error', 'Order_model::get_order_details_for_popup - Query returned no results. OrderID: ' . $order_id . '. Trying simpler query...');
-            
-            // Try simpler query - just get the order and first order_item separately
-            $simple_order = $this->db->where('OrderID', $order_id)->get('`order`')->row();
-            if ($simple_order) {
-                // Get first order item if exists
-                $first_item = $this->db->where('OrderID', $order_id)->limit(1)->get('order_items')->row();
-                if ($first_item) {
-                    // Get product info
-                    $product = $this->db->where('Product_ID', $first_item->Product_ID)->get('product')->row();
-                    if ($product) {
-                        $simple_order->ProductName = $product->ProductName;
-                        $simple_order->ProductImage = $product->ImageUrl;
-                        $simple_order->ProductCategory = $product->Category;
-                    }
-                    // Copy order item fields
-                    $simple_order->Dimensions = $first_item->Dimensions;
-                    $simple_order->GlassShape = $first_item->GlassShape;
-                    $simple_order->GlassType = $first_item->GlassType;
-                    $simple_order->GlassThickness = $first_item->GlassThickness;
-                    $simple_order->EdgeWork = $first_item->EdgeWork;
-                    $simple_order->FrameType = $first_item->FrameType;
-                    $simple_order->Engraving = $first_item->Engraving;
-                    $simple_order->DesignRef = $first_item->DesignRef;
-                }
-                
-                // Get customer info
-                $customer = $this->db->where('Customer_ID', $simple_order->Customer_ID)->get('customer')->row();
-                if ($customer) {
-                    $user = $this->db->where('UserID', $customer->UserID)->get('user')->row();
-                    if ($user) {
-                        $simple_order->First_Name = $user->First_Name;
-                        $simple_order->Middle_Name = $user->Middle_Name;
-                        $simple_order->Last_Name = $user->Last_Name;
-                        $simple_order->Email = $user->Email;
-                        $simple_order->PhoneNum = $user->PhoneNum;
-                    }
-                }
-                
-                return $simple_order;
-            }
-            
-            log_message('error', 'Order_model::get_order_details_for_popup - Order not found even with simple query. OrderID: ' . $order_id);
+        if (!$simple_order) {
+            log_message('error', 'Order_model::get_order_details_for_popup - Order not found. OrderID: ' . $order_id);
+            return null;
         }
         
-        return $result;
+        // Get first order item if exists
+        $first_item = $this->db->where('OrderID', $order_id)->limit(1)->get('order_items')->row();
+        if ($first_item) {
+            // Get product info
+            $product = $this->db->where('Product_ID', $first_item->Product_ID)->get('product')->row();
+            if ($product) {
+                $simple_order->ProductName = $product->ProductName;
+                $simple_order->ProductImage = $product->ImageUrl;
+                $simple_order->ProductCategory = $product->Category;
+            }
+            // Copy order item fields
+            $simple_order->Dimensions = $first_item->Dimensions;
+            $simple_order->GlassShape = $first_item->GlassShape;
+            $simple_order->GlassType = $first_item->GlassType;
+            $simple_order->GlassThickness = $first_item->GlassThickness;
+            $simple_order->EdgeWork = $first_item->EdgeWork;
+            $simple_order->FrameType = $first_item->FrameType;
+            $simple_order->Engraving = $first_item->Engraving;
+            $simple_order->DesignRef = $first_item->DesignRef;
+        }
+        
+        // Get customer info
+        $customer = $this->db->where('Customer_ID', $simple_order->Customer_ID)->get('customer')->row();
+        if ($customer) {
+            $user = $this->db->where('UserID', $customer->UserID)->get('user')->row();
+            if ($user) {
+                $simple_order->First_Name = $user->First_Name;
+                $simple_order->Middle_Name = $user->Middle_Name;
+                $simple_order->Last_Name = $user->Last_Name;
+                $simple_order->Email = $user->Email;
+                $simple_order->PhoneNum = $user->PhoneNum;
+            }
+        }
+        
+        return $simple_order;
     }
 
     /**

@@ -45,4 +45,33 @@
     </div>
 </section>
 
-<!-- Filter script removed - no longer needed -->
+<script>
+// Mark all notifications as viewed when sales rep opens the notification page
+document.addEventListener('DOMContentLoaded', function() {
+    // Get base URL
+    let baseUrl = window.BASE_URL || '';
+    if (!baseUrl.endsWith('/')) {
+        baseUrl += '/';
+    }
+    
+    // Mark all notifications as viewed
+    fetch(baseUrl + 'sales-mark-notifications-viewed', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Update the badge immediately after marking as viewed
+            if (typeof updateNotificationBadge === 'function') {
+                updateNotificationBadge();
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error marking notifications as viewed:', error);
+    });
+});
+</script>

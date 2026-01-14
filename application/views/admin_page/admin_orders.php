@@ -1,391 +1,705 @@
+<?php
+// Determine order type from URL parameter
+$order_type = isset($_GET['type']) ? $_GET['type'] : 'direct';
+$is_direct = ($order_type === 'direct');
+$is_site_assessed = ($order_type === 'site-assessed');
+$page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed Orders' : 'Orders');
+?>
+
 <script>
   // Pass the URLs from PHP to JS
   const baseUrl = "<?php echo base_url(); ?>";
   const getOrdersUrl = "<?php echo base_url('AdminCon/get_orders_ajax'); ?>";
   const getOrderDetailsUrl = "<?php echo base_url('AdminCon/get_order_details_ajax'); ?>";
-  const getAwaitingApprovalUrl = "<?php echo base_url('AdminCon/get_awaiting_approval_orders'); ?>";
-  const getApprovalOrderDetailsUrl = "<?php echo base_url('AdminCon/get_approval_order_details'); ?>";
+  const updateOrderStatusUrl = "<?php echo base_url('AdminCon/update_order_status'); ?>";
+  const assignStaffUrl = "<?php echo base_url('AdminCon/assign_staff'); ?>";
+  const exportOrderUrl = "<?php echo base_url('AdminCon/export_order'); ?>";
   const approveOrderUrl = "<?php echo base_url('AdminCon/approve_order_admin'); ?>";
   const disapproveOrderUrl = "<?php echo base_url('AdminCon/disapprove_order_admin'); ?>";
-  const completeOrderUrl = "<?php echo base_url('AdminCon/complete_order'); ?>";
+  const orderType = "<?php echo $order_type; ?>";
 </script>
 
-<script src="<?php echo base_url('assets/js/admin-js/order.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/admin-js/order-management.js'); ?>"></script>
 
-
-
-
-
-<!-- Orders -->
-<section class="order-list-section">
+<!-- Orders Section -->
+<section class="order-management-section">
   <div class="section-header">
-    <h2>Order <span class="found-text">16 Orders found</span></h2>
-
-  </div>
-  <div class="order-tabs">
-    <div class="tab-buttons">
-      <button class="tab-button active">All orders</button>
-      <button class="tab-button">Completed</button>
-      <button class="tab-button">Pending</button>
-      <button class="tab-button">Cancel</button>
-       <div class="search-container">
-        <input type="text" placeholder="Search products">
-        <button class="search-button">Search</button>
-      </div>
-    </div>
-
-    <div class="tab-right">
-     
-      <div class="custom-calendar">
-    <button id="calendar-btn">
-        <span id="month">May</span>
-        <span id="year">2025</span>
+    <h2><?php echo $page_title; ?> <span class="found-text">Loading...</span></h2>
+    <button class="toggle-filters-btn" id="toggle-filters-btn" title="Toggle Filters">
+      <i class="fas fa-filter"></i>
+      <span>Filters</span>
     </button>
-
-    <div class="calendar-dropdown" id="calendar-dropdown">
-        <!-- Month Selector -->
-        <div class="month-selector">
-            <button onclick="prevMonth()">&#8592;</button>
-            <span id="dropdown-month">May</span>
-            <button onclick="nextMonth()">&#8594;</button>
-        </div>
-
-        <!-- Year Selector -->
-        <div class="year-selector">
-            <button onclick="prevYear()">&#8592;</button>
-            <span id="dropdown-year">2025</span>
-            <button onclick="nextYear()">&#8594;</button>
-        </div>
-
-        <!-- Show All Button -->
-        <div class="calendar-reset">
-            <button id="reset-calendar">Show All</button>
-        </div>
-    </div>
-</div>
-
-    </div>
   </div>
 
+  <!-- Filters Section -->
+  <div class="filters-container">
+    <div class="filter-group">
+      <label for="status-filter">Status:</label>
+      <select id="status-filter" class="filter-select">
+        <option value="all">All</option>
+        <option value="Pending Review">Pending Review</option>
+        <option value="Awaiting Admin">Awaiting Admin</option>
+        <option value="Approved">Approved</option>
+        <option value="Disapproved">Disapproved</option>
+        <?php if ($is_site_assessed): ?>
+        <option value="Ocular Pending">Ocular Pending</option>
+        <?php endif; ?>
+        <option value="In Fabrication">In Fabrication</option>
+        <option value="Ready for Installation">Ready for Installation</option>
+        <option value="Completed">Completed</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+    </div>
 
+    <?php if ($is_site_assessed): ?>
+    <div class="filter-group">
+      <label for="ocular-filter">Ocular Status:</label>
+      <select id="ocular-filter" class="filter-select">
+        <option value="all">All</option>
+        <option value="completed">Completed</option>
+        <option value="pending">Pending</option>
+      </select>
+    </div>
+    <?php endif; ?>
+
+    <div class="filter-group">
+      <label for="date-range-start">Date Range:</label>
+      <input type="date" id="date-range-start" class="filter-input">
+      <span>to</span>
+      <input type="date" id="date-range-end" class="filter-input">
+    </div>
+
+    <div class="filter-group">
+      <label for="client-search">Client:</label>
+      <input type="text" id="client-search" class="filter-input" placeholder="Name, email, or phone">
+    </div>
+
+    <div class="filter-group">
+      <label for="order-search">Order Number:</label>
+      <input type="text" id="order-search" class="filter-input" placeholder="Order ID or Number">
+    </div>
+
+    <div class="filter-group">
+      <label for="month-year-filter">Month/Year:</label>
+      <input type="month" id="month-year-filter" class="filter-input">
+    </div>
+
+    <button class="filter-btn" id="apply-filters">Apply Filters</button>
+    <button class="filter-btn filter-btn-secondary" id="clear-filters">Clear</button>
+  </div>
+
+  <!-- Orders Table -->
   <div class="table-container">
-    <table>
+    <table class="orders-table">
       <thead>
         <tr>
           <th>#</th>
           <th>Order ID</th>
+          <th>Client Name</th>
           <th>Product Name</th>
           <th>Address</th>
-          <th>Date</th>
-          <th>Price</th>
+          <th>Order Date</th>
+          <?php if ($is_site_assessed): ?>
+          <th>Ocular Status</th>
+          <?php endif; ?>
+          <th>Total Amount</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody id="ordersTableBody">
-        <!-- Orders will be loaded dynamically via JavaScript -->
-      </tbody>
-    </table>
-  </div>
-  <div class="pagination">
-    <span>Loading...</span>
-    <div class="pagination-controls">
-      <!-- Pagination will be generated by JavaScript -->
-    </div>
-  </div>
-  <div id="actionMenu" class="action-menu hidden">
-    <ul>
-      <li><a>View</a></li>
-      <li><a>Complete</a></li>
-      <li><a>Cancel</a></li>
-      <li><a>Delete</a></li>
-    </ul>
-  </div>
-
-
-</section>
-
-
-<!-- Order Schedule -->
-<section class="order-schedule-section">
-  <div class="table-container">
-    <div class="section-header-schedule">
-      <h2>Order Schedule Approval <img src="<?php echo base_url('assets/images/img_admin/approved.svg'); ?>"
-          class="approve-img"></h2>
-    </div>
-    <table>
-      <thead>
         <tr>
-          <th>#</th>
-          <th>Order ID</th>
-          <th>Scheduled Date</th>
-          <th>Price</th>
-          <th>Actions</th>
+          <td colspan="<?php echo $is_site_assessed ? '10' : '9'; ?>" style="text-align: center; padding: 20px;">Loading orders...</td>
         </tr>
-      </thead>
-      <tbody id="approvalTableBody">
-        <!-- Approval orders will be loaded dynamically via JavaScript -->
       </tbody>
     </table>
   </div>
+
+  <!-- Pagination -->
   <div class="pagination">
-    <span>Loading...</span>
-    <div class="pagination-controls">
+    <span id="pagination-info">Loading...</span>
+    <div class="pagination-controls" id="pagination-controls">
       <!-- Pagination will be generated by JavaScript -->
     </div>
   </div>
 </section>
-</main>
 
-
-<!-- Popup Overlay -->
-<div class="popup-overlay" id="orderPopup">
-  <div class="popup">
-    <span class="close-btn" id="closePopup">&times;</span>
-    <h3>Order Details</h3>
-
-    <table class="order-details" id="orderDetailsTable">
-      <tbody>
-        <tr>
-          <td>Order ID:</td>
-          <td id="popup-order-id">-</td>
-        </tr>
-        <tr>
-          <td>Product:</td>
-          <td id="popup-product-name">-</td>
-        </tr>
-        <tr>
-          <td>Address:</td>
-          <td id="popup-address">-</td>
-        </tr>
-        <tr>
-          <td>Date:</td>
-          <td id="popup-date">-</td>
-        </tr>
-        <tr>
-          <td>Status:</td>
-          <td id="popup-status">-</td>
-        </tr>
-        <tr>
-          <td>Shape:</td>
-          <td id="popup-shape">-</td>
-        </tr>
-        <tr>
-          <td>Dimension:</td>
-          <td id="popup-dimension">-</td>
-        </tr>
-        <tr>
-          <td>Type:</td>
-          <td id="popup-type">-</td>
-        </tr>
-        <tr>
-          <td>Thickness:</td>
-          <td id="popup-thickness">-</td>
-        </tr>
-        <tr>
-          <td>Edge Work:</td>
-          <td id="popup-edge-work">-</td>
-        </tr>
-        <tr>
-          <td>Frame Type:</td>
-          <td id="popup-frame-type">-</td>
-        </tr>
-        <tr>
-          <td>Engraving:</td>
-          <td id="popup-engraving">-</td>
-        </tr>
-        <tr>
-          <td>File Attached:</td>
-          <td>
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <div id="popup-file-thumbnail" style="display: none;">
-                <img id="popup-file-thumbnail-img" src="" alt="Design Thumbnail" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; cursor: pointer;" onclick="window.open(this.src, '_blank')">
-              </div>
-              <div style="flex: 1;">
-                <a href="#" id="popup-file-attached-link" target="_blank" style="display: none; color: #0066cc; text-decoration: underline;">-</a>
-                <span id="popup-file-attached-text" style="display: none;">-</span>
-              </div>
-            </div>
-          </td>
-        </tr>
-        <tr>
-          <td>Total Quotation (₱):</td>
-          <td id="popup-total-quotation">-</td>
-        </tr>
-        <tr>
-          <td>Preferred Installation Date:</td>
-          <td id="popup-preferred-installation-date">-</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="barcode" id="popup-barcode">
-      <img id="barcode-img" src="" alt="Barcode">
-    </div>
-
-    <button class="export-btn">Export</button>
-    <button class="approve-btn" id="popup-approve-btn" style="display:none;">Approve Order</button>
-    <button class="disapprove-btn" id="popup-disapprove-btn" style="display:none;">Disapprove Order</button>
-
-  </div>
-</div>
-
-<!-- Approval Review Popup Overlay -->
-<div class="popup-overlay" id="approvalPopup">
-  <div class="popup modern-popup">
-    <span class="close-btn" id="closeApprovalPopup">&times;</span>
-    
+<!-- Order Details Modal -->
+<div class="popup-overlay" id="orderDetailsModal">
+  <div class="popup popup-large modern-popup">
     <div class="popup-header-modern">
-      <h3 class="popup-title-modern">Review Order for Approval</h3>
-      <p class="popup-subtitle">Review and approve or disapprove this order</p>
+      <span class="close-btn" id="closeOrderDetails">&times;</span>
+      <h3 class="popup-title-modern">
+        <i class="fas fa-file-invoice" style="margin-right: 10px;"></i>Order Details
+      </h3>
+      <p class="popup-subtitle">Complete order information and management</p>
     </div>
 
-    <div class="popup-content-modern">
-      <!-- Order & Customer Info Card -->
+    <div class="popup-content-modern order-details-content">
+      <!-- Order Information Section -->
       <div class="info-card">
         <div class="info-card-header">
-          <span class="info-card-icon">📋</span>
-          <h4 class="info-card-title">Order & Customer Information</h4>
+          <i class="fas fa-info-circle info-card-icon"></i>
+          <h4 class="info-card-title">Order Information</h4>
         </div>
         <div class="info-card-body">
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">Order ID</span>
-              <span class="info-value" id="approval-order-id">-</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Product</span>
-              <span class="info-value" id="approval-product-name">-</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Customer</span>
-              <span class="info-value" id="approval-customer-name">-</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Sales Rep</span>
-              <span class="info-value" id="approval-sales-rep-name">-</span>
+              <span class="info-value" id="detail-order-id">-</span>
             </div>
             <div class="info-item">
               <span class="info-label">Order Date</span>
-              <span class="info-value" id="approval-order-date">-</span>
+              <span class="info-value" id="detail-order-date">-</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Scheduled Date</span>
-              <span class="info-value" id="approval-scheduled-date">-</span>
+              <span class="info-label">Order Type</span>
+              <span class="info-value">
+                <span class="badge badge-<?php echo $is_direct ? 'primary' : 'warning'; ?>" id="detail-order-type">
+                  <?php echo $is_direct ? 'Direct Order' : 'Site-Assessed Order'; ?>
+                </span>
+              </span>
             </div>
             <div class="info-item">
-              <span class="info-label">Requested Date</span>
-              <span class="info-value" id="approval-requested-date">-</span>
+              <span class="info-label">Status</span>
+              <span class="info-value">
+                <span class="badge" id="detail-status-badge">-</span>
+              </span>
+            </div>
+          </div>
+          <!-- Status History Timeline -->
+          <div class="status-timeline" id="status-timeline" style="margin-top: 20px;">
+            <!-- Status history will be loaded here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Information Section -->
+      <div class="info-card">
+        <div class="info-card-header">
+          <i class="fas fa-user info-card-icon"></i>
+          <h4 class="info-card-title">Customer Information</h4>
+        </div>
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Customer Name</span>
+              <span class="info-value" id="detail-customer-name">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Email</span>
+              <span class="info-value" id="detail-customer-email">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Phone</span>
+              <span class="info-value" id="detail-customer-phone">-</span>
             </div>
             <div class="info-item full-width">
               <span class="info-label">Address</span>
-              <span class="info-value" id="approval-address">-</span>
+              <span class="info-value" id="detail-customer-address">-</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Customization Card -->
+      <!-- Products/Items Section -->
       <div class="info-card">
         <div class="info-card-header">
-          <span class="info-card-icon">⚙️</span>
-          <h4 class="info-card-title">Customization Details</h4>
+          <i class="fas fa-boxes info-card-icon"></i>
+          <h4 class="info-card-title">Products/Items</h4>
+        </div>
+        <div class="info-card-body" style="padding: 0;">
+          <div style="overflow-x: auto;">
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th>Quantity</th>
+                  <th>Unit Price</th>
+                  <th>Subtotal</th>
+                  <th>Specifications</th>
+                  <th>Design File</th>
+                </tr>
+              </thead>
+              <tbody id="detail-items-tbody">
+                <!-- Items will be loaded here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing & Payment Section -->
+      <div class="info-card">
+        <div class="info-card-header">
+          <i class="fas fa-money-bill-wave info-card-icon"></i>
+          <h4 class="info-card-title">Pricing & Payment</h4>
         </div>
         <div class="info-card-body">
           <div class="info-grid">
             <div class="info-item">
-              <span class="info-label">Shape</span>
-              <span class="info-value" id="approval-shape">-</span>
+              <span class="info-label">Subtotal</span>
+              <span class="info-value" id="detail-subtotal">₱0.00</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Dimension</span>
-              <span class="info-value" id="approval-dimension">-</span>
+              <span class="info-label">Tax</span>
+              <span class="info-value" id="detail-tax">₱0.00</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Type</span>
-              <span class="info-value" id="approval-type">-</span>
+              <span class="info-label">Payment Status</span>
+              <span class="info-value" id="detail-payment-status">-</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Thickness</span>
-              <span class="info-value" id="approval-thickness">-</span>
+              <span class="info-label">Payment Method</span>
+              <span class="info-value" id="detail-payment-method">-</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Edge Work</span>
-              <span class="info-value" id="approval-edge-work">-</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Frame Type</span>
-              <span class="info-value" id="approval-frame-type">-</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Engraving</span>
-              <span class="info-value" id="approval-engraving">-</span>
+              <span class="info-label">Payment Date</span>
+              <span class="info-value" id="detail-payment-date">-</span>
             </div>
             <div class="info-item full-width">
-              <span class="info-label">File Attached</span>
-              <div class="file-attachment-modern">
-                <div id="approval-file-thumbnail" class="file-thumbnail-modern" style="display: none;">
-                  <img id="approval-file-thumbnail-img" src="" alt="Design Thumbnail" onclick="window.open(this.src, '_blank')">
-                </div>
-                <div class="file-link-modern">
-                  <a href="#" class="file-link" id="approval-file-attached-link" target="_blank" style="display: none;">-</a>
-                  <span class="file-text" id="approval-file-attached-text" style="display: none;">-</span>
-                </div>
+              <span class="info-label">Payment Receipt</span>
+              <span class="info-value" id="detail-payment-receipt">-</span>
+            </div>
+          </div>
+          <div class="total-section-modern" style="margin-top: 20px;">
+            <span class="total-label">Total Quotation</span>
+            <span class="total-amount" id="detail-total-amount">₱0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ocular/Site Assessment Section (Site-Assessed Orders Only) -->
+      <?php if ($is_site_assessed): ?>
+      <div class="info-card">
+        <div class="info-card-header">
+          <i class="fas fa-clipboard-check info-card-icon"></i>
+          <h4 class="info-card-title">Ocular/Site Assessment</h4>
+        </div>
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Ocular Status</span>
+              <span class="info-value">
+                <span class="badge" id="detail-ocular-status">Pending</span>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Ocular Date</span>
+              <span class="info-value" id="detail-ocular-date">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Ocular Completed By</span>
+              <span class="info-value" id="detail-ocular-staff">-</span>
+            </div>
+            <div class="info-item full-width">
+              <span class="info-label">Ocular Notes</span>
+              <textarea class="form-textarea-modern" id="detail-ocular-notes" rows="5" readonly></textarea>
+              <button class="btn-modern btn-secondary" id="edit-ocular-notes-btn" style="margin-top: 10px;">
+                <i class="fas fa-edit" style="margin-right: 6px;"></i>Edit Notes
+              </button>
+            </div>
+            <div class="info-item full-width">
+              <span class="info-label">Site Photos</span>
+              <div class="photo-gallery" id="detail-ocular-photos">
+                <!-- Photos will be loaded here -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
+
+      <!-- Assigned Staff Section -->
+      <div class="info-card">
+        <div class="info-card-header">
+          <i class="fas fa-users-cog info-card-icon"></i>
+          <h4 class="info-card-title">Assigned Staff</h4>
+        </div>
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Fabrication Staff</span>
+              <div class="info-value-with-action" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span id="detail-fabrication-staff" style="flex: 1; min-width: 150px;">-</span>
+                <select class="form-control staff-select" id="select-fabrication-staff" style="display: none; flex: 1; min-width: 200px;">
+                  <option value="">Select Staff...</option>
+                  <!-- Options will be loaded via AJAX -->
+                </select>
+                <button class="btn-modern btn-secondary" id="change-fabrication-staff" style="padding: 8px 16px;">
+                  <i class="fas fa-edit" style="margin-right: 4px;"></i>Change
+                </button>
+              </div>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Installation Staff</span>
+              <div class="info-value-with-action" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span id="detail-installation-staff" style="flex: 1; min-width: 150px;">-</span>
+                <select class="form-control staff-select" id="select-installation-staff" style="display: none; flex: 1; min-width: 200px;">
+                  <option value="">Select Staff...</option>
+                  <!-- Options will be loaded via AJAX -->
+                </select>
+                <button class="btn-modern btn-secondary" id="change-installation-staff" style="padding: 8px 16px;">
+                  <i class="fas fa-edit" style="margin-right: 4px;"></i>Change
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Total Card -->
+      <!-- Linked Appointments Section -->
       <div class="info-card">
         <div class="info-card-header">
-          <span class="info-card-icon">💰</span>
-          <h4 class="info-card-title">Total Quotation</h4>
+          <i class="fas fa-calendar-check info-card-icon"></i>
+          <h4 class="info-card-title">Linked Appointments</h4>
         </div>
         <div class="info-card-body">
-          <div class="total-section-modern">
-            <span class="total-label">Total Amount</span>
-            <span class="total-amount" id="approval-total-quotation">₱0.00</span>
+          <div id="detail-appointments">
+            <!-- Appointments will be loaded here -->
           </div>
         </div>
       </div>
 
-      <!-- Barcode Card -->
-      <div class="info-card" id="approval-barcode" style="display: none;">
+      <!-- Special Instructions Section -->
+      <div class="info-card" id="special-instructions-section" style="display: none;">
         <div class="info-card-header">
-          <span class="info-card-icon">📊</span>
-          <h4 class="info-card-title">Order Barcode</h4>
+          <i class="fas fa-sticky-note info-card-icon"></i>
+          <h4 class="info-card-title">Special Instructions</h4>
         </div>
-        <div class="info-card-body barcode-body-modern">
-          <img id="approval-barcode-img" src="" alt="Barcode" class="barcode-img-modern">
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item full-width">
+              <span class="info-label">Special Instructions</span>
+              <span class="info-value" id="detail-special-instructions">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Preferred Installation Date</span>
+              <span class="info-value" id="detail-preferred-installation-date">-</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Admin Notes & Actions Card -->
+      <!-- Admin Actions Section -->
       <div class="info-card">
         <div class="info-card-header">
-          <span class="info-card-icon">📝</span>
-          <h4 class="info-card-title">Admin Notes & Actions</h4>
+          <i class="fas fa-cog info-card-icon"></i>
+          <h4 class="info-card-title">Admin Actions</h4>
         </div>
         <div class="info-card-body">
-          <div class="form-group-modern">
-            <label for="admin-notes" class="form-label-modern">Admin Notes (Optional)</label>
-            <textarea id="admin-notes" class="form-textarea-modern" placeholder="Add any notes for the sales representative..."></textarea>
+          <!-- Order Approval Actions (for orders with Status = 'Awaiting Admin') -->
+          <div class="approval-actions" id="approval-actions-section" style="display: none;">
+            <div class="form-group-modern">
+              <label class="form-label-modern" for="admin-notes-textarea">Admin Notes <span style="color: #6c757d; font-weight: 400;">(Internal - Optional)</span></label>
+              <textarea id="admin-notes-textarea" class="form-textarea-modern" rows="3" placeholder="Add internal notes (optional)..."></textarea>
+            </div>
+            <div class="form-group-modern">
+              <label class="form-label-modern" for="disapproval-reason-textarea">Disapproval Reason <span class="required-asterisk">*</span> <span style="color: #6c757d; font-weight: 400;">(Required for Disapproval)</span></label>
+              <textarea id="disapproval-reason-textarea" class="form-textarea-modern" rows="3" placeholder="Please provide a reason for disapproval..." required></textarea>
+            </div>
+            <div class="action-buttons-row" style="margin-top: 20px;">
+              <button class="btn-modern btn-success" id="approve-order-btn">
+                <i class="fas fa-check" style="margin-right: 6px;"></i>Approve Order
+              </button>
+              <button class="btn-modern btn-danger" id="disapprove-order-btn">
+                <i class="fas fa-times" style="margin-right: 6px;"></i>Disapprove Order
+              </button>
+            </div>
           </div>
-          <div class="form-group-modern">
-            <label for="disapproval-reason" class="form-label-modern">Disapproval Reason <span class="required-asterisk">*</span></label>
-            <textarea id="disapproval-reason" class="form-textarea-modern" placeholder="Enter reason for disapproval (required if disapproving)..."></textarea>
+
+          <!-- General Admin Actions -->
+          <div class="action-buttons">
+            <div class="form-group-modern">
+              <label class="form-label-modern" for="update-status-select">Update Status</label>
+              <div style="display: flex; gap: 10px; align-items: flex-end;">
+                <select id="update-status-select" class="form-control" style="flex: 1;">
+                  <!-- Options will be populated based on current status -->
+                </select>
+                <button class="btn-modern btn-success" id="update-status-btn" style="padding: 12px 24px;">
+                  <i class="fas fa-sync-alt" style="margin-right: 6px;"></i>Update
+                </button>
+              </div>
+            </div>
+            <div class="form-group-modern" id="admin-notes-group" style="display: none;">
+              <label class="form-label-modern" for="admin-notes-textarea-general">Admin Notes</label>
+              <div style="display: flex; gap: 10px; align-items: flex-end;">
+                <textarea id="admin-notes-textarea-general" class="form-textarea-modern" rows="3" placeholder="Add internal notes..." style="flex: 1;"></textarea>
+                <button class="btn-modern btn-primary" id="save-notes-btn" style="padding: 12px 24px;">
+                  <i class="fas fa-save" style="margin-right: 6px;"></i>Save
+                </button>
+              </div>
+            </div>
+            <div class="action-buttons-row" style="margin-top: 20px; gap: 10px;">
+              <button class="btn-modern btn-secondary" id="link-calendar-btn">
+                <i class="fas fa-calendar-alt" style="margin-right: 6px;"></i>Link to Calendar
+              </button>
+              <button class="btn-modern btn-secondary" id="export-order-btn">
+                <i class="fas fa-file-export" style="margin-right: 6px;"></i>Export Order
+              </button>
+              <button class="btn-modern btn-danger" id="cancel-order-btn" style="display: none;">
+                <i class="fas fa-ban" style="margin-right: 6px;"></i>Cancel Order
+              </button>
+            </div>
+          </div>
+          <div class="barcode-section" id="detail-barcode-section" style="display: none; margin-top: 20px; text-align: center; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <label class="form-label-modern" style="margin-bottom: 10px;">Order Barcode</label>
+            <img id="detail-barcode-img" src="" alt="Barcode" style="max-width: 100%; height: auto; border-radius: 6px;">
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="popup-actions-modern">
-      <button class="btn-modern btn-secondary" id="approval-cancel-btn" type="button">Cancel</button>
-      <button class="btn-modern btn-danger" id="approval-disapprove-btn" type="button">Disapprove Order</button>
-      <button class="btn-modern btn-success" id="approval-approve-btn" type="button">Approve Order</button>
     </div>
   </div>
 </div>
 
+<!-- Action Menu Dropdown -->
+<div id="actionMenu" class="action-menu hidden">
+  <ul>
+    <li><a href="#" class="action-view">View Details</a></li>
+    <li><a href="#" class="action-update-status">Update Status</a></li>
+    <li><a href="#" class="action-assign-staff">Assign Staff</a></li>
+    <?php if ($is_site_assessed): ?>
+    <li><a href="#" class="action-ocular-notes" style="display: none;">Add Ocular Notes</a></li>
+    <?php endif; ?>
+    <li><a href="#" class="action-link-calendar">Link to Calendar</a></li>
+    <li><a href="#" class="action-export">Export Order</a></li>
+    <li><a href="#" class="action-cancel" style="display: none;">Cancel Order</a></li>
+  </ul>
+</div>
+
+<!-- Update Status Modal -->
+<div class="popup-overlay" id="updateStatusModal">
+  <div class="popup modern-popup">
+    <div class="popup-header-modern">
+      <span class="close-btn" id="closeUpdateStatusModal">&times;</span>
+      <h3 class="popup-title-modern">
+        <i class="fas fa-sync-alt" style="margin-right: 10px;"></i>Update Order Status
+      </h3>
+      <p class="popup-subtitle">Change the current status of this order</p>
+    </div>
+    <div class="popup-content-modern">
+      <div class="info-card">
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Order ID</span>
+              <span class="info-value" id="modal-status-order-id">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Current Status</span>
+              <span class="info-value" id="modal-status-current-status">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group-modern">
+        <label class="form-label-modern" for="modal-update-status-select">Select New Status</label>
+        <select id="modal-update-status-select" class="form-control">
+          <option value="">Select Status...</option>
+        </select>
+      </div>
+      <div class="form-group-modern">
+        <label class="form-label-modern" for="modal-update-status-notes">Admin Notes <span style="color: #6c757d; font-weight: 400;">(Optional)</span></label>
+        <textarea id="modal-update-status-notes" class="form-textarea-modern" rows="4" placeholder="Add any notes about this status change..."></textarea>
+      </div>
+    </div>
+    <div class="popup-actions-modern">
+      <button class="btn-modern btn-secondary" id="cancel-update-status">Cancel</button>
+      <button class="btn-modern btn-success" id="confirm-update-status">
+        <i class="fas fa-check" style="margin-right: 6px;"></i>Update Status
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Staff Modal -->
+<div class="popup-overlay" id="assignStaffModal">
+  <div class="popup modern-popup">
+    <div class="popup-header-modern">
+      <span class="close-btn" id="closeAssignStaffModal">&times;</span>
+      <h3 class="popup-title-modern">
+        <i class="fas fa-users" style="margin-right: 10px;"></i>Assign Staff to Order
+      </h3>
+      <p class="popup-subtitle">Assign fabrication and installation staff members</p>
+    </div>
+    <div class="popup-content-modern">
+      <div class="info-card">
+        <div class="info-card-body">
+          <div class="info-item">
+            <span class="info-label">Order ID</span>
+            <span class="info-value" id="modal-staff-order-id">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group-modern">
+        <label class="form-label-modern" for="modal-assign-fabrication-staff">Fabrication Staff</label>
+        <select id="modal-assign-fabrication-staff" class="form-control">
+          <option value="">Select Fabrication Staff...</option>
+        </select>
+        <p class="current-assignment" id="current-fabrication-staff" style="margin-top: 8px; font-size: 13px; color: #6c757d;">
+          <i class="fas fa-info-circle" style="margin-right: 5px;"></i>Current: <span style="font-weight: 500; color: #02455F;">-</span>
+        </p>
+      </div>
+      <div class="form-group-modern">
+        <label class="form-label-modern" for="modal-assign-installation-staff">Installation Staff</label>
+        <select id="modal-assign-installation-staff" class="form-control">
+          <option value="">Select Installation Staff...</option>
+        </select>
+        <p class="current-assignment" id="current-installation-staff" style="margin-top: 8px; font-size: 13px; color: #6c757d;">
+          <i class="fas fa-info-circle" style="margin-right: 5px;"></i>Current: <span style="font-weight: 500; color: #02455F;">-</span>
+        </p>
+      </div>
+    </div>
+    <div class="popup-actions-modern">
+      <button class="btn-modern btn-secondary" id="cancel-assign-staff">Cancel</button>
+      <button class="btn-modern btn-success" id="confirm-assign-staff">
+        <i class="fas fa-user-check" style="margin-right: 6px;"></i>Assign Staff
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Link to Calendar Modal -->
+<div class="popup-overlay" id="linkCalendarModal">
+  <div class="popup modern-popup">
+    <div class="popup-header-modern">
+      <span class="close-btn" id="closeLinkCalendarModal">&times;</span>
+      <h3 class="popup-title-modern">
+        <i class="fas fa-calendar-alt" style="margin-right: 10px;"></i>Link Order to Calendar
+      </h3>
+      <p class="popup-subtitle">Schedule appointments or track important dates</p>
+    </div>
+    <div class="popup-content-modern">
+      <div class="info-card">
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Order ID</span>
+              <span class="info-value" id="modal-calendar-order-id">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Client Name</span>
+              <span class="info-value" id="modal-calendar-client-name">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="calendar-link-options">
+        <p style="color: #495057; margin-bottom: 20px; font-size: 14px; line-height: 1.6;">
+          You can link this order to the calendar to schedule appointments or track important dates.
+        </p>
+        <div class="link-options">
+          <button class="btn-modern btn-success" id="view-calendar-btn" style="flex: 1;">
+            <i class="fas fa-calendar-alt" style="margin-right: 8px;"></i>View Calendar
+          </button>
+          <button class="btn-modern btn-primary" id="create-appointment-btn" style="flex: 1;">
+            <i class="fas fa-plus" style="margin-right: 8px;"></i>Create Appointment
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="popup-actions-modern">
+      <button class="btn-modern btn-secondary" id="cancel-link-calendar">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export Order Modal -->
+<div class="popup-overlay" id="exportOrderModal">
+  <div class="popup modern-popup">
+    <div class="popup-header-modern">
+      <span class="close-btn" id="closeExportOrderModal">&times;</span>
+      <h3 class="popup-title-modern">
+        <i class="fas fa-file-export" style="margin-right: 10px;"></i>Export Order
+      </h3>
+      <p class="popup-subtitle">Download or print order information</p>
+    </div>
+    <div class="popup-content-modern">
+      <div class="info-card">
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Order ID</span>
+              <span class="info-value" id="modal-export-order-id">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Client Name</span>
+              <span class="info-value" id="modal-export-client-name">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Order Date</span>
+              <span class="info-value" id="modal-export-order-date">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="export-options">
+        <label class="form-label-modern" style="margin-bottom: 15px;">Choose Export Format</label>
+        <div class="export-format-buttons">
+          <button class="export-format-btn" data-format="pdf">
+            <i class="fas fa-file-pdf"></i>
+            <span>PDF</span>
+          </button>
+          <button class="export-format-btn" data-format="excel">
+            <i class="fas fa-file-excel"></i>
+            <span>Excel</span>
+          </button>
+          <button class="export-format-btn" data-format="print">
+            <i class="fas fa-print"></i>
+            <span>Print</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="popup-actions-modern">
+      <button class="btn-modern btn-secondary" id="cancel-export-order">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Order Modal -->
+<div class="popup-overlay" id="cancelOrderModal">
+  <div class="popup modern-popup">
+    <div class="popup-header-modern" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
+      <span class="close-btn" id="closeCancelOrderModal">&times;</span>
+      <h3 class="popup-title-modern">
+        <i class="fas fa-times-circle" style="margin-right: 10px;"></i>Cancel Order
+      </h3>
+      <p class="popup-subtitle">This action cannot be undone</p>
+    </div>
+    <div class="popup-content-modern">
+      <div class="warning-message">
+        <i class="fas fa-exclamation-triangle"></i>
+        <p><strong>Warning:</strong> This action cannot be undone. The order will be marked as cancelled.</p>
+      </div>
+      <div class="info-card">
+        <div class="info-card-body">
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Order ID</span>
+              <span class="info-value" id="modal-cancel-order-id">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Client Name</span>
+              <span class="info-value" id="modal-cancel-client-name">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Current Status</span>
+              <span class="info-value" id="modal-cancel-current-status">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group-modern">
+        <label class="form-label-modern" for="modal-cancel-reason">Cancellation Reason <span style="color: #6c757d; font-weight: 400;">(Optional)</span></label>
+        <textarea id="modal-cancel-reason" class="form-textarea-modern" rows="4" placeholder="Please provide a reason for cancellation..."></textarea>
+      </div>
+    </div>
+    <div class="popup-actions-modern">
+      <button class="btn-modern btn-secondary" id="cancel-cancel-order">Keep Order</button>
+      <button class="btn-modern btn-danger" id="confirm-cancel-order">
+        <i class="fas fa-ban" style="margin-right: 6px;"></i>Confirm Cancellation
+      </button>
+    </div>
+  </div>
+</div>

@@ -1417,6 +1417,29 @@ class SalesCon extends CI_Controller
     }
     
     /**
+     * Mark all notifications as read (AJAX endpoint)
+     * Marks all unread notifications as read when sales rep opens notification page
+     */
+    public function mark_all_notifications_viewed()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Sales Representative') {
+            echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        // Mark all unread notifications as read
+        $this->db->where('Status', 'Unread');
+        $this->db->update('sales_notif', [
+            'Status' => 'Read',
+            'Read_Date' => date('Y-m-d H:i:s')
+        ]);
+        
+        echo json_encode(['status' => 'success', 'message' => 'All notifications marked as read']);
+    }
+    
+    /**
      * Get unread notification count (AJAX endpoint)
      */
     public function get_notification_count_ajax()

@@ -1,0 +1,101 @@
+/* ============================================
+   QUOTATIONS MODULE STYLES
+   Extends admin_orders.css design system
+   ============================================ */
+
+/* Inherit all styles from admin_orders.css */
+/* Additional quotations-specific styles can be added here if needed */
+
+/* Status Badges for Quotations */
+.badge.badge-pending {
+  background-color: #ffc107;
+  color: #333;
+}
+
+.badge.badge-approved {
+  background-color: #28a745;
+  color: white;
+}
+
+.badge.badge-rejected {
+  background-color: #dc3545;
+  color: white;
+}
+
+.badge.badge-converted {
+  background-color: #006494;
+  color: white;
+}
+
+/* Success button for Convert to Order */
+.btn-success {
+  padding: 8px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.3s;
+}
+
+.btn-success:hover {
+  background: #218838;
+}
+
+/* Quotation-specific modal adjustments */
+#quotationDetailsModal .order-details-content {
+  padding: 20px;
+}
+
+/* Linked Order Info Box */
+#linked-order-info {
+  padding: 12px;
+  background: #e7f3ff;
+  border-radius: 4px;
+  border-left: 4px solid #006494;
+  margin-top: 15px;
+}
+
+#linked-order-info .info-label {
+  font-weight: 600;
+  color: #02455F;
+  margin-right: 8px;
+}
+
+#linked-order-info .order-link {
+  color: #006494;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+#linked-order-info .order-link:hover {
+  text-decoration: underline;
+}
+
+/* Rejection Reason Group */
+#rejection-reason-group {
+  padding: 15px;
+  background: #fff3cd;
+  border-radius: 4px;
+  border-left: 4px solid #ffc107;
+}
+
+#rejection-reason-group label {
+  font-weight: 600;
+  color: #856404;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .action-buttons-row {
+    flex-direction: column;
+  }
+  
+  .action-buttons-row button {
+    width: 100%;
+    margin-bottom: 8px;
+  }
+}

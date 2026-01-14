@@ -1,0 +1,757 @@
+/* Import Montserrat from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+/* ===== RESET & BASE ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f4f6f9;
+  color: #333;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  margin-top: 30px;
+  margin-bottom: 30px;
+  padding-left: 10px;
+  justify-content: center;
+  transition: justify-content 0.3s ease, padding-left 0.3s ease;
+}
+
+
+/* Individual Section containers */
+.general-section,
+.user-section {
+  margin-top: 10px;
+  padding-top: 20px;
+}
+
+/* Individual Section Title (span) styles */
+/* Applying the previous .general-section span styles to the new .section-title class */
+.section-title {
+  color: white;
+  font-weight: 500;
+  margin-left: 20px;
+  display: block;
+  margin-bottom: 15px;
+}
+
+
+.container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ===== MAIN CONTENT ===== */
+.main-content {
+  margin-left: 220px;       /* match sidebar expanded width */
+  transition: margin-left 0.3s ease;
+  padding: 20px;
+  flex-grow: 1;
+  height: 100vh;
+  overflow-y: auto;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.user-section-main {
+    padding: 30px;
+}
+
+.page-title {
+    color: #02455f;
+    font-weight: 600;
+    font-size: 40px;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.user-section-main p {
+  font-size: 20px;       /* adjust size */
+  font-family: 'Montserrat', sans-serif; /* change font */
+  color: #444;           /* optional softer text color */
+  line-height: 1.5;      /* better readability */
+}
+
+.controls-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    margin-top: 20px;
+}
+
+.search-bar {
+    display: flex;
+    overflow: hidden;
+    max-width: 500px;
+    width: 100%;
+    gap: 10px;
+}
+
+.search-input {
+    border: 1px solid #828282;
+    padding: 10px 15px;
+    font-size: 1em;
+    flex-grow: 1;
+    border-radius: 5px;
+}
+
+.search-button {
+    background-color: #006494;
+    color: white;
+    border: 1px solid #828282;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s;
+    border-radius: 5px;
+}
+
+
+.add-user-button {
+    background-color: #00B521;
+    color: white;
+    border: 1px solid #828282;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 1em;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.tab-button {
+    background-color: transparent;
+    border: 2px solid #82828272;
+    border-radius: 5px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 1em;
+    color: #333;
+    transition: background-color 0.3s, color 0.3s;
+    max-width: 200px;
+    width: 100%;
+}
+
+.tab-button.active {
+    color: #02455F;
+    border: 2px solid #02455f;
+    font-weight: bold;
+}
+
+.table-container {
+    overflow-x: auto;
+    margin-top: 30px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead th {
+    text-align: left;
+    padding: 15px;
+    border-bottom: 2px solid #ddd;
+    color: white;
+    background-color: #02455F;
+    font-weight: 700;
+    font-size: 20px;
+}
+
+tbody td {
+    padding: 15px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.485);
+    color: black;
+    font-size: 16px;
+    background-color: #E9F9FF;
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+tbody td:last-child, thead th:last-child {
+    text-align: center;        /* Horizontally center the icon */
+    vertical-align: middle;    /* Vertically center the icon */
+}
+
+/* Action buttons */
+.edit-btn-main,
+.delete-btn-main {
+  display: inline-flex;               /* keeps icon + text aligned */
+  align-items: center;
+  gap: 6px;                           /* spacing between icon and text */
+  padding: 6px 14px;
+  border: 2px solid #02455F;          /* teal border */
+  border-radius: 6px;                 /* rounded corners */
+  background: transparent;            /* transparent background */
+  color: #02455F;                     /* teal text & icon */
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  margin-right: 8px;                  /* space between buttons */
+}
+
+/* icons inside the buttons */
+.edit-btn-main i,
+.delete-btn-main i {
+  font-size: 15px; /* match text size */
+  line-height: 1;
+  color: #02455F;
+}
+
+/* hover effect */
+.edit-btn-main:hover,
+.delete-btn-main:hover {
+  background: #02455F;
+  color: #fff;
+}
+
+.edit-btn-main:hover i,
+.delete-btn-main:hover i {
+  color: #fff;
+}
+
+
+.status {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status.active {
+    background-color: #28a745; /* Green color for active */
+}
+
+.status.inactive {
+    background-color: #9A9A9A; /* Red color for inactive */
+}
+
+/* --- Overlay & General Popup Containers --- */
+
+/* Overlay */
+.popup-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    justify-content: flex-end;
+}
+
+/* Popup Container */
+.popup {
+    background: #f8f9fa;
+    max-width: 480px;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    position: relative;
+    font-family: 'DM Sans', sans-serif;
+}
+
+/* Header */
+.popup-header {
+  background: #02455F;
+  color: white;
+  padding: 10px 30px;
+  position: relative;
+}
+
+.popup-header h2 {
+  margin: 0;
+  line-height: 2;
+}
+
+.close-btn {
+  position: absolute;
+  top: 15px;
+  right: 20px;
+  font-size: 24px;
+  color: white;
+  cursor: pointer;
+}
+
+
+/* --- Content Sections (Headers, Details, Inputs) --- */
+
+/* Headers */
+.popup-title {
+    margin: 20px 0 10px;
+    color: #02455F;
+    line-height: 2.5; 
+}
+
+.issue-section-title {
+    color: #02455F;
+    line-height: 3; 
+    padding: 0 30px; /* Apply padding to headers for alignment */
+}
+
+.issue-section {
+    margin-top: 15px;
+}
+
+/* View Details (Read-Only Popup Content) */
+.view-details {
+    margin-top: 15px;
+    margin-bottom: 15px;
+    padding: 0 30px; /* Apply padding to the container */
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0; /* Adjusted to fit the border-bottom */
+    padding: 10px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.detail-row:last-of-type {
+    margin-bottom: 15px; /* Add margin after the last row */
+}
+
+.detail-row label {
+    font-weight: bold;
+    color: #02455F;
+    flex: 0 0 40%; /* Label takes 40% width */
+    margin: 0; /* Reset margins from the general label rule */
+    line-height: 1.5;
+    font-size: 14px;
+}
+
+.detail-row span {
+    color: #333;
+    flex: 1; /* Span takes remaining space */
+    text-align: left;
+}
+
+/* Input Fields (Applying to .category-input and .description-textarea) */
+.category-field,
+.description-section-text {
+    padding: 0 30px;
+}
+
+.category-input {
+    width: 100%;
+    height: 30px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    font-size: 16px;
+    padding: 0 10px; 
+    box-sizing: border-box;
+}
+
+
+.description-textarea {
+    width: 100%;
+    height: 100px;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 14px;
+    resize: none;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+}
+
+/* Priority Tag Styling (for popup) */
+.priority-section {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Increased from 1px for better spacing */
+}
+
+.priority-tag {
+    display: inline-flex;
+    align-items: center;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background-color: #e6f7e9; /* Default fallback */
+    color: #28a745; /* Default fallback */
+    margin-left: -30px;
+}
+
+.priority-dot {
+    height: 8px;
+    width: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+    background-color: #28a745; /* Default fallback */
+}
+
+/* LOW Priority (Green) - Matching table colors */
+.priority-tag.low {
+    background-color: #8BCD96; /* Light green background */
+    color: #18711C; /* Dark green text */
+}
+.priority-tag.low .priority-dot {
+    background-color: #18711C; /* Dark green dot */
+}
+
+/* MEDIUM Priority (Yellow/Orange) - Matching table colors */
+.priority-tag.medium {
+    background-color: #F5D868; /* Light yellow background */
+    color: #69520A; /* Orange text */
+}
+.priority-tag.medium .priority-dot {
+    background-color: #69520A; /* Orange dot */
+}
+
+/* HIGH Priority (Red) - Matching table colors */
+.priority-tag.high {
+    background-color: #F37179; /* Light red background */
+    color: #920C0C; /* Dark red text */
+}
+.priority-tag.high .priority-dot {
+    background-color: #920C0C; /* Dark red dot */
+}
+
+/* Table Priority Tag Styling (unchanged from your code) */
+.priority-tag-table {
+    display: inline-flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 5px 15px; /* Consistent padding */
+    border-radius: 90px; /* Rounded corners */
+    text-transform: capitalize;
+}
+
+.priority-dot-table {
+    height: 8px;
+    width: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+/* LOW Priority (Green) */
+.priority-tag-table.low {
+    background-color: #8BCD96;
+    color: #18711C;
+}
+.priority-tag-table.low .priority-dot-table {
+    background-color: #18711C;
+}
+
+/* MEDIUM Priority (Yellow/Orange) */
+.priority-tag-table.medium {
+    background-color: #F5D868;
+    color: #69520A;
+}
+.priority-tag-table.medium .priority-dot-table {
+    background-color: #69520A;
+}
+
+/* HIGH Priority (Red) */
+.priority-tag-table.high {
+    background-color: #F37179;
+    color: #920C0C;
+}
+.priority-tag-table.high .priority-dot-table {
+    background-color: #920C0C;
+}
+/* --- Action Buttons (Footer) --- */
+
+.popup-actions.ticket-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+    justify-content: flex-start; /* Aligned left based on the image */
+    margin-bottom: 30px;
+    padding: 0 30px;
+}
+
+.resolved-btn { 
+    background: #45A927;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.cancel-btn {
+    background-color: white;
+    color: #006494;
+    border: 1px solid #006494;
+    padding: 12px 20px;
+    border-radius: 2px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    max-width: 142px;
+    width: 100%;
+}
+
+/* --- Table View Button Styles --- */
+.btn-view {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 2px solid #02455F;
+    border-radius: 6px;
+    background: transparent;
+    color: #02455F;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* Targeting the image inside the button */
+.btn-view .button-icon { 
+    width: 16px; 
+    height: 16px;
+    vertical-align: middle; 
+    color: #02455F; /* Color won't affect an <img> tag, but kept for completeness */
+}
+
+.btn-view:hover {
+    background: #02455F;
+    color: #fff;
+}
+
+.btn-view:hover .button-icon {
+    filter: brightness(0) invert(1); /* Tries to invert the image color for white background */
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 0.9em;
+  color: #666;
+  justify-content: space-between;
+    position: relative;
+
+}
+
+.pagination > span {
+  flex-shrink: 0;
+  text-align: left;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  font-family: 'Montserrat', sans-serif;
+  margin: 30px 0;
+}
+
+.page-btn {
+  background: #046280; /* teal blue */
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 25px;
+  height: 25px;
+  font-size: 17px;
+  font-weight: 700;   /* makes arrow bolder */
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.page-btn:hover {
+  background: #02455F;
+}
+
+.page-number {
+  font-size: 20px;
+  color: #02455F;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.page-number.active {
+  font-weight: 700;
+  color: #02455F;
+}
+
+.dots {
+  font-size: 22px;
+  color: #02455F;
+}
+
+/* Kebab Menu Button */
+.kebab-btn {
+  background: transparent;
+  border: none;
+  color: #02455F;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.kebab-btn:hover {
+  background: #f0f0f0;
+  color: #02455F;
+}
+
+.kebab-btn:active {
+  background: #e0e0e0;
+}
+
+tbody td:nth-child(4) { /* Priority column */
+  font-weight: bold;
+
+}
+
+tbody td:nth-child(4):contains("Low") {
+  color: #28a745; /* Green for low */
+}
+
+tbody td:nth-child(4):contains("Medium") {
+  color: #ffc107; /* Yellow for medium */
+}
+
+tbody td:nth-child(4):contains("High") {
+  color: #dc3545; /* Red for high */
+}
+
+/* Issue Summary */
+.issue-summary {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+/* Action Dropdown */
+.action-dropdown {
+  display: none;
+  position: fixed;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+  min-width: 165px;
+  padding: 8px 0;
+  z-index: 10000;
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 18px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 400;
+  color: #333333;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  margin: 0;
+  line-height: 1.5;
+  font-family: 'DM Sans', sans-serif;
+  white-space: nowrap;
+}
+
+.dropdown-item:hover {
+  background: #f5f5f5;
+  color: #02455F;
+}
+
+.dropdown-item:active {
+  background: #eeeeee;
+  color: #02455F;
+}
+
+/* Priority Selector */
+.priority-select {
+  margin-left: 10px;
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: white;
+  color: #02455F;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.priority-select:hover {
+  border-color: #02455F;
+}
+
+/* Resolved Badge */
+.resolved-badge {
+  color: #45A927;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* Priority text in tag */
+.priority-text {
+  text-transform: capitalize;
+}
+
+/* Panel adjustments for right-side slide */
+.popup-overlay {
+  justify-content: flex-end;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.popup.ticket-popup {
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+

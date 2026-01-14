@@ -11,6 +11,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo isset($title) ? $title : "Glassify"; ?></title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="<?php echo base_url('assets/images/img-page/logo-with-bg.png'); ?>">
+    <link rel="shortcut icon" type="image/png" href="<?php echo base_url('assets/images/img-page/logo-with-bg.png'); ?>">
+    <link rel="apple-touch-icon" href="<?php echo base_url('assets/images/img-page/logo-with-bg.png'); ?>">
 </head>
 
 <?php 
