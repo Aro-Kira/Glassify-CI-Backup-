@@ -302,17 +302,17 @@ function get_status_class($status) {
                                     </div>
                                 </div>
 
-                                <!-- Email Address -->
-                                <div class="form-field">
-                                    <label for="email">Email address <span class="required">*</span></label>
-                                    <input type="email" id="email" name="email" value="<?= isset($user) ? htmlspecialchars($user->Email) : '' ?>" required>
+                                <!-- Email Address and Phone Number in one row -->
+                                <div class="form-row">
+                                    <div class="form-field">
+                                        <label for="email">Email address <span class="required">*</span></label>
+                                        <input type="email" id="email" name="email" value="<?= isset($user) ? htmlspecialchars($user->Email) : '' ?>" required>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="phone">Phone Number <span class="required">*</span></label>
+                                        <input type="text" id="phone" name="phone" value="<?= isset($user) ? htmlspecialchars($user->PhoneNum ?? '') : '' ?>" required>
+                                    </div>
                                 </div>
-
-                                <!-- Phone Number -->
-                                <div class="form-field">
-                    <label for="phone">Phone Number</label>
-                                    <input type="text" id="phone" name="phone" value="<?= isset($user) ? htmlspecialchars($user->PhoneNum ?? '') : '' ?>">
-                    </div>
 
                     <!-- Password Change Section -->
                     <div class="password-section">

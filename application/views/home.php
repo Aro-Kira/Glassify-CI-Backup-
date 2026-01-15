@@ -101,26 +101,20 @@
       <div class="carousel-track">
         <div class="carousel-slide active">
           <div class="slide-content">
-            <div class="slide-image" style="background-image: url('<?php echo base_url('assets/images/img-page/Glass_Aluminum_Home.png'); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat;"></div>
-            <h3>Glass and Aluminum</h3>
+            <div class="slide-image" style="background-image: url('<?php echo base_url('assets/images/img-page/glass-partition.png'); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat;"></div>
+            <h3>GAB - Chairman's Office</h3>
           </div>
         </div>
         <div class="carousel-slide">
           <div class="slide-content">
-            <div class="slide-image" style="background-image: url('<?php echo base_url('assets/images/img-page/Windows_Home.png'); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat;"></div>
-            <h3>Windows</h3>
+            <div class="slide-image" style="background-image: url('<?php echo base_url('assets/images/img-page/SM Caloocan City-vertical.png'); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat;"></div>
+            <h3>SM Caloocan City</h3>
           </div>
         </div>
         <div class="carousel-slide">
           <div class="slide-content">
-            <div class="slide-image" style="background-image: url('<?php echo base_url('assets/images/img-page/Aluminum_Kitchen_Home.png'); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat;"></div>
-            <h3>Aluminum Kitchen</h3>
-          </div>
-        </div>
-        <div class="carousel-slide">
-          <div class="slide-content">
-            <div class="slide-image" style="background-image: url('<?php echo base_url('assets/images/img-page/Shower_Enclosure_Home.png'); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat;"></div>
-            <h3>Shower Enclosure</h3>
+            <div class="slide-image" style="background-image: url('<?php echo base_url('assets/images/img-page/residential proj vertical.png'); ?>'); background-size: cover; background-position: center; background-repeat: no-repeat;"></div>
+            <h3>Residential Project</h3>
           </div>
         </div>
       </div>

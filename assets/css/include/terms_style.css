@@ -42,9 +42,13 @@ body {
   color: #FDC103;
 }
 
+.icons {
+  display: flex;
+  gap: 20px;
+}
+
 .icons img {
   height: 22px;
-  margin-left: 20px;
   cursor: pointer;
 }
 

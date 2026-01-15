@@ -51,9 +51,14 @@ body {
 
 .path .articles {
   text-decoration: none;
+  color: #00455A;
 }
 
-.path .articles:hover,
+.path a.home:hover,
+.path a.articles:hover {
+  text-decoration: underline !important;
+}
+
 .path .current:hover {
   text-decoration: underline;
 }

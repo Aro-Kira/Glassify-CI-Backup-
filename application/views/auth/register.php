@@ -36,19 +36,21 @@
             <!-- Register Form -->
             <?php echo form_open('auth/process_register', ['class' => 'register-form']); ?>
 
-                <div class="register-input-group">
-                    <label for="firstName">First Name <span class="required">*</span></label>
-                    <input type="text" name="first_name" id="firstName" placeholder="Enter your first name" value="<?= set_value('first_name'); ?>" required>
-                </div>
+                <div class="register-name-row">
+                    <div class="register-input-group">
+                        <label for="firstName">First Name <span class="required">*</span></label>
+                        <input type="text" name="first_name" id="firstName" placeholder="Enter your first name" value="<?= set_value('first_name'); ?>" required>
+                    </div>
 
-                <div class="register-input-group">
-                    <label for="middleInitial">Middle Initial</label>
-                    <input type="text" name="middle_initial" id="middleInitial" placeholder="Enter your middle initial" value="<?= set_value('middle_initial'); ?>">
-                </div>
+                    <div class="register-input-group">
+                        <label for="middleInitial">Middle Name</label>
+                        <input type="text" name="middle_initial" id="middleInitial" placeholder="Enter your middle name" value="<?= set_value('middle_initial'); ?>">
+                    </div>
 
-                <div class="register-input-group">
-                    <label for="surname">Surname <span class="required">*</span></label>
-                    <input type="text" name="surname" id="surname" placeholder="Enter your surname" value="<?= set_value('surname'); ?>" required>
+                    <div class="register-input-group">
+                        <label for="surname">Surname <span class="required">*</span></label>
+                        <input type="text" name="surname" id="surname" placeholder="Enter your surname" value="<?= set_value('surname'); ?>" required>
+                    </div>
                 </div>
 
                 <div class="register-input-group">

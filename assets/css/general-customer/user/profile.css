@@ -118,6 +118,13 @@ body {
   display: block;
 }
 
+.content-section h3 {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
 /* Dashboard Section */
 .dashboard-welcome {
   padding: 1rem 0;
@@ -211,6 +218,21 @@ body {
   gap: 1rem;
 }
 
+.form-row .form-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.form-row .form-field input[type="email"],
+.form-row .form-field input[type="text"] {
+  width: 100% !important;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Form Row with three columns */
 .form-row-three {
   grid-template-columns: 1fr 1fr 1fr;
@@ -227,7 +249,7 @@ body {
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
   display: block;
-  font-weight: 500;
+  font-weight: bold;
   color: #333;
 }
 
@@ -281,7 +303,7 @@ body {
 }
 
 .password-section-title {
-  font-size: 1rem;
+  font-size: 17px;
   font-weight: 600;
   color: #333;
   margin: 0 0 1rem 0;
@@ -685,7 +707,7 @@ body {
 
 .form-field-group label {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: bold;
     color: #333;
     margin: 0;
 }
@@ -1676,7 +1698,7 @@ body {
 
 #addresses .form-field-group label {
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: bold;
   color: #333;
 }
 
