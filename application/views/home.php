@@ -47,7 +47,7 @@
   </p>
 
   <a href="<?php echo base_url('products'); ?>" class="buildtd-btn">Build Today</a>
-  <a href="<?php echo base_url('projects#contact'); ?>" class="contus">Contact Us?</a>
+  <a href="#contact" class="contus">Contact Us?</a>
 </div>
 
 <section class="what-we-offer">
@@ -127,6 +127,9 @@
 
       <button class="carousel-btn carousel-btn-prev" aria-label="Previous slide">&#8249;</button>
       <button class="carousel-btn carousel-btn-next" aria-label="Next slide">&#8250;</button>
+      <div class="featured-projects-btn-container">
+        <a href="<?php echo base_url('projects'); ?>" class="view-projects-btn">View Projects</a>
+      </div>
     </div>
   </div>
 </section>
@@ -175,10 +178,6 @@
         Great product and super fast installation. Installed 6hrs after on-site estimation.
       </p>
     </div>
-  </div>
-
-  <div class="btn-container">
-    <a href="<?php echo base_url('products'); ?>" class="btn">BUILD TODAY</a>
   </div>
 </section>
 
