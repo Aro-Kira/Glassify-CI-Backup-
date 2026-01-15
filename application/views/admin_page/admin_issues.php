@@ -91,6 +91,15 @@
             </div>
         </div>
 
+        <div class="attachment-section" id="attachmentSection" style="display: none;">
+            <h3 class="issue-section-title">Attachment</h3>
+            <div id="attachmentContent">
+                <img id="attachmentThumbnail" style="max-width: 200px; max-height: 200px; margin-bottom: 10px; display: none;" />
+                <a id="attachmentLink" href="#" target="_blank" style="display: none;"></a>
+                <span id="attachmentText" style="color: #999;">N/A</span>
+            </div>
+        </div>
+
         <div class="popup-actions ticket-actions">
             <button class="submit-btn resolved-btn" id="markResolvedBtn">Mark as Resolved</button>
             <button class="cancel-btn" id="cancelBtn">Cancel</button>

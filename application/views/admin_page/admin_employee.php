@@ -16,7 +16,6 @@
         <button class="tab-button active" data-filter="all">All Roles</button>
         <button class="tab-button" data-filter="Admin">Admin</button>
         <button class="tab-button" data-filter="Sales Representative">Sales Rep</button>
-        <button class="tab-button" data-filter="Inventory Officer">Inventory Officer</button>
     </div>
 
     <div class="table-container">
@@ -65,7 +64,6 @@
                 <select>
                     <option>Sales Representative</option>
                     <option>Admin</option>
-                    <option>Inventory Officer</option>
                 </select>
 
                 <label>Password</label>
@@ -109,7 +107,6 @@
                     <option selected disabled>Select Role</option>
                     <option>Sales Representative</option>
                     <option>Admin</option>
-                    <option>Inventory Officer</option>
                 </select>
 
                 <label>Password</label>

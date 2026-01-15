@@ -254,7 +254,7 @@ tbody td:last-child, thead th:last-child {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
+    z-index: 1001;
     justify-content: flex-end;
 }
 
@@ -752,6 +752,43 @@ tbody td:nth-child(4):contains("High") {
   to {
     transform: translateX(0);
   }
+}
+
+/* Attachment Section */
+.attachment-section {
+    margin-top: 15px;
+}
+
+#attachmentContent {
+    padding: 0 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#attachmentThumbnail {
+    max-width: 200px;
+    max-height: 200px;
+    margin-bottom: 10px;
+    display: block;
+    align-self: flex-start;
+}
+
+#attachmentLink {
+    color: #02455F;
+    text-decoration: none;
+    word-break: break-all;
+    text-align: left;
+    display: block;
+}
+
+#attachmentLink:hover {
+    text-decoration: underline;
+}
+
+#attachmentText {
+    text-align: left;
+    display: block;
 }
 
 

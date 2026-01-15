@@ -36,36 +36,55 @@
         </div>
     <?php endif; ?>
     
+    <?php
+    // Get form data from flashdata for repopulation
+    $form_data = $this->session->flashdata('form_data');
+    if ($form_data) {
+        // Repopulate form values from flashdata
+        $_POST['first-name'] = $form_data['first-name'] ?? '';
+        $_POST['middle-name'] = $form_data['middle-name'] ?? '';
+        $_POST['last-name'] = $form_data['last-name'] ?? '';
+        $_POST['email'] = $form_data['email'] ?? '';
+        $_POST['contact-number'] = $form_data['contact-number'] ?? '';
+        $_POST['order-id'] = $form_data['order-id'] ?? '';
+        $_POST['issue-category'] = $form_data['issue-category'] ?? '';
+        $_POST['description'] = $form_data['description'] ?? '';
+    }
+    ?>
 
     <!-- Report Form -->
-    <form class="report-form" action="<?php echo base_url('submit-issue'); ?>" method="POST">
+    <form class="report-form" action="<?php echo base_url('submit-issue'); ?>" method="POST" enctype="multipart/form-data">
       <h2>User Information</h2>
-      <div class="form-row">
+      <div class="form-row form-row-three">
         <div class="form-group">
           <label>First Name <span>*</span></label>
-          <input type="text" name="first-name" required placeholder="Enter your first name" title="First Name">
+          <input type="text" name="first-name" required placeholder="Enter your first name" title="First Name" value="<?= set_value('first-name', isset($user) ? htmlspecialchars($user->First_Name ?? '') : ''); ?>">
+        </div>
+        <div class="form-group">
+          <label>Middle Name</label>
+          <input type="text" name="middle-name" placeholder="Enter your middle name" title="Middle Name" value="<?= set_value('middle-name', isset($user) ? htmlspecialchars($user->Middle_Name ?? '') : ''); ?>">
         </div>
         <div class="form-group">
           <label>Last Name <span>*</span></label>
-          <input type="text" name="last-name" required placeholder="Enter your last name" title="Last Name">
+          <input type="text" name="last-name" required placeholder="Enter your last name" title="Last Name" value="<?= set_value('last-name', isset($user) ? htmlspecialchars($user->Last_Name ?? '') : ''); ?>">
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group">
           <label>Email <span>*</span></label>
-          <input type="email" name="email" required placeholder="Enter your email" title="Email" value="<?php echo $this->session->userdata('user_email') ?? ''; ?>">
+          <input type="email" name="email" required placeholder="Enter your email" title="Email" value="<?= set_value('email', isset($user) ? htmlspecialchars($user->Email ?? '') : ($this->session->userdata('user_email') ?? '')); ?>">
         </div>
         <div class="form-group">
           <label>Contact Number <span>*</span></label>
-          <input type="text" name="contact-number" required placeholder="Enter your contact number" title="Contact Number">
+          <input type="text" name="contact-number" required placeholder="Enter your contact number" title="Contact Number" value="<?= set_value('contact-number', isset($user) ? htmlspecialchars($user->PhoneNum ?? '') : ''); ?>">
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group full-width">
           <label>Order ID <span style="color: #999;">(Optional - leave blank if not applicable)</span></label>
-          <input type="text" name="order-id" title="Order ID" placeholder="Enter your order ID (e.g., #G1001 or 1001) - Optional">
+          <input type="text" name="order-id" title="Order ID" placeholder="Enter your order ID (e.g., #G1001 or 1001) - Optional" value="<?= set_value('order-id'); ?>">
         </div>
       </div>
 
@@ -75,15 +94,15 @@
           <label>Issue Category <span>*</span></label>
           <select name="issue-category" required title="Issue Category">
             <option value="">Select Category</option>
-            <option value="Order Issue">Order Issue</option>
-            <option value="Payment Issue">Payment Issue</option>
-            <option value="Delivery Issue">Delivery Issue</option>
-            <option value="General Inquiry">General Inquiry</option>
-            <option value="Installation Problems">Installation Problems</option>
-            <option value="Product Defect/Damage">Product Defect/Damage</option>
-            <option value="Measurement/Design Problems">Measurement/Design Problems</option>
-            <option value="Billing/Payment Questions">Billing/Payment Questions</option>
-            <option value="Other">Other</option>
+            <option value="Order Issue" <?= set_select('issue-category', 'Order Issue'); ?>>Order Issue</option>
+            <option value="Payment Issue" <?= set_select('issue-category', 'Payment Issue'); ?>>Payment Issue</option>
+            <option value="Delivery Issue" <?= set_select('issue-category', 'Delivery Issue'); ?>>Delivery Issue</option>
+            <option value="General Inquiry" <?= set_select('issue-category', 'General Inquiry'); ?>>General Inquiry</option>
+            <option value="Installation Problems" <?= set_select('issue-category', 'Installation Problems'); ?>>Installation Problems</option>
+            <option value="Product Defect/Damage" <?= set_select('issue-category', 'Product Defect/Damage'); ?>>Product Defect/Damage</option>
+            <option value="Measurement/Design Problems" <?= set_select('issue-category', 'Measurement/Design Problems'); ?>>Measurement/Design Problems</option>
+            <option value="Billing/Payment Questions" <?= set_select('issue-category', 'Billing/Payment Questions'); ?>>Billing/Payment Questions</option>
+            <option value="Other" <?= set_select('issue-category', 'Other'); ?>>Other</option>
           </select>
         </div>
       </div>
@@ -91,7 +110,7 @@
       <div class="form-row">
         <div class="form-group full-width">
           <label>Description <span>*</span></label>
-          <textarea name="description" placeholder="Please describe your issue in at least 2 sentences (20 to 50 words)" required></textarea>
+          <textarea name="description" placeholder="Please describe your issue in at least 2 sentences (20 to 50 words)" required><?= set_value('description'); ?></textarea>
         </div>
       </div>
 
@@ -105,7 +124,8 @@
                 </svg>
                 Upload Image or File
             </button>
-            <input type="file" name="attachment" id="attachment-input" title="Attachment" placeholder="Upload Image or File" />
+            <input type="file" name="attachment" id="attachment-input" accept=".png,.pdf,.jpg,.jpeg" title="Attachment" placeholder="Upload Image or File" />
+            <small style="display: block; margin-top: 5px; color: #666;">Accepted formats: PNG, PDF, JPG, JPEG</small>
           </div>
         </div>
       </div>

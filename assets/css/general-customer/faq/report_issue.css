@@ -81,7 +81,7 @@ body {
   width: 100%;
   height: 2px;
   background-color: #00455A;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
 }
 
 /* Form */
@@ -94,9 +94,17 @@ body {
   color: #00455A;
   font-weight: bold;
   margin-bottom: 15px;
+  margin-top: 5px;
 }
 
 .form-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.form-row-three {
   display: flex;
   gap: 20px;
   margin-bottom: 20px;

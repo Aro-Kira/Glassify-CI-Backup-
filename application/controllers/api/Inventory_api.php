@@ -9,8 +9,8 @@ class Inventory_api extends CI_Controller
         $this->load->model('Inventory_model');
         $this->load->library('session');
         
-        // Check authentication for inventory officer
-        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Inventory Officer') {
+        // Check authentication for admin (inventory functionality transferred from Inventory Officer)
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
             $this->output
                 ->set_content_type('application/json')
                 ->set_status_header(401)

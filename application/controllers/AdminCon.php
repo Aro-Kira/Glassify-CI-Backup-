@@ -1579,6 +1579,17 @@ class AdminCon extends CI_Controller
         // Format order ID
         $order_id_display = $issue->Order_ID > 0 ? '#G' . str_pad($issue->Order_ID, 4, '0', STR_PAD_LEFT) : 'N/A';
         
+        // Build file URL if attachment exists
+        $file_url = null;
+        $file_attached = $issue->FileAttached ?? null;
+        if ($file_attached && $file_attached !== 'N/A') {
+            if (strpos($file_attached, 'uploads/') === 0) {
+                $file_url = base_url($file_attached);
+            } else {
+                $file_url = base_url('uploads/' . $file_attached);
+            }
+        }
+        
         header('Content-Type: application/json');
         echo json_encode([
             'success' => true,
@@ -1595,7 +1606,9 @@ class AdminCon extends CI_Controller
                 'priority' => $issue->Priority,
                 'description' => $issue->Description,
                 'status' => $issue->Status,
-                'report_date' => $issue->Report_Date
+                'report_date' => $issue->Report_Date,
+                'file_attached' => $file_attached,
+                'file_url' => $file_url
             ]
         ]);
     }
@@ -3345,10 +3358,10 @@ class AdminCon extends CI_Controller
         // The frontend can filter as needed
         if ($role) {
             // For now, get Admin and Sales Representative roles as they can be assigned
-            $this->db->where_in('Role', ['Admin', 'Sales Representative', 'Inventory Officer']);
+            $this->db->where_in('Role', ['Admin', 'Sales Representative']);
         } else {
             // Get all active staff (Admin, Sales Rep, Inventory Officer)
-            $this->db->where_in('Role', ['Admin', 'Sales Representative', 'Inventory Officer']);
+            $this->db->where_in('Role', ['Admin', 'Sales Representative']);
         }
         
         $this->db->where('Status', 'Active');
@@ -5091,6 +5104,149 @@ class AdminCon extends CI_Controller
         }
         
         echo json_encode(['success' => true, 'message' => 'Notes saved successfully']);
+    }
+
+    // ===================== INVENTORY PRODUCTS MANAGEMENT =====================
+    // Transferred from InventCon - now part of Admin functionality
+    public function admin_inventory_products()
+    {
+        $this->load->model('Product_model');
+        $this->load->model('Inventory_model');
+        
+        // Fetch products from the DB
+        $products = $this->Product_model->get_products();
+        
+        // Get product materials and update status for each product
+        $products_with_materials = [];
+        foreach ($products as $product) {
+            $product_materials = $this->Inventory_model->get_product_materials($product->Product_ID);
+            $product->current_material_id = !empty($product_materials) ? $product_materials[0]->InventoryItemID : '';
+            
+            // Update product status based on materials
+            $this->Inventory_model->update_product_status_from_materials($product->Product_ID);
+            
+            // Reload product to get updated status
+            $product = $this->Product_model->get_product($product->Product_ID);
+            $products_with_materials[] = $product;
+        }
+        $data['products'] = $products_with_materials;
+        
+        // Fetch inventory items (raw materials) for material dropdown
+        $data['inventory_items'] = $this->Inventory_model->get_all_items();
+        
+        // Get unique categories for filter dropdown
+        $categories = [];
+        foreach ($products as $product) {
+            if (!empty($product->Category) && !in_array($product->Category, $categories)) {
+                $categories[] = $product->Category;
+            }
+        }
+        $data['categories'] = $categories;
+        
+        $data['title'] = "Glassify - Inventory Products";
+        $data['active'] = 'inventory_products';
+        $data['content_view'] = 'inventory_page/inventory_products';
+        $data['page_css'] = 'admin_css/admin_product.css';
+        $this->load->view('admin_page/layout', $data);
+    }
+
+    // ===================== INVENTORY REPORTS =====================
+    public function admin_inventory_reports()
+    {
+        $data['title'] = "Glassify - Inventory Reports";
+        $data['active'] = 'inventory_reports';
+        $data['content_view'] = 'inventory_page/inventory_reports';
+        $data['page_css'] = 'inventory_css/inventory_reports.css';
+        $this->load->view('admin_page/layout', $data);
+    }
+    
+    /**
+     * Export stock status report to Excel
+     */
+    public function admin_export_stock_report()
+    {
+        $this->load->model('Inventory_model');
+        
+        // Get all inventory items
+        $items = $this->Inventory_model->get_all_items();
+        
+        // Set headers for Excel file
+        $filename = 'Stock_Status_Report_' . date('Y-m-d_His') . '.xls';
+        header('Content-Type: application/vnd.ms-excel');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: max-age=0');
+        
+        // Start output
+        echo "\xEF\xBB\xBF"; // UTF-8 BOM for Excel
+        
+        // Create Excel content
+        echo "<table border='1'>\n";
+        
+        // Header row
+        echo "<tr style='background-color: #4CAF50; color: white; font-weight: bold;'>\n";
+        echo "<th>Item ID</th>\n";
+        echo "<th>Item Name</th>\n";
+        echo "<th>Category</th>\n";
+        echo "<th>Current Stock</th>\n";
+        echo "<th>Min Threshold</th>\n";
+        echo "<th>Status</th>\n";
+        echo "<th>Unit</th>\n";
+        echo "<th>Date Added</th>\n";
+        echo "</tr>\n";
+        
+        // Data rows
+        foreach ($items as $item) {
+            $stock = $item->InStock ?? 0;
+            $minThreshold = $item->min_threshold ?? 10;
+            
+            // Determine status
+            $status = 'In Stock';
+            if ($stock == 0) {
+                $status = 'Out of Stock';
+            } elseif ($stock < $minThreshold) {
+                $status = 'Low Stock';
+            }
+            
+            echo "<tr>\n";
+            echo "<td>" . htmlspecialchars($item->ItemID ?? 'N/A') . "</td>\n";
+            echo "<td>" . htmlspecialchars($item->Name ?? 'N/A') . "</td>\n";
+            echo "<td>" . htmlspecialchars($item->Category ?? 'N/A') . "</td>\n";
+            echo "<td>" . $stock . "</td>\n";
+            echo "<td>" . $minThreshold . "</td>\n";
+            echo "<td>" . htmlspecialchars($status) . "</td>\n";
+            echo "<td>" . htmlspecialchars($item->Unit ?? 'N/A') . "</td>\n";
+            echo "<td>" . ($item->DateAdded ? date('Y-m-d H:i:s', strtotime($item->DateAdded)) : 'N/A') . "</td>\n";
+            echo "</tr>\n";
+        }
+        
+        echo "</table>\n";
+        exit;
+    }
+
+    /**
+     * Get unread inventory notification count (AJAX endpoint)
+     */
+    public function admin_get_inventory_notification_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        $this->load->model('Inventory_model');
+        $this->db->where('Status', 'Unread');
+        $count = $this->db->count_all_results('inventory_notifications');
+        
+        // Limit to 99, show 99+ if more
+        if ($count > 99) {
+            $display_count = '99+';
+        } else {
+            $display_count = $count;
+        }
+        
+        echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
     }
 
   

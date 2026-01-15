@@ -56,8 +56,19 @@ class FaqCon extends CI_Controller {
     }
 
     public function faq_report() {
-        $this->load->helper('form'); // Load form helper for any form-related functions
+        $this->load->helper(['form', 'url']); // Load form helper for any form-related functions
+        $this->load->model('User_model');
+        
         $data['title'] = "Glassify - Report Issue";
+        
+        // Get user data if logged in
+        if ($this->session->userdata('is_logged_in')) {
+            $user_id = $this->session->userdata('user_id');
+            $data['user'] = $this->User_model->get_by_id($user_id);
+        } else {
+            $data['user'] = null;
+        }
+        
         $this->load->view('includes/header', $data);
         $this->load->view('faq/report_issue', $data);
         $this->load->view('includes/footer');
@@ -67,13 +78,14 @@ class FaqCon extends CI_Controller {
      * Process issue report submission
      */
     public function submit_issue() {
-        $this->load->library(['form_validation', 'session']);
-        $this->load->helper('url');
+        $this->load->library(['form_validation', 'session', 'upload']);
+        $this->load->helper(['url', 'form']);
         $this->load->database();
         $this->load->model('Issue_model');
 
         // Validation rules
         $this->form_validation->set_rules('first-name', 'First Name', 'required|trim|max_length[50]');
+        $this->form_validation->set_rules('middle-name', 'Middle Name', 'trim|max_length[50]');
         $this->form_validation->set_rules('last-name', 'Last Name', 'required|trim|max_length[50]');
         $this->form_validation->set_rules('email', 'Email', 'required|valid_email|trim|max_length[100]');
         $this->form_validation->set_rules('contact-number', 'Contact Number', 'required|trim|max_length[13]');
@@ -82,6 +94,17 @@ class FaqCon extends CI_Controller {
         $this->form_validation->set_rules('description', 'Description', 'required|trim|min_length[20]');
 
         if ($this->form_validation->run() == FALSE) {
+            // Preserve form data in flashdata for repopulating
+            $this->session->set_flashdata('form_data', [
+                'first-name' => $this->input->post('first-name'),
+                'middle-name' => $this->input->post('middle-name'),
+                'last-name' => $this->input->post('last-name'),
+                'email' => $this->input->post('email'),
+                'contact-number' => $this->input->post('contact-number'),
+                'order-id' => $this->input->post('order-id'),
+                'issue-category' => $this->input->post('issue-category'),
+                'description' => $this->input->post('description')
+            ]);
             $this->session->set_flashdata('error', validation_errors());
             redirect(base_url('report-issue'));
             return;
@@ -89,12 +112,50 @@ class FaqCon extends CI_Controller {
 
         // Get form data
         $first_name = $this->input->post('first-name');
+        $middle_name = $this->input->post('middle-name');
         $last_name = $this->input->post('last-name');
         $email = $this->input->post('email');
         $phone = $this->input->post('contact-number');
         $order_id_input = $this->input->post('order-id');
         $category = $this->input->post('issue-category');
         $description = $this->input->post('description');
+        
+        // Handle file upload
+        $file_path = NULL;
+        if (!empty($_FILES['attachment']['name'])) {
+            $config['upload_path'] = './uploads/issues/';
+            $config['allowed_types'] = 'png|pdf|jpg|jpeg';
+            $config['max_size'] = 5120; // 5MB
+            $config['encrypt_name'] = TRUE;
+            
+            // Create directory if it doesn't exist
+            if (!is_dir($config['upload_path'])) {
+                mkdir($config['upload_path'], 0755, TRUE);
+            }
+            
+            $this->upload->initialize($config);
+            
+            if ($this->upload->do_upload('attachment')) {
+                $upload_data = $this->upload->data();
+                $file_path = 'uploads/issues/' . $upload_data['file_name'];
+            } else {
+                $upload_error = $this->upload->display_errors('', '');
+                // Preserve form data
+                $this->session->set_flashdata('form_data', [
+                    'first-name' => $first_name,
+                    'middle-name' => $middle_name,
+                    'last-name' => $last_name,
+                    'email' => $email,
+                    'contact-number' => $phone,
+                    'order-id' => $order_id_input,
+                    'issue-category' => $category,
+                    'description' => $description
+                ]);
+                $this->session->set_flashdata('error', 'File upload failed: ' . $upload_error);
+                redirect(base_url('report-issue'));
+                return;
+            }
+        }
 
         // Handle Order ID - remove #G prefix if present, convert to integer
         $order_id_clean = preg_replace('/[^0-9]/', '', $order_id_input);
@@ -156,6 +217,7 @@ class FaqCon extends CI_Controller {
 
         // Prepare issue data
         // Use NULL instead of 0 for guest submissions to avoid foreign key issues
+        // Note: Middle_Name field is collected in form but not stored in database (column doesn't exist in issuereport table)
         $issue_data = [
             'First_Name' => $first_name,
             'Last_Name' => $last_name,
@@ -163,6 +225,7 @@ class FaqCon extends CI_Controller {
             'PhoneNum' => $phone,
             'Category' => $db_category,
             'Description' => $description,
+            'FileAttached' => $file_path,
             'Status' => 'Open',
             'Priority' => 'Low',
             'Report_Date' => date('Y-m-d H:i:s')

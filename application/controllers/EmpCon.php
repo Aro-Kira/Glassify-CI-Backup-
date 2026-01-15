@@ -17,11 +17,11 @@ class EmpCon extends CI_Controller {
         $this->load->view('includes/footer');
     }
 
-    // Get all employees (Admin, Sales Representative, Inventory Officer)
+    // Get all employees (Admin, Sales Representative)
     public function get_users() {
         header('Content-Type: application/json');
         
-        $roles = ['Admin', 'Sales Representative', 'Inventory Officer'];
+        $roles = ['Admin', 'Sales Representative'];
         $this->db->where_in('Role', $roles);
         $this->db->order_by('Date_Created', 'DESC');
         $users = $this->db->get('user')->result();
@@ -68,7 +68,7 @@ class EmpCon extends CI_Controller {
         }
         
         // Validate role
-        $validRoles = ['Admin', 'Sales Representative', 'Inventory Officer'];
+        $validRoles = ['Admin', 'Sales Representative'];
         if (!in_array($input['role'], $validRoles)) {
             echo json_encode(['status' => 'error', 'message' => 'Invalid role']);
             return;
@@ -116,7 +116,7 @@ class EmpCon extends CI_Controller {
             return;
         }
         
-        $validRoles = ['Admin', 'Sales Representative', 'Inventory Officer'];
+        $validRoles = ['Admin', 'Sales Representative'];
         if (!in_array($user->Role, $validRoles)) {
             echo json_encode(['status' => 'error', 'message' => 'User is not an employee']);
             return;
@@ -175,7 +175,7 @@ class EmpCon extends CI_Controller {
             return;
         }
         
-        $validRoles = ['Admin', 'Sales Representative', 'Inventory Officer'];
+        $validRoles = ['Admin', 'Sales Representative'];
         if (!in_array($user->Role, $validRoles)) {
             echo json_encode(['status' => 'error', 'message' => 'User is not an employee']);
             return;

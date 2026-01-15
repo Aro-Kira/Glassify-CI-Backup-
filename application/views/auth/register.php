@@ -53,14 +53,16 @@
                     </div>
                 </div>
 
-                <div class="register-input-group">
-                    <label for="email">Email Address <span class="required">*</span></label>
-                    <input type="email" name="email" id="email" placeholder="Enter your email" value="<?= set_value('email'); ?>" required>
-                </div>
+                <div class="register-name-row">
+                    <div class="register-input-group">
+                        <label for="email">Email Address <span class="required">*</span></label>
+                        <input type="email" name="email" id="email" placeholder="Enter your email" value="<?= set_value('email'); ?>" required>
+                    </div>
 
-                <div class="register-input-group">
-                    <label for="phone">Phone Number <span class="required">*</span></label>
-                    <input type="tel" name="phone" id="phone" placeholder="Enter your phone number" value="<?= set_value('phone'); ?>" required>
+                    <div class="register-input-group">
+                        <label for="phone">Phone Number <span class="required">*</span></label>
+                        <input type="tel" name="phone" id="phone" placeholder="Enter your phone number" value="<?= set_value('phone'); ?>" required>
+                    </div>
                 </div>
 
                 <div class="register-input-group password-group">
