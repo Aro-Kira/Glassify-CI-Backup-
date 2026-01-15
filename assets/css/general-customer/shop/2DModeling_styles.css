@@ -612,11 +612,13 @@ h1 {
 
 .modal-content {
     background-color: var(--white);
-    width: 90%;
-    max-width: 650px;
+    width: 650px;
+    height: 600px;
     border-radius: 8px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-header {
@@ -645,6 +647,11 @@ h1 {
 
 .upload-area {
     padding: 25px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
 }
 
 /* Dropzone Area Styling */
@@ -698,7 +705,12 @@ h1 {
 
 /* Uploaded Files List Styling */
 .uploaded-files-list {
-    margin-top: 30px;
+    margin-top: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
 }
 
 .uploaded-files-title {
@@ -798,6 +810,31 @@ h1 {
     padding: 0 5px;
     margin-left: 10px;
     flex-shrink: 0;
+}
+
+/* Uploaded files container scroll */
+#uploaded-files-container {
+    overflow-y: auto;
+    max-height: 200px;
+    padding-right: 5px;
+}
+
+#uploaded-files-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+#uploaded-files-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+#uploaded-files-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+#uploaded-files-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
 
 /* Modal Footer Buttons */

@@ -66,16 +66,16 @@
                 <?php if ($product): ?>
                     <div class="product-info">
                         <img src="<?= base_url('uploads/products/' . $product->ImageUrl) ?>"
-                            alt="<?= $product->ProductName ?>" class="main-product-image">
+                            alt="<?= $product->ProductName ?>" class="main-product-image" data-image-index="1">
                     </div>
                 <?php endif; ?>
 
 
                 <div class="gallery-nav">
-                    <button class="nav-arrow">&lt;</button>
-                    <button class="nav-arrow">&gt;</button>
+                    <button class="nav-arrow" id="prev-image">&lt;</button>
+                    <button class="nav-arrow" id="next-image">&gt;</button>
                 </div>
-                <div class="image-counter">1/3</div>
+                <div class="image-counter" id="image-counter">1/1</div>
             </div>
 
             <div class="diagram-container">
@@ -329,6 +329,12 @@
 
             <div id="summary-wrapper" class="hidden-step">
                 <h2 class="summary-title">Review your order</h2>
+                
+                <!-- Warning Message -->
+                <div class="price-warning" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin: 20px 0; color: #856404;">
+                    <strong style="display: block; margin-bottom: 4px;">⚠️ Important Notice:</strong>
+                    <span>The estimated price shown is subject to change after the ocular visit. Final pricing will be confirmed following site assessment and verification of specifications.</span>
+                </div>
 
                 <!-- Design Preview Section -->
                 <div class="design-preview-section">
@@ -447,45 +453,50 @@
 
     <section id="related-products-section" class="full-width-section dark-bg">
         <div class="inner-content">
-            <h2 class="section-title-white">Related Products</h2>
+            <h2 class="section-title-white">You May Also Like</h2>
             <div class="products-grid">
-                <div class="product-card">
-                    <div class="p-image">
-                        <img src="/Glassify/assets/img/series_slidingwindow.png" alt="900 Series">
-                    </div>
-                    <div class="p-info">
-                        <p>900 Series Sliding Window</p>
-                        <button class="yellow-btn">Build and Buy</button>
-                    </div>
-
-                </div>
-                <div class="product-card">
-                    <div class="p-image">
-                        <img src="/Glassify/assets/img/798_window.png" alt="798 Series">
-                    </div>
-                    <div class="p-info">
-                        <p>798 Series Sliding Window</p>
-                        <button class="yellow-btn">Build and Buy</button>
-                    </div>
-                </div>
-                <div class="product-card">
-                    <div class="p-image">
-                        <img src="/Glassify/assets/img/french-sliding-door.png" alt="French Window">
-                    </div>
-                    <div class="p-info">
-                        <p>900 Series French Type Sliding Window</p>
-                        <button class="yellow-btn">Build and Buy</button>
-                    </div>
-                </div>
-                <div class="product-card">
-                    <div class="p-image">
-                        <img src="/Glassify/assets/img/awningwindow.png" alt="Awning Window">
-                    </div>
-                    <div class="p-info">
-                        <p>38 Series Awning Window</p>
-                        <button class="yellow-btn">Build and Buy</button>
-                    </div>
-                </div>
+                <?php if (isset($recommendations) && !empty($recommendations)): ?>
+                    <?php 
+                    // Limit to exactly 4 cards and randomize
+                    $recommendations_array = is_array($recommendations) ? $recommendations : (array)$recommendations;
+                    
+                    // Shuffle array to randomize
+                    shuffle($recommendations_array);
+                    
+                    // Limit to 4 items, excluding current product
+                    $limited_recommendations = [];
+                    foreach ($recommendations_array as $rec_product) {
+                        // Skip the current product being viewed
+                        if (isset($product) && $rec_product->Product_ID == $product->Product_ID) {
+                            continue;
+                        }
+                        $limited_recommendations[] = $rec_product;
+                        if (count($limited_recommendations) >= 4) {
+                            break;
+                        }
+                    }
+                    
+                    foreach ($limited_recommendations as $rec_product): 
+                    ?>
+                        <div class="product-card">
+                            <div class="p-image">
+                                <?php 
+                                $image_url = !empty($rec_product->ImageUrl) 
+                                    ? base_url('uploads/products/' . $rec_product->ImageUrl) 
+                                    : base_url('assets/img/placeholder.png');
+                                ?>
+                                <img src="<?= $image_url ?>" alt="<?= htmlspecialchars($rec_product->ProductName) ?>">
+                            </div>
+                            <div class="p-info">
+                                <p><?= htmlspecialchars($rec_product->ProductName) ?></p>
+                                <button class="yellow-btn" onclick="window.location.href='<?= base_url('2DModeling?id=' . $rec_product->Product_ID) ?>'">Build and Buy</button>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <!-- Fallback if no recommendations available -->
+                    <p style="color: #fff; text-align: center; padding: 20px; grid-column: 1 / -1;">No products available at the moment.</p>
+                <?php endif; ?>
             </div>
         </div>
     </section>

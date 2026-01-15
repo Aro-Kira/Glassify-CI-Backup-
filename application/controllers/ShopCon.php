@@ -56,6 +56,8 @@ public function product_2d()
 
     $data['title'] = "Glassify - 2D Modeling";
     $data['product'] = $product;
+    // Get recommended products (same as products page - only In Stock or Low Stock)
+    $data['recommendations'] = $this->Product_model->get_recommended_products(4);
 
     $this->load->view('includes/header', $data);
     $this->load->view('shop/2DModeling', $data);

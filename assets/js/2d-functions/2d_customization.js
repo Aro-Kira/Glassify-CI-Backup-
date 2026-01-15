@@ -564,13 +564,20 @@ function handleFiles(files) {
         if (newFile.isError) { newFile.status = 'error'; updateFileItem(newFile); }
         else { simulateUpload(newFile); }
     });
+    // Update external file display after adding files
+    updateExternalFileDisplay();
 }
 
 function simulateUpload(file) {
     let progress = 0;
     const uploadTimer = setInterval(() => {
         progress += 2;
-        if (progress >= 100) { clearInterval(uploadTimer); file.progress = 100; file.status = 'completed'; }
+        if (progress >= 100) { 
+            clearInterval(uploadTimer); 
+            file.progress = 100; 
+            file.status = 'completed'; 
+            updateExternalFileDisplay(); // Update external display when file completes
+        }
         else { file.progress = progress; }
         updateFileItem(file);
     }, 30);
@@ -603,7 +610,48 @@ function deleteFile(e) {
     const fileId = parseFloat(e.target.dataset.fileId);
     uploadedFiles = uploadedFiles.filter(file => file.id !== fileId);
     document.getElementById(`file-item-${fileId}`).remove();
-    if (uploadedFiles.length === 0) uploadedFilesContainer.innerHTML = '<p class="placeholder-text">No files uploaded yet.</p>';
+    if (uploadedFiles.length === 0) {
+        uploadedFilesContainer.innerHTML = '<p class="placeholder-text">No files uploaded yet.</p>';
+        // Hide external display if no files
+        const externalDisplay = document.getElementById('uploaded-files-display');
+        if (externalDisplay) externalDisplay.style.display = 'none';
+    }
+    // Update external display
+    updateExternalFileDisplay();
+}
+
+// Update external file display (outside modal)
+function updateExternalFileDisplay() {
+    const externalList = document.getElementById('uploaded-files-list');
+    const externalDisplay = document.getElementById('uploaded-files-display');
+    if (!externalList || !externalDisplay) return;
+    
+    if (uploadedFiles.length === 0) {
+        externalDisplay.style.display = 'none';
+        return;
+    }
+    
+    externalDisplay.style.display = 'block';
+    
+    // Show max 4 files with scroll
+    const filesToShow = uploadedFiles.slice(0, 4);
+    externalList.innerHTML = '';
+    
+    filesToShow.forEach(file => {
+        const fileItem = document.createElement('div');
+        fileItem.style.cssText = 'min-width: 80px; text-align: center; padding: 8px; background: #f5f5f5; border-radius: 4px; flex-shrink: 0;';
+        const fileIcon = getFileIconSvg(file.extension);
+        fileItem.innerHTML = `
+            <div style="margin-bottom: 5px;">${fileIcon}</div>
+            <div style="font-size: 11px; word-break: break-word; max-width: 80px;">${file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name}</div>
+        `;
+        externalList.appendChild(fileItem);
+    });
+    
+    // Add scroll indicator if more than 4 files
+    if (uploadedFiles.length > 4) {
+        externalList.style.cssText = 'display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; max-height: 120px;';
+    }
 }
 
 // --- PRICING LOGIC (Philippines Context) ---
@@ -835,6 +883,11 @@ let currentDesignImageData = null;
 // --- SUMMARY VIEW LOGIC ---
 
 function showOrderSummary() {
+    // Hide testimonials section when finalize order is clicked
+    const testimonialsSection = document.getElementById('testimonials-section');
+    if (testimonialsSection) {
+        testimonialsSection.style.display = 'none';
+    }
     // 1. Hide Builder UI
     customWrapper.classList.add('hidden-step');
     standardWrapper.classList.add('hidden-step');
@@ -842,9 +895,8 @@ function showOrderSummary() {
     document.querySelector('.build-toggle').classList.add('hidden-step');
     document.getElementById('standard-subtitle').classList.add('hidden-step');
 
-    // --- Hide Related Products only (Keep Testimonials visible) ---
+    // --- Hide Related Products and Testimonials ---
     document.getElementById('related-products-section').classList.add('hidden-step');
-    // Keep testimonials visible - don't hide them
 
     // 2. Show Summary UI
     const summaryWrapper = document.getElementById('summary-wrapper');
@@ -1093,6 +1145,43 @@ function logOrderSummary() {
 
     console.log("=== END SUMMARY ===");
 }
+
+// Image Counter Update (for product gallery)
+(function() {
+    let currentImageIndex = 1;
+    const productImages = document.querySelectorAll('.main-product-image');
+    const totalImages = productImages.length || 1;
+    const imageCounter = document.getElementById('image-counter');
+    const prevBtn = document.getElementById('prev-image');
+    const nextBtn = document.getElementById('next-image');
+    
+    function updateImageCounter() {
+        if (imageCounter) {
+            imageCounter.textContent = `${currentImageIndex}/${totalImages}`;
+        }
+    }
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentImageIndex > 1) {
+                currentImageIndex--;
+                updateImageCounter();
+            }
+        });
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            if (currentImageIndex < totalImages) {
+                currentImageIndex++;
+                updateImageCounter();
+            }
+        });
+    }
+    
+    // Initialize counter
+    updateImageCounter();
+})();
 
 
 
