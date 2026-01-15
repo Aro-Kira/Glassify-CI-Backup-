@@ -98,10 +98,13 @@
         <div class="form-group full-width">
           <label>Attachments (optional)</label>
           <div class="upload-btn-wrapper">
-            <button type="button" class="upload-btn">
-                <img src="/Assets/img/attach.svg" alt="Attach" class="upload-icon">Upload Image or File
+            <button type="button" class="upload-btn" id="upload-trigger-btn">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#423D3D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="upload-icon">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+                Upload Image or File
             </button>
-            <input type="file" name="attachment" title="Attachment" placeholder="Upload Image or File" />
+            <input type="file" name="attachment" id="attachment-input" title="Attachment" placeholder="Upload Image or File" />
           </div>
         </div>
       </div>
@@ -109,3 +112,32 @@
       <button type="submit" class="submit-btn">Submit Issue</button>
     </form>
   </div>
+
+<script>
+  // Make attachment button trigger file input
+  document.addEventListener('DOMContentLoaded', function() {
+    const uploadBtn = document.getElementById('upload-trigger-btn');
+    const fileInput = document.getElementById('attachment-input');
+    
+    if (uploadBtn && fileInput) {
+      uploadBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        fileInput.click();
+      });
+      
+      // Update button text when file is selected
+      fileInput.addEventListener('change', function() {
+        if (this.files && this.files.length > 0) {
+          const fileName = this.files[0].name;
+          uploadBtn.innerHTML = `
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#423D3D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="upload-icon">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+            </svg>
+            ${fileName}
+          `;
+        }
+      });
+    }
+  });
+</script>

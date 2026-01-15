@@ -261,6 +261,7 @@ body {
   flex-direction: column;
   width: 100%;
   position: relative;
+  margin-bottom: 1rem;
 }
 
 .form-group.half {
@@ -270,7 +271,7 @@ body {
 }
 
 .form-group.half:nth-child(odd) {
-  margin-right: 1.5rem;
+  margin-right: 0.5rem;
 }
 
 .form-group label {
@@ -279,7 +280,7 @@ body {
   padding: 0.2rem 0.6rem;
   font-size: 0.85rem;
   border-radius: 3px;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.8rem;
   display: inline-block;
   width: fit-content;
 }
@@ -291,11 +292,44 @@ body {
   border: 1px solid #083c5d;
   border-radius: 2px;
   font-size: 1rem;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.contact-form input::placeholder,
+.contact-form textarea::placeholder {
+  color: #999;
+  opacity: 1;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+}
+
+.contact-form input::-webkit-input-placeholder,
+.contact-form textarea::-webkit-input-placeholder {
+  color: #999;
+  opacity: 1;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+}
+
+.contact-form input::-moz-placeholder,
+.contact-form textarea::-moz-placeholder {
+  color: #999;
+  opacity: 1;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+}
+
+.contact-form input:-ms-input-placeholder,
+.contact-form textarea:-ms-input-placeholder {
+  color: #999;
+  opacity: 1;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
 }
 
 .contact-form textarea {
-  min-height: 100px;
-  resize: vertical;
+  height: 120px;
+  resize: none;
   border: 1px solid #083c5d;
   border-radius: 6px;
   background: #fff;
@@ -308,7 +342,8 @@ body {
   padding: 0.9rem 1.2rem;
   border-radius: 2px;
   cursor: pointer;
-  margin-top: 0.5rem;
+  margin-top: 0;
+  margin-bottom: 1rem;
   font-size: 1rem;
 }
 
