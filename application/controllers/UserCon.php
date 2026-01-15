@@ -293,9 +293,9 @@ class UserCon extends CI_Controller
 
         $this->load->model('User_model');
         if ($this->User_model->delete_address_by_id($addressID, $userID)) {
-            echo json_encode(['success' => true, 'message' => 'Address deleted successfully!']);
+            echo json_encode(['success' => true, 'message' => 'Address archived successfully!']);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to delete address or address not found.']);
+            echo json_encode(['success' => false, 'message' => 'Failed to archive address or address not found.']);
         }
     }
 

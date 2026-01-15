@@ -206,6 +206,10 @@ class User_model extends CI_Model
     public function get_addresses($userID)
     {
         $this->db->where('UserID', $userID);
+        $this->db->group_start();
+        $this->db->where('IsArchived', 0);
+        $this->db->or_where('IsArchived IS NULL', NULL, FALSE);
+        $this->db->group_end();
         $query = $this->db->get($this->addressTable);
         $addresses = $query->result();
 
@@ -256,10 +260,12 @@ class User_model extends CI_Model
     // ====================================
     public function get_user_addresses($userID)
     {
-        return $this->db
-            ->where('UserID', $userID)
-            ->get($this->addressTable)
-            ->result();
+        $this->db->where('UserID', $userID);
+        $this->db->group_start();
+        $this->db->where('IsArchived', 0);
+        $this->db->or_where('IsArchived IS NULL', NULL, FALSE);
+        $this->db->group_end();
+        return $this->db->get($this->addressTable)->result();
     }
 
     // ====================================
@@ -267,11 +273,13 @@ class User_model extends CI_Model
     // ====================================
     public function get_address_by_id($addressID, $userID)
     {
-        return $this->db
-            ->where('AddressID', $addressID)
-            ->where('UserID', $userID)
-            ->get($this->addressTable)
-            ->row();
+        $this->db->where('AddressID', $addressID);
+        $this->db->where('UserID', $userID);
+        $this->db->group_start();
+        $this->db->where('IsArchived', 0);
+        $this->db->or_where('IsArchived IS NULL', NULL, FALSE);
+        $this->db->group_end();
+        return $this->db->get($this->addressTable)->row();
     }
 
     // ====================================
@@ -285,24 +293,50 @@ class User_model extends CI_Model
     }
 
     // ====================================
+    // DELETE ADDRESS BY ID (Archive)
+    // ====================================
+    public function delete_address_by_id($addressID, $userID)
+    {
+        $this->db->where('AddressID', $addressID);
+        $this->db->where('UserID', $userID);
+        $result = $this->db->update($this->addressTable, [
+            'IsArchived' => 1,
+            'ArchivedAt' => date('Y-m-d H:i:s')
+        ]);
+        return $result && $this->db->affected_rows() > 0;
+    }
+
+    // ====================================
     // GET DEFAULT ADDRESS
     // ====================================
     public function get_default_address($userID)
     {
         $this->db->where('UserID', $userID);
         $this->db->where('IsDefault', 1);
+        $this->db->group_start();
+        $this->db->where('IsArchived', 0);
+        $this->db->or_where('IsArchived IS NULL', NULL, FALSE);
+        $this->db->group_end();
         $result = $this->db->get($this->addressTable)->row();
         
         // If no default, get first shipping address
         if (!$result) {
             $this->db->where('UserID', $userID);
             $this->db->where('AddressType', 'Shipping');
+            $this->db->group_start();
+            $this->db->where('IsArchived', 0);
+            $this->db->or_where('IsArchived IS NULL', NULL, FALSE);
+            $this->db->group_end();
             $result = $this->db->get($this->addressTable)->row();
         }
         
         // If still no result, get first available address
         if (!$result) {
             $this->db->where('UserID', $userID);
+            $this->db->group_start();
+            $this->db->where('IsArchived', 0);
+            $this->db->or_where('IsArchived IS NULL', NULL, FALSE);
+            $this->db->group_end();
             $this->db->limit(1);
             $result = $this->db->get($this->addressTable)->row();
         }

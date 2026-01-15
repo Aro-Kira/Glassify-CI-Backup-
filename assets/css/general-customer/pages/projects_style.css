@@ -14,10 +14,10 @@ body {
 .projects-intro {
 
   text-align: center;
-  padding: 3rem 1rem;
+  padding: 3rem 1rem 1rem 1rem;
 }
 .projects-intro h1 {
-  margin: 5% 0 0 0;
+  margin: 1% 0 0 0;
   font-size: 45pt;
   font-weight: bold;
 }
@@ -40,7 +40,8 @@ body {
 
 .featured-projects h2 {
   color: #f5b400;
-  margin-bottom: 5rem;
+  margin-top: 3.5rem;
+  margin-bottom: 3.5rem;
   font-weight: 600;
     font-size: 45pt;  
 }
@@ -105,6 +106,39 @@ body {
     text-align: end;
     margin: -10px 0 11em 0;
         font-size: 1.2em;
+}
+
+.projects-left .project-link {
+    text-align: end;
+    display: block;
+    margin-top: -14.7em;
+    margin-bottom: 8.9em;
+    color: #f5b400;
+    text-decoration: none;
+    font-size: 1em;
+    font-weight: 500;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.projects-left .project-link:hover {
+    color: #ffcf41;
+    text-decoration: underline;
+}
+
+.projects-right .project-link {
+    text-align: start;
+    display: block;
+    margin-top: -5em;
+    color: #f5b400;
+    text-decoration: none;
+    font-size: 1em;
+    font-weight: 500;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.projects-right .project-link:hover {
+    color: #ffcf41;
+    text-decoration: underline;
 }
 
 .projects-right .project-card{

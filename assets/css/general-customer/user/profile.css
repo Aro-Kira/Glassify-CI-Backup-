@@ -704,6 +704,7 @@ body {
     box-sizing: border-box;
     background: #fff;
     color: #333;
+    line-height: 1.5;
 }
 
 .address-form input[type="text"]:focus,
@@ -726,6 +727,46 @@ body {
     background-position: right 12px center;
     padding-right: 35px;
     cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* When select has size attribute (dropdown is open with more than 5 options), show as listbox with 5 items visible */
+.address-form select[size] {
+    overflow-y: auto;
+    overflow-x: hidden;
+    background-image: none;
+    padding: 0;
+    border: 1px solid #cfd6dc;
+    border-radius: 6px;
+    position: relative;
+    z-index: 10;
+    background-color: #fff;
+    max-height: calc(5 * 40px);
+    line-height: 1.5;
+    box-shadow: none;
+}
+
+.address-form select[size] option {
+    padding: 10px 12px;
+    cursor: pointer;
+    line-height: 1.5;
+    font-size: 14px;
+    color: #333;
+    background-color: #fff;
+}
+
+.address-form select[size] option:hover {
+    background-color: #f0f0f0;
+}
+
+.address-form select[size] option:checked {
+    background-color: #024e63;
+    color: #fff;
+}
+
+.address-form select[size]:focus option:checked {
+    background-color: #024e63;
+    color: #fff;
 }
 
 .checkbox-group {

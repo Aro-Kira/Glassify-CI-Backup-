@@ -16,17 +16,19 @@
     .featured-projects {
         background: #083c5d;
         color: white;
-        padding: 5rem 1rem;
+        padding: 3rem 1rem;
         text-align: center;
         max-width: 1400px;
-        height: 14 00px;
+        min-height: 1400px;
         margin: 0 auto 1rem auto;
         -webkit-mask-image: url('<?php echo base_url('assets/images/img-page/jagged\ rectangle.svg'); ?>');
         mask-image: url('<?php echo base_url('assets/images/img-page/jagged\ rectangle.svg'); ?>');
         -webkit-mask-repeat: no-repeat;
         mask-repeat: no-repeat;
-        -webkit-mask-size: 100% auto;
-        mask-size: 100% auto;
+        -webkit-mask-size: 100% 100%;
+        mask-size: 100% 100%;
+        -webkit-mask-position: center;
+        mask-position: center;
 
     }
 </style>
@@ -42,6 +44,7 @@
             </div>
             <h3>SM Caloocan City</h3>
             <p class="date">May 16, 2024</p>
+            <a href="https://www.facebook.com/share/p/14LfGhWJuGk/" class="project-link">Click here to see project</a>
             <div class="project-card">
                 <img src="<?php echo base_url('assets/images/img-page/Residential.svg'); ?>" alt="Residential Project">
             </div>
@@ -53,13 +56,15 @@
 
         <!-- Right Column -->
         <div class="projects-right">
-            <h3>GAB - Chairman’s Office</h3>
+            <h3>GAB - Chairman's Office</h3>
             <p class="date">September 06, 2024</p>
+            <a href="https://www.facebook.com/share/p/1CzTHe8s3j/" class="project-link">Click here to see project</a>
             <div class="project-card">
                 <img src="<?php echo base_url('assets/images/img-page/sm-caloocan.svg'); ?>" alt="SM Caloocan City">
             </div>
             <h3>Residential Project</h3>
             <p class="date">October 19, 2024</p>
+            <a href="https://www.facebook.com/share/p/1D9QNEgRWZ/" class="project-link">Click here to see project</a>
         </div>
     </div>
 </section>
