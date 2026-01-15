@@ -80,16 +80,23 @@ function showToast(message, type = 'info', duration = 3000) {
 let users = [];
 let currentEditingRow = null;
 let rowToDelete = null;
+let originalValues = {}; // Store original values when opening edit popup
+let currentPage = 1;
+const itemsPerPage = 4;
 
 // --- FETCH USERS ---
 function loadUsers() {
-    fetch(getUsersUrl) // URL from PHP
+    return fetch(getUsersUrl) // URL from PHP
         .then(res => res.json())
         .then(data => {
             users = data;
+            currentPage = 1; // Reset to first page when loading new data
             renderTable();
         })
-        .catch(err => console.error("Failed to load users:", err));
+        .catch(err => {
+            console.error("Failed to load users:", err);
+            showToast("Failed to load users. Please refresh the page.", 'error');
+        });
 }
 
 // --- RENDER TABLE ---
@@ -97,17 +104,43 @@ function renderTable() {
     const tbody = document.querySelector("table tbody");
     tbody.innerHTML = "";
     
-    if (users.length === 0) {
+    // Apply search filter if active
+    const searchQuery = document.querySelector(".search-input")?.value.toLowerCase().trim() || '';
+    let filteredUsers = users;
+    
+    if (searchQuery) {
+        filteredUsers = users.filter(user => {
+            const fullName = `${user.firstName} ${user.middleInitial ? user.middleInitial + ' ' : ''}${user.lastName}`.toLowerCase();
+            return fullName.includes(searchQuery) || user.email.toLowerCase().includes(searchQuery);
+        });
+    }
+    
+    if (filteredUsers.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No customers found</td></tr>';
+        updatePaginationInfo(0, 0, 0);
         return;
     }
 
-    users.forEach(user => {
+    // Calculate pagination
+    const totalUsers = filteredUsers.length;
+    const totalPages = Math.ceil(totalUsers / itemsPerPage);
+    
+    // Ensure currentPage is valid
+    if (currentPage > totalPages) {
+        currentPage = totalPages || 1;
+    }
+    
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, totalUsers);
+    const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+    
+    // Render paginated users
+    paginatedUsers.forEach((user, index) => {
         const tr = document.createElement("tr");
         tr.dataset.id = user.id;
         const fullName = `${user.firstName} ${user.middleInitial ? user.middleInitial + ' ' : ''}${user.lastName}`.trim();
         tr.innerHTML = `
-            <td></td>
+            <td>${startIndex + index + 1}</td>
             <td>${fullName}</td>
             <td>${user.email}</td>
             <td>${user.joinedDate}</td>
@@ -124,6 +157,41 @@ function renderTable() {
         `;
         tbody.appendChild(tr);
     });
+    
+    // Update pagination info
+    updatePaginationInfo(startIndex + 1, endIndex, totalUsers);
+}
+
+// --- UPDATE PAGINATION INFO ---
+function updatePaginationInfo(start, end, total) {
+    const paginationSpan = document.querySelector(".pagination .showing-info");
+    if (paginationSpan) {
+        if (total === 0) {
+            paginationSpan.textContent = "Showing 0 of 0 end users";
+        } else {
+            paginationSpan.textContent = `Showing ${start}-${end} of ${total} end users`;
+        }
+    }
+}
+
+// --- CHANGE PAGE ---
+function changePage(page) {
+    const searchQuery = document.querySelector(".search-input")?.value.toLowerCase().trim() || '';
+    let filteredUsers = users;
+    
+    if (searchQuery) {
+        filteredUsers = users.filter(user => {
+            const fullName = `${user.firstName} ${user.middleInitial ? user.middleInitial + ' ' : ''}${user.lastName}`.toLowerCase();
+            return fullName.includes(searchQuery) || user.email.toLowerCase().includes(searchQuery);
+        });
+    }
+    
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    
+    if (page >= 1 && page <= totalPages) {
+        currentPage = page;
+        renderTable();
+    }
 }
 
 // --- EDIT USER ---
@@ -134,22 +202,94 @@ function openEdit(id) {
     currentEditingRow = user;
 
     document.getElementById("edit-id").value = user.id;
-    document.getElementById("edit-firstName").value = user.firstName;
-    document.getElementById("edit-middleInitial").value = user.middleInitial;
-    document.getElementById("edit-lastName").value = user.lastName;
-    document.getElementById("edit-email").value = user.email;
-    document.getElementById("edit-phone").value = user.phone;
+    document.getElementById("edit-firstName").value = user.firstName || '';
+    document.getElementById("edit-middleInitial").value = user.middleInitial || '';
+    document.getElementById("edit-lastName").value = user.lastName || '';
+    document.getElementById("edit-email").value = user.email || '';
+    document.getElementById("edit-phone").value = user.phone || '';
 
+    // Store original values
+    originalValues = {
+        firstName: user.firstName || '',
+        middleInitial: user.middleInitial || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: user.phone || ''
+    };
+
+    // Initially disable save button
+    const saveBtn = document.querySelector("#editForm .save-btn");
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.5';
+        saveBtn.style.cursor = 'not-allowed';
+    }
+    
     document.getElementById("popupOverlay").style.display = "flex";
+    
+    // Check for changes and enable/disable save button
+    checkForChanges();
+    
+    // Add event listeners to all input fields
+    const inputs = document.querySelectorAll("#editForm input[type='text'], #editForm input[type='email']");
+    inputs.forEach(input => {
+        input.addEventListener('input', checkForChanges);
+    });
+}
+
+// --- CHECK FOR CHANGES ---
+function checkForChanges() {
+    const saveBtn = document.querySelector("#editForm .save-btn");
+    if (!saveBtn) return;
+    
+    const currentValues = {
+        firstName: document.getElementById("edit-firstName").value.trim(),
+        middleInitial: document.getElementById("edit-middleInitial").value.trim(),
+        lastName: document.getElementById("edit-lastName").value.trim(),
+        email: document.getElementById("edit-email").value.trim(),
+        phone: document.getElementById("edit-phone").value.trim()
+    };
+    
+    // Check if any value has changed
+    const hasChanges = 
+        currentValues.firstName !== originalValues.firstName ||
+        currentValues.middleInitial !== originalValues.middleInitial ||
+        currentValues.lastName !== originalValues.lastName ||
+        currentValues.email !== originalValues.email ||
+        currentValues.phone !== originalValues.phone;
+    
+    // Enable/disable save button
+    saveBtn.disabled = !hasChanges;
+    if (hasChanges) {
+        saveBtn.style.opacity = '1';
+        saveBtn.style.cursor = 'pointer';
+    } else {
+        saveBtn.style.opacity = '0.5';
+        saveBtn.style.cursor = 'not-allowed';
+    }
 }
 
 function closePopup() {
     currentEditingRow = null;
+    originalValues = {};
+    
+    // Remove event listeners
+    const inputs = document.querySelectorAll("#editForm input[type='text'], #editForm input[type='email']");
+    inputs.forEach(input => {
+        input.removeEventListener('input', checkForChanges);
+    });
+    
     document.getElementById("popupOverlay").style.display = "none";
 }
 
 function saveEdit() {
     if (!currentEditingRow) return;
+    
+    // Check if save button is disabled (no changes)
+    const saveBtn = document.querySelector("#editForm .save-btn");
+    if (saveBtn && saveBtn.disabled) {
+        return;
+    }
 
     const updatedUser = {
         id: currentEditingRow.id,
@@ -209,16 +349,18 @@ document.querySelector(".popup-delete-confirm").addEventListener("click", () => 
         .then(res => res.json())
         .then(res => {
             if (res.success) {
-                showToast("User deactivated successfully!", 'success');
+                showToast("User deleted and archived successfully!", 'success');
                 closeDeletePopup();
-                loadUsers();
+                loadUsers().then(() => {
+                    renderTable();
+                });
             } else {
-                showToast(res.message || "Failed to deactivate user.", 'error');
+                showToast(res.message || "Failed to delete user.", 'error');
             }
         })
         .catch(err => {
             console.error("Failed to delete user:", err);
-            showToast("Failed to deactivate user. Please try again.", 'error');
+            showToast("Failed to delete user. Please try again.", 'error');
         });
 });
 
@@ -230,19 +372,27 @@ function deleteEditUser() {
 }
 
 // --- SEARCH FUNCTION ---
-document.querySelector(".search-button").addEventListener("click", searchUsers);
-document.querySelector(".search-input").addEventListener("keyup", (e) => {
-    if (e.key === "Enter") searchUsers();
-});
+const searchButton = document.querySelector(".search-button");
+const searchInput = document.querySelector(".search-input");
 
-function searchUsers() {
-    const query = document.querySelector(".search-input").value.toLowerCase();
-    const filtered = users.filter(u =>
-        `${u.firstName} ${u.middleInitial} ${u.lastName}`.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query)
-    );
-    users = filtered;
-    renderTable();
+if (searchButton) {
+    searchButton.addEventListener("click", () => {
+        currentPage = 1; // Reset to first page on search
+        renderTable();
+    });
+}
+
+if (searchInput) {
+    searchInput.addEventListener("keyup", (e) => {
+        if (e.key === "Enter") {
+            currentPage = 1; // Reset to first page on search
+            renderTable();
+        } else {
+            // Real-time search (optional)
+            currentPage = 1;
+            renderTable();
+        }
+    });
 }
 
 // --- INITIAL LOAD ---

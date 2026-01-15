@@ -391,7 +391,7 @@ class Auth extends CI_Controller
         // Verify password
         if (!password_verify($password, $user->Password)) {
             log_message('info', 'Login attempt failed: Incorrect password - email=' . $email . ', role=' . $role);
-            $this->session->set_flashdata('error', 'Invalid email or password. Please try again.');
+            $this->session->set_flashdata('error', 'Invalid password. Please try again.');
             redirect(base_url($redirect_url));
         }
 

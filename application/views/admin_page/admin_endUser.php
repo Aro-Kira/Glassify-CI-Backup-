@@ -46,6 +46,7 @@
     <div class="popup-content">
       <form id="editForm">
         <input type="hidden" id="edit-id">
+        <h3>User Details</h3>
         <label>First Name</label>
         <input type="text" id="edit-firstName">
         <label>Middle Initial (optional)</label>
@@ -60,9 +61,6 @@
           <button type="button" class="save-btn" onclick="saveEdit()">Save Changes</button>
           <button type="button" class="delete-btn" onclick="deleteEditUser()">Delete Account</button>
         </div>
-        <div class="cancel-container">
-          <button type="button" class="cancel-btn" onclick="closePopup()">Cancel</button>
-        </div>
       </form>
     </div>
   </div>
@@ -75,7 +73,7 @@
       Delete User?
       <span class="popup-delete-close" onclick="closeDeletePopup()">&times;</span>
     </div>
-    <p>Are you sure you want to delete this user?</p>
+    <p>Are you sure you want to delete this user? This will archive the user.</p>
     <div class="popup-delete-actions">
       <button class="popup-delete-cancel" onclick="closeDeletePopup()">Cancel</button>
       <button class="popup-delete-confirm">Delete</button>

@@ -33,6 +33,16 @@
     <div class="login-right">
       <h3 class="login-title">Sign In</h3>
 
+      <!-- Flash Messages -->
+      <?php if ($this->session->flashdata('error')): ?>
+        <div class="alert alert-danger"><?= $this->session->flashdata('error'); ?></div>
+      <?php elseif ($this->session->flashdata('success')): ?>
+        <div class="alert alert-success"><?= $this->session->flashdata('success'); ?></div>
+      <?php endif; ?>
+
+      <!-- Validation Errors -->
+      <?php echo validation_errors('<div class="alert alert-danger">', '</div>'); ?>
+
       <!-- ✅ Only ONE form -->
       <form method="POST" action="<?= base_url('auth/process_role_login/Customer') ?>">
 

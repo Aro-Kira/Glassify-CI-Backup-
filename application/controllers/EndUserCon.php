@@ -92,7 +92,7 @@ class EndUserCon extends CI_Controller {
         }
     }
 
-    // Delete/Deactivate end user (soft delete)
+    // Delete/Archive end user - moves to enduser_archive table
     public function delete_user() {
         header('Content-Type: application/json');
         
@@ -117,13 +117,91 @@ class EndUserCon extends CI_Controller {
             return;
         }
         
-        // Soft delete - set status to Inactive
-        $data = ['Status' => 'Inactive'];
+        // Check if customer has orders (which prevents deletion due to RESTRICT constraint)
+        $this->db->select('customer.Customer_ID');
+        $this->db->from('customer');
+        $this->db->where('customer.UserID', $user_id);
+        $customer = $this->db->get()->row();
         
-        if ($this->User_model->update_account($user_id, $data)) {
-            echo json_encode(['success' => true, 'message' => 'User deactivated successfully']);
+        if ($customer) {
+            $this->db->where('Customer_ID', $customer->Customer_ID);
+            $order_count = $this->db->count_all_results('order');
+            
+            if ($order_count > 0) {
+                echo json_encode(['success' => false, 'message' => 'Cannot delete user: User has ' . $order_count . ' order(s). Please delete or reassign orders first.']);
+                return;
+            }
+        }
+        
+        // Check for projectschedule references (Admin_ID has RESTRICT)
+        $this->db->where('Admin_ID', $user_id);
+        $schedule_count = $this->db->count_all_results('projectschedule');
+        if ($schedule_count > 0) {
+            echo json_encode(['success' => false, 'message' => 'Cannot delete user: User is referenced in ' . $schedule_count . ' project schedule(s).']);
+            return;
+        }
+        
+        // Start transaction
+        $this->db->trans_start();
+        
+        // Prepare archive data - handle date formatting
+        $archive_data = [
+            'UserID' => $user->UserID,
+            'First_Name' => $user->First_Name,
+            'Last_Name' => $user->Last_Name,
+            'Middle_Name' => $user->Middle_Name ? $user->Middle_Name : NULL,
+            'Email' => $user->Email,
+            'Password' => $user->Password,
+            'PhoneNum' => $user->PhoneNum,
+            'ImageUrl' => $user->ImageUrl ? $user->ImageUrl : NULL,
+            'Role' => $user->Role,
+            'Status' => $user->Status ? $user->Status : 'Active',
+            'Date_Created' => $user->Date_Created ? $user->Date_Created : NULL,
+            'Date_Updated' => $user->Date_Updated ? $user->Date_Updated : NULL,
+            'Last_Active' => $user->Last_Active ? $user->Last_Active : NULL,
+            'ArchivedAt' => date('Y-m-d H:i:s')
+        ];
+        
+        // Insert into archive table
+        $archive_insert_id = $this->db->insert('enduser_archive', $archive_data);
+        $archive_success = ($archive_insert_id !== FALSE && $this->db->affected_rows() > 0);
+        
+        // Check for archive insert errors
+        if (!$archive_success) {
+            $archive_error = $this->db->error();
+            $this->db->trans_rollback();
+            log_message('error', 'EndUserCon->delete_user: Failed to insert into archive. User ID=' . $user_id . ' Error: ' . json_encode($archive_error));
+            echo json_encode(['success' => false, 'message' => 'Failed to archive user: ' . ($archive_error['message'] ?? 'Database error')]);
+            return;
+        }
+        
+        // Update references that can be set to NULL before deletion
+        $this->db->where('SalesRep_ID', $user_id);
+        $this->db->update('order', ['SalesRep_ID' => NULL]);
+        
+        // Delete from user table (will CASCADE to customer and user_address)
+        $this->db->where('UserID', $user_id);
+        $delete_result = $this->db->delete('user');
+        $delete_success = ($delete_result !== FALSE && $this->db->affected_rows() > 0);
+        
+        $this->db->trans_complete();
+        
+        if ($this->db->trans_status() === FALSE || !$archive_success || !$delete_success) {
+            $error = $this->db->error();
+            $error_message = 'Database error';
+            
+            if (!empty($error['message'])) {
+                $error_message = $error['message'];
+            } elseif (!$archive_success) {
+                $error_message = 'Failed to archive user data';
+            } elseif (!$delete_success) {
+                $error_message = 'Failed to delete user from user table. User may be referenced in other records.';
+            }
+            
+            log_message('error', 'EndUserCon->delete_user: Failed to archive and delete user ID=' . $user_id . ' Error: ' . json_encode($error) . ' Archive success: ' . ($archive_success ? 'true' : 'false') . ' Delete success: ' . ($delete_success ? 'true' : 'false') . ' Transaction status: ' . ($this->db->trans_status() === FALSE ? 'FALSE' : 'TRUE'));
+            echo json_encode(['success' => false, 'message' => 'Failed to delete user: ' . $error_message]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Failed to deactivate user']);
+            echo json_encode(['success' => true, 'message' => 'User deleted and archived successfully']);
         }
     }
 }

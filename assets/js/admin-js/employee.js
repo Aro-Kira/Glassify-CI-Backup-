@@ -170,6 +170,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let currentFilter = "all"; // store the current tab filter
     let usersData = []; // users array
     let currentEditId = null; // store current editing user ID
+    let originalEditValues = {}; // Store original values when opening edit popup
 
     // Base URL
     const baseUrl = window.location.origin + '/Glassify-CI';
@@ -266,6 +267,18 @@ document.addEventListener("DOMContentLoaded", () => {
     function closePopups() {
         addUserPopup.style.display = "none";
         editPopup.style.display = "none";
+        originalEditValues = {};
+        currentEditId = null;
+        
+        // Remove event listeners from edit popup
+        const form = editPopup.querySelector('form');
+        if (form) {
+            const inputs = form.querySelectorAll('input[type="text"], input[type="email"], select');
+            inputs.forEach(input => {
+                input.removeEventListener('input', checkEditChanges);
+                input.removeEventListener('change', checkEditChanges);
+            });
+        }
     }
 
     // --- Open Edit Popup ---
@@ -304,18 +317,91 @@ document.addEventListener("DOMContentLoaded", () => {
             if (emailInput) emailInput.value = '';
             
             // Now populate with correct data
-            if (firstNameInput) firstNameInput.value = (user.firstName || '').trim();
-            if (middleNameInput) middleNameInput.value = (user.middleName || '').trim();
-            if (lastNameInput) lastNameInput.value = (user.lastName || '').trim();
-            if (emailInput) emailInput.value = (user.email || '').trim();
+            const firstName = (user.firstName || '').trim();
+            const middleName = (user.middleName || '').trim();
+            const lastName = (user.lastName || '').trim();
+            const email = (user.email || '').trim();
+            const role = user.role || '';
+            
+            if (firstNameInput) firstNameInput.value = firstName;
+            if (middleNameInput) middleNameInput.value = middleName;
+            if (lastNameInput) lastNameInput.value = lastName;
+            if (emailInput) emailInput.value = email;
             if (roleSelect) {
-                roleSelect.value = user.role || '';
+                roleSelect.value = role;
             }
+            
+            // Store original values
+            originalEditValues = {
+                firstName: firstName,
+                middleName: middleName,
+                lastName: lastName,
+                email: email,
+                role: role
+            };
             
             // Clear password fields
             const passwordInputs = form.querySelectorAll('input[type="password"]');
             passwordInputs.forEach(input => input.value = '');
+            
+            // Initially disable save button
+            const saveBtn = form.querySelector('.save-btn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.style.opacity = '0.5';
+                saveBtn.style.cursor = 'not-allowed';
+            }
+            
+            // Check for changes and enable/disable save button
+            checkEditChanges();
+            
+            // Add event listeners to all input fields
+            const inputs = form.querySelectorAll('input[type="text"], input[type="email"], select');
+            inputs.forEach(input => {
+                input.addEventListener('input', checkEditChanges);
+                input.addEventListener('change', checkEditChanges);
+            });
         }, 10);
+    }
+
+    // --- CHECK FOR CHANGES IN EDIT POPUP ---
+    function checkEditChanges() {
+        const saveBtn = editPopup.querySelector('.save-btn');
+        if (!saveBtn) return;
+        
+        const firstNameInput = editPopup.querySelector('#edit-first-name');
+        const middleNameInput = editPopup.querySelector('#edit-middle-name');
+        const lastNameInput = editPopup.querySelector('#edit-last-name');
+        const emailInput = editPopup.querySelector('#edit-email');
+        const roleSelect = editPopup.querySelector('form select');
+        
+        if (!firstNameInput || !lastNameInput || !emailInput || !roleSelect) return;
+        
+        const currentValues = {
+            firstName: firstNameInput.value.trim(),
+            middleName: middleNameInput.value.trim(),
+            lastName: lastNameInput.value.trim(),
+            email: emailInput.value.trim(),
+            role: roleSelect.value
+        };
+        
+        // Check if any value has changed
+        const hasChanges = 
+            currentValues.firstName !== originalEditValues.firstName ||
+            currentValues.middleName !== originalEditValues.middleName ||
+            currentValues.lastName !== originalEditValues.lastName ||
+            currentValues.email !== originalEditValues.email ||
+            currentValues.role !== originalEditValues.role;
+        
+        // Enable/disable save button
+        saveBtn.disabled = !hasChanges;
+        if (hasChanges) {
+            saveBtn.style.opacity = '1';
+            saveBtn.style.cursor = 'pointer';
+        } else {
+            saveBtn.style.opacity = '0.5';
+            saveBtn.style.cursor = 'not-allowed';
+        }
     }
 
     // --- Add User ---
@@ -390,6 +476,12 @@ document.addEventListener("DOMContentLoaded", () => {
     // --- Save Edit ---
     document.querySelector("#editPopupOverlay .save-btn").addEventListener("click", async () => {
         if (!currentEditId) return;
+        
+        // Check if save button is disabled (no changes)
+        const saveBtn = editPopup.querySelector('.save-btn');
+        if (saveBtn && saveBtn.disabled) {
+            return;
+        }
         
         const user = usersData.find(u => u.id === currentEditId);
         if (!user) {
@@ -473,7 +565,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         
-        showConfirmModal(`Are you sure you want to deactivate ${user.firstName} ${user.lastName}?`, async () => {
+        showConfirmModal(`Are you sure you want to delete ${user.firstName} ${user.lastName}? This will archive the employee.`, async () => {
             try {
                 const res = await fetch(baseUrl + '/EmpCon/delete_user', {
                     method: 'POST',
@@ -484,15 +576,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 const result = await res.json();
                 
                 if (result.status === 'success') {
-                    showToast("Employee deactivated successfully!", 'success');
+                    showToast("Employee deleted and archived successfully!", 'success');
                     closePopups();
                     await loadUsers(); // Reload users
                 } else {
-                    showToast(result.message || "Failed to deactivate employee", 'error');
+                    showToast(result.message || "Failed to delete employee", 'error');
                 }
             } catch (err) {
                 console.error("Error deleting user:", err);
-                showToast("Failed to deactivate employee. Please try again.", 'error');
+                showToast("Failed to delete employee. Please try again.", 'error');
             }
         });
     });

@@ -183,7 +183,7 @@ tbody i {
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.5);
-      z-index: 999;
+      z-index: 1001;
       justify-content: flex-end;
     }
 
@@ -248,7 +248,7 @@ label {
 .popup form select {
   width: 100%;
   height: 30px;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   border: 1px solid #ccc;
   border-radius: 2px;
   font-size: 16px;
@@ -260,7 +260,7 @@ label {
       display: flex;
       gap: 10px;
       margin-top: 30px;
-      justify-content: space-between;
+      justify-content: flex-end;
       margin-bottom: 30px;
     }
 
@@ -273,10 +273,22 @@ label {
       cursor: pointer;
     font-size: 14px;
       font-weight: bold;
+      transition: opacity 0.2s ease, cursor 0.2s ease;
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .save-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .delete-btn {
-      background: #9A9A9A;
+      background: #dc3545;
       color: white;
       padding: 12px 20px;
       border: none;
@@ -284,7 +296,12 @@ label {
       cursor: pointer;
     font-size: 14px;
       font-weight: bold;
-
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .cancel-btn {
@@ -296,8 +313,8 @@ label {
           cursor: pointer;
         font-size: 14px;
           font-weight: bold;
-      max-width: 142px;
-      width: 100%;
+      flex: 1;
+      min-width: 0;
     }
 
     .reset-link {

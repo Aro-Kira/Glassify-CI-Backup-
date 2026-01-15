@@ -188,7 +188,7 @@ margin-bottom:  50px;
   background: rgba(0,0,0,0.5);
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 1001;
 }
 
 /* Popup Box */
@@ -210,9 +210,14 @@ margin-bottom:  50px;
   color: #666;
 }
 
-/* Form Fields */
+/* Form Fields - Match confirm password styling exactly */
 .popup .form-group {
   margin-bottom: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .popup .input-text {
@@ -222,11 +227,56 @@ margin-bottom:  50px;
   border: 1px solid #ccc;
   border-radius: 6px;
   color: #02455F;
+  box-sizing: border-box;
 }
 
-#editPopup label {
+/* Ensure main popup label and input match confirm password exactly */
+#editPopup #popupLabel {
   display: block;
   font-weight: 500;
+  margin-bottom: 5px;
+  text-align: left;
+  width: 100%;
+  color: #02455F;
+}
+
+#editPopup #popupInput {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  color: #02455F;
+  box-sizing: border-box;
+}
+
+/* Show labels for password fields */
+#editPopup #confirmPasswordGroup {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+#editPopup #confirmPasswordGroup label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 5px;
+  text-align: left;
+  width: 100%;
+  color: #02455F;
+}
+
+#editPopup #confirmPasswordGroup .input-text {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  color: #02455F;
+  box-sizing: border-box;
 }
 
 #editPopup h3 {
