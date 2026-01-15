@@ -26,8 +26,6 @@
             <!-- Flash Messages -->
             <?php if ($this->session->flashdata('error')): ?>
                 <div class="alert alert-danger"><?= $this->session->flashdata('error'); ?></div>
-            <?php elseif ($this->session->flashdata('success')): ?>
-                <div class="alert alert-success"><?= $this->session->flashdata('success'); ?></div>
             <?php endif; ?>
 
             <!-- Validation Errors -->
@@ -109,7 +107,180 @@
     </div>
 </section>
 
+<!-- Registration Success Modal -->
+<div id="registrationSuccessModal" class="registration-modal-overlay" style="display: none;">
+    <div class="registration-modal-content">
+        <div class="registration-modal-body success">
+            <div class="modal-icon">✓</div>
+            <p>Registration successful! Please check your email to confirm your account before logging in.</p>
+            <button type="button" class="modal-ok-btn" onclick="closeRegistrationModal()">OK</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Registration Success Modal Styles */
+.registration-modal-overlay {
+    position: fixed;
+    z-index: 10000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+.registration-modal-content {
+    background-color: #fff;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    animation: slideDown 0.3s ease;
+    position: relative;
+}
+
+.registration-modal-body {
+    padding: 40px 30px 30px;
+    text-align: center;
+}
+
+.registration-modal-body.success {
+    color: #155724;
+}
+
+.registration-modal-body .modal-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    color: #28a745;
+    font-weight: bold;
+}
+
+.registration-modal-body p {
+    margin: 0 0 25px 0;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #155724;
+}
+
+.modal-ok-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.modal-ok-btn:hover {
+    background-color: #218838;
+}
+
+.modal-ok-btn:active {
+    transform: scale(0.98);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .registration-modal-content {
+        width: 95%;
+        max-width: 400px;
+    }
+    
+    .registration-modal-body {
+        padding: 30px 20px 25px;
+    }
+    
+    .registration-modal-body .modal-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+    }
+    
+    .registration-modal-body p {
+        font-size: 14px;
+        margin-bottom: 20px;
+    }
+    
+    .modal-ok-btn {
+        padding: 10px 25px;
+        font-size: 14px;
+    }
+}
+</style>
+
 <script>
+// Show registration success modal if registration was successful
+<?php if ($this->session->flashdata('registration_success')): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    showRegistrationModal();
+});
+<?php endif; ?>
+
+function showRegistrationModal() {
+    const modal = document.getElementById('registrationSuccessModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+function closeRegistrationModal() {
+    const modal = document.getElementById('registrationSuccessModal');
+    if (modal) {
+        modal.style.display = 'none';
+        // Redirect to login page
+        window.location.href = '<?= base_url("login") ?>';
+    }
+}
+
+// Close modal when clicking outside
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('registrationSuccessModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeRegistrationModal();
+            }
+        });
+    }
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('registrationSuccessModal');
+            if (modal && modal.style.display === 'flex') {
+                closeRegistrationModal();
+            }
+        }
+    });
+});
+
 document.addEventListener("DOMContentLoaded", function() {
     const toggles = document.querySelectorAll(".toggle-password");
 

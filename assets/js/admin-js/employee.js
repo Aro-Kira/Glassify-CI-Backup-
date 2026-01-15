@@ -171,6 +171,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let usersData = []; // users array
     let currentEditId = null; // store current editing user ID
     let originalEditValues = {}; // Store original values when opening edit popup
+    let currentPage = 1; // Current page for pagination
+    const itemsPerPage = 4; // Items per page
 
     // Base URL
     const baseUrl = window.location.origin + '/Glassify-CI';
@@ -181,6 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const res = await fetch(baseUrl + '/EmpCon/get_users');
             if (!res.ok) throw new Error('Failed to fetch users');
             usersData = await res.json();
+            currentPage = 1; // Reset to first page when loading new data
             renderTable();
         } catch (err) {
             console.error("Error loading users:", err);
@@ -193,12 +196,37 @@ document.addEventListener("DOMContentLoaded", () => {
         const tbody = document.querySelector(".table-container table tbody");
         tbody.innerHTML = "";
         
-        if (usersData.length === 0) {
+        // Apply filters first
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        let filteredUsers = usersData.filter((user) => {
+            const fullName = `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.toLowerCase().trim();
+            const matchesTab = currentFilter === "all" || user.role === currentFilter;
+            const matchesSearch = fullName.includes(searchTerm) || user.email.toLowerCase().includes(searchTerm);
+            return matchesTab && matchesSearch;
+        });
+        
+        if (filteredUsers.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">No employees found</td></tr>';
+            updatePaginationInfo(0, 0, 0);
+            renderPaginationControls(0);
             return;
         }
         
-        usersData.forEach((user) => {
+        // Calculate pagination
+        const totalUsers = filteredUsers.length;
+        const totalPages = Math.ceil(totalUsers / itemsPerPage);
+        
+        // Ensure currentPage is valid
+        if (currentPage > totalPages) {
+            currentPage = totalPages || 1;
+        }
+        
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, totalUsers);
+        const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+        
+        // Render paginated users
+        paginatedUsers.forEach((user, index) => {
             const tr = document.createElement("tr");
             const fullName = `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.trim();
             tr.innerHTML = `
@@ -217,30 +245,114 @@ document.addEventListener("DOMContentLoaded", () => {
             icon.addEventListener("click", () => openEditPopup(userId));
         });
 
-        filterRows(); // Apply current filter & search
+        // Update pagination info
+        updatePaginationInfo(startIndex + 1, endIndex, totalUsers);
+        renderPaginationControls(totalPages);
     }
 
-    // --- Filter/Search ---
-    function filterRows() {
+    // --- Update Pagination Info ---
+    function updatePaginationInfo(start, end, total) {
+        const paginationSpan = document.querySelector(".pagination .showing-info");
+        if (paginationSpan) {
+            if (total === 0) {
+                paginationSpan.textContent = "Showing 0 of 0 employees";
+            } else {
+                paginationSpan.textContent = `Showing ${start}-${end} of ${total} employees`;
+            }
+        }
+    }
+
+    // --- Render Pagination Controls ---
+    function renderPaginationControls(totalPages) {
+        const controlsContainer = document.querySelector(".pagination-controls");
+        if (!controlsContainer) return;
+        
+        controlsContainer.innerHTML = "";
+        
+        if (totalPages <= 1) {
+            return; // No pagination needed if 1 page or less
+        }
+        
+        // Previous button
+        const prevBtn = document.createElement("button");
+        prevBtn.className = "page-btn";
+        prevBtn.innerHTML = "‹";
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.onclick = () => changePage(currentPage - 1);
+        controlsContainer.appendChild(prevBtn);
+        
+        // Page numbers
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        
+        if (endPage - startPage < maxVisiblePages - 1) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        
+        if (startPage > 1) {
+            const firstPage = document.createElement("span");
+            firstPage.className = "page-number";
+            firstPage.textContent = "1";
+            firstPage.onclick = () => changePage(1);
+            controlsContainer.appendChild(firstPage);
+            
+            if (startPage > 2) {
+                const dots = document.createElement("span");
+                dots.className = "dots";
+                dots.textContent = "...";
+                controlsContainer.appendChild(dots);
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const pageNum = document.createElement("span");
+            pageNum.className = `page-number ${i === currentPage ? 'active' : ''}`;
+            pageNum.textContent = i;
+            pageNum.onclick = () => changePage(i);
+            controlsContainer.appendChild(pageNum);
+        }
+        
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                const dots = document.createElement("span");
+                dots.className = "dots";
+                dots.textContent = "...";
+                controlsContainer.appendChild(dots);
+            }
+            
+            const lastPage = document.createElement("span");
+            lastPage.className = "page-number";
+            lastPage.textContent = totalPages;
+            lastPage.onclick = () => changePage(totalPages);
+            controlsContainer.appendChild(lastPage);
+        }
+        
+        // Next button
+        const nextBtn = document.createElement("button");
+        nextBtn.className = "page-btn";
+        nextBtn.innerHTML = "›";
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.onclick = () => changePage(currentPage + 1);
+        controlsContainer.appendChild(nextBtn);
+    }
+
+    // --- Change Page ---
+    function changePage(page) {
         const searchTerm = searchInput.value.toLowerCase().trim();
-        document.querySelectorAll(".table-container table tbody tr").forEach((row) => {
-            const userId = parseInt(row.querySelector('.edit-icon')?.getAttribute('data-id'));
-            if (!userId) {
-                row.style.display = "none";
-                return;
-            }
-            
-            const user = usersData.find(u => u.id === userId);
-            if (!user) {
-                row.style.display = "none";
-                return;
-            }
-            
+        let filteredUsers = usersData.filter((user) => {
             const fullName = `${user.firstName} ${user.middleName ? user.middleName + ' ' : ''}${user.lastName}`.toLowerCase().trim();
             const matchesTab = currentFilter === "all" || user.role === currentFilter;
             const matchesSearch = fullName.includes(searchTerm) || user.email.toLowerCase().includes(searchTerm);
-            row.style.display = (matchesTab && matchesSearch) ? "table-row" : "none";
+            return matchesTab && matchesSearch;
         });
+        
+        const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+        
+        if (page >= 1 && page <= totalPages) {
+            currentPage = page;
+            renderTable();
+        }
     }
 
     // --- Tab click ---
@@ -249,14 +361,21 @@ document.addEventListener("DOMContentLoaded", () => {
             roleTabs.forEach(btn => btn.classList.remove("active"));
             tab.classList.add("active");
             currentFilter = tab.getAttribute("data-filter");
-            filterRows();
+            currentPage = 1; // Reset to first page on filter change
+            renderTable();
         });
     });
 
     // --- Search ---
-    searchButton.addEventListener("click", filterRows);
+    searchButton.addEventListener("click", () => {
+        currentPage = 1; // Reset to first page on search
+        renderTable();
+    });
     searchInput.addEventListener("keyup", e => {
-        if (e.key === "Enter") filterRows();
+        if (e.key === "Enter") {
+            currentPage = 1; // Reset to first page on search
+            renderTable();
+        }
     });
 
     // --- Popups ---

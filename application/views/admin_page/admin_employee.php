@@ -34,6 +34,11 @@
             </tbody>
         </table>
     </div>
+
+    <div class="pagination">
+        <span class="showing-info">Showing 1-4 of 0 employees</span>
+        <div class="pagination-controls"></div>
+    </div>
 </section>
 
 <!-- Edit User Popup -->

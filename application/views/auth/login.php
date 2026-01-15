@@ -35,13 +35,13 @@
 
       <!-- Flash Messages -->
       <?php if ($this->session->flashdata('error')): ?>
-        <div class="alert alert-danger"><?= $this->session->flashdata('error'); ?></div>
-      <?php elseif ($this->session->flashdata('success')): ?>
-        <div class="alert alert-success"><?= $this->session->flashdata('success'); ?></div>
+        <div class="alert alert-danger">
+          <span><?= htmlspecialchars($this->session->flashdata('error')); ?></span>
+        </div>
       <?php endif; ?>
 
       <!-- Validation Errors -->
-      <?php echo validation_errors('<div class="alert alert-danger">', '</div>'); ?>
+      <?php echo validation_errors('<div class="alert alert-danger"><span>', '</span></div>'); ?>
 
       <!-- ✅ Only ONE form -->
       <form method="POST" action="<?= base_url('auth/process_role_login/Customer') ?>">

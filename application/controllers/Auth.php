@@ -71,13 +71,13 @@ class Auth extends CI_Controller
             
             if ($email_sent) {
                 log_message('info', 'Confirmation email sent successfully to: ' . $email);
-                $this->session->set_flashdata('success', 'Registration successful! Please check your email to confirm your account before logging in.');
             } else {
                 log_message('error', 'Failed to send confirmation email to: ' . $email);
-                $this->session->set_flashdata('success', 'Registration successful! Please check your email to confirm your account before logging in.');
             }
             
-            redirect(base_url('login'));
+            // Set success flag to show popup on registration page
+            $this->session->set_flashdata('registration_success', true);
+            redirect(base_url('register'));
         } else {
             $this->session->set_flashdata('error', 'Registration failed. Please try again.');
             redirect(base_url('register'));
