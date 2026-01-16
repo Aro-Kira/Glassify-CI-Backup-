@@ -87,7 +87,7 @@
                     <label for="saved-address-dropdown" style="display: block; margin-bottom: 8px; font-weight: 600; color: #0f2b46;">
                         Select from Saved Addresses
                     </label>
-                    <select id="saved-address-dropdown" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: white; cursor: pointer;">
+                    <select id="saved-address-dropdown" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: white; cursor: pointer; margin-bottom: 20px;">
                         <option value="">-- Select a saved address --</option>
                         <?php foreach ($all_addresses as $addr): ?>
                             <?php 
@@ -113,7 +113,7 @@
                             </option>
                         <?php endforeach; ?>
                     </select>
-                    <div class="terms" style="margin-top: 20px; margin-bottom: 20px;">
+                    <div class="terms" style="margin-bottom: 20px;">
                         <input type="checkbox" id="use-different-shipping-address"> 
                         <label for="use-different-shipping-address">Use a different address</label>
                     </div>
@@ -126,9 +126,9 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Country <span style="color: red;">*</span></label>
-                        <input type="text" name="country"
-                            value="<?= htmlspecialchars($addresses['Shipping']->Country ?? 'Philippines') ?>"
-                            placeholder="Country" required>
+                        <input type="text" name="country" id="shipping-country"
+                            value="Philippines"
+                            placeholder="Country" required readonly>
                     </div>
                 </div>
 
@@ -136,7 +136,7 @@
                     <div class="form-group">
                         <label>Region <span style="color: red;">*</span></label>
                         <select name="region" id="shipping-region" required>
-                            <option value="">Select Region</option>
+                            <option value="" <?= (!isset($addresses['Shipping']->Region) || empty($addresses['Shipping']->Region)) ? 'selected' : '' ?>>Select Region</option>
                             <option value="NCR" <?= (isset($addresses['Shipping']->Region) && $addresses['Shipping']->Region === 'NCR') ? 'selected' : '' ?>>NCR (National Capital Region)</option>
                             <option value="Region III" <?= (isset($addresses['Shipping']->Region) && $addresses['Shipping']->Region === 'Region III') ? 'selected' : '' ?>>Region III (Central Luzon)</option>
                             <option value="Region IV-A" <?= (isset($addresses['Shipping']->Region) && $addresses['Shipping']->Region === 'Region IV-A') ? 'selected' : '' ?>>Region IV-A (CALABARZON)</option>
@@ -293,9 +293,9 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Country <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_country"
-                                value="<?= htmlspecialchars($addresses['Billing']->Country ?? 'Philippines') ?>"
-                                placeholder="Country" required>
+                            <input type="text" name="billing_country" id="billing-country"
+                                value="Philippines"
+                                placeholder="Country" required readonly>
                         </div>
                     </div>
 
@@ -303,7 +303,7 @@
                         <div class="form-group">
                             <label>Region <span style="color: red;">*</span></label>
                             <select name="billing_region" id="billing-region" required>
-                                <option value="">Select Region</option>
+                                <option value="" <?= (!isset($addresses['Billing']->Region) || empty($addresses['Billing']->Region)) ? 'selected' : '' ?>>Select Region</option>
                                 <option value="NCR" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'NCR') ? 'selected' : '' ?>>NCR (National Capital Region)</option>
                                 <option value="Region III" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'Region III') ? 'selected' : '' ?>>Region III (Central Luzon)</option>
                                 <option value="Region IV-A" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'Region IV-A') ? 'selected' : '' ?>>Region IV-A (CALABARZON)</option>
@@ -383,11 +383,11 @@
             <div class="order-summary-content">
                 <h3>Order Summary</h3>
                 <p><span>Items:</span> <span id="summary-items">0</span></p>
-                <p><span>Subtotal:</span> ₱<span id="summary-subtotal">0.00</span></p>
-                <p><span>Shipping Fee:</span> ₱<span id="summary-shipping">0.00</span></p>
-                <p><span>Handling Fee:</span> ₱<span id="summary-handling">0.00</span></p>
+                <p><span>Subtotal:</span> <span id="summary-subtotal">₱0.00</span></p>
+                <p><span>Shipping Fee:</span> <span id="summary-shipping">₱0.00</span></p>
+                <p><span>Handling Fee:</span> <span id="summary-handling">₱0.00</span></p>
                 <div class="summary-divider"></div>
-                <p class="total"><span>Total:</span> ₱<span id="summary-total">0.00</span></p>
+                <p class="total"><span>Total:</span> <span id="summary-total">₱0.00</span></p>
 
             </div>
             <div class="payment-section">
@@ -838,12 +838,18 @@ $(document).ready(function() {
                 if (res.status === 'success') {
                     const summary = res.summary;
 
-                    // Update order summary
-                    $('#summary-items').text(summary.items);
-                    $('#summary-subtotal').text(summary.subtotal.toFixed(2));
-                    $('#summary-shipping').text(summary.shipping.toFixed(2));
-                    $('#summary-handling').text(summary.handling.toFixed(2));
-                    $('#summary-total').text(summary.total.toFixed(2));
+                    // Update order summary - ensure elements exist
+                    const itemsEl = document.getElementById('summary-items');
+                    const subtotalEl = document.getElementById('summary-subtotal');
+                    const shippingEl = document.getElementById('summary-shipping');
+                    const handlingEl = document.getElementById('summary-handling');
+                    const totalEl = document.getElementById('summary-total');
+                    
+                    if (itemsEl) itemsEl.textContent = summary.items || 0;
+                    if (subtotalEl) subtotalEl.textContent = '₱' + (summary.subtotal || 0).toFixed(2);
+                    if (shippingEl) shippingEl.textContent = '₱' + (summary.shipping || 0).toFixed(2);
+                    if (handlingEl) handlingEl.textContent = '₱' + (summary.handling || 0).toFixed(2);
+                    if (totalEl) totalEl.textContent = '₱' + (summary.total || 0).toFixed(2);
 
                     // Check if cart is empty
                     if (res.items.length === 0) {
@@ -852,16 +858,46 @@ $(document).ready(function() {
                             window.location.href = BASE_URL + 'addtocart';
                         }, 2000);
                     }
+                } else {
+                    console.error('Failed to load summary:', res.message || 'Unknown error');
+                    // Set default values if API fails
+                    const itemsEl = document.getElementById('summary-items');
+                    const subtotalEl = document.getElementById('summary-subtotal');
+                    const shippingEl = document.getElementById('summary-shipping');
+                    const handlingEl = document.getElementById('summary-handling');
+                    const totalEl = document.getElementById('summary-total');
+                    
+                    if (itemsEl) itemsEl.textContent = '0';
+                    if (subtotalEl) subtotalEl.textContent = '₱0.00';
+                    if (shippingEl) shippingEl.textContent = '₱0.00';
+                    if (handlingEl) handlingEl.textContent = '₱0.00';
+                    if (totalEl) totalEl.textContent = '₱0.00';
                 }
             },
-            error: function() {
-                console.error('Failed to load cart summary');
+            error: function(xhr, status, error) {
+                console.error('Failed to load cart summary:', error);
+                // Set default values on error
+                const itemsEl = document.getElementById('summary-items');
+                const subtotalEl = document.getElementById('summary-subtotal');
+                const shippingEl = document.getElementById('summary-shipping');
+                const handlingEl = document.getElementById('summary-handling');
+                const totalEl = document.getElementById('summary-total');
+                
+                if (itemsEl) itemsEl.textContent = '0';
+                if (subtotalEl) subtotalEl.textContent = '0.00';
+                if (shippingEl) shippingEl.textContent = '0.00';
+                if (handlingEl) handlingEl.textContent = '0.00';
+                if (totalEl) totalEl.textContent = '0.00';
             }
         });
     }
 
-    // Initial load
-    loadSelectedSummary();
+    // Initial load - wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadSelectedSummary);
+    } else {
+        loadSelectedSummary();
+    }
 
     // =============================
     // QUOTATION MODAL FOR SELECTED ITEMS (REMOVED - Generate Quotation button removed)
@@ -971,32 +1007,82 @@ $(document).ready(function() {
     
     // Function to toggle shipping form fields and dropdown
     function toggleShippingForm(show) {
+        console.log('toggleShippingForm called with:', show);
         if (shippingAddressFields) {
-            shippingAddressFields.style.display = show ? 'block' : 'none';
+            if (show) {
+                shippingAddressFields.style.display = 'block';
+                console.log('Shipping form fields shown');
+                // Clear all form fields except country when showing form
+                clearShippingForm();
+                // Ensure dropdowns are initialized when form is shown
+                setupShippingDropdowns();
+            } else {
+                shippingAddressFields.style.display = 'none';
+                console.log('Shipping form fields hidden');
+            }
+        } else {
+            console.error('shippingAddressFields element not found!');
         }
         if (savedAddressDropdown) {
             savedAddressDropdown.disabled = show;
+        } else {
+            console.log('savedAddressDropdown not found (might not have saved addresses)');
         }
-        // Region, province, city dropdowns are always enabled when form is shown (no disabled attribute in HTML)
+    }
+    
+    // Function to clear shipping form fields (except country)
+    function clearShippingForm() {
+        const form = document.getElementById('profileForm');
+        if (!form) return;
+        
+        // Clear text inputs
+        const fieldsToClear = ['barangay', 'subdivision', 'street', 'unit_house_number', 'zipcode', 'note'];
+        fieldsToClear.forEach(fieldName => {
+            const input = form.querySelector(`input[name='${fieldName}'], textarea[name='${fieldName}']`);
+            if (input) input.value = '';
+        });
+        
+        // Reset dropdowns to default
+        const regionSelect = document.getElementById('shipping-region');
+        const provinceSelect = document.getElementById('shipping-province');
+        const citySelect = document.getElementById('shipping-city');
+        
+        if (regionSelect) {
+            regionSelect.value = '';
+            // Trigger change to reset province and city
+            regionSelect.dispatchEvent(new Event('change'));
+        }
+        if (provinceSelect) {
+            provinceSelect.innerHTML = '<option value="">Select Province</option>';
+            provinceSelect.value = '';
+        }
+        if (citySelect) {
+            citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+            citySelect.value = '';
+        }
+        
+        // Ensure country is set to Philippines
+        const countryInput = document.getElementById('shipping-country');
+        if (countryInput) {
+            countryInput.value = 'Philippines';
+        }
     }
     
     // Checkbox handler: "Use a different address"
     if (useDifferentShippingCheckbox) {
         console.log('Checkbox found, attaching event listener');
         useDifferentShippingCheckbox.addEventListener('change', function() {
-            console.log('Checkbox changed, checked:', this.checked);
+            console.log('Checkbox changed! Checked:', this.checked);
             if (this.checked) {
                 // Show form fields and disable dropdown
-                console.log('Showing shipping form');
                 toggleShippingForm(true);
             } else {
                 // Hide form fields and enable dropdown
-                console.log('Hiding shipping form');
                 toggleShippingForm(false);
             }
         });
     } else {
-        console.log('Checkbox not found!');
+        console.log('useDifferentShippingCheckbox not found (might not have saved addresses)');
     }
 
     // Dropdown handler: When a saved address is selected
@@ -1155,32 +1241,50 @@ $(document).ready(function() {
         const shippingProvince = document.getElementById('shipping-province');
         const shippingCity = document.getElementById('shipping-city');
         
-        if (!shippingRegion || !shippingProvince || !shippingCity) return;
+        if (!shippingRegion || !shippingProvince || !shippingCity) {
+            console.log('Shipping dropdowns not found, skipping initialization');
+            return;
+        }
+        
+        // Remove existing event listeners if they exist (by checking if already initialized)
+        if (shippingRegion.dataset.initialized === 'true') {
+            console.log('Shipping dropdowns already initialized');
+            return;
+        }
+        
+        console.log('Initializing shipping dropdowns');
+        // Mark as initialized
+        shippingRegion.dataset.initialized = 'true';
+        shippingProvince.dataset.initialized = 'true';
+        shippingCity.dataset.initialized = 'true';
         
         shippingRegion.addEventListener('change', function() {
             const selectedRegion = this.value;
+            console.log('Shipping region changed to:', selectedRegion);
             shippingProvince.innerHTML = '<option value="">Select Province</option>';
             shippingCity.innerHTML = '<option value="">Select City/Municipality</option>';
             
             if (!selectedRegion) return;
             
-            console.log('Shipping Region selected:', selectedRegion);
-            
             if (selectedRegion === "NCR") {
                 shippingProvince.innerHTML = '<option value="Metro Manila">Metro Manila</option>';
                 shippingProvince.value = "Metro Manila";
+                // Trigger change to populate cities
                 setTimeout(() => {
                     shippingProvince.dispatchEvent(new Event('change'));
                 }, 50);
             } else if (selectedRegion === "Region III") {
-                console.log('Loading Region III provinces');
-                Object.keys(region3Provinces).forEach(province => {
-                    shippingProvince.innerHTML += `<option value="${province}">${province}</option>`;
-                });
+                // Only show Bulacan for Region III
+                const option = document.createElement('option');
+                option.value = 'Bulacan';
+                option.textContent = 'Bulacan';
+                shippingProvince.appendChild(option);
             } else if (selectedRegion === "Region IV-A") {
-                console.log('Loading Region IV-A provinces');
                 Object.keys(region4AProvinces).forEach(province => {
-                    shippingProvince.innerHTML += `<option value="${province}">${province}</option>`;
+                    const option = document.createElement('option');
+                    option.value = province;
+                    option.textContent = province;
+                    shippingProvince.appendChild(option);
                 });
             }
         });
@@ -1188,19 +1292,29 @@ $(document).ready(function() {
         shippingProvince.addEventListener('change', function() {
             const selectedProvince = this.value;
             const selectedRegion = shippingRegion.value;
+            console.log('Shipping province changed to:', selectedProvince, 'in region:', selectedRegion);
             shippingCity.innerHTML = '<option value="">Select City/Municipality</option>';
             
             if (selectedProvince === "Metro Manila") {
                 metroManilaCities.forEach(city => {
-                    shippingCity.innerHTML += `<option value="${city}">${city}</option>`;
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    shippingCity.appendChild(option);
                 });
             } else if (selectedRegion === "Region III" && region3Provinces[selectedProvince]) {
                 region3Provinces[selectedProvince].forEach(city => {
-                    shippingCity.innerHTML += `<option value="${city}">${city}</option>`;
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    shippingCity.appendChild(option);
                 });
             } else if (selectedRegion === "Region IV-A" && region4AProvinces[selectedProvince]) {
                 region4AProvinces[selectedProvince].forEach(city => {
-                    shippingCity.innerHTML += `<option value="${city}">${city}</option>`;
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    shippingCity.appendChild(option);
                 });
             }
         });
@@ -1214,6 +1328,14 @@ $(document).ready(function() {
         
         if (!billingRegion || !billingProvince || !billingCity) return;
         
+        // Remove existing event listeners if they exist (by checking if already initialized)
+        if (billingRegion.dataset.initialized === 'true') return;
+        
+        // Mark as initialized
+        billingRegion.dataset.initialized = 'true';
+        billingProvince.dataset.initialized = 'true';
+        billingCity.dataset.initialized = 'true';
+        
         billingRegion.addEventListener('change', function() {
             const selectedRegion = this.value;
             billingProvince.innerHTML = '<option value="">Select Province</option>';
@@ -1221,23 +1343,25 @@ $(document).ready(function() {
             
             if (!selectedRegion) return;
             
-            console.log('Billing Region selected:', selectedRegion);
-            
             if (selectedRegion === "NCR") {
                 billingProvince.innerHTML = '<option value="Metro Manila">Metro Manila</option>';
                 billingProvince.value = "Metro Manila";
+                // Trigger change to populate cities
                 setTimeout(() => {
                     billingProvince.dispatchEvent(new Event('change'));
                 }, 50);
             } else if (selectedRegion === "Region III") {
-                console.log('Loading Region III provinces for billing');
-                Object.keys(region3Provinces).forEach(province => {
-                    billingProvince.innerHTML += `<option value="${province}">${province}</option>`;
-                });
+                // Only show Bulacan for Region III
+                const option = document.createElement('option');
+                option.value = 'Bulacan';
+                option.textContent = 'Bulacan';
+                billingProvince.appendChild(option);
             } else if (selectedRegion === "Region IV-A") {
-                console.log('Loading Region IV-A provinces for billing');
                 Object.keys(region4AProvinces).forEach(province => {
-                    billingProvince.innerHTML += `<option value="${province}">${province}</option>`;
+                    const option = document.createElement('option');
+                    option.value = province;
+                    option.textContent = province;
+                    billingProvince.appendChild(option);
                 });
             }
         });
@@ -1249,56 +1373,69 @@ $(document).ready(function() {
             
             if (selectedProvince === "Metro Manila") {
                 metroManilaCities.forEach(city => {
-                    billingCity.innerHTML += `<option value="${city}">${city}</option>`;
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    billingCity.appendChild(option);
                 });
             } else if (selectedRegion === "Region III" && region3Provinces[selectedProvince]) {
                 region3Provinces[selectedProvince].forEach(city => {
-                    billingCity.innerHTML += `<option value="${city}">${city}</option>`;
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    billingCity.appendChild(option);
                 });
             } else if (selectedRegion === "Region IV-A" && region4AProvinces[selectedProvince]) {
                 region4AProvinces[selectedProvince].forEach(city => {
-                    billingCity.innerHTML += `<option value="${city}">${city}</option>`;
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    billingCity.appendChild(option);
                 });
             }
         });
     }
     
-    // Initialize dropdown handlers
-    setupShippingDropdowns();
-    setupBillingDropdowns();
-    
-    // If shipping address fields are visible on page load (no saved addresses), initialize dropdowns
-    const shippingAddressFieldsInit = document.getElementById('shipping-address-fields');
-    if (shippingAddressFieldsInit && shippingAddressFieldsInit.style.display !== 'none') {
-        const regionSelect = document.getElementById('shipping-region');
-        const provinceSelect = document.getElementById('shipping-province');
-        const citySelect = document.getElementById('shipping-city');
+    // Initialize dropdown handlers - wait for DOM to be ready
+    setTimeout(function() {
+        // Initialize shipping dropdowns if form is visible
+        const shippingAddressFieldsInit = document.getElementById('shipping-address-fields');
+        if (shippingAddressFieldsInit) {
+            if (shippingAddressFieldsInit.style.display !== 'none') {
+                setupShippingDropdowns();
+                // If region has a value on page load, trigger change to populate provinces
+                const regionSelect = document.getElementById('shipping-region');
+                const provinceSelect = document.getElementById('shipping-province');
+                if (regionSelect && regionSelect.value) {
+                    regionSelect.dispatchEvent(new Event('change'));
+                    setTimeout(() => {
+                        if (provinceSelect && provinceSelect.value) {
+                            provinceSelect.dispatchEvent(new Event('change'));
+                        }
+                    }, 100);
+                }
+            } else {
+                // Form is hidden, but initialize dropdowns anyway so they're ready when shown
+                setupShippingDropdowns();
+            }
+        }
         
-        // If region has a value on page load, trigger change to populate provinces
-        if (regionSelect && regionSelect.value) {
-            regionSelect.dispatchEvent(new Event('change'));
-            // Wait a bit, then set province if it has a value
+        // Initialize billing dropdowns
+        setupBillingDropdowns();
+        
+        // If billing address fields are visible and have values, trigger changes
+        const billingAddressFields = document.getElementById('billing-address-fields');
+        const billingRegionSelect = document.getElementById('billing-region');
+        if (billingRegionSelect && billingRegionSelect.value && billingAddressFields && billingAddressFields.style.display !== 'none') {
+            billingRegionSelect.dispatchEvent(new Event('change'));
             setTimeout(() => {
-                if (provinceSelect && provinceSelect.value) {
-                    provinceSelect.dispatchEvent(new Event('change'));
-                    // Wait a bit more, then city should be populated
+                const billingProvinceSelect = document.getElementById('billing-province');
+                if (billingProvinceSelect && billingProvinceSelect.value) {
+                    billingProvinceSelect.dispatchEvent(new Event('change'));
                 }
             }, 100);
         }
-    }
-    
-    // Pre-populate billing dropdowns if they have values on page load
-    const billingAddressFields = document.getElementById('billing-address-fields');
-    const billingRegionSelect = document.getElementById('billing-region');
-    if (billingRegionSelect && billingRegionSelect.value && billingAddressFields && billingAddressFields.style.display !== 'none') {
-        billingRegionSelect.dispatchEvent(new Event('change'));
-        setTimeout(() => {
-            const billingProvinceSelect = document.getElementById('billing-province');
-            if (billingProvinceSelect && billingProvinceSelect.value) {
-                billingProvinceSelect.dispatchEvent(new Event('change'));
-            }
-        }, 100);
-    }
+    }, 100);
     
     // === Billing Phone Number Validation ===
     const billingPhoneInput = document.querySelector("input[name='billing_phone']");
@@ -1496,32 +1633,32 @@ $(document).ready(function() {
                 document.getElementById('confirm-handling').textContent = `₱${summary.handling.toFixed(2)}`;
                 document.getElementById('confirm-total').textContent = `₱${summary.total.toFixed(2)}`;
             } else {
-                // Fallback: Get totals from page summary
+                // Fallback: Get totals from page summary (already includes peso sign)
                 const subtotal = document.getElementById('summary-subtotal').textContent;
                 const shipping = document.getElementById('summary-shipping').textContent;
                 const handling = document.getElementById('summary-handling').textContent;
                 const total = document.getElementById('summary-total').textContent;
                 const itemCount = document.getElementById('summary-items').textContent;
 
-                document.getElementById('confirm-subtotal').textContent = `₱${subtotal}`;
-                document.getElementById('confirm-shipping').textContent = `₱${shipping}`;
-                document.getElementById('confirm-handling').textContent = `₱${handling}`;
-                document.getElementById('confirm-total').textContent = `₱${total}`;
+                document.getElementById('confirm-subtotal').textContent = subtotal;
+                document.getElementById('confirm-shipping').textContent = shipping;
+                document.getElementById('confirm-handling').textContent = handling;
+                document.getElementById('confirm-total').textContent = total;
                 
                 itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
             }
         }).fail(function() {
-            // Fallback on AJAX failure
+            // Fallback on AJAX failure (values already include peso sign)
             const subtotal = document.getElementById('summary-subtotal').textContent;
             const shipping = document.getElementById('summary-shipping').textContent;
             const handling = document.getElementById('summary-handling').textContent;
             const total = document.getElementById('summary-total').textContent;
             const itemCount = document.getElementById('summary-items').textContent;
 
-            document.getElementById('confirm-subtotal').textContent = `₱${subtotal}`;
-            document.getElementById('confirm-shipping').textContent = `₱${shipping}`;
-            document.getElementById('confirm-handling').textContent = `₱${handling}`;
-            document.getElementById('confirm-total').textContent = `₱${total}`;
+            document.getElementById('confirm-subtotal').textContent = subtotal;
+            document.getElementById('confirm-shipping').textContent = shipping;
+            document.getElementById('confirm-handling').textContent = handling;
+            document.getElementById('confirm-total').textContent = total;
             
             itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
         });
@@ -1792,5 +1929,6 @@ $(document).ready(function() {
         });
     });
 
-    
+}); // End of $(document).ready
+
 </script>

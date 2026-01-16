@@ -402,18 +402,30 @@ input[type="checkbox"] {
 .order-summary p {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.order-summary p span:first-child {
+  flex: 1;
+}
+
+.order-summary p span:last-child {
+  text-align: right;
+  min-width: 100px;
 }
 
 #summary-subtotal, 
 #summary-shipping,
 #summary-handling,
-#summary-total{
-    margin-left: -50%;
+#summary-total,
+#summary-items {
+    margin-left: 0;
 } 
 
 .summary-divider{
   height: 2px;
-  margin: 0px -5%;
+  margin: 10px 0;
   background-color: #333;
 }
 
