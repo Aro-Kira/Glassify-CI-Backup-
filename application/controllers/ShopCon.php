@@ -39,6 +39,10 @@ public function products()
 public function product_2d()
 {
     $this->load->model('Product_model');
+    
+    // Ensure session is properly initialized - don't clear it on page load
+    // The session library is already loaded in __construct()
+    // Just ensure we're not doing anything that would destroy the session
 
     // Get id from GET instead of method param
     $id = $this->input->get('id');

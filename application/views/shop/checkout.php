@@ -155,19 +155,19 @@
                     </div>
                 </div>
 
-                <!-- Preferred Installation Date -->
+                <!-- Preferred Ocular Visit Date -->
                 <div class="form-row">
                     <div class="form-group full-width">
-                        <label>Preferred Installation Date <span style="color: red;">*</span></label>
+                        <label>Preferred Ocular Visit Date <span style="color: red;">*</span></label>
                         <input type="date" name="preferred_installation_date" id="preferred_installation_date" 
                             min="<?= date('Y-m-d', strtotime('+7 days')) ?>" 
-                            placeholder="Select your preferred installation date" required>
+                            placeholder="Select your preferred ocular visit date" required>
                         <small style="color: #666; font-size: 0.9em; display: block; margin-top: 5px;">
                             Please select a date at least 7 days from today. We'll do our best to accommodate your preference.
                         </small>
                         <!-- Inline error message for installation date -->
                         <div id="installation-date-error" class="inline-error" style="display: none; margin-top: 5px; padding: 8px 12px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px;">
-                            <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a Preferred Installation Date. This field is required.</span>
+                            <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a Preferred Ocular Visit Date. This field is required.</span>
                         </div>
                     </div>
                 </div>
@@ -284,10 +284,10 @@
         </div>
       </div>
 
-      <!-- Preferred Installation Date -->
+      <!-- Preferred Ocular Visit Date -->
       <div class="confirm-section" id="confirm-installation-date-section" style="display: none;">
         <h4 class="confirm-section-title">
-          <span class="icon">📅</span> Preferred Installation Date
+          <span class="icon">📅</span> Preferred Ocular Visit Date
         </h4>
         <div class="confirm-info-grid">
           <div class="confirm-info-item full-width">
@@ -901,7 +901,7 @@ $(document).ready(function() {
             paymentBadge.className = 'payment-badge cod';
         }
 
-        // Preferred Installation Date
+        // Preferred Ocular Visit Date
         const installationDateSection = document.getElementById('confirm-installation-date-section');
         const installationDateValue = document.getElementById('confirm-installation-date');
         if (preferredInstallationDate) {
@@ -1017,14 +1017,14 @@ $(document).ready(function() {
             return;
         }
 
-        // Validate Preferred Installation Date
+        // Validate Preferred Ocular Visit Date
         if (!preferredDate) {
             const errorDiv = document.getElementById('installation-date-error');
             if (errorDiv) {
                 errorDiv.style.display = 'block';
             }
-            highlightField('preferred_installation_date', 'installation-date-error', 'Please select a Preferred Installation Date.');
-            showToast('Please select a Preferred Installation Date. This field is required.', 'warning');
+            highlightField('preferred_installation_date', 'installation-date-error', 'Please select a Preferred Ocular Visit Date.');
+            showToast('Please select a Preferred Ocular Visit Date. This field is required.', 'warning');
             if (preferredDateInput) {
                 preferredDateInput.focus();
                 preferredDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1078,7 +1078,7 @@ $(document).ready(function() {
             formData.append('AddressLine', addressParts.join(', '));
         }
         
-        // Add preferred installation date (required)
+        // Add preferred ocular visit date (required)
         const preferredDateInput = form.querySelector("input[name='preferred_installation_date']");
         if (preferredDateInput) {
             if (!preferredDateInput.value) {
@@ -1086,8 +1086,8 @@ $(document).ready(function() {
                 if (errorDiv) {
                     errorDiv.style.display = 'block';
                 }
-                highlightField('preferred_installation_date', 'installation-date-error', 'Preferred Installation Date is required.');
-                showToast('Preferred Installation Date is required. Please select a date.', 'warning');
+                highlightField('preferred_installation_date', 'installation-date-error', 'Preferred Ocular Visit Date is required.');
+                showToast('Preferred Ocular Visit Date is required. Please select a date.', 'warning');
                 preferredDateInput.focus();
                 preferredDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 btn.disabled = false;

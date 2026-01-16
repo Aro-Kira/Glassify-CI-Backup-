@@ -53,19 +53,19 @@
         <div class="popup-content">
             <h3>User Details</h3>
             <form>
-                <label>First Name</label>
+                <label>First Name <span class="required">*</span></label>
                 <input type="text" id="edit-first-name">
 
                 <label>Middle Name</label>
                 <input type="text" id="edit-middle-name">
 
-                <label>Last Name</label>
+                <label>Last Name <span class="required">*</span></label>
                 <input type="text" id="edit-last-name">
 
-                <label>Email Address</label>
+                <label>Email Address <span class="required">*</span></label>
                 <input type="email" id="edit-email">
 
-                <label>Role</label>
+                <label>Role <span class="required">*</span></label>
                 <select>
                     <option>Sales Representative</option>
                     <option>Admin</option>
@@ -98,26 +98,26 @@
         <div class="popup-content">
             <h3>User Details</h3>
             <form>
-                <label>Full Name</label>
+                <label>Full Name <span class="required">*</span></label>
                 <input type="text" placeholder="Enter full name">
 
-                <label>Email Address</label>
+                <label>Email Address <span class="required">*</span></label>
                 <input type="email" placeholder="Enter email address">
 
                 <label>Phone Number</label>
                 <input type="text" placeholder="Enter phone number">
 
-                <label>Role</label>
+                <label>Role <span class="required">*</span></label>
                 <select>
                     <option selected disabled>Select Role</option>
                     <option>Sales Representative</option>
                     <option>Admin</option>
                 </select>
 
-                <label>Password</label>
+                <label>Password <span class="required">*</span></label>
                 <input type="password" placeholder="Enter password">
 
-                <label>Confirm Password</label>
+                <label>Confirm Password <span class="required">*</span></label>
                 <input type="password" placeholder="Re-enter password">
 
                 <div class="btn-group">

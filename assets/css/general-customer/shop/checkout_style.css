@@ -26,13 +26,14 @@ main {
 /* Make title full width and separate from flex row */
 .info-title {
   width: 65%;
-  margin: 3% 10% 0 15%;
+  margin: 3% 25% 0 10%;
 }
 
 .title-divider{
   height: 1px;
   background-color: #333;
-  width: 100%;
+  width: 123%;
+  margin-left: 0;
 }
 
 .info-title h2 {
@@ -63,9 +64,9 @@ main {
   justify-content: center;   
   align-items: flex-start;
   gap: 30px;                
-  margin: 40px auto;
-  max-width: 1200px;         
-  width: 100%;
+  margin: 40px 10% 40px 10%;
+  max-width: 1280px;         
+  width: auto;
 }
 
 

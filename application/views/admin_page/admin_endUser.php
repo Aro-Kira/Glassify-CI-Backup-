@@ -47,15 +47,15 @@
       <form id="editForm">
         <input type="hidden" id="edit-id">
         <h3>User Details</h3>
-        <label>First Name</label>
+        <label>First Name <span class="required">*</span></label>
         <input type="text" id="edit-firstName">
-        <label>Middle Initial (optional)</label>
+        <label>Middle Initial</label>
         <input type="text" id="edit-middleInitial">
-        <label>Surname</label>
+        <label>Surname <span class="required">*</span></label>
         <input type="text" id="edit-lastName">
-        <label>Email Address</label>
+        <label>Email Address <span class="required">*</span></label>
         <input type="email" id="edit-email">
-        <label>Phone Number</label>
+        <label>Phone Number <span class="required">*</span></label>
         <input type="text" id="edit-phone">
         <div class="btn-group">
           <button type="button" class="save-btn" onclick="saveEdit()">Save Changes</button>

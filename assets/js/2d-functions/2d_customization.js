@@ -556,31 +556,93 @@ function handleFiles(files) {
             console.error(`File type not supported`); return;
         }
         const newFile = {
-            id: Date.now() + Math.random(), name: file.name, size: file.size, progress: 0,
-            status: 'uploading', isError: file.size > MAX_FILE_SIZE_MB * 1024 * 1024, extension: fileExtension
+            id: Date.now() + Math.random(), 
+            name: file.name, 
+            size: file.size, 
+            progress: 0,
+            status: 'uploading', 
+            isError: file.size > MAX_FILE_SIZE_MB * 1024 * 1024, 
+            extension: fileExtension,
+            file: file  // Store the actual file object for upload
         };
         uploadedFiles.push(newFile);
         renderFileItem(newFile);
-        if (newFile.isError) { newFile.status = 'error'; updateFileItem(newFile); }
-        else { simulateUpload(newFile); }
+        if (newFile.isError) { 
+            newFile.status = 'error'; 
+            updateFileItem(newFile); 
+        } else { 
+            uploadFileToServer(newFile); 
+        }
     });
     // Update external file display after adding files
     updateExternalFileDisplay();
 }
 
-function simulateUpload(file) {
-    let progress = 0;
-    const uploadTimer = setInterval(() => {
-        progress += 2;
-        if (progress >= 100) { 
-            clearInterval(uploadTimer); 
-            file.progress = 100; 
-            file.status = 'completed'; 
-            updateExternalFileDisplay(); // Update external display when file completes
-        }
-        else { file.progress = progress; }
+// Upload file to server
+function uploadFileToServer(file) {
+    if (!file.file) {
+        console.error('File object not found');
+        file.status = 'error';
         updateFileItem(file);
-    }, 30);
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file.file);
+    formData.append('customer_id', document.body.getAttribute('data-customer-id') || '');
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+            const percentComplete = Math.round((e.loaded / e.total) * 100);
+            file.progress = percentComplete;
+            updateFileItem(file);
+        }
+    });
+
+    xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+            try {
+                const response = JSON.parse(xhr.responseText);
+                if (response.status === 'success') {
+                    file.progress = 100;
+                    file.status = 'completed';
+                    file.filePath = response.file_path || response.filePath || null;
+                    updateFileItem(file);
+                    updateExternalFileDisplay(); // Update external display when file completes
+                } else {
+                    file.status = 'error';
+                    updateFileItem(file);
+                    console.error('Upload failed:', response.message || 'Unknown error');
+                }
+            } catch (e) {
+                file.status = 'error';
+                updateFileItem(file);
+                console.error('Error parsing response:', e);
+            }
+        } else {
+            file.status = 'error';
+            updateFileItem(file);
+            console.error('Upload failed with status:', xhr.status);
+        }
+    });
+
+    xhr.addEventListener('error', () => {
+        file.status = 'error';
+        updateFileItem(file);
+        console.error('Upload error occurred');
+    });
+
+    // Determine the upload endpoint URL
+    let uploadUrl = base_url || '';
+    if (!uploadUrl.endsWith('/')) {
+        uploadUrl += '/';
+    }
+    uploadUrl += 'CustomizationCon/upload_file';
+
+    xhr.open('POST', uploadUrl);
+    xhr.send(formData);
 }
 
 function getFileIconSvg(ext) {
@@ -622,20 +684,31 @@ function deleteFile(e) {
 
 // Update external file display (outside modal)
 function updateExternalFileDisplay() {
-    const externalList = document.getElementById('uploaded-files-list');
-    const externalDisplay = document.getElementById('uploaded-files-display');
-    if (!externalList || !externalDisplay) return;
+    const externalList = document.getElementById('external-uploaded-files-list');
+    const externalContainer = document.getElementById('external-uploaded-files-container');
     
-    if (uploadedFiles.length === 0) {
-        externalDisplay.style.display = 'none';
+    // If no external display container exists, skip (it's optional)
+    if (!externalList || !externalContainer) {
         return;
     }
     
-    externalDisplay.style.display = 'block';
+    // Filter only completed files
+    const completedFiles = uploadedFiles.filter(f => f.status === 'completed');
+    
+    if (completedFiles.length === 0) {
+        externalList.style.display = 'none';
+        externalContainer.innerHTML = '<p class="placeholder-text" style="font-style: italic; color: #666; text-align: center; padding: 10px;">No files uploaded yet.</p>';
+        return;
+    }
+    
+    externalList.style.display = 'block';
     
     // Show max 4 files with scroll
-    const filesToShow = uploadedFiles.slice(0, 4);
-    externalList.innerHTML = '';
+    const filesToShow = completedFiles.slice(0, 4);
+    
+    // Clear container
+    externalContainer.innerHTML = '';
+    externalContainer.style.cssText = 'display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; max-height: 120px;';
     
     filesToShow.forEach(file => {
         const fileItem = document.createElement('div');
@@ -645,12 +718,16 @@ function updateExternalFileDisplay() {
             <div style="margin-bottom: 5px;">${fileIcon}</div>
             <div style="font-size: 11px; word-break: break-word; max-width: 80px;">${file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name}</div>
         `;
-        externalList.appendChild(fileItem);
+        externalContainer.appendChild(fileItem);
     });
     
-    // Add scroll indicator if more than 4 files
-    if (uploadedFiles.length > 4) {
-        externalList.style.cssText = 'display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; max-height: 120px;';
+    // Show/hide scroll arrows if more than 4 files
+    const scrollNav = externalList.querySelector('.external-files-scroll-nav');
+    if (scrollNav && completedFiles.length > 4) {
+        const leftArrow = scrollNav.querySelector('.scroll-arrow.left');
+        const rightArrow = scrollNav.querySelector('.scroll-arrow.right');
+        if (leftArrow) leftArrow.style.display = 'block';
+        if (rightArrow) rightArrow.style.display = 'block';
     }
 }
 
@@ -1159,6 +1236,27 @@ function logOrderSummary() {
         if (imageCounter) {
             imageCounter.textContent = `${currentImageIndex}/${totalImages}`;
         }
+        
+        // Show/hide images based on current index
+        productImages.forEach((img, index) => {
+            if (index + 1 === currentImageIndex) {
+                img.style.display = 'block';
+                img.classList.add('active');
+            } else {
+                img.style.display = 'none';
+                img.classList.remove('active');
+            }
+        });
+        
+        // Enable/disable navigation buttons
+        if (prevBtn) {
+            prevBtn.disabled = currentImageIndex === 1;
+            prevBtn.style.opacity = currentImageIndex === 1 ? '0.5' : '1';
+        }
+        if (nextBtn) {
+            nextBtn.disabled = currentImageIndex === totalImages;
+            nextBtn.style.opacity = currentImageIndex === totalImages ? '0.5' : '1';
+        }
     }
     
     if (prevBtn) {
@@ -1179,7 +1277,7 @@ function logOrderSummary() {
         });
     }
     
-    // Initialize counter
+    // Initialize counter and display
     updateImageCounter();
 })();
 

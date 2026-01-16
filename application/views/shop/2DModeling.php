@@ -63,10 +63,30 @@
 
         <section class="product-gallery">
             <div class="main-image-container">
-                <?php if ($product): ?>
-                    <div class="product-info">
-                        <img src="<?= base_url('uploads/products/' . $product->ImageUrl) ?>"
-                            alt="<?= $product->ProductName ?>" class="main-product-image" data-image-index="1">
+                <?php if ($product): 
+                    // Parse ImageUrl - can be JSON array or single string
+                    $product_images = [];
+                    if (!empty($product->ImageUrl)) {
+                        $decoded = json_decode($product->ImageUrl, true);
+                        if (is_array($decoded)) {
+                            $product_images = $decoded;
+                        } else {
+                            // Single image (backward compatibility)
+                            $product_images = [$product->ImageUrl];
+                        }
+                    } else {
+                        $product_images = [];
+                    }
+                    $total_images = count($product_images);
+                ?>
+                    <div class="product-info" id="product-image-container">
+                        <?php foreach ($product_images as $index => $image): ?>
+                            <img src="<?= base_url('uploads/products/' . $image) ?>"
+                                alt="<?= $product->ProductName ?>"
+                                class="main-product-image <?= $index === 0 ? 'active' : '' ?>"
+                                data-image-index="<?= $index + 1 ?>"
+                                style="<?= $index === 0 ? '' : 'display: none;' ?>">
+                        <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
 
@@ -75,7 +95,7 @@
                     <button class="nav-arrow" id="prev-image">&lt;</button>
                     <button class="nav-arrow" id="next-image">&gt;</button>
                 </div>
-                <div class="image-counter" id="image-counter">1/1</div>
+                <div class="image-counter" id="image-counter"><?= isset($total_images) && $total_images > 0 ? "1/{$total_images}" : "1/1" ?></div>
             </div>
 
             <div class="diagram-container">
@@ -91,6 +111,18 @@
                     </path>
                 </svg>
             </button>
+            
+            <!-- External Uploaded Files Display (outside modal) -->
+            <div class="external-uploaded-files-list" id="external-uploaded-files-list" style="display: none; margin-top: 15px;">
+                <h3 class="external-uploaded-files-title" style="font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; color: #02455F;">Uploaded Files</h3>
+                <div id="external-uploaded-files-container" style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; max-height: 120px;">
+                    <p class="placeholder-text" style="font-style: italic; color: #666; text-align: center; padding: 10px;">No files uploaded yet.</p>
+                </div>
+                <div class="external-files-scroll-nav" style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                    <button class="scroll-arrow left hidden" style="background: #02455F; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: none;">&lt;</button>
+                    <button class="scroll-arrow right hidden" style="background: #02455F; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: none;">&gt;</button>
+                </div>
+            </div>
         </section>
 
         <section class="product-details">

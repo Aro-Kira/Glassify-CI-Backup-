@@ -57,5 +57,53 @@ public function remove_customization() {
     }
 }
 
+public function upload_file() {
+    header('Content-Type: application/json');
+    
+    $customer_id = $this->session->userdata('customer_id');
+    if (!$customer_id) {
+        echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
+        return;
+    }
+
+    // Check if file was uploaded
+    if (empty($_FILES['file']['name'])) {
+        echo json_encode(['status' => 'error', 'message' => 'No file uploaded']);
+        return;
+    }
+
+    // Configure upload
+    $config['upload_path'] = FCPATH . 'uploads/issues/';
+    $config['allowed_types'] = 'jpg|jpeg|png|pdf';
+    $config['max_size'] = 25600; // 25MB in KB
+    $config['encrypt_name'] = TRUE;
+
+    // Create directory if it doesn't exist
+    if (!is_dir($config['upload_path'])) {
+        if (!mkdir($config['upload_path'], 0755, true)) {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to create upload directory']);
+            return;
+        }
+    }
+
+    $this->load->library('upload', $config);
+
+    if ($this->upload->do_upload('file')) {
+        $upload_data = $this->upload->data();
+        $file_path = 'uploads/issues/' . $upload_data['file_name'];
+        
+        echo json_encode([
+            'status' => 'success',
+            'file_path' => $file_path,
+            'file_name' => $upload_data['original_name']
+        ]);
+    } else {
+        $error = $this->upload->display_errors('', '');
+        echo json_encode([
+            'status' => 'error',
+            'message' => $error ?: 'File upload failed'
+        ]);
+    }
+}
 
 }

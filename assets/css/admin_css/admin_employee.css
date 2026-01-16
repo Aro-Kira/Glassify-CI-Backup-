@@ -244,6 +244,11 @@ label {
   font-size: 14px;
 }
 
+label .required {
+  color: red;
+  margin-left: 2px;
+}
+
 .popup form input,
 .popup form select {
   width: 100%;

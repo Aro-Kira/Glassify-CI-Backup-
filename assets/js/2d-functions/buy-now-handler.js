@@ -164,8 +164,19 @@ $(document).on('click', '#buy-now-btn', function(e) {
     // Get file attachment if any (from upload modal)
     // Check if uploadedFiles array exists (from 2d_customization.js)
     let fileAttached = 'N/A';
+    let filePaths = [];
+    
     if (typeof uploadedFiles !== 'undefined' && uploadedFiles.length > 0) {
-        fileAttached = uploadedFiles[0].name || uploadedFiles[0].file?.name || 'N/A';
+        // Get all completed files with their paths
+        const completedFiles = uploadedFiles.filter(f => f.status === 'completed' && f.filePath);
+        if (completedFiles.length > 0) {
+            filePaths = completedFiles.map(f => f.filePath);
+            // For backward compatibility, use first file path or name
+            fileAttached = completedFiles[0].filePath || completedFiles[0].name || 'N/A';
+        } else if (uploadedFiles.length > 0) {
+            // Fallback to filename if filePath not available
+            fileAttached = uploadedFiles[0].name || uploadedFiles[0].file?.name || 'N/A';
+        }
     } else {
         // Fallback: check DOM for uploaded files
         const uploadedFilesList = document.querySelectorAll('#uploaded-files-container .uploaded-file');
@@ -192,6 +203,7 @@ $(document).on('click', '#buy-now-btn', function(e) {
         frame_type: frameType,
         engraving: engraving,
         file_attached: fileAttached,
+        file_paths: filePaths.length > 0 ? JSON.stringify(filePaths) : null,
         total_quotation: totalQuotation
     };
     
