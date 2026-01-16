@@ -1,11 +1,39 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/include/terms_style.css'); ?>">
 
+<script>
+    // Get selected cart IDs from referrer URL or sessionStorage
+    function getBackToPaymentUrl() {
+        // Try to get from referrer URL first
+        const referrer = document.referrer;
+        if (referrer) {
+            try {
+                const referrerUrl = new URL(referrer);
+                const selectedParam = referrerUrl.searchParams.get('selected');
+                if (selectedParam) {
+                    return '<?php echo base_url('payment'); ?>?selected=' + selectedParam;
+                }
+            } catch (e) {
+                // If URL parsing fails, continue to fallback
+            }
+        }
+        
+        // Fallback: try to get from sessionStorage
+        const sessionCartIds = sessionStorage.getItem('selected_cart_ids');
+        if (sessionCartIds) {
+            return '<?php echo base_url('payment'); ?>?selected=' + sessionCartIds;
+        }
+        
+        // Default: just go to payment page
+        return '<?php echo base_url('payment'); ?>';
+    }
+</script>
+
 <!-- Content -->
 <main class="content-wrapper">
   <div class="content-box">
-    <a href="javascript:history.back()" class="back-btn">
+    <a href="#" onclick="window.location.href = getBackToPaymentUrl(); return false;" class="back-btn">
     <img src="<?php echo base_url('assets/images/img-page/icon-park-solid--back.svg'); ?>" alt="Back" class="back-icon">
-    <span>Go back to Payment Process?</span>
+    <span>Go back to Payment</span>
     </a>
 
     <h2>Terms and Conditions for Purchase</h2>

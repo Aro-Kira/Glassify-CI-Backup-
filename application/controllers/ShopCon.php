@@ -122,6 +122,11 @@ public function checkout()
         
         // Also get addresses by type for backward compatibility
         $data['addresses'] = array_merge($data['addresses'], $this->User_model->get_addresses($userID));
+        
+        // Get all addresses for the dropdown selector
+        $data['all_addresses'] = $all_addresses;
+    } else {
+        $data['all_addresses'] = [];
     }
 
     // fallback if user not found

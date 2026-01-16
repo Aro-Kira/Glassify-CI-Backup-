@@ -954,6 +954,8 @@ $(document).on('change', '.qty-input', function () {
     // =============================
     // QUOTATION MODAL
     // =============================
+    // Generate Quotation functionality removed - button removed from customer side
+    /*
     function openModal() {
         $('#quotationModal').addClass('show');
         $('body').css('overflow', 'hidden');
@@ -1062,25 +1064,26 @@ $(document).on('change', '.qty-input', function () {
         });
     });
 
-    // Close modal handlers
-    $('#closeModal, #closeModalBtn').click(function () {
-        closeModal();
-    });
+    // Close modal handlers - Commented out as Generate Quotation button removed
+    // $('#closeModal, #closeModalBtn').click(function () {
+    //     closeModal();
+    // });
 
-    // Close on overlay click
-    $(document).on('click', '.modal-overlay', function () {
-        closeModal();
-    });
+    // Close on overlay click - Commented out as Generate Quotation button removed
+    // $(document).on('click', '.modal-overlay', function () {
+    //     closeModal();
+    // });
 
-    // Close on ESC key
-    $(document).keydown(function (e) {
-        if (e.key === 'Escape') {
-            closeModal();
-        }
-    });
+    // Close on ESC key - Commented out as Generate Quotation button removed
+    // $(document).keydown(function (e) {
+    //     if (e.key === 'Escape') {
+    //         closeModal();
+    //     }
+    // });
 
-    // Print quotation
-    $('#printQuotation').click(function () {
-        window.print();
-    });
+    // Print quotation - Commented out as Generate Quotation button removed
+    // $('#printQuotation').click(function () {
+    //     window.print();
+    // });
+    */
 });

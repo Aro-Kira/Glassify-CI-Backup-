@@ -1303,9 +1303,11 @@ function get_status_class($status) {
                     resetSize();
                 });
                 
-                // When an option is selected, reset size
+                // When an option is selected, reset size and close dropdown
                 $select.on("change", function() {
                     resetSize();
+                    // Blur the select to close the dropdown
+                    $(this).blur();
                 });
                 
                 // Handle click to detect when dropdown is opened
