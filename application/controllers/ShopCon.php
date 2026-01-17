@@ -27,7 +27,35 @@ public function products()
     }
     
     // Reload products to get updated status
-    $data['products'] = $this->Product_model->get_products();
+    $products = $this->Product_model->get_products();
+    
+    // Fetch tags and series for each product
+    foreach ($products as $product) {
+        // Get tags for this product
+        $product->tags = [];
+        if ($this->db->table_exists('product_tag_prices')) {
+            $this->db->distinct();
+            $this->db->select('TagName');
+            $this->db->where('Product_ID', $product->Product_ID);
+            $tagsResult = $this->db->get('product_tag_prices')->result();
+            foreach ($tagsResult as $tag) {
+                $product->tags[] = $tag->TagName;
+            }
+        }
+        
+        // Get series for this product
+        $product->series = [];
+        if ($this->db->table_exists('product_series')) {
+            $this->db->select('SeriesName');
+            $this->db->where('Product_ID', $product->Product_ID);
+            $seriesResult = $this->db->get('product_series')->result();
+            foreach ($seriesResult as $series) {
+                $product->series[] = $series->SeriesName;
+            }
+        }
+    }
+    
+    $data['products'] = $products;
 
     $this->load->view('includes/header', $data);
     $this->load->view('shop/products', $data);  // now has $products available
@@ -54,8 +82,123 @@ public function product_2d()
         show_404();
     }
 
+    // Get customization field configurations based on product's category and subcategory
+    // These are the field definitions (not customer selections)
+    $customizationFields = [];
+    
+    // Load field configurations from JavaScript (we'll create an API endpoint for this)
+    // For now, we'll need to load them based on category/subcategory
+    // The field configurations are stored in localStorage on admin side, but we need them on server
+    // We'll create a helper function or load from a config file
+    
+    // Build field key from category and subcategory
+    $category = $product->Category ?? '';
+    $subcategory = $product->Subcategory ?? '';
+    
+    if ($category && $subcategory) {
+        // Map category to prefix
+        $prefixMap = [
+            'Windows' => 'Windows',
+            'Doors' => 'Doors',
+            'Glass Partitions & Enclosures' => 'Partitions',
+            'Mirrors & Specialty Glass' => 'Specialty',
+            'Cabinets & Furniture' => 'Cabinets',
+            'Commercial & Exterior' => 'Commercial'
+        ];
+        
+        $prefix = $prefixMap[$category] ?? '';
+        $fieldKey = $prefix ? "{$prefix}_{$subcategory}" : $subcategory;
+        
+        // Load customization fields from localStorage equivalent
+        // For now, we'll pass the key to JavaScript and let it load from localStorage
+        // Or we can create a database table to store field configurations
+        $customizationFields = null; // Will be loaded by JavaScript from localStorage
+    }
+
+    // Get tag prices, images, and visual configs for this product
+    $tagPrices = [];
+    $tagImages = [];
+    $tagVisualConfigs = [];
+    if ($this->db->table_exists('product_tag_prices')) {
+        $this->db->where('Product_ID', $product->Product_ID);
+        $tagPricesResult = $this->db->get('product_tag_prices')->result();
+        foreach ($tagPricesResult as $tagPrice) {
+            if (!isset($tagPrices[$tagPrice->FieldID])) {
+                $tagPrices[$tagPrice->FieldID] = [];
+            }
+            $tagPrices[$tagPrice->FieldID][$tagPrice->TagName] = floatval($tagPrice->Price);
+            
+            // Get tag images
+            if (!empty($tagPrice->ImageUrl)) {
+                if (!isset($tagImages[$tagPrice->FieldID])) {
+                    $tagImages[$tagPrice->FieldID] = [];
+                }
+                $tagImages[$tagPrice->FieldID][$tagPrice->TagName] = base_url('uploads/tags/' . $tagPrice->ImageUrl);
+            }
+            
+            // Get tag visual configs for Konva.js 2D preview
+            if (isset($tagPrice->VisualConfig) && !empty($tagPrice->VisualConfig)) {
+                if (!isset($tagVisualConfigs[$tagPrice->FieldID])) {
+                    $tagVisualConfigs[$tagPrice->FieldID] = [];
+                }
+                $decoded = json_decode($tagPrice->VisualConfig, true);
+                if ($decoded) {
+                    $tagVisualConfigs[$tagPrice->FieldID][$tagPrice->TagName] = $decoded;
+                }
+            }
+        }
+    }
+
+    // Get standard series and sizes
+    $standardSeries = [];
+    if ($this->db->table_exists('product_series') && $this->db->table_exists('product_standard_sizes')) {
+        $this->db->where('Product_ID', $product->Product_ID);
+        $seriesResult = $this->db->get('product_series')->result();
+        foreach ($seriesResult as $series) {
+            $this->db->where('Series_ID', $series->Series_ID);
+            $measurementsResult = $this->db->get('product_standard_sizes')->result();
+            $measurements = [];
+            foreach ($measurementsResult as $measurement) {
+                $measurements[] = [
+                    'width' => floatval($measurement->Width),
+                    'height' => floatval($measurement->Height),
+                    'price' => floatval($measurement->Price)
+                ];
+            }
+            $standardSeries[] = [
+                'id' => intval($series->Series_ID),
+                'name' => $series->SeriesName,
+                'measurements' => $measurements
+            ];
+        }
+    }
+
+    // Get product's selected customization options (only selected tags should show on customer side)
+    $productSelectedOptions = [];
+    if (isset($product->Customization) && !empty($product->Customization)) {
+        $decoded = json_decode($product->Customization, true);
+        if (is_array($decoded)) {
+            $productSelectedOptions = $decoded;
+        }
+    }
+
     $data['title'] = "Glassify - 2D Modeling";
     $data['product'] = $product;
+    $data['customizationFields'] = $customizationFields; // Will be loaded by JS
+    $data['customizationFieldKey'] = isset($fieldKey) ? $fieldKey : null; // Pass key for JS to load
+    $data['tagPrices'] = $tagPrices;
+    $data['tagImages'] = $tagImages;
+    $data['tagVisualConfigs'] = $tagVisualConfigs;
+    $data['standardSeries'] = $standardSeries;
+    $data['productSelectedOptions'] = $productSelectedOptions; // Selected tags for filtering
+    
+    // Debug logging
+    log_message('debug', 'Product 2D - Product ID: ' . $product->Product_ID);
+    log_message('debug', 'Product 2D - Category: ' . ($product->Category ?? 'N/A'));
+    log_message('debug', 'Product 2D - Subcategory: ' . ($product->Subcategory ?? 'N/A'));
+    log_message('debug', 'Product 2D - Field Key: ' . (isset($fieldKey) ? $fieldKey : 'N/A'));
+    log_message('debug', 'Product 2D - Tag Prices Count: ' . count($tagPrices));
+    log_message('debug', 'Product 2D - Standard Series Count: ' . count($standardSeries));
 
     $this->load->view('includes/header', $data);
     $this->load->view('shop/2DModeling', $data);

@@ -96,19 +96,42 @@ $(document).on('click', '#add-to-cart-btn', function () {
     // Clean price string (remove ₱ and commas)
     let priceText = $('#sum-total').text().replace('₱', '').replace(/,/g, '').trim();
 
+    // Collect all customization values dynamically from selectedCustomizationValues
+    // This ensures we capture all fields configured in admin (numberOfPanels, operation, configuration, etc.)
+    const customizationValues = window.selectedCustomizationValues || {};
+    
+    // Get dimensions with units
+    const heightValue = $('#input-height').val() || '';
+    const widthValue = $('#input-width').val() || '';
+    const heightUnit = $('#btn-unit-height').data('current-unit') || 'in';
+    const widthUnit = $('#btn-unit-width').data('current-unit') || 'in';
+    const dimensions = `${heightValue}${heightUnit} x ${widthValue}${widthUnit}`;
+    
+    // Get legacy field values (for backward compatibility)
+    // These are still used if dynamic fields aren't available
+    const legacyShape = $('.option-card[data-shape].active').data('shape') || customizationValues.shape || '';
+    const legacyType = $('.option-card[data-glass-type].active').data('glass-type') || customizationValues.glassType || '';
+    const legacyThickness = $('.option-card[data-thickness].active').data('thickness') || customizationValues.thickness || '';
+    const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customizationValues.edgeFinish || '';
+    const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customizationValues.frameColor || '';
+    
+    // Build data object with all customization values
     let data = {
         product_id: product_id,
-        dimensions: $('#input-height').val() + ' x ' + $('#input-width').val(),
-        shape: $('.option-card[data-shape].active').data('shape'),
-        type: $('.option-card[data-glass-type].active').data('glass-type'),
-        thickness: $('.option-card[data-thickness].active').data('thickness'),
-        edge: $('.option-card[data-edge-work].active').data('edge-work'),
-        frame: $('.option-card[data-frame-type].active').data('frame-type'),
-        engraving: $('#step-3 input').val() || 'None',
+        dimensions: dimensions,
+        // Legacy fields (for backward compatibility)
+        shape: legacyShape,
+        type: legacyType,
+        thickness: legacyThickness,
+        edge: legacyEdge,
+        frame: legacyFrame,
+        engraving: $('#step-3 input').val() || customizationValues.engraving || 'None',
         price: priceText,
         quantity: 1,
         design_image: designImageData,
-        price_breakdown: JSON.stringify(priceBreakdownData)
+        price_breakdown: JSON.stringify(priceBreakdownData),
+        // Include all dynamic customization values (synced with admin side)
+        customization: JSON.stringify(customizationValues)
     };
 
     // Debug: Log the data being sent
@@ -197,19 +220,39 @@ $(document).on('click', '#buy-now-btn', function () {
     // Clean price string
     let priceText = $('#sum-total').text().replace('₱', '').replace(/,/g, '').trim();
 
+    // Collect all customization values dynamically from selectedCustomizationValues
+    const customizationValues = window.selectedCustomizationValues || {};
+    
+    // Get dimensions with units
+    const heightValue = $('#input-height').val() || '';
+    const widthValue = $('#input-width').val() || '';
+    const heightUnit = $('#btn-unit-height').data('current-unit') || 'in';
+    const widthUnit = $('#btn-unit-width').data('current-unit') || 'in';
+    const dimensions = `${heightValue}${heightUnit} x ${widthValue}${widthUnit}`;
+    
+    // Get legacy field values (for backward compatibility)
+    const legacyShape = $('.option-card[data-shape].active').data('shape') || customizationValues.shape || '';
+    const legacyType = $('.option-card[data-glass-type].active').data('glass-type') || customizationValues.glassType || '';
+    const legacyThickness = $('.option-card[data-thickness].active').data('thickness') || customizationValues.thickness || '';
+    const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customizationValues.edgeFinish || '';
+    const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customizationValues.frameColor || '';
+    
     let data = {
         product_id: product_id,
-        dimensions: $('#input-height').val() + ' x ' + $('#input-width').val(),
-        shape: $('.option-card[data-shape].active').data('shape'),
-        type: $('.option-card[data-glass-type].active').data('glass-type'),
-        thickness: $('.option-card[data-thickness].active').data('thickness'),
-        edge: $('.option-card[data-edge-work].active').data('edge-work'),
-        frame: $('.option-card[data-frame-type].active').data('frame-type'),
-        engraving: $('#step-3 input').val() || 'None',
+        dimensions: dimensions,
+        // Legacy fields (for backward compatibility)
+        shape: legacyShape,
+        type: legacyType,
+        thickness: legacyThickness,
+        edge: legacyEdge,
+        frame: legacyFrame,
+        engraving: $('#step-3 input').val() || customizationValues.engraving || 'None',
         price: priceText,
         quantity: 1,
         design_image: designImageData,
-        buy_now: true
+        buy_now: true,
+        // Include all dynamic customization values (synced with admin side)
+        customization: JSON.stringify(customizationValues)
     };
 
     $.ajax({

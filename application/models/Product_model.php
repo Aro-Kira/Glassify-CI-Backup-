@@ -25,7 +25,10 @@ public function update_product($id, $data) {
 }
 
 public function get_product($id) {
-    return $this->db->where('Product_ID', $id)->get('product')->row();
+    // Explicitly select all columns including Price, PriceMin, PriceMax to ensure they're retrieved
+    $this->db->select('*');
+    $this->db->where('Product_ID', $id);
+    return $this->db->get('product')->row();
 }
 
 /**

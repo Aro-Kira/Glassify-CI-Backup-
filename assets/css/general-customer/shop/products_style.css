@@ -186,8 +186,71 @@ body {
   justify-content: space-between; /* spaces content vertically */
   align-items: center;
   text-align: center;
-  padding: 15px;
+  padding: 20px;
   height: 100%;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  border: 1px solid #f0f0f0;
+}
+
+.product:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Product Image Slideshow */
+.product-image-slideshow {
+  position: relative;
+  width: 100%;
+  height: 270px;
+  overflow: hidden;
+  border-radius: 6px 6px 0 0;
+  margin-bottom: 10px;
+}
+
+.product-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.product-slide.active {
+  opacity: 1;
+  position: relative;
+}
+
+.slideshow-indicators {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.indicator.active {
+  background-color: rgba(255, 255, 255, 1);
+}
+
+.indicator:hover {
+  background-color: rgba(255, 255, 255, 0.8);
 }
 
 .product img {
@@ -196,23 +259,119 @@ body {
   object-fit: cover;
 }
 
-.product p {
-  margin: 20px 0;
+.product-name {
+  margin: 15px 0 10px;
   font-weight: 500;
   font-size: 18px;
   min-height: 30px;
+  color: #333;
 }
 
-.product button {
+/* Product Order Type */
+.product-order-type {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.order-type-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.order-type-value {
+  color: #004059;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* Product Series */
+.product-series {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+.series-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.series-value {
+  color: #004059;
+  font-weight: 500;
+}
+
+/* Product Tags */
+.product-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+  justify-content: center;
+}
+
+.product-tag {
+  background-color: #f0f0f0;
+  color: #333;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.product-tag.tag-others {
+  background-color: #e0e0e0;
+  color: #666;
+  font-style: italic;
+}
+
+/* Product Price Range */
+.product-price-range {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #004059;
+}
+
+.price-label {
+  color: #666;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.price-value {
+  color: #004059;
+  font-weight: 600;
+}
+
+.product button,
+.build-buy-btn {
   background: #004059;
   color: white;
   border: none;
-  padding: 10px;
+  padding: 12px;
   width: 100%;
   cursor: pointer;
   font-size: 16px;
   font-weight: 500;
-  margin-top: auto;
+  margin-top: 15px;
+  border-radius: 6px;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.product button:hover,
+.build-buy-btn:hover {
+  background: #003045;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 64, 89, 0.3);
 }
 
 /* Pagination */
@@ -394,8 +553,35 @@ body {
     gap: 20px 15px;
   }
 
-  .product img {
+  .product img,
+  .product-image-slideshow {
     height: 200px;
+  }
+  
+  .product-name {
+    font-size: 16px;
+  }
+  
+  .product-order-type,
+  .product-series {
+    font-size: 12px;
+  }
+  
+  .product-tags {
+    gap: 4px;
+  }
+  
+  .product-tag {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+  
+  .product-price-range {
+    font-size: 14px;
+  }
+  
+  .price-label {
+    font-size: 12px;
   }
 
   .testimonial-content {
@@ -463,8 +649,27 @@ body {
     gap: 20px;
   }
 
-  .product img {
+  .product img,
+  .product-image-slideshow {
     height: 250px;
+  }
+  
+  .product-name {
+    font-size: 16px;
+  }
+  
+  .product-order-type,
+  .product-series {
+    font-size: 12px;
+  }
+  
+  .product-tag {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+  
+  .product-price-range {
+    font-size: 14px;
   }
 
   .testimonials {

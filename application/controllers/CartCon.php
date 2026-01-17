@@ -132,6 +132,13 @@ class CartCon extends CI_Controller
             }
 
             // 2️⃣ Prepare customization data
+            // Parse customization JSON if provided (contains all dynamic fields from admin)
+            $customization_json = null;
+            if (!empty($post['customization'])) {
+                // If it's already a string, use it; otherwise encode it
+                $customization_json = is_string($post['customization']) ? $post['customization'] : json_encode($post['customization']);
+            }
+            
             $custom_data = [
                 'Customer_ID' => $customer_id,
                 'Product_ID' => intval($post['product_id']),
@@ -144,7 +151,9 @@ class CartCon extends CI_Controller
                 'Engraving' => $post['engraving'] ?? null,
                 'DesignRef' => $design_ref,
                 'EstimatePrice' => $this->clean_price($post['price'] ?? 0),
-                'PriceBreakdown' => $post['price_breakdown'] ?? null
+                'PriceBreakdown' => $post['price_breakdown'] ?? null,
+                // Store all dynamic customization fields as JSON (synced with admin side)
+                'Customization' => $customization_json
             ];
 
             // 3️⃣ Save customization

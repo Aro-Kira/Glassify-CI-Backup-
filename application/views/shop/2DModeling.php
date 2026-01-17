@@ -1,6 +1,6 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/2DModeling_styles.css'); ?>">
 
-<script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+<script src="https://unpkg.com/konva@9.3.6/konva.min.js" onerror="console.error('Failed to load Konva.js from CDN');"></script>
 
 <body data-customer-id="<?= $this->session->userdata('customer_id') ?: '' ?>">
 
@@ -63,19 +63,52 @@
 
         <section class="product-gallery">
             <div class="main-image-container">
-                <?php if ($product): ?>
-                    <div class="product-info">
-                        <img src="<?= base_url('uploads/products/' . $product->ImageUrl) ?>"
-                            alt="<?= $product->ProductName ?>" class="main-product-image">
+                <?php if (isset($product) && $product): ?>
+                    <?php 
+                    // Handle ImageUrl - it might be JSON array or single string
+                    $imageUrl = $product->ImageUrl ?? '';
+                    $productImages = [];
+                    if (!empty($imageUrl)) {
+                        $decoded = json_decode($imageUrl, true);
+                        if (is_array($decoded) && !empty($decoded)) {
+                            $productImages = $decoded;
+                        } else {
+                            $productImages = [$imageUrl];
+                        }
+                    }
+                    $totalImages = count($productImages);
+                    ?>
+                    <div class="product-info" id="product-image-container">
+                        <?php if (!empty($productImages)): ?>
+                            <?php foreach ($productImages as $index => $img): ?>
+                                <img src="<?= base_url('uploads/products/' . $img) ?>"
+                                    alt="<?= htmlspecialchars($product->ProductName ?? 'Product') ?>" 
+                                    class="main-product-image <?= $index === 0 ? 'active' : '' ?>"
+                                    data-image-index="<?= $index ?>"
+                                    onerror="this.style.display='none';">
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php if (empty($productImages)): ?>
+                            <div style="width: 100%; height: 100%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #999;">
+                                No Image Available
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <div style="width: 100%; height: 100%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #999;">
+                        No Image Available
                     </div>
                 <?php endif; ?>
 
-
-                <div class="gallery-nav">
-                    <button class="nav-arrow">&lt;</button>
-                    <button class="nav-arrow">&gt;</button>
-                </div>
-                <div class="image-counter">1/3</div>
+                <?php if (isset($totalImages) && $totalImages > 1): ?>
+                    <div class="gallery-nav">
+                        <button class="nav-arrow" id="gallery-prev-btn">&lt;</button>
+                        <button class="nav-arrow" id="gallery-next-btn">&gt;</button>
+                    </div>
+                    <div class="image-counter" id="image-counter">1/<?= $totalImages ?></div>
+                <?php else: ?>
+                    <div class="image-counter" id="image-counter" style="display: none;">1/1</div>
+                <?php endif; ?>
             </div>
 
             <div class="diagram-container">
@@ -96,16 +129,15 @@
         <section class="product-details">
             <div class="title-row">
                 <div>
-                    <?php if ($product): ?>
+                    <?php if (isset($product) && $product): ?>
                         <div class="product-info">
-                            <h2><?= $product->ProductName ?></h2>
-
+                            <h2><?= htmlspecialchars($product->ProductName) ?></h2>
                         </div>
                     <?php endif; ?>
 
                     <p id="standard-subtitle" class="subtitle hidden-step">Start building today!</p>
                 </div>
-                <button class="wishlist-btn" id="add-to-wishlist-btn" data-product-id="<?= $product->Product_ID ?>" title="Add to Wishlist">
+                <button class="wishlist-btn" id="add-to-wishlist-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>" title="Add to Wishlist">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2">
                         <path
                             d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
@@ -161,120 +193,62 @@
             </div>
 
             <div id="custom-wrapper">
-                <div id="step-1">
-                    <div class="shape-section">
-                        <label class="section-label">Glass Shape</label>
-                        <div class="grid-3-cols">
-                            <div class="option-card active" data-shape="rectangle">Rectangle</div>
-                            <div class="option-card" data-shape="square">Square</div>
-                            <div class="option-card" data-shape="triangle">Triangle</div>
-                        </div>
-                        <div class="shape-grid-row-2">
-                            <div class="option-card" data-shape="pentagon">Pentagon</div>
-                        </div>
-                    </div>
-
-                    <div class="dimensions-container">
-                        <div class="input-group">
-                            <label>Height</label>
-                            <div class="unit-wrapper">
-                                <div class="input-wrapper">
-                                    <input type="text" id="input-height" value="45">
-                                </div>
-                                <div class="unit-control">
-                                    <button class="unit-select" id="btn-unit-height" data-current-unit="in">
-                                        Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="10"></circle>
-                                            <path d="M8 12l4 4 4-4"></path>
-                                        </svg>
-                                    </button>
-                                    <div class="unit-dropdown hidden-step" id="dropdown-height">
-                                        <div class="unit-option" data-value="in" data-target="height">Inches</div>
-                                        <div class="unit-option" data-value="cm" data-target="height">Centimeters</div>
-                                        <div class="unit-option" data-value="mm" data-target="height">Millimeters</div>
-                                    </div>
+                <!-- Default Size Fields (Height & Width) - Only visible on Step 1 -->
+                <div class="dimensions-container" id="dimensions-container">
+                    <div class="input-group">
+                        <label class="section-label">Height</label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-height" name="height" value="45" min="0" step="0.1" placeholder="45">
+                            </div>
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-height" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-height">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="input-group">
-                            <label>Width</label>
-                            <div class="unit-wrapper">
-                                <div class="input-wrapper">
-                                    <input type="text" id="input-width" value="35">
-                                </div>
-                                <div class="unit-control">
-                                    <button class="unit-select" id="btn-unit-width" data-current-unit="in">
-                                        Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                                            stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="10"></circle>
-                                            <path d="M8 12l4 4 4-4"></path>
-                                        </svg>
-                                    </button>
-                                    <div class="unit-dropdown hidden-step" id="dropdown-width">
-                                        <div class="unit-option" data-value="in" data-target="width">Inches</div>
-                                        <div class="unit-option" data-value="cm" data-target="width">Centimeters</div>
-                                        <div class="unit-option" data-value="mm" data-target="width">Millimeters</div>
-                                    </div>
+                    </div>
+                    <!-- Lock/Unlock Button -->
+                    <div class="dimension-lock-container">
+                        <button type="button" id="dimension-lock-btn" class="dimension-lock-btn" title="Lock dimensions to keep height and width equal">
+                            <svg id="lock-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <svg id="unlock-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="input-group">
+                        <label class="section-label">Width</label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-width" name="width" value="35" min="0" step="0.1" placeholder="35">
+                            </div>
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-width" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-width">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div id="step-2" class="hidden-step">
-                    <div class="type-section">
-                        <label class="section-label">Glass Type</label>
-                        <div class="grid-3-cols">
-                            <div class="option-card active" data-glass-type="tempered">Tempered</div>
-                            <div class="option-card" data-glass-type="laminated">Laminated</div>
-                            <div class="option-card" data-glass-type="double">Double</div>
-                            <div class="option-card" data-glass-type="low-e">Low-E</div>
-                            <div class="option-card" data-glass-type="tinted">Tinted</div>
-                            <div class="option-card" data-glass-type="frosted">Frosted</div>
-                        </div>
-                    </div>
-                    <div class="thickness-section" style="margin-top: 30px; margin-bottom: 60px;">
-                        <label class="section-label">Glass Thickness</label>
-                        <div class="grid-3-cols">
-                            <div class="option-card" data-thickness="3mm">3mm</div>
-                            <div class="option-card active" data-thickness="5mm">5mm</div>
-                            <div class="option-card" data-thickness="6mm">6mm</div>
-                            <div class="option-card" data-thickness="8mm">8mm</div>
-                            <div class="option-card" data-thickness="10mm">10mm</div>
-                            <div class="option-card" data-thickness="12mm">12mm</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="step-3" class="hidden-step">
-                    <div class="edge-section">
-                        <label class="section-label">Edge Work</label>
-                        <div class="grid-3-cols">
-                            <div class="option-card active" data-edge-work="flat-polish">Flat Polish</div>
-                            <div class="option-card" data-edge-work="metered">Metered</div>
-                            <div class="option-card" data-edge-work="beveled">Beveled</div>
-                        </div>
-                        <div class="shape-grid-row-2">
-                            <div class="option-card" data-edge-work="seamed">Seamed</div>
-                        </div>
-                    </div>
-                    <div class="frame-section" style="margin-top: 30px;">
-                        <label class="section-label">Frame Type</label>
-                        <div class="grid-3-cols">
-                            <div class="option-card active" data-frame-type="vinyl">Vinyl</div>
-                            <div class="option-card" data-frame-type="aluminum">Aluminum</div>
-                            <div class="option-card" data-frame-type="wood">Wood</div>
-                        </div>
-                    </div>
-                    <div class="engraving-section" style="margin-top: 30px; margin-bottom: 60px;">
-                        <label class="section-label">Engraving (Optional)</label>
-                        <div class="input-wrapper">
-                            <input type="text" placeholder=""
-                                style="border: none; width: 100%; padding: 12px; font-family: inherit; background: #f8f9fa;">
-                        </div>
-                    </div>
+                <!-- Dynamic customization fields will be rendered here -->
+                <div id="dynamic-customization-container">
+                    <!-- Fields will be dynamically generated based on product configuration -->
                 </div>
 
                 <div class="action-area">
@@ -300,13 +274,9 @@
             </div>
 
             <div id="standard-wrapper" class="hidden-step">
-                <div class="standard-size-section">
-                    <label class="section-label">Glass Size</label>
-                    <div class="grid-3-cols">
-                        <div class="option-card active" data-height="45" data-width="35">45" x 35"</div>
-                        <div class="option-card" data-height="55" data-width="45">55" x 45"</div>
-                        <div class="option-card" data-height="70" data-width="55">70" x 55"</div>
-                    </div>
+                <!-- Dynamic standard sizes will be rendered here -->
+                <div id="dynamic-standard-container">
+                    <!-- Standard series and sizes will be dynamically generated based on product configuration -->
                 </div>
 
                 <div class="engraving-section" style="margin-top: 30px; margin-bottom: 60px;">
@@ -399,7 +369,7 @@
                 </div>
 
                 <div class="summary-actions">
-                    <button class="cart-btn" id="add-to-cart-btn" data-product-id="<?= $product->Product_ID ?>">
+                    <button class="cart-btn" id="add-to-cart-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2">
                             <circle cx="9" cy="21" r="1"></circle>
@@ -409,7 +379,7 @@
                         Add to Cart
                     </button>
 
-                    <button class="buy-btn" id="buy-now-btn" data-product-id="<?= $product->Product_ID ?>">
+                    <button class="buy-btn" id="buy-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
                         Buy Now
                     </button>
 
@@ -451,7 +421,7 @@
             <div class="products-grid">
                 <div class="product-card">
                     <div class="p-image">
-                        <img src="/Glassify/assets/img/series_slidingwindow.png" alt="900 Series">
+                        <img src="<?= base_url('assets/img/series_slidingwindow.png') ?>" alt="900 Series" onerror="this.style.display='none';">
                     </div>
                     <div class="p-info">
                         <p>900 Series Sliding Window</p>
@@ -461,7 +431,7 @@
                 </div>
                 <div class="product-card">
                     <div class="p-image">
-                        <img src="/Glassify/assets/img/798_window.png" alt="798 Series">
+                        <img src="<?= base_url('assets/img/798_window.png') ?>" alt="798 Series" onerror="this.style.display='none';">
                     </div>
                     <div class="p-info">
                         <p>798 Series Sliding Window</p>
@@ -470,7 +440,7 @@
                 </div>
                 <div class="product-card">
                     <div class="p-image">
-                        <img src="/Glassify/assets/img/french-sliding-door.png" alt="French Window">
+                        <img src="<?= base_url('assets/img/french-sliding-door.png') ?>" alt="French Window" onerror="this.style.display='none';">
                     </div>
                     <div class="p-info">
                         <p>900 Series French Type Sliding Window</p>
@@ -479,7 +449,7 @@
                 </div>
                 <div class="product-card">
                     <div class="p-image">
-                        <img src="/Glassify/assets/img/awningwindow.png" alt="Awning Window">
+                        <img src="<?= base_url('assets/img/awningwindow.png') ?>" alt="Awning Window" onerror="this.style.display='none';">
                     </div>
                     <div class="p-info">
                         <p>38 Series Awning Window</p>
@@ -550,29 +520,465 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     // PHP → JS: Pass selected product data
-    const productBasePrice = <?= $product ? $product->Price : 0 ?>;
+    <?php
+    // Get price from database - use Price if available, otherwise PriceMin, otherwise 0
+    $productPrice = 0;
+    if (isset($product) && $product) {
+        if (isset($product->Price) && $product->Price !== null && $product->Price !== '') {
+            $productPrice = floatval($product->Price);
+        } elseif (isset($product->PriceMin) && $product->PriceMin !== null && $product->PriceMin !== '') {
+            $productPrice = floatval($product->PriceMin);
+        }
+    }
+    ?>
+    window.productBasePrice = <?= $productPrice ?>;
+    const productBasePrice = window.productBasePrice;
     var base_url = '<?= base_url(); ?>';
+    
+    // Product images for gallery navigation
+    <?php if (isset($product) && $product && isset($totalImages) && $totalImages > 1): ?>
+    window.productImages = <?= json_encode($productImages ?? []) ?>;
+    window.totalProductImages = <?= $totalImages ?>;
+    <?php else: ?>
+    window.productImages = [];
+    window.totalProductImages = 0;
+    <?php endif; ?>
 </script>
 
+<script src="<?= base_url('assets/js/2d-functions/dynamic_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtocustomization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtowishlist.js'); ?>"></script>
-<script src="<?php echo base_url('assets/js/products-page/testimonial.js'); ?>"></script>
+<script>
+// Product Image Gallery Navigation
+(function() {
+    const productImages = window.productImages || [];
+    const totalImages = window.totalProductImages || 0;
+    
+    if (totalImages > 1) {
+        let currentImageIndex = 0;
+        const imageContainer = document.getElementById('product-image-container');
+        const images = imageContainer ? imageContainer.querySelectorAll('.main-product-image') : [];
+        const prevBtn = document.getElementById('gallery-prev-btn');
+        const nextBtn = document.getElementById('gallery-next-btn');
+        const counter = document.getElementById('image-counter');
+        
+        function showImage(index) {
+            images.forEach((img, i) => {
+                img.classList.toggle('active', i === index);
+            });
+            if (counter) {
+                counter.textContent = `${index + 1}/${totalImages}`;
+            }
+        }
+        
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                currentImageIndex = (currentImageIndex - 1 + totalImages) % totalImages;
+                showImage(currentImageIndex);
+            });
+        }
+        
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                currentImageIndex = (currentImageIndex + 1) % totalImages;
+                showImage(currentImageIndex);
+            });
+        }
+        
+        // Initialize
+        showImage(0);
+    }
+})();
+
+// Testimonial script (inline to avoid nextBtn conflict)
+(function() {
+    const testimonials = document.querySelectorAll('.testimonial-text');
+    const prevBtn = document.querySelector('.testimonial-arrow.left');
+    const testimonialNextBtn = document.querySelector('.testimonial-arrow.right');
+    let currentIndex = 0;
+
+    function showTestimonial(index) {
+        testimonials.forEach((t, i) => {
+            t.classList.toggle('active', i === index);
+        });
+    }
+
+    if (testimonialNextBtn) {
+        testimonialNextBtn.addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % testimonials.length;
+            showTestimonial(currentIndex);
+        });
+    }
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            currentIndex = (currentIndex - 1 + testimonials.length) % testimonials.length;
+            showTestimonial(currentIndex);
+        });
+    }
+})();
+</script>
 
 
 
 <?php if ($product): ?>
     <script>
         // Pass Product Info From PHP → JavaScript
+        // Handle ImageUrl - it might be JSON array or single string
+        <?php 
+        $imageUrl = $product->ImageUrl ?? '';
+        $imageSrc = '';
+        if (!empty($imageUrl)) {
+            $decoded = json_decode($imageUrl, true);
+            if (is_array($decoded) && !empty($decoded[0])) {
+                $imageSrc = base_url('uploads/products/' . $decoded[0]);
+            } else {
+                $imageSrc = base_url('uploads/products/' . $imageUrl);
+            }
+        }
+        ?>
+        
+        <?php
+        // Get price from database - use Price if available, otherwise PriceMin, otherwise 0
+        $productPriceForJS = 0;
+        if (isset($product) && $product) {
+            if (isset($product->Price) && $product->Price !== null && $product->Price !== '') {
+                $productPriceForJS = floatval($product->Price);
+            } elseif (isset($product->PriceMin) && $product->PriceMin !== null && $product->PriceMin !== '') {
+                $productPriceForJS = floatval($product->PriceMin);
+            }
+        }
+        ?>
         const selectedProduct = {
-            id: "<?= $product->Product_ID ?>",
-            name: "<?= $product->ProductName ?>",
-            price: "<?= $product->Price ?>",
-            category: "<?= $product->Category ?>",
-            material: "<?= $product->Material ?>",
-            image: "<?= base_url('uploads/products/' . $product->ImageUrl) ?>"
+            id: "<?= isset($product) && $product ? $product->Product_ID : '' ?>",
+            name: <?= json_encode($product->ProductName ?? '') ?>,
+            price: <?= $productPriceForJS ?>,
+            priceMin: <?= isset($product->PriceMin) && $product->PriceMin !== null && $product->PriceMin !== '' ? floatval($product->PriceMin) : 'null' ?>,
+            priceMax: <?= isset($product->PriceMax) && $product->PriceMax !== null && $product->PriceMax !== '' ? floatval($product->PriceMax) : 'null' ?>,
+            category: <?= json_encode($product->Category ?? '') ?>,
+            subcategory: <?= json_encode($product->Subcategory ?? '') ?>,
+            material: <?= json_encode($product->Material ?? '') ?>,
+            image: <?= json_encode($imageSrc) ?>,
+            customizationFieldKey: <?= json_encode($customizationFieldKey ?? null) ?>,
+            tagPrices: <?= json_encode(empty($tagPrices) ? new stdClass() : $tagPrices) ?>,
+            tagImages: <?= json_encode(empty($tagImages) ? new stdClass() : $tagImages) ?>,
+            tagVisualConfigs: <?= json_encode(empty($tagVisualConfigs) ? new stdClass() : $tagVisualConfigs) ?>,
+            standardSeries: <?= json_encode($standardSeries ?? []) ?>,
+            selectedOptions: <?= json_encode($productSelectedOptions ?? []) ?> // Admin-selected tags to filter options
         };
 
+        console.log("=== PRODUCT DATA DEBUG ===");
         console.log("Loaded Product From PHP:", selectedProduct);
+        console.log("Product ID:", selectedProduct.id);
+        console.log("Category:", selectedProduct.category);
+        console.log("Subcategory:", selectedProduct.subcategory);
+        console.log("Customization Field Key:", selectedProduct.customizationFieldKey);
+        console.log("Tag Prices:", selectedProduct.tagPrices);
+        console.log("Tag Prices Count:", Object.keys(selectedProduct.tagPrices || {}).length);
+        console.log("=== TAG VISUAL CONFIGS (2D Preview Styles) ===");
+        console.log("Tag Visual Configs:", selectedProduct.tagVisualConfigs);
+        console.log("Tag Visual Configs Count:", Object.keys(selectedProduct.tagVisualConfigs || {}).length);
+        if (selectedProduct.tagVisualConfigs) {
+            Object.keys(selectedProduct.tagVisualConfigs).forEach(fieldId => {
+                console.log(`  Field "${fieldId}":`, selectedProduct.tagVisualConfigs[fieldId]);
+            });
+        }
+        console.log("Standard Series:", selectedProduct.standardSeries);
+        console.log("Standard Series Count:", (selectedProduct.standardSeries || []).length);
+        console.log("Base URL:", base_url);
+
+        // Initialize dynamic customization when DOM is ready
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Set global reference for dynamic_customization.js
+            if (typeof window !== 'undefined') {
+                window.selectedProduct = selectedProduct;
+            }
+
+            // Wait a bit for 2d_customization.js to load
+            setTimeout(async () => {
+                console.log("=== LOADING CUSTOMIZATION FIELDS ===");
+                
+                // Load customization fields from API (from customization_field_configs table)
+                let customizationFields = [];
+                let stepNamesFromAPI = null;
+                if (selectedProduct.customizationFieldKey) {
+                    const apiUrl = base_url + 'customizationFields/get?fieldKey=' + encodeURIComponent(selectedProduct.customizationFieldKey);
+                    console.log("Fetching from API:", apiUrl);
+                    
+                    try {
+                        const response = await fetch(apiUrl);
+                        console.log("API Response Status:", response.status);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
+                        const result = await response.json();
+                        console.log("API Response:", result);
+                        console.log("API Response fields:", result.fields);
+                        console.log("API Response fields type:", typeof result.fields);
+                        console.log("API Response fields length:", result.fields ? result.fields.length : 'N/A');
+                        
+                        if (result.status === 'success') {
+                            // Check if fields is an array and has items
+                            if (Array.isArray(result.fields) && result.fields.length > 0) {
+                                customizationFields = result.fields;
+                                
+                                // Extract step names from fields array if they exist
+                                // Step names might be stored as a separate field in the config
+                                const stepNamesKey = selectedProduct.customizationFieldKey + '_stepNames';
+                                if (result[stepNamesKey]) {
+                                    stepNamesFromAPI = result[stepNamesKey];
+                                } else if (result.stepNames) {
+                                    stepNamesFromAPI = result.stepNames;
+                                }
+                                
+                                console.log('✅ Loaded customization fields from database:', customizationFields);
+                                console.log('✅ Fields count:', customizationFields.length);
+                                if (stepNamesFromAPI) {
+                                    console.log('✅ Loaded step names from database:', stepNamesFromAPI);
+                                }
+                            } else {
+                                console.warn('⚠️ API returned success but fields array is empty or invalid:', result.fields);
+                            }
+                        } else {
+                            console.warn('⚠️ API returned error status:', result);
+                        }
+                    } catch(e) {
+                        console.error('❌ Error loading customization fields from API:', e);
+                        console.error('Error details:', e.message);
+                    }
+                } else {
+                    console.warn('⚠️ No customizationFieldKey available');
+                }
+                
+                // If no fields from database, try localStorage (admin might have configured but not saved to DB)
+                if (customizationFields.length === 0) {
+                    try {
+                        const savedFields = localStorage.getItem('glassify_customization_fields');
+                        if (savedFields) {
+                            const allFields = JSON.parse(savedFields);
+                            customizationFields = allFields[selectedProduct.customizationFieldKey] || [];
+                            if (customizationFields.length > 0) {
+                                console.log('Loaded customization fields from localStorage:', customizationFields);
+                            }
+                        }
+                    } catch(e2) {
+                        console.error('Error loading from localStorage:', e2);
+                    }
+                }
+                
+                // If still no fields, use default fields based on category/subcategory
+                if (customizationFields.length === 0 && selectedProduct.category && selectedProduct.subcategory) {
+                    const defaultResult = getDefaultFieldsForSubcategory(selectedProduct.category, selectedProduct.subcategory);
+                    customizationFields = defaultResult.fields || [];
+                    if (!stepNamesFromAPI && defaultResult.stepNames) {
+                        stepNamesFromAPI = defaultResult.stepNames;
+                    }
+                    console.log('Using default fields:', customizationFields);
+                    console.log('Using default step names:', stepNamesFromAPI);
+                }
+                
+                // Store step names globally for navigation
+                if (stepNamesFromAPI) {
+                    window.customizationStepNames = stepNamesFromAPI;
+                }
+
+                // =====================================================
+                // CRITICAL: Load visual configs BEFORE rendering fields
+                // This ensures 2D preview colors sync from admin to customer
+                // =====================================================
+                console.log("=== LOADING VISUAL CONFIGS FOR 2D PREVIEW ===");
+                if (selectedProduct.tagVisualConfigs && Object.keys(selectedProduct.tagVisualConfigs).length > 0) {
+                    if (typeof window.loadDynamicVisualConfigs === 'function') {
+                        window.loadDynamicVisualConfigs(selectedProduct.tagVisualConfigs);
+                        console.log('✅ Visual configs loaded from admin settings');
+                    } else {
+                        console.warn('⚠️ loadDynamicVisualConfigs not available yet, will retry after render');
+                        // Store for later loading
+                        window.pendingVisualConfigs = selectedProduct.tagVisualConfigs;
+                    }
+                } else {
+                    console.log('ℹ️ No custom visual configs defined for this product');
+                }
+                
+                // Render customization fields if available
+                console.log("=== RENDERING CUSTOMIZATION FIELDS ===");
+                console.log("Fields to render:", customizationFields);
+                console.log("Fields count:", customizationFields.length);
+                
+                if (customizationFields.length > 0) {
+                    const customContainer = document.getElementById('dynamic-customization-container');
+                    console.log("Custom container found:", !!customContainer);
+                    console.log("renderDynamicCustomizationFields function exists:", typeof renderDynamicCustomizationFields === 'function');
+                    console.log("Selected options for filtering:", selectedProduct.selectedOptions);
+                    
+                    if (customContainer && typeof renderDynamicCustomizationFields === 'function') {
+                        // Use step names from API or default
+                        const stepNamesToUse = window.customizationStepNames || null;
+                        
+                        // Pass selectedOptions to filter which tags are shown to customer
+                        // Only tags selected by admin will be displayed
+                        renderDynamicCustomizationFields(
+                            customizationFields,
+                            selectedProduct.tagPrices,
+                            customContainer,
+                            selectedProduct.tagImages,
+                            stepNamesToUse,
+                            selectedProduct.selectedOptions // Admin-selected tags only
+                        );
+                        console.log('✅ Rendered customization fields with selected options filter');
+                    } else {
+                        console.error('❌ Container or function not found');
+                        console.error('Container:', customContainer);
+                        console.error('Function:', typeof renderDynamicCustomizationFields);
+                    }
+                } else {
+                    console.warn('⚠️ No customization fields to render');
+                    const customContainer = document.getElementById('dynamic-customization-container');
+                    if (customContainer) {
+                        customContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No customization options available. Please configure fields in admin panel.</p>';
+                    }
+                }
+
+                // Render standard sizes if available
+                console.log("=== RENDERING STANDARD SIZES ===");
+                console.log("Standard series to render:", selectedProduct.standardSeries);
+                console.log("Standard series count:", (selectedProduct.standardSeries || []).length);
+                
+                if (selectedProduct.standardSeries && selectedProduct.standardSeries.length > 0) {
+                    const standardContainer = document.getElementById('dynamic-standard-container');
+                    console.log("Standard container found:", !!standardContainer);
+                    console.log("renderStandardSizes function exists:", typeof renderStandardSizes === 'function');
+                    
+                    if (standardContainer && typeof renderStandardSizes === 'function') {
+                        renderStandardSizes(
+                            selectedProduct.standardSeries,
+                            standardContainer
+                        );
+                        console.log('✅ Rendered standard sizes');
+                    } else {
+                        console.error('❌ Standard container or function not found');
+                        console.error('Container:', standardContainer);
+                        console.error('Function:', typeof renderStandardSizes);
+                    }
+                } else {
+                    console.warn('⚠️ No standard series to render');
+                    const standardContainer = document.getElementById('dynamic-standard-container');
+                    if (standardContainer) {
+                        standardContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No standard sizes available for this product.</p>';
+                    }
+                }
+                
+                // =====================================================
+                // FINAL: Retry loading visual configs if they weren't loaded earlier
+                // and ensure the 2D preview is re-rendered with correct colors
+                // =====================================================
+                setTimeout(() => {
+                    // Retry loading visual configs if they were pending
+                    if (window.pendingVisualConfigs && typeof window.loadDynamicVisualConfigs === 'function') {
+                        console.log('🔄 Retrying visual config load...');
+                        window.loadDynamicVisualConfigs(window.pendingVisualConfigs);
+                        delete window.pendingVisualConfigs;
+                    }
+                    
+                    // Force re-render of Konva to apply visual configs
+                    if (typeof window.renderCustomState === 'function') {
+                        console.log('🔄 Re-rendering 2D preview with visual configs...');
+                        window.renderCustomState();
+                    } else if (typeof renderCustomState === 'function') {
+                        renderCustomState();
+                    }
+                    
+                    console.log('✅ 2D Preview sync complete - admin visual configs applied');
+                }, 500);
+            }, 200);
+        });
+
+        // Helper function to get default fields (matches admin side structure)
+        function getDefaultFieldsForSubcategory(category, subcategory) {
+            // Map category to prefix (matches admin side)
+            const prefixMap = {
+                'Windows': 'Windows',
+                'Doors': 'Doors',
+                'Glass Partitions & Enclosures': 'Partitions',
+                'Mirrors & Specialty Glass': 'Specialty',
+                'Cabinets & Furniture': 'Cabinets',
+                'Commercial & Exterior': 'Commercial'
+            };
+            
+            const prefix = prefixMap[category] || '';
+            const fieldKey = prefix ? `${prefix}_${subcategory}` : subcategory;
+            
+            // Default field configurations (matches admin side products.js)
+            // These are comprehensive defaults that match the admin configuration
+            const defaultFields = {
+                'Windows_Sliding': [
+                    { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Tinted', 'Frosted', 'Low-E', 'Double-pane', 'Tempered', 'Laminated', 'Reflective'], stepNumber: 1 },
+                    { type: 'tags', label: 'Frame Color/Material', id: 'frameColor', options: ['White', 'Black', 'Brown (wood-grain)', 'Silver', 'Bronze', 'Gold', 'Analok (dark/bronze)', 'Custom colors'], stepNumber: 1 },
+                    { type: 'tags', label: 'Number of Panels', id: 'numberOfPanels', options: ['2-panel', '3-panel', '4-panel', 'Multi-panel'], stepNumber: 1 },
+                    { type: 'tags', label: 'Operation', id: 'operation', options: ['Sliding (left-to-right)', 'Sliding (right-to-left)', 'Sliding (single)', 'Sliding (double)', 'Sliding (multi-track)'], stepNumber: 1 },
+                    { type: 'tags', label: 'Grid Pattern', id: 'gridPattern', options: ['Standard', 'French type (grid pattern)', 'French (colonial)', 'Prairie', 'Custom grid patterns'], stepNumber: 2 },
+                    { type: 'tags', label: 'Grid Position', id: 'gridPosition', options: ['Internal grids', 'External grids'], stepNumber: 2 },
+                    { type: 'number', label: 'Thickness (mm)', id: 'thickness', min: 1, step: 0.1, stepNumber: 2 },
+                    { type: 'checkbox', label: 'Screen', id: 'screen', stepNumber: 2 }
+                ],
+                'Windows_Sliding_stepNames': {
+                    '1': 'Basic Options',
+                    '2': 'Design & Details'
+                },
+                'Doors_Sliding': [
+                    { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Tinted', 'Frosted', 'Low-E', 'Tempered', 'Laminated', 'Laminated safety glass'], stepNumber: 1 },
+                    { type: 'tags', label: 'Frame Material/Color', id: 'frameColor', options: ['Aluminum', 'Black', 'White', 'Bronze', 'Brown (wood-look)', 'Silver', 'Custom colors'], stepNumber: 1 },
+                    { type: 'tags', label: 'Panel Count', id: 'panelCount', options: ['2-panel', '3-panel', '4-panel', 'More panels'], stepNumber: 1 },
+                    { type: 'tags', label: 'Operation', id: 'operation', options: ['Sliding (single)', 'Sliding (double)', 'Sliding (multi-track)'], stepNumber: 2 },
+                    { type: 'tags', label: 'Panel Configuration', id: 'panelConfiguration', options: ['Central sliding panels with fixed outer panels', 'All sliding', '2 sliding + 2 fixed', '2 sliding only', '3 sliding', 'Custom'], stepNumber: 2 },
+                    { type: 'tags', label: 'Handle Type', id: 'handleType', options: ['Various pull handles', 'Knob handles', 'Square handles', 'Bar-style', 'Round', 'Square matte black'], stepNumber: 3 },
+                    { type: 'tags', label: 'Hardware Finish', id: 'hardwareFinish', options: ['Chrome/Stainless Steel', 'Polished Chrome/Stainless Steel', 'Black Matte', 'Gold', 'Brushed Nickel', 'Bronze'], stepNumber: 3 },
+                    { type: 'checkbox', label: 'Soft-close', id: 'softClose', stepNumber: 3 }
+                ],
+                'Doors_Sliding_stepNames': {
+                    '1': 'Basic Options',
+                    '2': 'Operation & Configuration',
+                    '3': 'Hardware & Features'
+                },
+                'Partitions_Frameless Glass': [
+                    { type: 'tags', label: 'Layout', id: 'layout', options: ['L-shape', 'Straight', 'U-shape', 'L-type', 'Neo-angle', 'Square', 'Bay', 'Other corner layouts'], stepNumber: 1 },
+                    { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Frosted', 'Tinted', 'Frosted (full or partial)', 'Clear with frosted sticker', 'Fully frosted'], stepNumber: 1 },
+                    { type: 'tags', label: 'Finish', id: 'finish', options: ['Clear', 'Frosted', 'Patterned'], stepNumber: 1 },
+                    { type: 'tags', label: 'Configuration', id: 'configuration', options: ['Single partition', 'Multiple partitions', '2 fixed panels', '3 fixed panels', 'Custom configurations'], stepNumber: 2 },
+                    { type: 'tags', label: 'Hardware Color', id: 'hardwareColor', options: ['Black', 'Silver', 'Gold', 'White', 'Bronze', 'Chrome/Stainless Steel', 'Black Matte', 'Brushed Nickel', 'Stainless Steel'], stepNumber: 2 },
+                    { type: 'tags', label: 'Mounting Hardware', id: 'mountingHardware', options: ['Stainless Fixed Bracket', 'Gold U-Channel', 'Analok U-Channel (anodized aluminum)', 'Stainless U-Channel', 'Other bracket types', 'Standard mounting'], stepNumber: 2 },
+                    { type: 'number', label: 'Glass Thickness (mm)', id: 'glassThickness', min: 1, step: 0.1, stepNumber: 2 }
+                ],
+                'Partitions_Frameless Glass_stepNames': {
+                    '1': 'Basic Options',
+                    '2': 'Configuration & Hardware'
+                },
+                'Specialty_Mirrors': [
+                    { type: 'tags', label: 'Shape', id: 'shape', options: ['Round', 'Rectangle', 'Oval', 'Circle', 'Square', 'Rectangular with rounded edges', 'Rectangular with arched top', 'Custom shapes'], stepNumber: 1 },
+                    { type: 'tags', label: 'Frame Type', id: 'frameType', options: ['Frameless', 'Framed', 'Gold frame', 'Black frame', 'White frame', 'Framed (thin, metallic)', 'Framed (dark, possibly black, grid frame)', 'Framed (gold frame shown)', 'Framed (thin matching frame possible)'], stepNumber: 1 },
+                    { type: 'tags', label: 'Frame Material/Color', id: 'frameColor', options: ['Gold frame', 'Silver', 'Rose Gold', 'Other metallic finishes', 'Wood', 'Colored frames', 'Black frame', 'Other metallic or matte colors', 'White frame', 'Other colors', 'Metal', 'Silver/Metallic', 'Other options', 'Dark/Black', 'Other frame colors available'], stepNumber: 1 },
+                    { type: 'tags', label: 'Edge Finish', id: 'edgeFinish', options: ['Beveled', 'Polished', 'Raw', 'Beveled edge', 'Flat polished edge', 'Pencil edge', 'Standard polished edge', 'Standard (behind frame)', 'Rounded edges'], stepNumber: 2 },
+                    { type: 'tags', label: 'Tint/Finish', id: 'tintFinish', options: ['Bronze tint/color', 'Grey tint (smoked)', 'Colored glass'], stepNumber: 2 },
+                    { type: 'tags', label: 'Orientation', id: 'orientation', options: ['Vertical', 'Horizontal', 'Vertical/Full-body'], stepNumber: 2 },
+                    { type: 'tags', label: 'Mounting Method', id: 'mountingMethod', options: ['Wall-mounted', 'Stand', 'Adhesive', 'Leaning', 'Wall-mounted (often fixed above vanity)', 'Fixed wall mount', 'Integrated hanger', 'Rope hanger', 'Chain'], stepNumber: 3 },
+                    { type: 'tags', label: 'Size', id: 'size', options: ['Small', 'Medium', 'Large diameter (custom)', 'Custom height and width (oval dimensions)', 'Custom height and width', 'Custom width and height (often for vanity sizes)', 'Very large dimensions for whole-body viewing (customizable)', 'Custom Size (flexible dimensions)', 'Large scale, possibly custom-fit for walls', 'Standard large size', 'Custom sizes', 'Various sizes (tall vertical, wider horizontal)', 'Custom dimensions'], stepNumber: 3 },
+                    { type: 'number', label: 'Corner Radius (in)', id: 'cornerRadius', min: 0, step: 0.1, stepNumber: 3 }
+                ],
+                'Specialty_Mirrors_stepNames': {
+                    '1': 'Basic Shape & Frame',
+                    '2': 'Finish & Details',
+                    '3': 'Mounting & Installation'
+                }
+            };
+            
+            // Return fields and step names
+            const fields = defaultFields[fieldKey] || [];
+            const stepNames = defaultFields[fieldKey + '_stepNames'] || null;
+            
+            return { fields, stepNames };
+        }
     </script>
 <?php endif; ?>

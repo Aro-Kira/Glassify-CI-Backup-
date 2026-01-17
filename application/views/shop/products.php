@@ -66,19 +66,108 @@
               $status_class = 'badge-out-stock';
               $status_color = '#f44336';
             }
+            
+            // Handle images - can be JSON array or single string
+            $images = [];
+            if (!empty($p->ImageUrl)) {
+              $decoded = json_decode($p->ImageUrl, true);
+              if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $images = $decoded;
+              } else {
+                $images = [$p->ImageUrl];
+              }
+            }
+            if (empty($images)) {
+              $images = ['default.jpg'];
+            }
+            
+            // Get order type
+            $orderType = isset($p->OrderType) ? $p->OrderType : 'direct';
+            $orderTypeDisplay = ($orderType === 'site-assessed' || $orderType === 'Site-Assessed') ? 'Site-Assessed' : 'Direct';
+            
+            // Get series (if exists)
+            $series = isset($p->series) && !empty($p->series) ? $p->series : [];
+            
+            // Get tags (limit to 3-4, then show "others")
+            $tags = isset($p->tags) && !empty($p->tags) ? $p->tags : [];
+            $displayTags = array_slice($tags, 0, 3);
+            $remainingTags = count($tags) > 3 ? count($tags) - 3 : 0;
+            
+            // Get price range
+            $priceMin = isset($p->PriceMin) && $p->PriceMin > 0 ? floatval($p->PriceMin) : null;
+            $priceMax = isset($p->PriceMax) && $p->PriceMax > 0 ? floatval($p->PriceMax) : null;
+            $price = isset($p->Price) && $p->Price > 0 ? floatval($p->Price) : null;
           ?>
             <div class="product" data-category="<?= $p->Category ?>" data-material="<?= $p->Material ?>"
               data-availability="<?= $status ?>">
 
-              <img src="<?= base_url('uploads/products/' . $p->ImageUrl) ?>" alt="<?= $p->ProductName ?>">
+              <!-- Image Slideshow -->
+              <div class="product-image-slideshow" data-product-id="<?= $p->Product_ID ?>">
+                <?php foreach ($images as $index => $image): ?>
+                  <img src="<?= base_url('uploads/products/' . $image) ?>" 
+                       alt="<?= htmlspecialchars($p->ProductName) ?>" 
+                       class="product-slide <?= $index === 0 ? 'active' : '' ?>"
+                       onerror="this.onerror=null; this.style.display='none'; var placeholder = this.nextElementSibling; if(placeholder && placeholder.classList.contains('product-image-placeholder')) { placeholder.style.display='flex'; }">
+                  <div class="product-image-placeholder" style="display: none; width: 100%; height: 100%; background: #f0f0f0; align-items: center; justify-content: center; color: #999; font-size: 14px;">
+                    No Image Available
+                  </div>
+                <?php endforeach; ?>
+                <?php if (count($images) > 1): ?>
+                  <div class="slideshow-indicators">
+                    <?php for ($i = 0; $i < count($images); $i++): ?>
+                      <span class="indicator <?= $i === 0 ? 'active' : '' ?>" data-slide="<?= $i ?>"></span>
+                    <?php endfor; ?>
+                  </div>
+                <?php endif; ?>
+              </div>
 
-              <p><?= $p->ProductName ?></p>
+              <p class="product-name"><?= htmlspecialchars($p->ProductName) ?></p>
+              
+              <!-- Order Type -->
+              <div class="product-order-type">
+                <span class="order-type-label">Type:</span>
+                <span class="order-type-value"><?= htmlspecialchars($orderTypeDisplay) ?></span>
+              </div>
+              
+              <!-- Series (if exists) -->
+              <?php if (!empty($series)): ?>
+                <div class="product-series">
+                  <span class="series-label">Series:</span>
+                  <span class="series-value"><?= htmlspecialchars(implode(', ', $series)) ?></span>
+                </div>
+              <?php endif; ?>
+              
+              <!-- Tags -->
+              <?php if (!empty($displayTags)): ?>
+                <div class="product-tags">
+                  <?php foreach ($displayTags as $tag): ?>
+                    <span class="product-tag"><?= htmlspecialchars($tag) ?></span>
+                  <?php endforeach; ?>
+                  <?php if ($remainingTags > 0): ?>
+                    <span class="product-tag tag-others">+<?= $remainingTags ?> others</span>
+                  <?php endif; ?>
+                </div>
+              <?php endif; ?>
+              
+              <!-- Price Range -->
+              <div class="product-price-range">
+                <?php if ($priceMin !== null && $priceMax !== null): ?>
+                  <span class="price-label">Price:</span>
+                  <span class="price-value">₱<?= number_format($priceMin, 2) ?> - ₱<?= number_format($priceMax, 2) ?></span>
+                <?php elseif ($price !== null): ?>
+                  <span class="price-label">Price:</span>
+                  <span class="price-value">₱<?= number_format($price, 2) ?></span>
+                <?php else: ?>
+                  <span class="price-label">Price:</span>
+                  <span class="price-value">Contact for pricing</span>
+                <?php endif; ?>
+              </div>
               
               <span class="product-status-badge <?= $status_class; ?>" style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; color: white; background-color: <?= $status_color; ?>; margin: 8px 0;">
                 <?= htmlspecialchars($status); ?>
               </span>
 
-              <button onclick="window.location.href='<?= base_url('2DModeling?id=' . $p->Product_ID) ?>'">
+              <button class="build-buy-btn" onclick="window.location.href='<?= base_url('2DModeling?id=' . $p->Product_ID) ?>'">
                 Build and Buy
               </button>
             </div>
@@ -156,3 +245,47 @@
 
 </main>
 <script src="<?php echo base_url('assets/js/products-page/testimonial.js'); ?>"></script>
+<script>
+// Product Image Slideshow
+document.addEventListener('DOMContentLoaded', function() {
+  const slideshows = document.querySelectorAll('.product-image-slideshow');
+  
+  slideshows.forEach(function(slideshow) {
+    const slides = slideshow.querySelectorAll('.product-slide');
+    const indicators = slideshow.querySelectorAll('.indicator');
+    
+    if (slides.length <= 1) return; // No slideshow needed for single image
+    
+    let currentSlide = 0;
+    const totalSlides = slides.length;
+    
+    function showSlide(index) {
+      // Remove active class from all slides and indicators
+      slides.forEach(slide => slide.classList.remove('active'));
+      indicators.forEach(indicator => indicator.classList.remove('active'));
+      
+      // Add active class to current slide and indicator
+      slides[index].classList.add('active');
+      if (indicators[index]) {
+        indicators[index].classList.add('active');
+      }
+    }
+    
+    function nextSlide() {
+      currentSlide = (currentSlide + 1) % totalSlides;
+      showSlide(currentSlide);
+    }
+    
+    // Auto-advance slideshow every 3 seconds
+    setInterval(nextSlide, 3000);
+    
+    // Add click handlers to indicators
+    indicators.forEach(function(indicator, index) {
+      indicator.addEventListener('click', function() {
+        currentSlide = index;
+        showSlide(currentSlide);
+      });
+    });
+  });
+});
+</script>

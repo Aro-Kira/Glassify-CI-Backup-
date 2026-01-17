@@ -1,0 +1,731 @@
+{
+  "products": [
+    {
+      "category": "ALUMINUM WINDOWS",
+      "products": [
+        {
+          "name": "900 Series Sliding Window",
+          "description": "Two-panel horizontal sliding window",
+          "customization_fields": {
+            "FrameFinishColor": ["Brown (wood-grain)", "Black", "White", "Silver", "Bronze", "Custom colors"],
+            "GlassType": ["Clear", "Tinted", "Frosted", "Low-E", "Double-pane", "Tempered"],
+            "NumberOfPanels": ["2-panel", "3-panel", "4-panel"],
+            "Operation": ["Sliding (left-to-right)", "Sliding (right-to-left)"],
+            "GridPattern": ["Standard", "French type (grid pattern)"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "798 Series Sliding Window",
+          "description": "Two-panel horizontal sliding window with sleek design",
+          "customization_fields": {
+            "FrameFinishColor": ["Black", "White", "Brown", "Silver", "Bronze", "Custom colors"],
+            "GlassType": ["Clear", "Tinted", "Frosted", "Low-E", "Reflective"],
+            "NumberOfPanels": ["2-panel", "3-panel", "4-panel"],
+            "Operation": ["Sliding"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "900 Series French Type Sliding Window",
+          "description": "Sliding window with grid pattern (French colonial style)",
+          "customization_fields": {
+            "FrameFinishColor": ["White/Silver", "Black", "Brown", "Custom colors"],
+            "GlassType": ["Clear", "Frosted", "Tinted", "Low-E"],
+            "GridStyle": ["French (colonial)", "Prairie", "Custom grid patterns"],
+            "GridPosition": ["Internal grids", "External grids"],
+            "NumberOfPanels": ["2-panel", "Multi-panel"],
+            "Operation": ["Sliding"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "38 Series Awning Window",
+          "description": "Top-hinged window that opens outwards from bottom",
+          "customization_fields": {
+            "FrameFinishColor": ["Black", "White", "Brown", "Custom colors"],
+            "GlassType": ["Clear", "Tinted (bronze/brown)", "Frosted", "Low-E"],
+            "Operation": ["Awning (crank-out)", "Awning (push-out)"],
+            "SizeConfiguration": ["Single panel", "Multiple panels"],
+            "OpeningDirection": ["Top-hinged"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "38 Series Casement",
+          "description": "Single-panel vertical window that opens outwards from side",
+          "customization_fields": {
+            "FrameFinishColor": ["Brown (wood-grain)", "Black", "White", "Custom colors"],
+            "GlassType": ["Clear", "Tinted", "Frosted", "Low-E"],
+            "Operation": ["Casement (hinge side configurable)"],
+            "NumberOfPanels": ["Single panel", "Multiple panels"],
+            "HingeSide": ["Left-hinged", "Right-hinged"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "38 Series Casement with Fixed Transom",
+          "description": "Combination unit with casement windows and fixed transom above",
+          "customization_fields": {
+            "FrameFinishColor": ["Dark Brown", "Black", "White", "Custom colors"],
+            "GlassType": ["Clear (for casement)", "Frosted/Tinted (for transom)", "Various combinations"],
+            "Configuration": ["Two casement windows with fixed transom", "Custom configurations"],
+            "TransomOptions": ["Different transom sizes", "Shapes", "Mullion options"],
+            "Operation": ["Casement for lower panels", "Fixed transom"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "900 Series Slide Up (Double-Hung)",
+          "description": "Vertical sliding window",
+          "customization_fields": {
+            "FrameFinishColor": ["Black", "White", "Brown", "Custom colors"],
+            "GlassType": ["Clear", "Tinted (bronze/brown)", "Frosted", "Low-E"],
+            "Operation": ["Vertical sliding (single-hung)", "Vertical sliding (double-hung)"],
+            "NumberOfSashes": ["Single-hung", "Double-hung"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Corner Fixed Glass",
+          "description": "Fixed glass panels forming a corner (architectural feature)",
+          "customization_fields": {
+            "FrameFinishColor": ["Dark Grey/Black", "White", "Custom colors"],
+            "GlassType": ["Clear", "Tinted", "Reflective coatings", "Low-E", "Safety glass"],
+            "Configuration": ["Fixed corner glass", "Various angles (90°, 135°, custom)"],
+            "Usage": ["Structural/architectural feature (non-operable)"],
+            "Dimensions": "Custom sizing",
+            "InstallationMethod": ["Various integration methods"]
+          }
+        }
+      ]
+    },
+    {
+      "category": "SHOWER ENCLOSURES/PARTITIONS",
+      "products": [
+        {
+          "name": "Fixed and Swing (Standard)",
+          "description": "Shower enclosure with fixed glass panels and swinging door",
+          "customization_fields": {
+            "Configuration": ["Fixed and swing", "Swing with small fixed glass"],
+            "GlassType": ["Clear", "Frosted (full or partial)", "Tinted"],
+            "GlassTreatment": ["Frosted sticker (customizable patterns, opacity, colors)", "Clear"],
+            "HardwareFinish": ["Chrome/Stainless Steel", "Black Matte", "Gold", "Brushed Nickel"],
+            "DoorSwing": ["Left-hinged", "Right-hinged"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Fixed and Swing with Frosted Sticker",
+          "description": "Shower enclosure with frosted privacy sticker",
+          "customization_fields": {
+            "GlassType": ["Clear with frosted sticker", "Fully frosted"],
+            "FrostedSticker": ["Custom patterns", "Opacity levels", "Colors", "Heights (full or partial)"],
+            "HardwareFinish": ["Chrome/Stainless Steel", "Black Matte", "Gold"],
+            "Configuration": ["Fixed and swing"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Fixed and Swing with Black Matte Accessories",
+          "description": "Shower enclosure with black matte hardware",
+          "customization_fields": {
+            "HardwareFinish": ["Black Matte (handles, hinges, connectors)", "Chrome", "Gold", "Brushed Nickel"],
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "Configuration": ["Fixed and swing"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "2 Fixed Partition",
+          "description": "Two fixed glass panels creating walk-in shower",
+          "customization_fields": {
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "Configuration": ["2 fixed panels", "3 fixed panels", "Custom configurations"],
+            "Mounting": ["Standard mounting", "Custom mounting methods"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Fixed Partition using Stainless Fixed Bracket",
+          "description": "Fixed glass partition with stainless steel brackets",
+          "customization_fields": {
+            "MountingHardware": ["Stainless Fixed Bracket", "Other bracket types"],
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "HardwareFinish": ["Stainless Steel", "Black", "Gold"],
+            "Configuration": ["Single partition", "Multiple partitions"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Fixed Partition using Gold U-Channel",
+          "description": "Fixed glass partition with gold U-channel mounting",
+          "customization_fields": {
+            "MountingHardware": ["Gold U-Channel", "Stainless U-Channel", "Analok U-Channel"],
+            "HardwareFinish": ["Gold", "Silver", "Black", "Bronze"],
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "Configuration": ["Single partition", "Multiple partitions"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Fixed Partition using Analok U-Channel",
+          "description": "Fixed glass partition with anodized aluminum U-channel",
+          "customization_fields": {
+            "MountingHardware": ["Analok U-Channel (anodized aluminum)", "Gold U-Channel", "Stainless U-Channel"],
+            "HardwareFinish": ["Analok (dark/bronze finish)", "Black", "Gold", "Silver"],
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "Configuration": ["Single partition", "Multiple partitions"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Sliding Shower Enclosure",
+          "description": "Sliding door shower enclosure",
+          "customization_fields": {
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "HardwareFinish": ["Chrome/Stainless Steel", "Black Matte", "Gold", "Brushed Nickel"],
+            "Configuration": ["Single sliding door", "Double sliding doors", "Sliding with fixed panels"],
+            "HandleStyle": ["Various pull handles", "Knob handles", "Square handles"],
+            "Dimensions": "Custom width and height of enclosure"
+          }
+        },
+        {
+          "name": "Sliding Shower Enclosure with Matte Black Accessories",
+          "description": "Sliding enclosure with matte black hardware",
+          "customization_fields": {
+            "HardwareFinish": ["Matte Black (rail, rollers, handles)", "Chrome", "Gold"],
+            "GlassType": ["Frosted", "Clear", "Tinted", "Custom frosting patterns"],
+            "Configuration": ["Single sliding", "Double sliding", "With fixed panels"],
+            "HandleStyle": ["Square matte black", "Round", "Bar-style"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Corner L-Type Shower Enclosure",
+          "description": "L-shaped corner shower enclosure",
+          "customization_fields": {
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "HardwareFinish": ["Chrome/Stainless Steel", "Black Matte", "Gold", "Brushed Nickel"],
+            "Configuration": ["L-type", "Neo-angle", "Square", "Other corner layouts"],
+            "HandleStyle": ["Various pull handle designs"],
+            "Dimensions": "Custom sizing for various bathroom corner layouts"
+          }
+        },
+        {
+          "name": "Corner L-Type with Frosted Sticker",
+          "description": "L-type corner enclosure with frosted sticker",
+          "customization_fields": {
+            "GlassType": ["Clear", "Frosted (full or partial with custom patterns/heights)"],
+            "FrostedSticker": ["Custom patterns", "Heights (top clear, bottom frosted)", "Colors"],
+            "HardwareFinish": ["Chrome/Stainless Steel", "Black Matte", "Gold"],
+            "Configuration": ["L-type", "Neo-angle", "Square", "Other corner layouts"],
+            "HandleStyle": ["Various pull handle designs"],
+            "Dimensions": "Custom sizing"
+          }
+        },
+        {
+          "name": "Corner Bay with Matte Black Accessories",
+          "description": "Corner bay shower enclosure with matte black hardware",
+          "customization_fields": {
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "HardwareFinish": ["Matte Black (hinges, handle, top bracing bar)", "Chrome", "Gold"],
+            "Configuration": ["Bay", "Neo-angle", "Square", "L-type", "Other corner layouts"],
+            "HandleStyle": ["Various pull handle designs"],
+            "Dimensions": "Custom sizing for various bathroom corner layouts"
+          }
+        }
+      ]
+    },
+    {
+      "category": "GLASS DOORS",
+      "products": [
+        {
+          "name": "Swing Glass with Fixed Side and Fixed Transom",
+          "description": "Swing door with fixed side panel and transom above",
+          "customization_fields": {
+            "GlassType": ["Clear", "Frosted (full or partial with patterns like stripes, squares)", "Tinted"],
+            "GlassTreatment": ["Frosted stripes (horizontal/vertical)", "Custom patterns", "Colors"],
+            "HardwareFinish": ["Polished Chrome/Stainless Steel", "Matte Black", "Brushed Nickel", "Gold"],
+            "Configuration": ["With fixed side panel (left or right)", "With fixed transom", "Both"],
+            "HandleStyle": ["Various pull handle designs"],
+            "DoorSwing": ["Left swing", "Right swing"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Swing Shower Door",
+          "description": "Single swing door for shower enclosure",
+          "customization_fields": {
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "HardwareFinish": ["Polished Chrome/Stainless Steel", "Matte Black", "Brushed Nickel", "Gold"],
+            "HandleStyle": ["Various pull handle designs"],
+            "DoorSwing": ["Left swing", "Right swing"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Frameless Store Front Double Swing Door using Patch Fittings",
+          "description": "Large double swing door with patch fittings for commercial use",
+          "customization_fields": {
+            "GlassType": ["Clear", "Tinted", "Laminated safety glass", "Frosted"],
+            "HardwareFinish": ["Polished Chrome/Stainless Steel", "Matte Black", "Brushed Nickel", "Gold"],
+            "DoorConfiguration": ["Single swing door", "Double swing door", "With fixed panels"],
+            "FixedPanels": ["With fixed side/transom panels", "Without fixed panels"],
+            "HandleStyle": ["Various pull handle designs"],
+            "Installation": ["Patch fittings (minimalist hardware)"],
+            "Dimensions": "Large-scale custom sizing for commercial applications"
+          }
+        },
+        {
+          "name": "4 Panel Sliding Door",
+          "description": "Multi-panel sliding door system",
+          "customization_fields": {
+            "PanelCount": ["2-panel", "3-panel", "4-panel", "More panels"],
+            "Operation": ["Sliding (single)", "Sliding (double)", "Sliding (multi-track)"],
+            "FrameMaterialColor": ["Aluminum", "Black", "White", "Bronze", "Brown (wood-look)"],
+            "GlassType": ["Clear", "Tinted", "Frosted", "Low-E", "Tempered"],
+            "Configuration": ["Central sliding panels with fixed outer panels", "All sliding"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "1 Swing Door with 2 Fixed Glass",
+          "description": "Single swing door flanked by two fixed glass panels",
+          "customization_fields": {
+            "DoorType": ["Single swing", "Double swing"],
+            "FixedPanels": ["0 fixed panels", "1 fixed panel", "2 fixed panels", "More fixed panels"],
+            "FrameMaterialColor": ["Aluminum", "White", "Black", "Bronze"],
+            "GlassType": ["Clear", "Tinted", "Frosted", "Security glass"],
+            "Hardware": ["Push/pull handles", "Locks", "Closers"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "2 Panel Sliding Door with 2 Fixed Glass",
+          "description": "Two sliding panels with two fixed panels",
+          "customization_fields": {
+            "PanelConfiguration": ["2 sliding + 2 fixed", "2 sliding only", "3 sliding", "Custom"],
+            "FrameMaterialColor": ["Aluminum", "Brown (wood-look)", "Black", "White"],
+            "GlassType": ["Clear", "Tinted", "Low-E", "Double-pane for insulation"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "French Type Swing Door with 2 Fixed Glass",
+          "description": "French doors with grid pattern and fixed side panels",
+          "customization_fields": {
+            "DoorType": ["Single French door", "Double French doors"],
+            "FixedPanels": ["With fixed side panels", "Without fixed side panels"],
+            "FrameMaterialColor": ["Aluminum", "White", "Black", "Custom colors"],
+            "GlassType": ["Clear", "Frosted", "Beveled", "Different grid patterns"],
+            "GridPattern": ["Internal grids", "External grids", "Colonial", "Prairie", "Custom grid designs"],
+            "Hardware": ["Decorative handles", "Multi-point locks"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Traditional French Type Sliding Door with Customized Frosted Sticker",
+          "description": "Multi-panel sliding door with French grid and frosted sticker",
+          "customization_fields": {
+            "FrameColor": ["Black", "White", "Custom colors"],
+            "GlassType": ["Frosted glass (via sticker or actual)", "Clear", "Tinted"],
+            "StickerDesign": ["Customized Frosted Sticker - Various patterns", "Opacity levels", "Colors"],
+            "PanelConfiguration": ["Multiple rectangular panels", "Customizable number and size"],
+            "DoorType": ["Sliding"],
+            "GridPattern": ["French type grid"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "900 Series French Type Sliding Door",
+          "description": "French style sliding door in 900 series",
+          "customization_fields": {
+            "FrameColor": ["White", "Black", "Custom colors"],
+            "Series": ["900 Series"],
+            "GlassType": ["Clear", "Frosted", "Tinted"],
+            "PanelConfiguration": ["Multiple clear glass panels in grid"],
+            "DoorType": ["Sliding"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "French Type Hanging Sliding Door",
+          "description": "Top-hung French style sliding door",
+          "customization_fields": {
+            "FrameColor": ["White", "Black", "Custom colors"],
+            "GlassType": ["Frosted glass (upper panels)", "Clear", "Other options"],
+            "LowerPanelMaterial": ["Solid white panels with horizontal ribbing", "Other solid panel designs", "Different materials"],
+            "DoorMechanism": ["Hanging Sliding Door (top-hung)"],
+            "PanelConfiguration": ["Upper (glass) and lower (solid) sections", "Custom configurations"],
+            "Dimensions": "Custom width and height"
+          }
+        }
+      ]
+    },
+    {
+      "category": "MIRRORS",
+      "products": [
+        {
+          "name": "Frameless Round Mirror",
+          "description": "Classic round mirror without frame",
+          "customization_fields": {
+            "Shape": ["Round"],
+            "FrameType": ["Frameless"],
+            "Size": ["Small", "Medium", "Large diameter (custom)"],
+            "EdgeFinish": ["Standard polished edge"],
+            "Installation": ["Wall-mounted"]
+          }
+        },
+        {
+          "name": "Gold Framed Round Mirror",
+          "description": "Round mirror with gold frame",
+          "customization_fields": {
+            "Shape": ["Round"],
+            "FrameMaterialColor": ["Gold frame", "Silver", "Rose Gold", "Other metallic finishes", "Wood", "Colored frames"],
+            "HangingMechanism": ["Rope hanger", "Chain", "Fixed wall mount", "Integrated hanger"],
+            "Size": ["Small", "Medium", "Large diameter (custom)"],
+            "EdgeFinish": ["Standard (behind frame)"]
+          }
+        },
+        {
+          "name": "Black Framed Round Mirror",
+          "description": "Round mirror with black frame",
+          "customization_fields": {
+            "Shape": ["Round"],
+            "FrameMaterialColor": ["Black frame", "Other metallic or matte colors"],
+            "Size": ["Small", "Medium", "Large diameter (custom)"],
+            "EdgeFinish": ["Standard (behind frame)"],
+            "Installation": ["Wall-mounted"]
+          }
+        },
+        {
+          "name": "Oval Frameless LED Mirror",
+          "description": "Oval mirror with integrated LED lighting",
+          "customization_fields": {
+            "Shape": ["Oval (elongated)"],
+            "FrameType": ["Frameless"],
+            "Lighting": ["Integrated LED lighting", "Backlighting", "Front lighting"],
+            "LEDColorTemperature": ["Warm white", "Cool white", "Tunable white", "RGB"],
+            "Control": ["Touch sensor button", "Dimmer", "Defogger"],
+            "Size": ["Custom height and width (oval dimensions)"],
+            "EdgeFinish": ["Polished edge"]
+          }
+        },
+        {
+          "name": "Frameless Oval Beveled Mirror",
+          "description": "Oval mirror with beveled edge",
+          "customization_fields": {
+            "Shape": ["Oval"],
+            "FrameType": ["Frameless"],
+            "EdgeFinish": ["Beveled edge", "Flat polished edge", "Pencil edge"],
+            "Size": ["Custom height and width (oval dimensions)"],
+            "Installation": ["Wall-mounted"]
+          }
+        },
+        {
+          "name": "White Framed Rectangle Mirror",
+          "description": "Full-body rectangular mirror with white frame",
+          "customization_fields": {
+            "Shape": ["Rectangle"],
+            "Orientation": ["Vertical/Full-body", "Horizontal"],
+            "FrameMaterialColor": ["White frame", "Other colors", "Wood", "Metal"],
+            "Size": ["Custom height and width"],
+            "Installation": ["Leaning", "Wall-mounted"]
+          }
+        },
+        {
+          "name": "Frameless Rectangle Mirror",
+          "description": "Wide frameless mirror for vanity",
+          "customization_fields": {
+            "Shape": ["Rectangle"],
+            "FrameType": ["Frameless"],
+            "Size": ["Custom width and height (often for vanity sizes)"],
+            "EdgeFinish": ["Standard polished edge"],
+            "Installation": ["Wall-mounted (often fixed above vanity)"]
+          }
+        },
+        {
+          "name": "Frameless Whole Body Rectangle Mirror",
+          "description": "Large full-body frameless mirror",
+          "customization_fields": {
+            "Shape": ["Rectangle"],
+            "FrameType": ["Frameless"],
+            "Size": ["Very large dimensions for whole-body viewing (customizable)"],
+            "EdgeFinish": ["Standard polished edge"],
+            "Installation": ["Leaning", "Wall-mounted"]
+          }
+        },
+        {
+          "name": "Bronze Mirror",
+          "description": "Mirror with bronze tint/finish",
+          "customization_fields": {
+            "Shape": ["Rectangle", "Potentially other shapes"],
+            "Frame": ["Framed (thin matching frame possible)"],
+            "TintFinish": ["Bronze tint/color", "Grey tint (smoked)", "Colored glass"],
+            "Size": ["Custom height and width"],
+            "Installation": ["Wall-mounted"]
+          }
+        },
+        {
+          "name": "Frameless Backlight Mirror",
+          "description": "Mirror with backlighting effect",
+          "customization_fields": {
+            "Shape": ["Rectangle", "Potentially round or oval"],
+            "FrameType": ["Frameless"],
+            "Lighting": ["Backlighting", "Integrated LED options"],
+            "LEDColorTemperature": ["Warm white", "Cool white", "Tunable white", "RGB"],
+            "AdditionalFeatures": ["Defogger", "Dimmer"],
+            "Size": ["Custom height and width"],
+            "EdgeFinish": ["Polished edge"]
+          }
+        },
+        {
+          "name": "Rounded Edge Frameless Mirror",
+          "description": "Rectangular mirror with rounded corners",
+          "customization_fields": {
+            "Shape": ["Rectangular with rounded edges"],
+            "FrameType": ["Frameless"],
+            "Orientation": ["Vertical", "Horizontal"],
+            "Size": ["Various sizes (tall vertical, wider horizontal)"],
+            "EdgeFinish": ["Rounded edges"]
+          }
+        },
+        {
+          "name": "Arched Frameless Mirror",
+          "description": "Mirror with arched top",
+          "customization_fields": {
+            "Shape": ["Rectangular with arched top"],
+            "FrameType": ["Frameless"],
+            "Orientation": ["Vertical"],
+            "Size": ["Custom dimensions"]
+          }
+        },
+        {
+          "name": "Gold Framed Arched Mirror",
+          "description": "Arched mirror with gold frame",
+          "customization_fields": {
+            "Shape": ["Rectangular with arched top"],
+            "FrameType": ["Framed (gold frame shown)"],
+            "FrameColor": ["Gold", "Other frame colors available"],
+            "Orientation": ["Vertical"],
+            "Size": ["Custom dimensions"]
+          }
+        },
+        {
+          "name": "French Type Framed Mirror",
+          "description": "Mirror with French window grid pattern",
+          "customization_fields": {
+            "Style": ["French Type (grid/paneled design)"],
+            "FrameType": ["Framed (dark, possibly black, grid frame)"],
+            "FrameColor": ["Dark/Black", "Other frame colors available"],
+            "Size": ["Large scale, possibly custom-fit for walls"],
+            "GridPattern": ["French window style grid"]
+          }
+        },
+        {
+          "name": "Custom Size Mirror",
+          "description": "Circular mirror with metallic frame",
+          "customization_fields": {
+            "Shape": ["Circular"],
+            "FrameType": ["Framed (thin, metallic)"],
+            "FrameMaterialColor": ["Silver/Metallic", "Other options"],
+            "Size": ["Custom Size (flexible dimensions)"]
+          }
+        },
+        {
+          "name": "3 Sets Black Framed Mirror",
+          "description": "Three identical rectangular mirrors with black frames",
+          "customization_fields": {
+            "Shape": ["Rectangular"],
+            "FrameType": ["Framed"],
+            "FrameColor": ["Black", "Other frame colors available"],
+            "Quantity": ["Available in sets (3 sets, or individually)"],
+            "Arrangement": ["Can be displayed as triptych", "Individually"],
+            "Size": ["Standard large size", "Custom sizes"]
+          }
+        }
+      ]
+    },
+    {
+      "category": "ALUMINUM KITCHEN CABINETS",
+      "products": [
+        {
+          "name": "Aluminum Kitchen Cabinet (Standard)",
+          "description": "Modern aluminum kitchen cabinet system",
+          "customization_fields": {
+            "CabinetMaterial": ["Aluminum Composite Panel (ACP)"],
+            "FrameType": ["Lockstile Frames", "ACP Frames"],
+            "Hinges": ["Soft Close Hinges", "Standard Hinges"],
+            "CabinetColorFinish": ["White", "Light Gray", "Black", "Custom colors"],
+            "FinishType": ["Glossy", "Semi-gloss", "Matte", "Satin"],
+            "CabinetDoorStyle": ["Flat panel", "Shaker style", "Raised panel", "Panel with raised border"],
+            "DoorDesign": ["Solid panels", "Frosted/translucent glass inserts"],
+            "LayoutConfiguration": ["Linear", "L-shape", "U-shape", "Island configurations"],
+            "HandlesPulls": ["Bar handles", "Knob handles", "Recessed handles", "Integrated finger pulls", "Handle-less (push-to-open)"],
+            "OpenShelving": ["Inclusion/Exclusion", "Number and spacing of shelves", "Placement (end units, mid-section)"],
+            "Lighting": ["Integrated LED strips", "Puck lights", "Under-cabinet lighting", "Various color temperatures"],
+            "CountertopMaterial": ["Tiled", "Quartz", "Granite", "Solid surface", "Laminate", "Various colors"],
+            "BacksplashMaterial": ["Matching countertop", "Subway tile", "Glass", "Painted", "Various designs"],
+            "Dimensions": "Custom height, width, and depth for upper and lower units"
+          },
+          "standard_inclusions": {
+            "UtensilOrganizer": {
+              "quantity": 1,
+              "unit": "set",
+              "customizable_quantity": true
+            },
+            "StainlessPullOutBasketPlates": {
+              "quantity": 1,
+              "unit": "set",
+              "customizable_quantity": true
+            },
+            "StainlessPullOutBasketCupsMugs": {
+              "quantity": 1,
+              "unit": "set",
+              "customizable_quantity": true
+            },
+            "StainlessPullOutCondimentRack": {
+              "quantity": 1,
+              "unit": "set",
+              "model": "DK-150C or similar",
+              "customizable_quantity": true
+            },
+            "StainlessPantry": {
+              "quantity": 1,
+              "unit": "set",
+              "customizable_quantity": true
+            }
+          },
+          "additional_organizer_options": [
+            "Multiple utensil organizers",
+            "Multiple plate/cup baskets",
+            "Additional condiment racks",
+            "Lazy Susans for corner cabinets",
+            "Pantry pull-outs",
+            "Waste bin pull-outs",
+            "Drawer dividers",
+            "Spice racks",
+            "Pot and pan organizers",
+            "Adjustable shelving"
+          ],
+          "organizer_materials": ["Stainless steel (standard)", "Plastic", "Wood (for some organizers)"]
+        },
+        {
+          "name": "Aluminum Kitchen Cabinet with Smoke Glass",
+          "description": "Kitchen cabinets with smoke glass panels",
+          "customization_fields": {
+            "GlassType": ["Smoke Glass", "Clear Glass", "Frosted Glass", "Patterned Glass", "Other colored/tinted glass"],
+            "FrameMaterialFinish": ["Aluminum", "Frame Color (White, Black, Silver, Custom colors)"],
+            "FrameProfile": ["Lockstile Frames", "Other styles"],
+            "Hinges": ["Soft Close Hinges", "Standard Hinges"],
+            "CabinetDoorStyle": ["Solid Panel (lower)", "Glass panel (upper)", "Shaker style", "Flat panel", "Recessed panel variations"],
+            "Dimensions": "Custom cabinet dimensions"
+          }
+        },
+        {
+          "name": "Lower Cabinet Door - Horizontal Slatted/Louvered",
+          "description": "Door with horizontal slats for ventilation or aesthetic",
+          "customization_fields": {
+            "DoorStyle": ["Horizontal slatted/louvered", "Solid Panel", "Glass Insert"]
+          }
+        }
+      ]
+    },
+    {
+      "category": "ALUMINUM SCREEN & BATHROOM DOORS",
+      "products": [
+        {
+          "name": "Ordinary Screen Windows/Doors",
+          "description": "Screen doors with diamond mesh pattern",
+          "customization_fields": {
+            "MeshType": ["Ordinary Screen (diamond/criss-cross mesh)"],
+            "FrameMaterial": ["Aluminum"],
+            "FrameColor": ["Black", "Analok (Dark Brown/Bronze)", "Powder Coated White (PCW)"],
+            "DoorPanelDesign": ["Mesh on top, Horizontal slats on bottom", "Full mesh", "Full horizontal slats"],
+            "DoorTypeInstallation": ["Sliding Screen Door", "Swing Screen Door"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Hardmesh Screen Windows/Doors",
+          "description": "Heavy-duty screen with finer/stronger mesh",
+          "customization_fields": {
+            "MeshType": ["Hardmesh Screen (more durable than ordinary screen)"],
+            "FrameMaterial": ["Aluminum"],
+            "FrameColor": ["Powder Coated White (PCW)", "Black/Dark Brown"],
+            "DesignConfiguration": ["Large multi-panel sliding window/door systems", "Multi-pane window units with screen and solid lower panels"],
+            "Dimensions": "Custom width and height"
+          }
+        },
+        {
+          "name": "Bathroom Door",
+          "description": "Aluminum bathroom door with horizontal slats",
+          "customization_fields": {
+            "FrameMaterial": ["Aluminum"],
+            "FrameColor": ["Analok (Black/Dark Finish)", "PCW (Powder Coated White)"],
+            "DoorPanelDesign": ["Full Horizontal Slats (standard design)", "Other panel designs (if available)"],
+            "DoorOperation": ["Swing (left or right)"],
+            "Dimensions": "Custom width and height"
+          }
+        }
+      ]
+    }
+  ],
+  "common_customization_categories": {
+    "FrameOptions": {
+      "Colors": ["White", "Black", "Brown (wood-look)", "Silver", "Bronze", "Gold", "Analok (dark/bronze)", "Custom colors"],
+      "Materials": ["Aluminum", "Powder Coated", "Anodized (Analok)"],
+      "Finish": ["Matte", "Glossy", "Satin", "Textured"]
+    },
+    "GlassOptions": {
+      "Types": ["Clear", "Tinted (bronze, grey, smoked)", "Frosted", "Low-E", "Double-pane", "Tempered", "Laminated", "Safety glass"],
+      "Treatments": ["Frosted stickers (custom patterns, opacity, colors)", "Reflective coatings", "Beveled edges"],
+      "Thickness": ["3mm", "5mm", "6mm", "8mm", "10mm", "12mm", "Custom thickness"]
+    },
+    "ShapeSizeOptions": {
+      "Shapes": ["Round", "Oval", "Rectangle", "Square", "Custom shapes", "Arched tops", "Rounded corners"],
+      "Dimensions": "Fully customizable width and height",
+      "Orientations": ["Vertical", "Horizontal", "Custom orientations"]
+    },
+    "HardwareOptions": {
+      "Finishes": ["Chrome/Stainless Steel", "Black Matte", "Gold", "Brushed Nickel", "Bronze"],
+      "Types": ["Handles", "Hinges", "Brackets", "U-Channels", "Patch Fittings", "Track systems"],
+      "Features": ["Soft-close hinges", "Locking mechanisms", "Multi-point locks"]
+    },
+    "OperationConfiguration": {
+      "WindowOperations": ["Sliding", "Awning", "Casement", "Double-hung", "Single-hung", "Fixed"],
+      "DoorOperations": ["Swing (left/right)", "Sliding", "Hanging sliding", "Fixed"],
+      "PanelConfigurations": ["Single panel", "Multiple panels", "Fixed panels", "Transoms"]
+    },
+    "SpecialFeatures": {
+      "Lighting": ["LED integrated", "Backlighting", "Front lighting", "Color temperature options", "Dimmer controls", "Defogger"],
+      "GridPatterns": ["French type", "Colonial", "Prairie", "Custom grid designs"],
+      "MountingMethods": ["Standard mounting", "Fixed brackets", "U-Channels", "Patch fittings"]
+    }
+  },
+  "database_field_mapping": {
+    "Dimensions": "All products (Width × Height, and depth for cabinets)",
+    "GlassShape": "Windows, Doors, Mirrors (Round, Oval, Rectangle, Arched, Custom)",
+    "GlassType": "Windows, Doors, Shower enclosures, Mirrors, Cabinet doors",
+    "GlassThickness": "All glass products",
+    "EdgeWork": "Mirrors (Beveled, Polished, Pencil edge), Glass edges",
+    "FrameType": "All products (Material, Style, Profile)",
+    "Engraving": "Custom text/designs on products",
+    "DesignRef": "Reference to design files, images",
+    "LEDBacklight": "LED mirrors, Cabinet lighting",
+    "DoorOperation": "Doors, Windows (Swing, Sliding, Hanging, Fixed)",
+    "Configuration": "Panel arrangements, Layouts, Mounting methods",
+    "EstimatePrice": "All products",
+    "PriceBreakdown": "All products (JSON with price components)",
+    "additional_fields_suggested": {
+      "FrameColor": "Separate field for frame color selection",
+      "HardwareFinish": "Hardware color/finish selection",
+      "MeshType": "For screen doors (Ordinary, Hardmesh)",
+      "PanelCount": "Number of panels/doors",
+      "Series": "Product series (e.g., '900 Series', '798 Series', '38 Series')",
+      "GridPattern": "Grid style for French type products",
+      "InternalOrganizers": "JSON field for cabinet organizer selections"
+    }
+  }
+}

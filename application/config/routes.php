@@ -91,6 +91,11 @@ $route['submit-issue'] = 'FaqCon/submit_issue';
 
 $route['products'] = 'ShopCon/products';
 $route['2DModeling'] = 'ShopCon/product_2d';
+
+/* Customization Fields API Routes */
+$route['customizationFields/get'] = 'CustomizationFieldsCon/get';
+$route['customizationFields/getAll'] = 'CustomizationFieldsCon/getAll';
+$route['customizationFields/save'] = 'CustomizationFieldsCon/save';
 $route['addtocart'] = 'CartCon/cart_page';
 $route['cart-page'] = 'CartCon/cart_page';
 $route['payment'] = 'ShopCon/checkout';
