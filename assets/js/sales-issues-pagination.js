@@ -509,6 +509,42 @@
 
         // Description
         document.getElementById('issueDescription').value = issue.description || 'No description provided.';
+        
+        // Handle attachment display
+        const attachmentSection = document.getElementById('attachmentSection');
+        const attachmentThumbnail = document.getElementById('attachmentThumbnail');
+        const attachmentLink = document.getElementById('attachmentLink');
+        const attachmentText = document.getElementById('attachmentText');
+        
+        if (issue.file_attached && issue.file_attached !== 'N/A' && issue.file_url) {
+            attachmentSection.style.display = 'block';
+            const fileName = issue.file_attached.includes('/') ? issue.file_attached.split('/').pop() : issue.file_attached;
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            const imageExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+            const isImage = imageExtensions.includes(fileExtension);
+            
+            if (isImage) {
+                attachmentThumbnail.src = issue.file_url;
+                attachmentThumbnail.alt = fileName;
+                attachmentThumbnail.style.display = 'block';
+                attachmentLink.href = issue.file_url;
+                attachmentLink.textContent = fileName;
+                attachmentLink.style.display = 'inline';
+                attachmentText.style.display = 'none';
+            } else {
+                attachmentThumbnail.style.display = 'none';
+                attachmentLink.href = issue.file_url;
+                attachmentLink.textContent = fileName;
+                attachmentLink.style.display = 'inline';
+                attachmentText.style.display = 'none';
+            }
+        } else {
+            attachmentSection.style.display = 'none';
+            attachmentThumbnail.style.display = 'none';
+            attachmentLink.style.display = 'none';
+            attachmentText.style.display = 'inline';
+            attachmentText.textContent = 'N/A';
+        }
     }
 
     /**

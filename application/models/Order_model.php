@@ -800,6 +800,7 @@ class Order_model extends CI_Model
             o.OrderID,
             o.OrderNumber,
             o.OrderDate,
+            o.Updated_Date,
             o.Status,
             o.PaymentStatus,
             oi.Product_ID,
@@ -810,7 +811,8 @@ class Order_model extends CI_Model
         $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
         $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
         $this->db->where('o.Customer_ID', $customer_id);
-        $this->db->order_by('o.OrderDate', 'DESC');
+        // Order by Updated_Date if available, otherwise OrderDate
+        $this->db->order_by('COALESCE(o.Updated_Date, o.OrderDate)', 'DESC', FALSE);
         $this->db->group_by('o.OrderID');
         $this->db->limit($limit);
         
@@ -828,13 +830,15 @@ class Order_model extends CI_Model
             o.OrderNumber,
             o.Status,
             o.OrderDate,
+            o.Updated_Date,
             p.ProductName
         ');
         $this->db->from('`order` o');
         $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
         $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
         $this->db->where('o.Customer_ID', $customer_id);
-        $this->db->order_by('o.OrderDate', 'DESC');
+        // Order by Updated_Date if available, otherwise OrderDate
+        $this->db->order_by('COALESCE(o.Updated_Date, o.OrderDate)', 'DESC', FALSE);
         $this->db->group_by('o.OrderID');
         $this->db->limit($limit);
         
@@ -846,13 +850,19 @@ class Order_model extends CI_Model
      */
     public function get_last_update_time($customer_id)
     {
-        $this->db->select('OrderDate');
+        $this->db->select('Updated_Date, OrderDate');
         $this->db->where('Customer_ID', $customer_id);
+        $this->db->order_by('Updated_Date', 'DESC');
         $this->db->order_by('OrderDate', 'DESC');
         $this->db->limit(1);
         $result = $this->db->get('order')->row();
         
-        return $result ? $result->OrderDate : null;
+        // Use Updated_Date if available, otherwise fall back to OrderDate
+        if ($result) {
+            return $result->Updated_Date ? $result->Updated_Date : $result->OrderDate;
+        }
+        
+        return null;
     }
 
     /**

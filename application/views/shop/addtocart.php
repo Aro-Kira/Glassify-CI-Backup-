@@ -161,9 +161,6 @@
         </div>
       </div>
 
-      <div class="quotation-content">
-        <button class="generate-btn" id="openModal">Generate Quotation</button>
-      </div>
 
       <!-- Mobile Order Summary Bar (Shopee style) -->
       <div class="order-summary-mobile">
@@ -197,99 +194,6 @@
 
 
 
-<!-- Simple Modern Quotation Modal -->
-<div id="quotationModal" class="modal">
-  <div class="modal-overlay"></div>
-  <div class="modal-content">
-    <button class="modal-close" id="closeModal">&times;</button>
-
-    <div class="modal-header">
-      <h2>Quotation</h2>
-      <span class="quotation-date" id="quotation-date"></span>
-    </div>
-
-    <div class="modal-body">
-      <!-- Customer Info - Inline Style -->
-      <div class="customer-info-bar">
-        <div class="customer-detail">
-          <span class="label">Customer</span>
-          <span class="value" id="quote-customer-name"><?php 
-            if (isset($customer)) {
-              $name = trim(($customer->First_Name ?? '') . ' ' . ($customer->Middle_Name ?? '') . ' ' . ($customer->Last_Name ?? ''));
-              echo $name ?: 'N/A';
-            } else {
-              echo 'N/A';
-            }
-          ?></span>
-        </div>
-        <div class="customer-detail">
-          <span class="label">Email</span>
-          <span class="value" id="quote-customer-email"><?= isset($customer->Email) ? $customer->Email : 'N/A' ?></span>
-        </div>
-        <div class="customer-detail">
-          <span class="label">Phone</span>
-          <span class="value" id="quote-customer-phone"><?= isset($customer->PhoneNum) ? $customer->PhoneNum : 'N/A' ?></span>
-        </div>
-        <div class="customer-detail full-width">
-          <span class="label">Address</span>
-          <span class="value" id="quote-customer-address"><?= isset($customer->Address) ? $customer->Address : 'N/A' ?></span>
-        </div>
-      </div>
-
-      <!-- Items Table -->
-      <div class="table-wrapper">
-        <table class="quotation-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Customization</th>
-              <th>Qty</th>
-              <th>Unit Price</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody id="quotation-items">
-            <!-- Rows will be dynamically generated -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Custom Design Layouts Section -->
-      <div class="designs-section" id="designs-section" style="display: none;">
-        <h4 class="section-title">Custom Design Layouts</h4>
-        <p class="designs-note">Included designs for reference</p>
-        <div class="designs-grid" id="quotation-designs">
-          <!-- Design images will be dynamically generated -->
-        </div>
-      </div>
-
-      <!-- Totals -->
-      <div class="totals-box">
-        <div class="total-line">
-          <span>Subtotal</span>
-          <span id="quote-subtotal">₱0.00</span>
-        </div>
-        <div class="total-line">
-          <span>Shipping Fee</span>
-          <span id="quote-shipping">₱0.00</span>
-        </div>
-        <div class="total-line">
-          <span>Handling Fee</span>
-          <span id="quote-handling">₱0.00</span>
-        </div>
-        <div class="total-line grand">
-          <span>Grand Total</span>
-          <span id="quote-grandtotal">₱0.00</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn-close" id="closeModalBtn">Close</button>
-      <button class="btn-print" id="printQuotation">Print Quotation</button>
-    </div>
-  </div>
-</div>
 
 <!-- Design Preview Modal -->
 <div id="designModal" class="modal">

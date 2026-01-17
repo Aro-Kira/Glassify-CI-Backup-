@@ -283,14 +283,63 @@ h1 {
 table {
   width: 100%;
   border-collapse: collapse;
+  position: relative;
 }
 thead {
   background: #04384c;
   color: #fff;
+  position: relative;
 }
 th, td {
   padding: 14px;
   text-align: left;
+}
+
+/* Sticky first column for order progress table */
+#ordersTable thead th:first-child,
+#ordersTable tbody td:first-child {
+  position: sticky;
+  left: 0;
+  background: #04384c;
+  z-index: 5;
+}
+
+#ordersTable tbody td:first-child {
+  background: #fff;
+}
+
+#ordersTable tbody tr:nth-child(even) td:first-child {
+  background: #f9f9f9;
+}
+
+#ordersTable tbody tr:hover td:first-child {
+  background: #f1f7fb;
+}
+
+/* Sticky first column for appointment table */
+#appointmentsTable thead th:first-child,
+#appointmentsTable tbody td:first-child {
+  position: sticky;
+  left: 0;
+  background: #04384c;
+  z-index: 5;
+}
+
+#appointmentsTable tbody td:first-child {
+  background: #fff;
+}
+
+#appointmentsTable tbody tr:nth-child(even) td:first-child {
+  background: #f9f9f9;
+}
+
+#appointmentsTable tbody tr:hover td:first-child {
+  background: #f1f7fb;
+}
+
+/* Ensure sticky header works with sticky column */
+.appointment-table-wrapper.scrollable #appointmentsTable thead th:first-child {
+  z-index: 15;
 }
 tbody tr:nth-child(even) {
   background: #f9f9f9;

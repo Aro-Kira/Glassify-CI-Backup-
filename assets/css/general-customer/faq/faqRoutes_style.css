@@ -56,15 +56,12 @@ body {
     color: #00455A;
 }
 
-.path .articles:hover {
-  text-decoration: underline;
+.path a.home:hover,
+.path a.articles:hover {
+  text-decoration: underline !important;
 }
 
 .path .current:hover {
-  text-decoration: underline;
-}
-
-.path .visually-hidden:hover {
   text-decoration: underline;
 }
 /* Page Title */

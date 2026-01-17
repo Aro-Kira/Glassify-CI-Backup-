@@ -85,6 +85,7 @@
                                     alt="<?= htmlspecialchars($product->ProductName ?? 'Product') ?>" 
                                     class="main-product-image <?= $index === 0 ? 'active' : '' ?>"
                                     data-image-index="<?= $index ?>"
+                                    style="<?= $index === 0 ? '' : 'display: none;' ?>"
                                     onerror="this.style.display='none';">
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -102,8 +103,8 @@
 
                 <?php if (isset($totalImages) && $totalImages > 1): ?>
                     <div class="gallery-nav">
-                        <button class="nav-arrow" id="gallery-prev-btn">&lt;</button>
-                        <button class="nav-arrow" id="gallery-next-btn">&gt;</button>
+                        <button class="nav-arrow" id="prev-image">&lt;</button>
+                        <button class="nav-arrow" id="next-image">&gt;</button>
                     </div>
                     <div class="image-counter" id="image-counter">1/<?= $totalImages ?></div>
                 <?php else: ?>
@@ -124,6 +125,18 @@
                     </path>
                 </svg>
             </button>
+            
+            <!-- External Uploaded Files Display (outside modal) -->
+            <div class="external-uploaded-files-list" id="external-uploaded-files-list" style="display: none; margin-top: 15px;">
+                <h3 class="external-uploaded-files-title" style="font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; color: #02455F;">Uploaded Files</h3>
+                <div id="external-uploaded-files-container" style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; max-height: 120px;">
+                    <p class="placeholder-text" style="font-style: italic; color: #666; text-align: center; padding: 10px;">No files uploaded yet.</p>
+                </div>
+                <div class="external-files-scroll-nav" style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                    <button class="scroll-arrow left hidden" style="background: #02455F; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: none;">&lt;</button>
+                    <button class="scroll-arrow right hidden" style="background: #02455F; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: none;">&gt;</button>
+                </div>
+            </div>
         </section>
 
         <section class="product-details">
@@ -299,6 +312,12 @@
 
             <div id="summary-wrapper" class="hidden-step">
                 <h2 class="summary-title">Review your order</h2>
+                
+                <!-- Warning Message -->
+                <div class="price-warning" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin: 20px 0; color: #856404;">
+                    <strong style="display: block; margin-bottom: 4px;">⚠️ Important Notice:</strong>
+                    <span>The estimated price shown is subject to change after the ocular visit. Final pricing will be confirmed following site assessment and verification of specifications.</span>
+                </div>
 
                 <!-- Design Preview Section -->
                 <div class="design-preview-section">
@@ -417,45 +436,59 @@
 
     <section id="related-products-section" class="full-width-section dark-bg">
         <div class="inner-content">
-            <h2 class="section-title-white">Related Products</h2>
+            <h2 class="section-title-white">You May Also Like</h2>
             <div class="products-grid">
-                <div class="product-card">
-                    <div class="p-image">
-                        <img src="<?= base_url('assets/img/series_slidingwindow.png') ?>" alt="900 Series" onerror="this.style.display='none';">
-                    </div>
-                    <div class="p-info">
-                        <p>900 Series Sliding Window</p>
-                        <button class="yellow-btn">Build and Buy</button>
-                    </div>
-
-                </div>
-                <div class="product-card">
-                    <div class="p-image">
-                        <img src="<?= base_url('assets/img/798_window.png') ?>" alt="798 Series" onerror="this.style.display='none';">
-                    </div>
-                    <div class="p-info">
-                        <p>798 Series Sliding Window</p>
-                        <button class="yellow-btn">Build and Buy</button>
-                    </div>
-                </div>
-                <div class="product-card">
-                    <div class="p-image">
-                        <img src="<?= base_url('assets/img/french-sliding-door.png') ?>" alt="French Window" onerror="this.style.display='none';">
-                    </div>
-                    <div class="p-info">
-                        <p>900 Series French Type Sliding Window</p>
-                        <button class="yellow-btn">Build and Buy</button>
-                    </div>
-                </div>
-                <div class="product-card">
-                    <div class="p-image">
-                        <img src="<?= base_url('assets/img/awningwindow.png') ?>" alt="Awning Window" onerror="this.style.display='none';">
-                    </div>
-                    <div class="p-info">
-                        <p>38 Series Awning Window</p>
-                        <button class="yellow-btn">Build and Buy</button>
-                    </div>
-                </div>
+                <?php if (isset($recommendations) && !empty($recommendations)): ?>
+                    <?php 
+                    // Limit to exactly 4 cards and randomize
+                    $recommendations_array = is_array($recommendations) ? $recommendations : (array)$recommendations;
+                    
+                    // Shuffle array to randomize
+                    shuffle($recommendations_array);
+                    
+                    // Limit to 4 items, excluding current product
+                    $limited_recommendations = [];
+                    foreach ($recommendations_array as $rec_product) {
+                        // Skip the current product being viewed
+                        if (isset($product) && $rec_product->Product_ID == $product->Product_ID) {
+                            continue;
+                        }
+                        $limited_recommendations[] = $rec_product;
+                        if (count($limited_recommendations) >= 4) {
+                            break;
+                        }
+                    }
+                    
+                    foreach ($limited_recommendations as $rec_product): 
+                    ?>
+                        <div class="product-card">
+                            <div class="p-image">
+                                <?php 
+                                $rec_images = [];
+                                if (!empty($rec_product->ImageUrl)) {
+                                    $decoded = json_decode($rec_product->ImageUrl, true);
+                                    if (is_array($decoded)) {
+                                        $rec_images = $decoded;
+                                    } else {
+                                        $rec_images = [$rec_product->ImageUrl];
+                                    }
+                                }
+                                $image_url = !empty($rec_images) 
+                                    ? base_url('uploads/products/' . $rec_images[0]) 
+                                    : base_url('assets/img/placeholder.png');
+                                ?>
+                                <img src="<?= $image_url ?>" alt="<?= htmlspecialchars($rec_product->ProductName) ?>" onerror="this.src='<?= base_url('assets/img/placeholder.png') ?>'">
+                            </div>
+                            <div class="p-info">
+                                <p><?= htmlspecialchars($rec_product->ProductName) ?></p>
+                                <button class="yellow-btn" onclick="window.location.href='<?= base_url('2DModeling?id=' . $rec_product->Product_ID) ?>'">Build and Buy</button>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <!-- Fallback if no recommendations available -->
+                    <p style="color: #fff; text-align: center; padding: 20px; grid-column: 1 / -1;">No products available at the moment.</p>
+                <?php endif; ?>
             </div>
         </div>
     </section>

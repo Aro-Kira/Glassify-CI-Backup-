@@ -24,7 +24,8 @@
 
   </div>
 
-  <!-- Report Issue -->
+  <!-- Report Issue (only show if logged in) -->
+  <?php if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer'): ?>
   <section class="faq-section">
     <div class="faq-buttons">
       <a href="<?php echo base_url('report-issue'); ?>">
@@ -34,6 +35,8 @@
         </div>
       </a>
     </div>
+  </section>
+  <?php endif; ?>
 
     <!-- Get More Information -->
     <div class="info-title">Get More Information</div>

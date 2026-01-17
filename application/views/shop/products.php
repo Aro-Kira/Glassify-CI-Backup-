@@ -163,7 +163,7 @@
                 <?php endif; ?>
               </div>
               
-              <span class="product-status-badge <?= $status_class; ?>" style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; color: white; background-color: <?= $status_color; ?>; margin: 8px 0;">
+              <span class="product-status-badge <?= $status_class; ?>" style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; color: white; background-color: <?= $status_color; ?>; margin: 5px 0;">
                 <?= htmlspecialchars($status); ?>
               </span>
 

@@ -67,6 +67,10 @@ public function products()
 public function product_2d()
 {
     $this->load->model('Product_model');
+    
+    // Ensure session is properly initialized - don't clear it on page load
+    // The session library is already loaded in __construct()
+    // Just ensure we're not doing anything that would destroy the session
 
     // Get id from GET instead of method param
     $id = $this->input->get('id');
@@ -192,6 +196,9 @@ public function product_2d()
     $data['standardSeries'] = $standardSeries;
     $data['productSelectedOptions'] = $productSelectedOptions; // Selected tags for filtering
     
+    // Get recommended products (same as products page - only In Stock or Low Stock)
+    $data['recommendations'] = $this->Product_model->get_recommended_products(4);
+    
     // Debug logging
     log_message('debug', 'Product 2D - Product ID: ' . $product->Product_ID);
     log_message('debug', 'Product 2D - Category: ' . ($product->Category ?? 'N/A'));
@@ -259,6 +266,11 @@ public function checkout()
         
         // Also get addresses by type for backward compatibility
         $data['addresses'] = array_merge($data['addresses'], $this->User_model->get_addresses($userID));
+        
+        // Get all addresses for the dropdown selector
+        $data['all_addresses'] = $all_addresses;
+    } else {
+        $data['all_addresses'] = [];
     }
 
     // fallback if user not found

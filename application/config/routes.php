@@ -134,13 +134,11 @@ $route['auth/process_register'] = 'auth/process_register';
 $route['Adlog'] = 'Auth/admin_login';
 $route['SLslog'] = 'Auth/sales_login';
 $route['sales-login'] = 'Auth/sales_login';
-$route['Invlog'] = 'Auth/inventory_login';
 
 /*==============Forgot Password Routes (Separate for each role)================*/
 $route['forgot-password'] = 'auth/forgot_password/Customer';
 $route['admin-forgot-password'] = 'auth/forgot_password/Admin';
 $route['sales-forgot-password'] = 'auth/forgot_password/Sales';
-$route['inventory-forgot-password'] = 'auth/forgot_password/Inventory';
 
 /*==============Reset Password Routes================*/
 $route['reset-password/(:any)/(:any)'] = 'auth/reset_password/$1/$2';

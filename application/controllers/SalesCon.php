@@ -1190,6 +1190,17 @@ class SalesCon extends CI_Controller
         // Format order ID
         $order_id_display = $issue->Order_ID > 0 ? '#G' . str_pad($issue->Order_ID, 4, '0', STR_PAD_LEFT) : 'N/A';
         
+        // Build file URL if attachment exists
+        $file_url = null;
+        $file_attached = $issue->FileAttached ?? null;
+        if ($file_attached && $file_attached !== 'N/A') {
+            if (strpos($file_attached, 'uploads/') === 0) {
+                $file_url = base_url($file_attached);
+            } else {
+                $file_url = base_url('uploads/' . $file_attached);
+            }
+        }
+        
         header('Content-Type: application/json');
         echo json_encode([
             'success' => true,
@@ -1206,7 +1217,9 @@ class SalesCon extends CI_Controller
                 'priority' => $issue->Priority,
                 'description' => $issue->Description,
                 'status' => $issue->Status,
-                'report_date' => $issue->Report_Date
+                'report_date' => $issue->Report_Date,
+                'file_attached' => $file_attached,
+                'file_url' => $file_url
             ]
         ]);
     }

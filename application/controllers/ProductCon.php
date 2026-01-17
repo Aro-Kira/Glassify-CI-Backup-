@@ -384,60 +384,51 @@ public function update_product($id)
         if ($customization) {
             $data['Customization'] = $customization;
         }
-        // Admin CANNOT update Material - do not include it
-        
-    } elseif ($user_role === 'Inventory Officer') {
-        // Inventory Officer can ONLY edit materials (not image, name, category, price)
-        // Handle multiple materials from JSON
+        // Admin can now edit materials (functionality transferred from Inventory Officer)
+        // Handle multiple materials from JSON for Admin (optional - can update other fields without materials)
         $materials_json = $this->input->post('materials');
         
         if ($materials_json) {
             $materials = json_decode($materials_json, true);
             
-            if (!is_array($materials) || empty($materials)) {
-                echo json_encode(['status' => 'error', 'message' => 'No materials provided']);
-                return;
-            }
-            
-            // Delete existing material relationships for this product
-            $this->db->where('Product_ID', $id);
-            $this->db->delete('product_materials');
-            
-            // Insert all new material relationships
-            $material_enum = 'Glass'; // Default for backward compatibility
-            foreach ($materials as $material) {
-                $inventory_item_id = $material['InventoryItemID'];
-                $quantity = isset($material['QuantityRequired']) ? $material['QuantityRequired'] : 1;
+            if (is_array($materials) && !empty($materials)) {
+                // Delete existing material relationships for this product
+                $this->db->where('Product_ID', $id);
+                $this->db->delete('product_materials');
                 
-                // Get inventory item details
-                $inventory_item = $this->Inventory_model->get_item($inventory_item_id);
-                
-                if ($inventory_item) {
-                    $material_data = [
-                        'Product_ID' => $id,
-                        'InventoryItemID' => $inventory_item_id,
-                        'QuantityRequired' => $quantity,
-                        'Unit' => $material['Unit'] ?? $inventory_item->Unit,
-                        'Created_Date' => date('Y-m-d H:i:s')
-                    ];
-                    $this->db->insert('product_materials', $material_data);
+                // Insert all new material relationships
+                $material_enum = 'Glass'; // Default for backward compatibility
+                foreach ($materials as $material) {
+                    $inventory_item_id = $material['InventoryItemID'];
+                    $quantity = isset($material['QuantityRequired']) ? $material['QuantityRequired'] : 1;
                     
-                    // Determine material enum for backward compatibility (use first material)
-                    if ($material_enum === 'Glass' && 
-                        (stripos($inventory_item->Category, 'Aluminum') !== false || 
-                         stripos($inventory_item->Name, 'Aluminum') !== false)) {
-                        $material_enum = 'Aluminum';
+                    // Get inventory item details
+                    $inventory_item = $this->Inventory_model->get_item($inventory_item_id);
+                    
+                    if ($inventory_item) {
+                        $material_data = [
+                            'Product_ID' => $id,
+                            'InventoryItemID' => $inventory_item_id,
+                            'QuantityRequired' => $quantity,
+                            'Unit' => $material['Unit'] ?? $inventory_item->Unit,
+                            'Created_Date' => date('Y-m-d H:i:s')
+                        ];
+                        $this->db->insert('product_materials', $material_data);
+                        
+                        // Determine material enum for backward compatibility (use first material)
+                        if ($material_enum === 'Glass' && 
+                            (stripos($inventory_item->Category, 'Aluminum') !== false || 
+                             stripos($inventory_item->Name, 'Aluminum') !== false)) {
+                            $material_enum = 'Aluminum';
+                        }
                     }
                 }
+                
+                // Update Material field in product table for backward compatibility
+                $data['Material'] = $material_enum;
             }
-            
-            // Update Material field in product table for backward compatibility
-            $data['Material'] = $material_enum;
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'No materials provided']);
-            return;
         }
-        // Do not allow updates to image, name, category, or price
+        // Admin can update materials, image, name, category, and price
         
     } else {
         // Default behavior for other roles (backward compatibility)

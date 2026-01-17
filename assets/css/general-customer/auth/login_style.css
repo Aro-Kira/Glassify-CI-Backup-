@@ -262,6 +262,39 @@ input.invalid {
   text-decoration: underline;
 }
 
+/* Alert Messages */
+.alert {
+  padding: 12px 16px;
+  margin-bottom: 1.5rem;
+  margin-top: 0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  word-wrap: break-word;
+}
+
+.alert-danger {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.alert-danger strong,
+.alert-danger b {
+  color: #721c24;
+  font-weight: 600;
+}
+
+.alert-success {
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
 /* ==========================================
    RESPONSIVE STYLES
    ========================================== */
@@ -382,6 +415,12 @@ input.invalid {
   .login-register {
     font-size: 0.85rem;
     margin-top: 1rem;
+  }
+
+  .alert {
+    padding: 10px 14px;
+    margin-bottom: 1.2rem;
+    font-size: 0.85rem;
   }
 
   .password-requirements {

@@ -245,7 +245,7 @@ thead th:last-child {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 999;
+  z-index: 1001;
   justify-content: flex-end;
 }
 
@@ -293,25 +293,32 @@ thead th:last-child {
 
 /* Form */
 .popup h3 {
-  margin: 20px 0 10px;
+  margin: 23px 0 18px;
   color: #02455F;
-  line-height: 2.5;
+  line-height: 1.5;
+  font-size: 18px;
+  font-weight: 600;
 }
 
 label {
   font-weight: bold;
   display: block;
-  margin: 10px 0 5px;
+  margin: 8px 0 5px;
   line-height: 1.5;
   color: #02455F;
   font-size: 14px;
+}
+
+label .required {
+  color: red;
+  margin-left: 2px;
 }
 
 .popup form input,
 .popup form select {
   width: 100%;
   height: 30px;
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   border: 1px solid #ccc;
   border-radius: 2px;
   font-size: 16px;
@@ -371,9 +378,9 @@ label {
 .btn-group {
   display: flex;
   gap: 10px;
-  margin-top: 30px;
+  margin-top: 15px;
   margin-bottom: 20px;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 
 .save-btn {
@@ -385,6 +392,35 @@ label {
   cursor: pointer;
   font-size: 14px;
   font-weight: bold;
+  transition: opacity 0.2s ease, cursor 0.2s ease;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.popup .btn-group .delete-btn {
+  background: #dc3545;
+  color: white;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 

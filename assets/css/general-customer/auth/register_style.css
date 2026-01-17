@@ -17,7 +17,7 @@ body {
 
 .register-container {
   display: flex;
-  max-width: 950px;
+  max-width: 1200px;
   width: 100%;
   background: #fff;
   border-radius: 8px;
@@ -79,6 +79,17 @@ body {
 .register-form {
   display: flex;
   flex-direction: column;
+}
+
+.register-name-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.register-name-row .register-input-group {
+  flex: 1;
+  margin-bottom: 0;
 }
 
 .register-input-group {
@@ -283,7 +294,16 @@ input.invalid {
 /* Tablet */
 @media (max-width: 1024px) {
   .register-container {
-    max-width: 850px;
+    max-width: 1000px;
+  }
+  
+  .register-name-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .register-name-row .register-input-group {
+    margin-bottom: 1.2rem;
   }
 
   .register-left {
@@ -354,6 +374,15 @@ input.invalid {
   .register-title {
     font-size: 1.3rem;
     margin-bottom: 1.2rem;
+  }
+
+  .register-name-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .register-name-row .register-input-group {
+    margin-bottom: 1rem;
   }
 
   .register-input-group {
@@ -470,6 +499,15 @@ input.invalid {
   .register-title {
     font-size: 1.2rem;
     margin-bottom: 1rem;
+  }
+
+  .register-name-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .register-name-row .register-input-group {
+    margin-bottom: 0.9rem;
   }
 
   .register-input-group {

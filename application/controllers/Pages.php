@@ -158,8 +158,8 @@ class Pages extends CI_Controller {
         $this->form_validation->set_rules('first-name', 'First Name', 'required|trim');
         $this->form_validation->set_rules('last-name', 'Last Name', 'required|trim');
         $this->form_validation->set_rules('email', 'Email Address', 'required|valid_email|trim');
-        $this->form_validation->set_rules('phone', 'Phone Number', 'required|trim');
-        $this->form_validation->set_rules('needs', 'Project Needs', 'required|trim');
+        $this->form_validation->set_rules('phone', 'Phone Number', 'trim');
+        $this->form_validation->set_rules('needs', 'Project Needs', 'trim');
         $this->form_validation->set_rules('message', 'Message', 'trim');
         
         if ($this->form_validation->run() == FALSE) {
@@ -213,11 +213,10 @@ class Pages extends CI_Controller {
                 <ul>
                     <li><strong>Name:</strong> " . htmlspecialchars($first_name . " " . $last_name) . "</li>
                     <li><strong>Email:</strong> " . htmlspecialchars($email) . "</li>
-                    <li><strong>Phone:</strong> " . htmlspecialchars($phone) . "</li>
+                    " . (!empty($phone) ? "<li><strong>Phone:</strong> " . htmlspecialchars($phone) . "</li>" : "") . "
                     <li><strong>Account Status:</strong> " . $account_status . "</li>
                 </ul>
-                <p><strong>Project Needs:</strong></p>
-                <p>" . nl2br(htmlspecialchars($needs)) . "</p>
+                " . (!empty($needs) ? "<p><strong>Project Needs:</strong></p><p>" . nl2br(htmlspecialchars($needs)) . "</p>" : "") . "
                 <p><strong>Message:</strong></p>
                 <p>" . nl2br(htmlspecialchars($message)) . "</p>
                 <hr style='margin: 20px 0; border: none; border-top: 1px solid #ddd;'>
@@ -256,7 +255,7 @@ class Pages extends CI_Controller {
                 <p>Our sales team will review your project requirements and contact you soon at:</p>
                 <ul>
                     <li><strong>Email:</strong> " . htmlspecialchars($email) . "</li>
-                    <li><strong>Phone:</strong> " . htmlspecialchars($phone) . "</li>
+                    " . (!empty($phone) ? "<li><strong>Phone:</strong> " . htmlspecialchars($phone) . "</li>" : "") . "
                 </ul>
                 <p>In the meantime, if you have any urgent questions, please feel free to contact us:</p>
                 <ul>

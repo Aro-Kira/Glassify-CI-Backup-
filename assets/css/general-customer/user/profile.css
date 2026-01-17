@@ -118,6 +118,13 @@ body {
   display: block;
 }
 
+.content-section h3 {
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
 /* Dashboard Section */
 .dashboard-welcome {
   padding: 1rem 0;
@@ -211,6 +218,21 @@ body {
   gap: 1rem;
 }
 
+.form-row .form-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.form-row .form-field input[type="email"],
+.form-row .form-field input[type="text"] {
+  width: 100% !important;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Form Row with three columns */
 .form-row-three {
   grid-template-columns: 1fr 1fr 1fr;
@@ -227,7 +249,7 @@ body {
   font-size: 0.9rem;
   margin-bottom: 0.5rem;
   display: block;
-  font-weight: 500;
+  font-weight: bold;
   color: #333;
 }
 
@@ -281,7 +303,7 @@ body {
 }
 
 .password-section-title {
-  font-size: 1rem;
+  font-size: 17px;
   font-weight: 600;
   color: #333;
   margin: 0 0 1rem 0;
@@ -685,7 +707,7 @@ body {
 
 .form-field-group label {
     font-size: 14px;
-    font-weight: 500;
+    font-weight: bold;
     color: #333;
     margin: 0;
 }
@@ -704,6 +726,7 @@ body {
     box-sizing: border-box;
     background: #fff;
     color: #333;
+    line-height: 1.5;
 }
 
 .address-form input[type="text"]:focus,
@@ -726,6 +749,46 @@ body {
     background-position: right 12px center;
     padding-right: 35px;
     cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* When select has size attribute (dropdown is open with more than 5 options), show as listbox with 5 items visible */
+.address-form select[size] {
+    overflow-y: auto;
+    overflow-x: hidden;
+    background-image: none;
+    padding: 0;
+    border: 1px solid #cfd6dc;
+    border-radius: 6px;
+    position: relative;
+    z-index: 10;
+    background-color: #fff;
+    max-height: calc(5 * 40px);
+    line-height: 1.5;
+    box-shadow: none;
+}
+
+.address-form select[size] option {
+    padding: 10px 12px;
+    cursor: pointer;
+    line-height: 1.5;
+    font-size: 14px;
+    color: #333;
+    background-color: #fff;
+}
+
+.address-form select[size] option:hover {
+    background-color: #f0f0f0;
+}
+
+.address-form select[size] option:checked {
+    background-color: #024e63;
+    color: #fff;
+}
+
+.address-form select[size]:focus option:checked {
+    background-color: #024e63;
+    color: #fff;
 }
 
 .checkbox-group {
@@ -1635,7 +1698,7 @@ body {
 
 #addresses .form-field-group label {
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: bold;
   color: #333;
 }
 

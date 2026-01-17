@@ -9,6 +9,11 @@ class Product_model extends CI_Model {
         $this->load->database(); // Make sure database is loaded
     }
 public function get_products() {
+    // Only show products that are available (In Stock or Low Stock)
+    $this->db->group_start();
+    $this->db->where('Status', 'In Stock');
+    $this->db->or_where('Status', 'Low Stock');
+    $this->db->group_end();
     return $this->db->order_by('DateAdded', 'DESC')->get('product')->result();
 }
 

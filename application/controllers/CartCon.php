@@ -324,6 +324,20 @@ class CartCon extends CI_Controller
         // $this->db->delete('customization');
 
         // 2. Prepare complete order details
+        // Handle file paths - can be single path or JSON array
+        $file_attached = null;
+        if (!empty($post['file_paths'])) {
+            $file_paths = json_decode($post['file_paths'], true);
+            if (is_array($file_paths) && !empty($file_paths)) {
+                // Store as JSON if multiple files, or single path if one file
+                $file_attached = count($file_paths) > 1 ? json_encode($file_paths) : $file_paths[0];
+            } else {
+                $file_attached = $post['file_attached'] ?? null;
+            }
+        } else {
+            $file_attached = $post['file_attached'] ?? null;
+        }
+        
         $custom_data = [
             'Customer_ID' => $customer_id,
             'Product_ID' => $post['product_id'] ?? null,
@@ -335,13 +349,18 @@ class CartCon extends CI_Controller
             'EdgeWork' => $post['edge_work'] ?? null,
             'FrameType' => $post['frame_type'] ?? null,
             'Engraving' => $post['engraving'] ?? null,
-            'DesignRef' => $post['file_attached'] ?? null,
+            'DesignRef' => $file_attached, // Store file path(s) in DesignRef (or FileAttached if field exists)
             'EstimatePrice' => $post['total_quotation'] ?? 0,
             'TotalQuotation' => $post['total_quotation'] ?? 0, // Store total quotation
             'OrderID' => null, // Will be set when order is created
             'DeliveryAddress' => null, // Will be set when order is created
             'OrderDate' => null // Will be set when order is created
         ];
+        
+        // If FileAttached field exists, also store there
+        if ($this->db->field_exists('FileAttached', 'customization')) {
+            $custom_data['FileAttached'] = $file_attached;
+        }
 
         // 3. Save new customization record
         $customization_id = $this->Cart_model->save_customization($custom_data);

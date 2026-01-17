@@ -44,10 +44,15 @@
     <div class="info-container">
         <section class="info-section">
             <form id="profileForm" method="POST" action="<?= base_url('usercon/update_profile'); ?>">
+                <!-- Shipping Address -->
+                <div class="shipping-address-title">
+                    <h3>Shipping Address</h3>
+                </div>
+                
                 <!-- User Info -->
                 <div class="form-row">
                     <div class="form-group">
-                        <label>First Name</label>
+                        <label>First Name <span style="color: red;">*</span></label>
                         <input type="text" name="firstname" value="<?= htmlspecialchars($user->First_Name ?? '') ?>"
                             placeholder="Enter your first name" required>
                     </div>
@@ -57,7 +62,7 @@
                             placeholder="Enter your middle name (optional)">
                     </div>
                     <div class="form-group">
-                        <label>Last Name</label>
+                        <label>Last Name <span style="color: red;">*</span></label>
                         <input type="text" name="lastname" value="<?= htmlspecialchars($user->Last_Name ?? '') ?>"
                             placeholder="Enter your last name" required>
                     </div>
@@ -65,43 +70,96 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Email address</label>
+                        <label>Email address <span style="color: red;">*</span></label>
                         <input type="email" name="email" value="<?= htmlspecialchars($user->Email) ?>"
                             placeholder="Enter your email address" required>
                     </div>
                     <div class="form-group">
-                        <label>Phone number</label>
+                        <label>Phone number <span style="color: red;">*</span></label>
                         <input type="tel" name="phone" value="<?= htmlspecialchars($user->PhoneNum) ?>" maxlength="11"
                             placeholder="Enter your phone number" required>
                     </div>
                 </div>
-
-                <!-- Shipping Address -->
-                <div class="shipping-address-title">
-                    <h3>Shipping Address</h3>
+                
+                <!-- Saved Address Selector -->
+                <?php if (isset($all_addresses) && !empty($all_addresses)): ?>
+                <div class="saved-address-selector" style="margin-bottom: 20px;">
+                    <label for="saved-address-dropdown" style="display: block; margin-bottom: 8px; font-weight: 600; color: #0f2b46;">
+                        Select from Saved Addresses
+                    </label>
+                    <select id="saved-address-dropdown" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: white; cursor: pointer; margin-bottom: 20px;">
+                        <option value="">-- Select a saved address --</option>
+                        <?php foreach ($all_addresses as $addr): ?>
+                            <?php 
+                            $addressLabel = '';
+                            $parts = array_filter([
+                                $addr->UnitHouseNumber ?? '',
+                                $addr->Street ?? '',
+                                $addr->Subdivision ?? '',
+                                $addr->Barangay ?? '',
+                                $addr->City ?? '',
+                                $addr->Province ?? ''
+                            ]);
+                            if (!empty($parts)) {
+                                $addressLabel = implode(', ', $parts);
+                            } else {
+                                $addressLabel = $addr->AddressLine ?? 'Address #' . $addr->AddressID;
+                            }
+                            ?>
+                            <option value="<?= $addr->AddressID ?>" 
+                                    data-address='<?= json_encode($addr) ?>'
+                                    <?= (isset($addresses['Shipping']) && $addresses['Shipping']->AddressID == $addr->AddressID) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($addressLabel) ?><?= ($addr->IsDefault == 1) ? ' (Default)' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <div class="terms" style="margin-bottom: 20px;">
+                        <input type="checkbox" id="use-different-shipping-address"> 
+                        <label for="use-different-shipping-address">Use a different address</label>
+                    </div>
                 </div>
+                <?php endif; ?>
+                
+                <!-- Shipping Address Form Fields (hidden by default if saved addresses exist) -->
+                <div id="shipping-address-fields" style="<?= (isset($all_addresses) && !empty($all_addresses)) ? 'display: none;' : '' ?>">
+                
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Unit/House Number</label>
-                        <input type="text" name="unit_house_number"
-                            value="<?= htmlspecialchars($addresses['Shipping']->UnitHouseNumber ?? '') ?>"
-                            placeholder="Unit/House Number (optional)">
-                    </div>
-                    <div class="form-group">
-                        <label>Street</label>
-                        <input type="text" name="street"
-                            value="<?= htmlspecialchars($addresses['Shipping']->Street ?? '') ?>"
-                            placeholder="Street (optional)">
+                        <label>Country <span style="color: red;">*</span></label>
+                        <input type="text" name="country" id="shipping-country"
+                            value="Philippines"
+                            placeholder="Country" required readonly>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Subdivision/Building</label>
-                        <input type="text" name="subdivision"
-                            value="<?= htmlspecialchars($addresses['Shipping']->Subdivision ?? '') ?>"
-                            placeholder="Subdivision/Building (optional)">
+                        <label>Region <span style="color: red;">*</span></label>
+                        <select name="region" id="shipping-region" required>
+                            <option value="" <?= (!isset($addresses['Shipping']->Region) || empty($addresses['Shipping']->Region)) ? 'selected' : '' ?>>Select Region</option>
+                            <option value="NCR" <?= (isset($addresses['Shipping']->Region) && $addresses['Shipping']->Region === 'NCR') ? 'selected' : '' ?>>NCR (National Capital Region)</option>
+                            <option value="Region III" <?= (isset($addresses['Shipping']->Region) && $addresses['Shipping']->Region === 'Region III') ? 'selected' : '' ?>>Region III (Central Luzon)</option>
+                            <option value="Region IV-A" <?= (isset($addresses['Shipping']->Region) && $addresses['Shipping']->Region === 'Region IV-A') ? 'selected' : '' ?>>Region IV-A (CALABARZON)</option>
+                        </select>
                     </div>
+                    <div class="form-group">
+                        <label>Province <span style="color: red;">*</span></label>
+                        <select name="province" id="shipping-province" required>
+                            <option value="">Select Province</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>City/Municipality <span style="color: red;">*</span></label>
+                        <select name="city" id="shipping-city" required>
+                            <option value="">Select City/Municipality</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group">
                         <label>Barangay <span style="color: red;">*</span></label>
                         <input type="text" name="barangay"
@@ -112,30 +170,28 @@
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Region <span style="color: red;">*</span></label>
-                        <input type="text" name="region"
-                            value="<?= htmlspecialchars($addresses['Shipping']->Region ?? '') ?>"
-                            placeholder="Enter Region" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Province <span style="color: red;">*</span></label>
-                        <input type="text" name="province"
-                            value="<?= htmlspecialchars($addresses['Shipping']->Province ?? '') ?>"
-                            placeholder="Enter Province" required>
+                        <label>Subdivision/Building</label>
+                        <input type="text" name="subdivision"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Subdivision ?? '') ?>"
+                            placeholder="Subdivision/Building (optional)">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>City/Municipality <span style="color: red;">*</span></label>
-                        <input type="text" name="city" value="<?= htmlspecialchars($addresses['Shipping']->City ?? '') ?>"
-                            placeholder="Enter City/Municipality" required>
+                        <label>Street</label>
+                        <input type="text" name="street"
+                            value="<?= htmlspecialchars($addresses['Shipping']->Street ?? '') ?>"
+                            placeholder="Street (optional)">
                     </div>
+                </div>
+
+                <div class="form-row">
                     <div class="form-group">
-                        <label>Country</label>
-                        <input type="text" name="country"
-                            value="<?= htmlspecialchars($addresses['Shipping']->Country ?? 'Philippines') ?>"
-                            placeholder="Country" required>
+                        <label>Unit/House Number <span style="color: red;">*</span></label>
+                        <input type="text" name="unit_house_number"
+                            value="<?= htmlspecialchars($addresses['Shipping']->UnitHouseNumber ?? '') ?>"
+                            placeholder="Unit/House Number" required>
                     </div>
                 </div>
 
@@ -148,35 +204,176 @@
                     </div>
                 </div>
 
+                </div>
+                <!-- End Shipping Address Form Fields -->
+                
+                <!-- Special Instructions / Note (Always visible, not tied to saved address) -->
                 <div class="form-row">
                     <div class="form-group full-width">
                         <label>Special Instructions / Note</label>
                         <textarea name="note" rows="3" placeholder="Add special instructions or notes for delivery (optional)"><?= htmlspecialchars($addresses['Shipping']->Note ?? '') ?></textarea>
                     </div>
                 </div>
-
-                <!-- Preferred Installation Date -->
+                
+                <!-- Preferred Ocular Visit Date -->
                 <div class="form-row">
                     <div class="form-group full-width">
-                        <label>Preferred Installation Date <span style="color: red;">*</span></label>
+                        <label>Preferred Ocular Visit Date <span style="color: red;">*</span></label>
                         <input type="date" name="preferred_installation_date" id="preferred_installation_date" 
                             min="<?= date('Y-m-d', strtotime('+7 days')) ?>" 
-                            placeholder="Select your preferred installation date" required>
+                            placeholder="Select your preferred ocular visit date" required>
                         <small style="color: #666; font-size: 0.9em; display: block; margin-top: 5px;">
                             Please select a date at least 7 days from today. We'll do our best to accommodate your preference.
                         </small>
                         <!-- Inline error message for installation date -->
                         <div id="installation-date-error" class="inline-error" style="display: none; margin-top: 5px; padding: 8px 12px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px;">
-                            <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a Preferred Installation Date. This field is required.</span>
+                            <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a Preferred Ocular Visit Date. This field is required.</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Billing Address -->
-                <div class="terms"> <input type="checkbox" id="same-billing"> <label for="same-billing"> Make billing address same as shipping
-                       
-                    </label> </div>
+            </form>
+            
+            <!-- Billing Address Section (Separate Box, but inside same section) -->
+            <form id="billingForm" style="margin-top: 30px; border-top: 2px solid #e0e0e0; padding-top: 30px;">
+                <!-- Billing Address Title -->
+                <div class="shipping-address-title">
+                    <h3>Billing Address</h3>
+                </div>
+                
+                <!-- Billing Form Container -->
+                <div id="billingFormContainer">
+                
+                <!-- Same as Shipping Checkbox -->
+                <div class="terms" style="margin-bottom: 20px;">
+                    <input type="checkbox" id="same-billing"> 
+                    <label for="same-billing">Make billing address same as shipping</label>
+                </div>
+                
+                <!-- Billing Address Form Fields -->
+                <div id="billing-address-fields">
+                    <!-- Billing Contact Information -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>First Name <span style="color: red;">*</span></label>
+                            <input type="text" name="billing_firstname" id="billing_firstname"
+                                value="<?= htmlspecialchars($user->First_Name ?? '') ?>"
+                                placeholder="Enter your first name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Middle Name</label>
+                            <input type="text" name="billing_middlename" id="billing_middlename"
+                                value="<?= htmlspecialchars($user->Middle_Name ?? '') ?>"
+                                placeholder="Enter your middle name (optional)">
+                        </div>
+                        <div class="form-group">
+                            <label>Last Name <span style="color: red;">*</span></label>
+                            <input type="text" name="billing_lastname" id="billing_lastname"
+                                value="<?= htmlspecialchars($user->Last_Name ?? '') ?>"
+                                placeholder="Enter your last name" required>
+                        </div>
+                    </div>
 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Email address <span style="color: red;">*</span></label>
+                            <input type="email" name="billing_email" id="billing_email"
+                                value="<?= htmlspecialchars($user->Email) ?>"
+                                placeholder="Enter your email address" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Phone number <span style="color: red;">*</span></label>
+                            <input type="tel" name="billing_phone" id="billing_phone"
+                                value="<?= htmlspecialchars($user->PhoneNum) ?>" maxlength="11"
+                                placeholder="Enter your phone number" required>
+                        </div>
+                    </div>
+
+                    <!-- Billing Address Fields -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Country <span style="color: red;">*</span></label>
+                            <input type="text" name="billing_country" id="billing-country"
+                                value="Philippines"
+                                placeholder="Country" required readonly>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Region <span style="color: red;">*</span></label>
+                            <select name="billing_region" id="billing-region" required>
+                                <option value="" <?= (!isset($addresses['Billing']->Region) || empty($addresses['Billing']->Region)) ? 'selected' : '' ?>>Select Region</option>
+                                <option value="NCR" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'NCR') ? 'selected' : '' ?>>NCR (National Capital Region)</option>
+                                <option value="Region III" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'Region III') ? 'selected' : '' ?>>Region III (Central Luzon)</option>
+                                <option value="Region IV-A" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'Region IV-A') ? 'selected' : '' ?>>Region IV-A (CALABARZON)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Province <span style="color: red;">*</span></label>
+                            <select name="billing_province" id="billing-province" required>
+                                <option value="">Select Province</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>City/Municipality <span style="color: red;">*</span></label>
+                            <select name="billing_city" id="billing-city" required>
+                                <option value="">Select City/Municipality</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Barangay <span style="color: red;">*</span></label>
+                            <input type="text" name="billing_barangay"
+                                value="<?= htmlspecialchars($addresses['Billing']->Barangay ?? '') ?>"
+                                placeholder="Enter Barangay" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Subdivision/Building</label>
+                            <input type="text" name="billing_subdivision"
+                                value="<?= htmlspecialchars($addresses['Billing']->Subdivision ?? '') ?>"
+                                placeholder="Subdivision/Building (optional)">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Street</label>
+                            <input type="text" name="billing_street"
+                                value="<?= htmlspecialchars($addresses['Billing']->Street ?? '') ?>"
+                                placeholder="Street (optional)">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unit/House Number <span style="color: red;">*</span></label>
+                            <input type="text" name="billing_unit_house_number"
+                                value="<?= htmlspecialchars($addresses['Billing']->UnitHouseNumber ?? '') ?>"
+                                placeholder="Unit/House Number" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Zip Code <span style="color: red;">*</span></label>
+                            <input type="text" name="billing_zipcode"
+                                value="<?= htmlspecialchars($addresses['Billing']->ZipCode ?? '') ?>"
+                                placeholder="Enter Zip Code" required>
+                        </div>
+                    </div>
+                </div>
+                <!-- End Billing Address Form Fields -->
+                </div>
+                <!-- End Billing Form Container -->
             </form>
         </section>
 
@@ -186,14 +383,11 @@
             <div class="order-summary-content">
                 <h3>Order Summary</h3>
                 <p><span>Items:</span> <span id="summary-items">0</span></p>
-                <p><span>Subtotal:</span> ₱<span id="summary-subtotal">0.00</span></p>
-                <p><span>Shipping Fee:</span> ₱<span id="summary-shipping">0.00</span></p>
-                <p><span>Handling Fee:</span> ₱<span id="summary-handling">0.00</span></p>
+                <p><span>Subtotal:</span> <span id="summary-subtotal">₱0.00</span></p>
+                <p><span>Shipping Fee:</span> <span id="summary-shipping">₱0.00</span></p>
+                <p><span>Handling Fee:</span> <span id="summary-handling">₱0.00</span></p>
                 <div class="summary-divider"></div>
-                <p class="total"><span>Total:</span> ₱<span id="summary-total">0.00</span></p>
-                <div class="btn-container">
-                    <button class="generate-btn" id="openModal">Generate Quotation</button>
-                </div>
+                <p class="total"><span>Total:</span> <span id="summary-total">₱0.00</span></p>
 
             </div>
             <div class="payment-section">
@@ -206,9 +400,9 @@
                             title="Select E-Wallet as payment method">
                     </p>
                     <p>
-                        <img src="<?php echo base_url('assets/images/img-page/wallet.png'); ?>" alt="COD-icon">
-                        <label for="COD-radio">Cash on Delivery</label>
-                        <input type="radio" id="COD-radio" name="payment-method" title="Select COD as payment method">
+                        <img src="<?php echo base_url('assets/images/img-page/atm-card.png'); ?>" alt="card-icon">
+                        <label for="card-radio">Credit or Debit Card</label>
+                        <input type="radio" id="card-radio" name="payment-method" title="Select Credit or Debit Card as payment method">
                     </p>
                 </div>
 
@@ -284,10 +478,10 @@
         </div>
       </div>
 
-      <!-- Preferred Installation Date -->
+      <!-- Preferred Ocular Visit Date -->
       <div class="confirm-section" id="confirm-installation-date-section" style="display: none;">
         <h4 class="confirm-section-title">
-          <span class="icon">📅</span> Preferred Installation Date
+          <span class="icon">📅</span> Preferred Ocular Visit Date
         </h4>
         <div class="confirm-info-grid">
           <div class="confirm-info-item full-width">
@@ -644,12 +838,18 @@ $(document).ready(function() {
                 if (res.status === 'success') {
                     const summary = res.summary;
 
-                    // Update order summary
-                    $('#summary-items').text(summary.items);
-                    $('#summary-subtotal').text(summary.subtotal.toFixed(2));
-                    $('#summary-shipping').text(summary.shipping.toFixed(2));
-                    $('#summary-handling').text(summary.handling.toFixed(2));
-                    $('#summary-total').text(summary.total.toFixed(2));
+                    // Update order summary - ensure elements exist
+                    const itemsEl = document.getElementById('summary-items');
+                    const subtotalEl = document.getElementById('summary-subtotal');
+                    const shippingEl = document.getElementById('summary-shipping');
+                    const handlingEl = document.getElementById('summary-handling');
+                    const totalEl = document.getElementById('summary-total');
+                    
+                    if (itemsEl) itemsEl.textContent = summary.items || 0;
+                    if (subtotalEl) subtotalEl.textContent = '₱' + (summary.subtotal || 0).toFixed(2);
+                    if (shippingEl) shippingEl.textContent = '₱' + (summary.shipping || 0).toFixed(2);
+                    if (handlingEl) handlingEl.textContent = '₱' + (summary.handling || 0).toFixed(2);
+                    if (totalEl) totalEl.textContent = '₱' + (summary.total || 0).toFixed(2);
 
                     // Check if cart is empty
                     if (res.items.length === 0) {
@@ -658,20 +858,52 @@ $(document).ready(function() {
                             window.location.href = BASE_URL + 'addtocart';
                         }, 2000);
                     }
+                } else {
+                    console.error('Failed to load summary:', res.message || 'Unknown error');
+                    // Set default values if API fails
+                    const itemsEl = document.getElementById('summary-items');
+                    const subtotalEl = document.getElementById('summary-subtotal');
+                    const shippingEl = document.getElementById('summary-shipping');
+                    const handlingEl = document.getElementById('summary-handling');
+                    const totalEl = document.getElementById('summary-total');
+                    
+                    if (itemsEl) itemsEl.textContent = '0';
+                    if (subtotalEl) subtotalEl.textContent = '₱0.00';
+                    if (shippingEl) shippingEl.textContent = '₱0.00';
+                    if (handlingEl) handlingEl.textContent = '₱0.00';
+                    if (totalEl) totalEl.textContent = '₱0.00';
                 }
             },
-            error: function() {
-                console.error('Failed to load cart summary');
+            error: function(xhr, status, error) {
+                console.error('Failed to load cart summary:', error);
+                // Set default values on error
+                const itemsEl = document.getElementById('summary-items');
+                const subtotalEl = document.getElementById('summary-subtotal');
+                const shippingEl = document.getElementById('summary-shipping');
+                const handlingEl = document.getElementById('summary-handling');
+                const totalEl = document.getElementById('summary-total');
+                
+                if (itemsEl) itemsEl.textContent = '0';
+                if (subtotalEl) subtotalEl.textContent = '0.00';
+                if (shippingEl) shippingEl.textContent = '0.00';
+                if (handlingEl) handlingEl.textContent = '0.00';
+                if (totalEl) totalEl.textContent = '0.00';
             }
         });
     }
 
-    // Initial load
-    loadSelectedSummary();
+    // Initial load - wait for DOM to be ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadSelectedSummary);
+    } else {
+        loadSelectedSummary();
+    }
 
     // =============================
-    // QUOTATION MODAL FOR SELECTED ITEMS
+    // QUOTATION MODAL FOR SELECTED ITEMS (REMOVED - Generate Quotation button removed)
     // =============================
+    // Modal code removed as Generate Quotation button is no longer available on customer side
+    /*
     function openModal() {
         $('#quotationModal').addClass('show');
         $('body').css('overflow', 'hidden');
@@ -754,19 +986,467 @@ $(document).ready(function() {
             }
         });
     });
+    */
 
-    // Close modal handlers
-    $('#closeModal, #closeModalBtn').click(closeModal);
-    $(document).on('click', '.modal-overlay', closeModal);
-    $(document).keydown(function(e) {
-        if (e.key === 'Escape') closeModal();
-    });
+    // Close modal handlers - Commented out as Generate Quotation button removed
+    // $('#closeModal, #closeModalBtn').click(closeModal);
+    // $(document).on('click', '.modal-overlay', closeModal);
+    // $(document).keydown(function(e) {
+    //     if (e.key === 'Escape') closeModal();
+    // });
 
-    // Print quotation
-    $('#printQuotation').click(function() {
-        window.print();
-    });
-});
+    // Print quotation - Commented out as Generate Quotation button removed
+    // $('#printQuotation').click(function() {
+    //     window.print();
+    // });
+
+    // === Saved Address Selector ===
+    const savedAddressDropdown = document.getElementById('saved-address-dropdown');
+    const useDifferentShippingCheckbox = document.getElementById('use-different-shipping-address');
+    const shippingAddressFields = document.getElementById('shipping-address-fields');
+    
+    // Function to toggle shipping form fields and dropdown
+    function toggleShippingForm(show) {
+        console.log('toggleShippingForm called with:', show);
+        if (shippingAddressFields) {
+            if (show) {
+                shippingAddressFields.style.display = 'block';
+                console.log('Shipping form fields shown');
+                // Clear all form fields except country when showing form
+                clearShippingForm();
+                // Ensure dropdowns are initialized when form is shown
+                setupShippingDropdowns();
+            } else {
+                shippingAddressFields.style.display = 'none';
+                console.log('Shipping form fields hidden');
+            }
+        } else {
+            console.error('shippingAddressFields element not found!');
+        }
+        if (savedAddressDropdown) {
+            savedAddressDropdown.disabled = show;
+        } else {
+            console.log('savedAddressDropdown not found (might not have saved addresses)');
+        }
+    }
+    
+    // Function to clear shipping form fields (except country)
+    function clearShippingForm() {
+        const form = document.getElementById('profileForm');
+        if (!form) return;
+        
+        // Clear text inputs
+        const fieldsToClear = ['barangay', 'subdivision', 'street', 'unit_house_number', 'zipcode', 'note'];
+        fieldsToClear.forEach(fieldName => {
+            const input = form.querySelector(`input[name='${fieldName}'], textarea[name='${fieldName}']`);
+            if (input) input.value = '';
+        });
+        
+        // Reset dropdowns to default
+        const regionSelect = document.getElementById('shipping-region');
+        const provinceSelect = document.getElementById('shipping-province');
+        const citySelect = document.getElementById('shipping-city');
+        
+        if (regionSelect) {
+            regionSelect.value = '';
+            // Trigger change to reset province and city
+            regionSelect.dispatchEvent(new Event('change'));
+        }
+        if (provinceSelect) {
+            provinceSelect.innerHTML = '<option value="">Select Province</option>';
+            provinceSelect.value = '';
+        }
+        if (citySelect) {
+            citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
+            citySelect.value = '';
+        }
+        
+        // Ensure country is set to Philippines
+        const countryInput = document.getElementById('shipping-country');
+        if (countryInput) {
+            countryInput.value = 'Philippines';
+        }
+    }
+    
+    // Checkbox handler: "Use a different address"
+    if (useDifferentShippingCheckbox) {
+        console.log('Checkbox found, attaching event listener');
+        useDifferentShippingCheckbox.addEventListener('change', function() {
+            console.log('Checkbox changed! Checked:', this.checked);
+            if (this.checked) {
+                // Show form fields and disable dropdown
+                toggleShippingForm(true);
+            } else {
+                // Hide form fields and enable dropdown
+                toggleShippingForm(false);
+            }
+        });
+    } else {
+        console.log('useDifferentShippingCheckbox not found (might not have saved addresses)');
+    }
+
+    // Dropdown handler: When a saved address is selected
+    if (savedAddressDropdown) {
+        savedAddressDropdown.addEventListener('change', function() {
+            // Don't process if dropdown is disabled (checkbox is checked)
+            if (this.disabled) {
+                return;
+            }
+            
+            const selectedOption = this.options[this.selectedIndex];
+            
+            if (this.value === '') {
+                // No selection - hide form
+                toggleShippingForm(false);
+                if (useDifferentShippingCheckbox) {
+                    useDifferentShippingCheckbox.checked = false;
+                }
+                return;
+            }
+            
+            // Get address data from data attribute
+            const addressData = selectedOption.getAttribute('data-address');
+            if (addressData) {
+                try {
+                    const address = JSON.parse(addressData);
+                    
+                    // Uncheck the "Use a different address" checkbox
+                    if (useDifferentShippingCheckbox) {
+                        useDifferentShippingCheckbox.checked = false;
+                    }
+                    
+                    // Hide form fields after selecting saved address
+                    toggleShippingForm(false);
+                    
+                    // Show success message
+                    if (typeof showToast === 'function') {
+                        showToast('Address loaded successfully!', 'success', 2000);
+                    }
+                } catch (e) {
+                    console.error('Error parsing address data:', e);
+                }
+            }
+        });
+    }
+    
+    // === Same Billing Address Checkbox Handler ===
+    const sameBillingCheckbox = document.getElementById('same-billing');
+    const billingAddressFields = document.getElementById('billing-address-fields');
+    
+    if (sameBillingCheckbox && billingAddressFields) {
+        sameBillingCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                // Hide billing address fields
+                billingAddressFields.style.display = 'none';
+                
+                // Copy shipping address data to billing fields
+                const form = document.getElementById('profileForm');
+                const billingForm = document.getElementById('billingForm');
+                
+                if (form && billingForm) {
+                    // Copy contact info
+                    const shippingFirstname = form.querySelector("input[name='firstname']")?.value || '';
+                    const shippingMiddlename = form.querySelector("input[name='middlename']")?.value || '';
+                    const shippingLastname = form.querySelector("input[name='lastname']")?.value || '';
+                    const shippingEmail = form.querySelector("input[name='email']")?.value || '';
+                    const shippingPhone = form.querySelector("input[name='phone']")?.value || '';
+                    
+                    const billingFirstname = billingForm.querySelector("input[name='billing_firstname']");
+                    const billingMiddlename = billingForm.querySelector("input[name='billing_middlename']");
+                    const billingLastname = billingForm.querySelector("input[name='billing_lastname']");
+                    const billingEmail = billingForm.querySelector("input[name='billing_email']");
+                    const billingPhone = billingForm.querySelector("input[name='billing_phone']");
+                    
+                    if (billingFirstname) billingFirstname.value = shippingFirstname;
+                    if (billingMiddlename) billingMiddlename.value = shippingMiddlename;
+                    if (billingLastname) billingLastname.value = shippingLastname;
+                    if (billingEmail) billingEmail.value = shippingEmail;
+                    if (billingPhone) billingPhone.value = shippingPhone;
+                    
+                    // Copy address fields
+                    const shippingFields = ['unit_house_number', 'street', 'subdivision', 'barangay', 'country', 'zipcode'];
+                    shippingFields.forEach(field => {
+                        const shippingInput = form.querySelector(`input[name='${field}']`);
+                        const billingInput = billingForm.querySelector(`input[name='billing_${field}']`);
+                        if (shippingInput && billingInput) {
+                            billingInput.value = shippingInput.value || '';
+                        }
+                    });
+                    
+                    // Copy region, province, city (select dropdowns)
+                    const shippingRegion = form.querySelector("select[name='region']");
+                    const billingRegion = billingForm.querySelector("select[name='billing_region']");
+                    if (shippingRegion && billingRegion && shippingRegion.value) {
+                        billingRegion.value = shippingRegion.value;
+                        billingRegion.dispatchEvent(new Event('change'));
+                        setTimeout(() => {
+                            const shippingProvince = form.querySelector("select[name='province']");
+                            const billingProvince = billingForm.querySelector("select[name='billing_province']");
+                            if (shippingProvince && billingProvince && shippingProvince.value) {
+                                billingProvince.value = shippingProvince.value;
+                                billingProvince.dispatchEvent(new Event('change'));
+                                setTimeout(() => {
+                                    const shippingCity = form.querySelector("select[name='city']");
+                                    const billingCity = billingForm.querySelector("select[name='billing_city']");
+                                    if (shippingCity && billingCity && shippingCity.value) {
+                                        billingCity.value = shippingCity.value;
+                                    }
+                                }, 100);
+                            }
+                        }, 100);
+                    }
+                }
+            } else {
+                // Show billing address fields (dropdowns are already enabled, no disabled attribute in HTML)
+                billingAddressFields.style.display = 'block';
+            }
+        });
+        
+        // Initialize on page load
+        if (sameBillingCheckbox.checked) {
+            billingAddressFields.style.display = 'none';
+        }
+    }
+    
+    // === PHILIPPINE REGIONS AND CITIES DATA ===
+    const metroManilaCities = [
+        'Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong',
+        'Manila', 'Marikina', 'Muntinlupa', 'Navotas', 'Parañaque',
+        'Pasay', 'Pasig', 'Quezon City', 'San Juan', 'Taguig', 'Valenzuela'
+    ];
+    
+    // Region III (Central Luzon) - Provinces and Cities
+    const region3Provinces = {
+        'Aurora': ['Baler', 'Casiguran', 'Dilasag', 'Dinalungan', 'Dingalan', 'Dipaculao', 'Maria Aurora', 'San Luis'],
+        'Bataan': ['Abucay', 'Bagac', 'Balanga', 'Dinalupihan', 'Hermosa', 'Limay', 'Mariveles', 'Morong', 'Orani', 'Orion', 'Pilar', 'Samal'],
+        'Bulacan': ['Angat', 'Balagtas', 'Baliuag', 'Bocaue', 'Bulakan', 'Bustos', 'Calumpit', 'Doña Remedios Trinidad', 'Guiguinto', 'Hagonoy', 'Malolos', 'Marilao', 'Meycauayan', 'Norzagaray', 'Obando', 'Pandi', 'Paombong', 'Plaridel', 'Pulilan', 'San Ildefonso', 'San Jose del Monte', 'San Miguel', 'San Rafael', 'Santa Maria', 'Valenzuela'],
+        'Nueva Ecija': ['Aliaga', 'Bongabon', 'Cabanatuan', 'Cabiao', 'Carranglan', 'Cuyapo', 'Gabaldon', 'Gapan', 'General Mamerto Natividad', 'General Tinio', 'Guimba', 'Jaen', 'Laur', 'Licab', 'Llanera', 'Lupao', 'Muñoz', 'Nampicuan', 'Palayan', 'Pantabangan', 'Peñaranda', 'Quezon', 'Rizal', 'San Antonio', 'San Isidro', 'San Jose', 'San Leonardo', 'Santa Rosa', 'Santo Domingo', 'Talavera', 'Talugtug', 'Zaragoza'],
+        'Pampanga': ['Angeles', 'Apalit', 'Arayat', 'Bacolor', 'Candaba', 'Floridablanca', 'Guagua', 'Lubao', 'Mabalacat', 'Macabebe', 'Magalang', 'Masantol', 'Mexico', 'Minalin', 'Porac', 'San Fernando', 'San Luis', 'San Simon', 'Santa Ana', 'Santa Rita', 'Santo Tomas', 'Sasmuan'],
+        'Tarlac': ['Anao', 'Bamban', 'Camiling', 'Capas', 'Concepcion', 'Gerona', 'La Paz', 'Mayantoc', 'Moncada', 'Paniqui', 'Pura', 'Ramos', 'San Clemente', 'San Jose', 'San Manuel', 'Santa Ignacia', 'Tarlac City', 'Victoria'],
+        'Zambales': ['Botolan', 'Cabangan', 'Candelaria', 'Castillejos', 'Iba', 'Masinloc', 'Olongapo', 'Palauig', 'San Antonio', 'San Felipe', 'San Marcelino', 'San Narciso', 'Santa Cruz', 'Subic']
+    };
+    
+    // Region IV-A (CALABARZON) - Provinces and Cities
+    const region4AProvinces = {
+        'Batangas': ['Agoncillo', 'Alitagtag', 'Balayan', 'Balete', 'Bauan', 'Calaca', 'Calatagan', 'Cuenca', 'Ibaan', 'Laurel', 'Lemery', 'Lian', 'Lipa', 'Lobo', 'Mabini', 'Malvar', 'Mataasnakahoy', 'Nasugbu', 'Padre Garcia', 'Rosario', 'San Jose', 'San Juan', 'San Luis', 'San Nicolas', 'San Pascual', 'Santa Teresita', 'Santo Tomas', 'Taal', 'Talisay', 'Tanauan', 'Taysan', 'Tingloy', 'Tuy'],
+        'Cavite': ['Alfonso', 'Amadeo', 'Bacoor', 'Carmona', 'Cavite City', 'Dasmariñas', 'General Emilio Aguinaldo', 'General Mariano Alvarez', 'General Trias', 'Imus', 'Indang', 'Kawit', 'Magallanes', 'Maragondon', 'Mendez', 'Naic', 'Noveleta', 'Rosario', 'Silang', 'Tagaytay', 'Tanza', 'Ternate', 'Trece Martires', 'Tagaytay'],
+        'Laguna': ['Alaminos', 'Bay', 'Biñan', 'Cabuyao', 'Calamba', 'Calauan', 'Cavinti', 'Famy', 'Kalayaan', 'Liliw', 'Los Baños', 'Luisiana', 'Lumban', 'Mabitac', 'Magdalena', 'Majayjay', 'Nagcarlan', 'Paete', 'Pagsanjan', 'Pakil', 'Pangil', 'Pila', 'Rizal', 'San Pablo', 'San Pedro', 'Santa Cruz', 'Santa Maria', 'Santa Rosa', 'Siniloan', 'Victoria'],
+        'Quezon': ['Agdangan', 'Alabat', 'Atimonan', 'Buenavista', 'Burdeos', 'Calauag', 'Candelaria', 'Catanauan', 'Dolores', 'General Luna', 'General Nakar', 'Guinayangan', 'Gumaca', 'Infanta', 'Jomalig', 'Lopez', 'Lucban', 'Lucena', 'Macalelon', 'Mauban', 'Mulanay', 'Padre Burgos', 'Pagbilao', 'Panukulan', 'Patnanungan', 'Perez', 'Pitogo', 'Plaridel', 'Polillo', 'Quezon', 'Real', 'Sampaloc', 'San Andres', 'San Antonio', 'San Francisco', 'San Narciso', 'Sariaya', 'Tagkawayan', 'Tayabas', 'Tiaong', 'Unisan'],
+        'Rizal': ['Angono', 'Antipolo', 'Baras', 'Binangonan', 'Cainta', 'Cardona', 'Jalajala', 'Morong', 'Pililla', 'Rodriguez', 'San Mateo', 'Tanay', 'Taytay', 'Teresa']
+    };
+    
+    // Function to populate provinces and cities for shipping
+    function setupShippingDropdowns() {
+        const shippingRegion = document.getElementById('shipping-region');
+        const shippingProvince = document.getElementById('shipping-province');
+        const shippingCity = document.getElementById('shipping-city');
+        
+        if (!shippingRegion || !shippingProvince || !shippingCity) {
+            console.log('Shipping dropdowns not found, skipping initialization');
+            return;
+        }
+        
+        // Remove existing event listeners if they exist (by checking if already initialized)
+        if (shippingRegion.dataset.initialized === 'true') {
+            console.log('Shipping dropdowns already initialized');
+            return;
+        }
+        
+        console.log('Initializing shipping dropdowns');
+        // Mark as initialized
+        shippingRegion.dataset.initialized = 'true';
+        shippingProvince.dataset.initialized = 'true';
+        shippingCity.dataset.initialized = 'true';
+        
+        shippingRegion.addEventListener('change', function() {
+            const selectedRegion = this.value;
+            console.log('Shipping region changed to:', selectedRegion);
+            shippingProvince.innerHTML = '<option value="">Select Province</option>';
+            shippingCity.innerHTML = '<option value="">Select City/Municipality</option>';
+            
+            if (!selectedRegion) return;
+            
+            if (selectedRegion === "NCR") {
+                shippingProvince.innerHTML = '<option value="Metro Manila">Metro Manila</option>';
+                shippingProvince.value = "Metro Manila";
+                // Trigger change to populate cities
+                setTimeout(() => {
+                    shippingProvince.dispatchEvent(new Event('change'));
+                }, 50);
+            } else if (selectedRegion === "Region III") {
+                // Only show Bulacan for Region III
+                const option = document.createElement('option');
+                option.value = 'Bulacan';
+                option.textContent = 'Bulacan';
+                shippingProvince.appendChild(option);
+            } else if (selectedRegion === "Region IV-A") {
+                Object.keys(region4AProvinces).forEach(province => {
+                    const option = document.createElement('option');
+                    option.value = province;
+                    option.textContent = province;
+                    shippingProvince.appendChild(option);
+                });
+            }
+        });
+        
+        shippingProvince.addEventListener('change', function() {
+            const selectedProvince = this.value;
+            const selectedRegion = shippingRegion.value;
+            console.log('Shipping province changed to:', selectedProvince, 'in region:', selectedRegion);
+            shippingCity.innerHTML = '<option value="">Select City/Municipality</option>';
+            
+            if (selectedProvince === "Metro Manila") {
+                metroManilaCities.forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    shippingCity.appendChild(option);
+                });
+            } else if (selectedRegion === "Region III" && region3Provinces[selectedProvince]) {
+                region3Provinces[selectedProvince].forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    shippingCity.appendChild(option);
+                });
+            } else if (selectedRegion === "Region IV-A" && region4AProvinces[selectedProvince]) {
+                region4AProvinces[selectedProvince].forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    shippingCity.appendChild(option);
+                });
+            }
+        });
+    }
+    
+    // Function to populate provinces and cities for billing
+    function setupBillingDropdowns() {
+        const billingRegion = document.getElementById('billing-region');
+        const billingProvince = document.getElementById('billing-province');
+        const billingCity = document.getElementById('billing-city');
+        
+        if (!billingRegion || !billingProvince || !billingCity) return;
+        
+        // Remove existing event listeners if they exist (by checking if already initialized)
+        if (billingRegion.dataset.initialized === 'true') return;
+        
+        // Mark as initialized
+        billingRegion.dataset.initialized = 'true';
+        billingProvince.dataset.initialized = 'true';
+        billingCity.dataset.initialized = 'true';
+        
+        billingRegion.addEventListener('change', function() {
+            const selectedRegion = this.value;
+            billingProvince.innerHTML = '<option value="">Select Province</option>';
+            billingCity.innerHTML = '<option value="">Select City/Municipality</option>';
+            
+            if (!selectedRegion) return;
+            
+            if (selectedRegion === "NCR") {
+                billingProvince.innerHTML = '<option value="Metro Manila">Metro Manila</option>';
+                billingProvince.value = "Metro Manila";
+                // Trigger change to populate cities
+                setTimeout(() => {
+                    billingProvince.dispatchEvent(new Event('change'));
+                }, 50);
+            } else if (selectedRegion === "Region III") {
+                // Only show Bulacan for Region III
+                const option = document.createElement('option');
+                option.value = 'Bulacan';
+                option.textContent = 'Bulacan';
+                billingProvince.appendChild(option);
+            } else if (selectedRegion === "Region IV-A") {
+                Object.keys(region4AProvinces).forEach(province => {
+                    const option = document.createElement('option');
+                    option.value = province;
+                    option.textContent = province;
+                    billingProvince.appendChild(option);
+                });
+            }
+        });
+        
+        billingProvince.addEventListener('change', function() {
+            const selectedProvince = this.value;
+            const selectedRegion = billingRegion.value;
+            billingCity.innerHTML = '<option value="">Select City/Municipality</option>';
+            
+            if (selectedProvince === "Metro Manila") {
+                metroManilaCities.forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    billingCity.appendChild(option);
+                });
+            } else if (selectedRegion === "Region III" && region3Provinces[selectedProvince]) {
+                region3Provinces[selectedProvince].forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    billingCity.appendChild(option);
+                });
+            } else if (selectedRegion === "Region IV-A" && region4AProvinces[selectedProvince]) {
+                region4AProvinces[selectedProvince].forEach(city => {
+                    const option = document.createElement('option');
+                    option.value = city;
+                    option.textContent = city;
+                    billingCity.appendChild(option);
+                });
+            }
+        });
+    }
+    
+    // Initialize dropdown handlers - wait for DOM to be ready
+    setTimeout(function() {
+        // Initialize shipping dropdowns if form is visible
+        const shippingAddressFieldsInit = document.getElementById('shipping-address-fields');
+        if (shippingAddressFieldsInit) {
+            if (shippingAddressFieldsInit.style.display !== 'none') {
+                setupShippingDropdowns();
+                // If region has a value on page load, trigger change to populate provinces
+                const regionSelect = document.getElementById('shipping-region');
+                const provinceSelect = document.getElementById('shipping-province');
+                if (regionSelect && regionSelect.value) {
+                    regionSelect.dispatchEvent(new Event('change'));
+                    setTimeout(() => {
+                        if (provinceSelect && provinceSelect.value) {
+                            provinceSelect.dispatchEvent(new Event('change'));
+                        }
+                    }, 100);
+                }
+            } else {
+                // Form is hidden, but initialize dropdowns anyway so they're ready when shown
+                setupShippingDropdowns();
+            }
+        }
+        
+        // Initialize billing dropdowns
+        setupBillingDropdowns();
+        
+        // If billing address fields are visible and have values, trigger changes
+        const billingAddressFields = document.getElementById('billing-address-fields');
+        const billingRegionSelect = document.getElementById('billing-region');
+        if (billingRegionSelect && billingRegionSelect.value && billingAddressFields && billingAddressFields.style.display !== 'none') {
+            billingRegionSelect.dispatchEvent(new Event('change'));
+            setTimeout(() => {
+                const billingProvinceSelect = document.getElementById('billing-province');
+                if (billingProvinceSelect && billingProvinceSelect.value) {
+                    billingProvinceSelect.dispatchEvent(new Event('change'));
+                }
+            }, 100);
+        }
+    }, 100);
+    
+    // === Billing Phone Number Validation ===
+    const billingPhoneInput = document.querySelector("input[name='billing_phone']");
+    if (billingPhoneInput) {
+        billingPhoneInput.addEventListener("input", () => {
+            billingPhoneInput.value = billingPhoneInput.value.replace(/\D/g, "");
+            if (billingPhoneInput.value.length > 11) {
+                billingPhoneInput.value = billingPhoneInput.value.slice(0, 11);
+            }
+        });
+    }
 
     // === Phone number validation (digits only, max 11) ===
     const phoneInput = document.querySelector("input[name='phone']");
@@ -803,7 +1483,7 @@ $(document).ready(function() {
         if (errorDiv) errorDiv.style.display = 'none';
     });
 
-    document.getElementById('COD-radio')?.addEventListener('change', function() {
+    document.getElementById('card-radio')?.addEventListener('change', function() {
         const errorDiv = document.getElementById('payment-method-error');
         if (errorDiv) errorDiv.style.display = 'none';
     });
@@ -892,16 +1572,17 @@ $(document).ready(function() {
 
         // Payment method
         const ewallet = document.getElementById("ewallet-radio").checked;
+        const card = document.getElementById("card-radio").checked;
         const paymentBadge = document.getElementById('confirm-payment-method');
         if (ewallet) {
             paymentBadge.innerHTML = '<span class="payment-icon">💰</span><span class="payment-text">E-Wallet</span>';
             paymentBadge.className = 'payment-badge ewallet';
-        } else {
-            paymentBadge.innerHTML = '<span class="payment-icon">📦</span><span class="payment-text">Cash on Delivery</span>';
-            paymentBadge.className = 'payment-badge cod';
+        } else if (card) {
+            paymentBadge.innerHTML = '<span class="payment-icon">💳</span><span class="payment-text">Credit or Debit Card</span>';
+            paymentBadge.className = 'payment-badge card';
         }
 
-        // Preferred Installation Date
+        // Preferred Ocular Visit Date
         const installationDateSection = document.getElementById('confirm-installation-date-section');
         const installationDateValue = document.getElementById('confirm-installation-date');
         if (preferredInstallationDate) {
@@ -952,32 +1633,32 @@ $(document).ready(function() {
                 document.getElementById('confirm-handling').textContent = `₱${summary.handling.toFixed(2)}`;
                 document.getElementById('confirm-total').textContent = `₱${summary.total.toFixed(2)}`;
             } else {
-                // Fallback: Get totals from page summary
+                // Fallback: Get totals from page summary (already includes peso sign)
                 const subtotal = document.getElementById('summary-subtotal').textContent;
                 const shipping = document.getElementById('summary-shipping').textContent;
                 const handling = document.getElementById('summary-handling').textContent;
                 const total = document.getElementById('summary-total').textContent;
                 const itemCount = document.getElementById('summary-items').textContent;
 
-                document.getElementById('confirm-subtotal').textContent = `₱${subtotal}`;
-                document.getElementById('confirm-shipping').textContent = `₱${shipping}`;
-                document.getElementById('confirm-handling').textContent = `₱${handling}`;
-                document.getElementById('confirm-total').textContent = `₱${total}`;
+                document.getElementById('confirm-subtotal').textContent = subtotal;
+                document.getElementById('confirm-shipping').textContent = shipping;
+                document.getElementById('confirm-handling').textContent = handling;
+                document.getElementById('confirm-total').textContent = total;
                 
                 itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
             }
         }).fail(function() {
-            // Fallback on AJAX failure
+            // Fallback on AJAX failure (values already include peso sign)
             const subtotal = document.getElementById('summary-subtotal').textContent;
             const shipping = document.getElementById('summary-shipping').textContent;
             const handling = document.getElementById('summary-handling').textContent;
             const total = document.getElementById('summary-total').textContent;
             const itemCount = document.getElementById('summary-items').textContent;
 
-            document.getElementById('confirm-subtotal').textContent = `₱${subtotal}`;
-            document.getElementById('confirm-shipping').textContent = `₱${shipping}`;
-            document.getElementById('confirm-handling').textContent = `₱${handling}`;
-            document.getElementById('confirm-total').textContent = `₱${total}`;
+            document.getElementById('confirm-subtotal').textContent = subtotal;
+            document.getElementById('confirm-shipping').textContent = shipping;
+            document.getElementById('confirm-handling').textContent = handling;
+            document.getElementById('confirm-total').textContent = total;
             
             itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
         });
@@ -986,14 +1667,14 @@ $(document).ready(function() {
     // === Place Order button - Show confirmation modal ===
     document.getElementById("placeOrderBtn").addEventListener("click", function () {
         const ewallet = document.getElementById("ewallet-radio").checked;
-        const cod = document.getElementById("COD-radio").checked;
+        const card = document.getElementById("card-radio").checked;
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
         const preferredDateInput = document.querySelector("input[name='preferred_installation_date']");
         const preferredDate = preferredDateInput ? preferredDateInput.value : '';
 
         // Validate payment method
-        if (!ewallet && !cod) {
+        if (!ewallet && !card) {
             const paymentSection = document.querySelector('.payment-section');
             const errorDiv = document.getElementById('payment-method-error');
             if (errorDiv) {
@@ -1017,14 +1698,14 @@ $(document).ready(function() {
             return;
         }
 
-        // Validate Preferred Installation Date
+        // Validate Preferred Ocular Visit Date
         if (!preferredDate) {
             const errorDiv = document.getElementById('installation-date-error');
             if (errorDiv) {
                 errorDiv.style.display = 'block';
             }
-            highlightField('preferred_installation_date', 'installation-date-error', 'Please select a Preferred Installation Date.');
-            showToast('Please select a Preferred Installation Date. This field is required.', 'warning');
+            highlightField('preferred_installation_date', 'installation-date-error', 'Please select a Preferred Ocular Visit Date.');
+            showToast('Please select a Preferred Ocular Visit Date. This field is required.', 'warning');
             if (preferredDateInput) {
                 preferredDateInput.focus();
                 preferredDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1041,6 +1722,7 @@ $(document).ready(function() {
     confirmOrderBtn.addEventListener("click", function () {
         const btn = this;
         const ewallet = document.getElementById("ewallet-radio").checked;
+        const card = document.getElementById("card-radio").checked;
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
 
@@ -1049,24 +1731,89 @@ $(document).ready(function() {
         const formData = new FormData(form);
 
         // Add payment method, terms, and SELECTED CART IDS
-        const paymentMethod = ewallet ? 'E-Wallet' : 'Cash on Delivery';
+        let paymentMethod = 'E-Wallet'; // default
+        if (card) {
+            paymentMethod = 'Credit or Debit Card';
+        } else if (ewallet) {
+            paymentMethod = 'E-Wallet';
+        }
         formData.append('payment_method', paymentMethod);
         formData.append('PaymentMethod', paymentMethod); // Also add as PaymentMethod for consistency
         formData.append('terms_accepted', termsAccepted ? 'true' : 'false');
         formData.append('selected_cart_ids', SELECTED_CART_IDS);
         
-        // Ensure all required address fields are included
-        const addressFields = [
+        // Check if billing address is same as shipping
+        const sameBilling = document.getElementById('same-billing')?.checked || false;
+        
+        // Ensure all required shipping address fields are included
+        const shippingAddressFields = [
             'unit_house_number', 'street', 'subdivision', 'barangay',
             'city', 'province', 'region', 'country', 'zipcode', 'note'
         ];
         
-        addressFields.forEach(fieldName => {
+        shippingAddressFields.forEach(fieldName => {
             const input = form.querySelector(`input[name='${fieldName}'], textarea[name='${fieldName}']`);
             if (input && !formData.has(fieldName)) {
                 formData.append(fieldName, input.value || '');
             }
         });
+        
+        // Handle billing address - either copy from shipping or use separate fields
+        const billingForm = document.getElementById('billingForm');
+        
+        if (sameBilling) {
+            // Copy shipping address and contact info to billing fields
+            const firstname = form.querySelector("input[name='firstname']")?.value || '';
+            const middlename = form.querySelector("input[name='middlename']")?.value || '';
+            const lastname = form.querySelector("input[name='lastname']")?.value || '';
+            const email = form.querySelector("input[name='email']")?.value || '';
+            const phone = form.querySelector("input[name='phone']")?.value || '';
+            const unitHouse = form.querySelector("input[name='unit_house_number']")?.value || '';
+            const street = form.querySelector("input[name='street']")?.value || '';
+            const subdivision = form.querySelector("input[name='subdivision']")?.value || '';
+            const barangay = form.querySelector("input[name='barangay']")?.value || '';
+            const city = form.querySelector("input[name='city']")?.value || '';
+            const province = form.querySelector("input[name='province']")?.value || '';
+            const region = form.querySelector("input[name='region']")?.value || '';
+            const country = form.querySelector("input[name='country']")?.value || 'Philippines';
+            const zipcode = form.querySelector("input[name='zipcode']")?.value || '';
+            
+            // Contact info
+            formData.append('billing_firstname', firstname);
+            formData.append('billing_middlename', middlename);
+            formData.append('billing_lastname', lastname);
+            formData.append('billing_email', email);
+            formData.append('billing_phone', phone);
+            
+            // Address fields
+            formData.append('billing_unit_house_number', unitHouse);
+            formData.append('billing_street', street);
+            formData.append('billing_subdivision', subdivision);
+            formData.append('billing_barangay', barangay);
+            formData.append('billing_city', city);
+            formData.append('billing_province', province);
+            formData.append('billing_region', region);
+            formData.append('billing_country', country);
+            formData.append('billing_zipcode', zipcode);
+        } else {
+            // Use separate billing address fields
+            if (billingForm) {
+                const billingFields = [
+                    'billing_firstname', 'billing_middlename', 'billing_lastname',
+                    'billing_email', 'billing_phone',
+                    'billing_unit_house_number', 'billing_street', 'billing_subdivision', 
+                    'billing_barangay', 'billing_city', 'billing_province', 
+                    'billing_region', 'billing_country', 'billing_zipcode'
+                ];
+                
+                billingFields.forEach(fieldName => {
+                    const input = billingForm.querySelector(`input[name='${fieldName}']`);
+                    if (input && !formData.has(fieldName)) {
+                        formData.append(fieldName, input.value || '');
+                    }
+                });
+            }
+        }
         
         // Build AddressLine from components for backward compatibility
         const unitHouse = form.querySelector("input[name='unit_house_number']")?.value || '';
@@ -1078,7 +1825,7 @@ $(document).ready(function() {
             formData.append('AddressLine', addressParts.join(', '));
         }
         
-        // Add preferred installation date (required)
+        // Add preferred ocular visit date (required)
         const preferredDateInput = form.querySelector("input[name='preferred_installation_date']");
         if (preferredDateInput) {
             if (!preferredDateInput.value) {
@@ -1086,8 +1833,8 @@ $(document).ready(function() {
                 if (errorDiv) {
                     errorDiv.style.display = 'block';
                 }
-                highlightField('preferred_installation_date', 'installation-date-error', 'Preferred Installation Date is required.');
-                showToast('Preferred Installation Date is required. Please select a date.', 'warning');
+                highlightField('preferred_installation_date', 'installation-date-error', 'Preferred Ocular Visit Date is required.');
+                showToast('Preferred Ocular Visit Date is required. Please select a date.', 'warning');
                 preferredDateInput.focus();
                 preferredDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 btn.disabled = false;
@@ -1182,5 +1929,6 @@ $(document).ready(function() {
         });
     });
 
-    
+}); // End of $(document).ready
+
 </script>

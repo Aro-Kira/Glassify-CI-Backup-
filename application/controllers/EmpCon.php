@@ -17,11 +17,11 @@ class EmpCon extends CI_Controller {
         $this->load->view('includes/footer');
     }
 
-    // Get all employees (Admin, Sales Representative, Inventory Officer)
+    // Get all employees (Admin, Sales Representative)
     public function get_users() {
         header('Content-Type: application/json');
         
-        $roles = ['Admin', 'Sales Representative', 'Inventory Officer'];
+        $roles = ['Admin', 'Sales Representative'];
         $this->db->where_in('Role', $roles);
         $this->db->order_by('Date_Created', 'DESC');
         $users = $this->db->get('user')->result();
@@ -68,7 +68,7 @@ class EmpCon extends CI_Controller {
         }
         
         // Validate role
-        $validRoles = ['Admin', 'Sales Representative', 'Inventory Officer'];
+        $validRoles = ['Admin', 'Sales Representative'];
         if (!in_array($input['role'], $validRoles)) {
             echo json_encode(['status' => 'error', 'message' => 'Invalid role']);
             return;
@@ -116,7 +116,7 @@ class EmpCon extends CI_Controller {
             return;
         }
         
-        $validRoles = ['Admin', 'Sales Representative', 'Inventory Officer'];
+        $validRoles = ['Admin', 'Sales Representative'];
         if (!in_array($user->Role, $validRoles)) {
             echo json_encode(['status' => 'error', 'message' => 'User is not an employee']);
             return;
@@ -155,7 +155,7 @@ class EmpCon extends CI_Controller {
         }
     }
 
-    // Delete/Deactivate employee (soft delete)
+    // Delete/Archive employee - moves to employee_archive table
     public function delete_user() {
         header('Content-Type: application/json');
         
@@ -175,19 +175,107 @@ class EmpCon extends CI_Controller {
             return;
         }
         
-        $validRoles = ['Admin', 'Sales Representative', 'Inventory Officer'];
+        $validRoles = ['Admin', 'Sales Representative'];
         if (!in_array($user->Role, $validRoles)) {
             echo json_encode(['status' => 'error', 'message' => 'User is not an employee']);
             return;
         }
         
-        // Soft delete - set status to Inactive
-        $data = ['Status' => 'Inactive'];
+        // Check for orders where user is SalesRep (RESTRICT constraint)
+        $this->db->where('SalesRep_ID', $user_id);
+        $order_count = $this->db->count_all_results('order');
+        if ($order_count > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Cannot delete employee: Employee is assigned to ' . $order_count . ' order(s). Please reassign orders first.']);
+            return;
+        }
         
-        if ($this->User_model->update_account($user_id, $data)) {
-            echo json_encode(['status' => 'success', 'message' => 'Employee deactivated successfully']);
+        // Check for projectschedule references (Admin_ID has RESTRICT)
+        $this->db->where('Admin_ID', $user_id);
+        $schedule_count = $this->db->count_all_results('projectschedule');
+        if ($schedule_count > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Cannot delete employee: Employee is referenced in ' . $schedule_count . ' project schedule(s).']);
+            return;
+        }
+        
+        // Start transaction
+        $this->db->trans_start();
+        
+        // Prepare archive data - handle date formatting
+        $archive_data = [
+            'UserID' => $user->UserID,
+            'First_Name' => $user->First_Name,
+            'Last_Name' => $user->Last_Name,
+            'Middle_Name' => $user->Middle_Name ? $user->Middle_Name : NULL,
+            'Email' => $user->Email,
+            'Password' => $user->Password,
+            'PhoneNum' => $user->PhoneNum,
+            'ImageUrl' => $user->ImageUrl ? $user->ImageUrl : NULL,
+            'Role' => $user->Role,
+            'Status' => $user->Status ? $user->Status : 'Active',
+            'Date_Created' => $user->Date_Created ? $user->Date_Created : NULL,
+            'Date_Updated' => $user->Date_Updated ? $user->Date_Updated : NULL,
+            'Last_Active' => $user->Last_Active ? $user->Last_Active : NULL,
+            'ArchivedAt' => date('Y-m-d H:i:s')
+        ];
+        
+        // Insert into archive table
+        $archive_insert_id = $this->db->insert('employee_archive', $archive_data);
+        $archive_success = ($archive_insert_id !== FALSE && $this->db->affected_rows() > 0);
+        
+        // Check for archive insert errors
+        if (!$archive_success) {
+            $archive_error = $this->db->error();
+            $this->db->trans_rollback();
+            log_message('error', 'EmpCon->delete_user: Failed to insert into archive. User ID=' . $user_id . ' Error: ' . json_encode($archive_error));
+            echo json_encode(['status' => 'error', 'message' => 'Failed to archive employee: ' . ($archive_error['message'] ?? 'Database error')]);
+            return;
+        }
+        
+        // Update references that can be set to NULL before deletion
+        $this->db->where('ApprovedBy_SalesRep_ID', $user_id);
+        $this->db->update('order', ['ApprovedBy_SalesRep_ID' => NULL]);
+        
+        $this->db->where('ApprovedBy_Admin_ID', $user_id);
+        $this->db->update('order', ['ApprovedBy_Admin_ID' => NULL]);
+        
+        $this->db->where('DisapprovedBy_ID', $user_id);
+        $this->db->update('order', ['DisapprovedBy_ID' => NULL]);
+        
+        // Update appointments table if AssignedStaff_ID column exists
+        if ($this->db->field_exists('AssignedStaff_ID', 'appointments')) {
+            $this->db->where('AssignedStaff_ID', $user_id);
+            $this->db->update('appointments', ['AssignedStaff_ID' => NULL]);
+        }
+        
+        // Update inventory_items table if UpdatedBy column exists
+        if ($this->db->table_exists('inventory_items') && $this->db->field_exists('UpdatedBy', 'inventory_items')) {
+            $this->db->where('UpdatedBy', $user_id);
+            $this->db->update('inventory_items', ['UpdatedBy' => NULL]);
+        }
+        
+        // Delete from user table
+        $this->db->where('UserID', $user_id);
+        $delete_result = $this->db->delete('user');
+        $delete_success = ($delete_result !== FALSE && $this->db->affected_rows() > 0);
+        
+        $this->db->trans_complete();
+        
+        if ($this->db->trans_status() === FALSE || !$archive_success || !$delete_success) {
+            $error = $this->db->error();
+            $error_message = 'Database error';
+            
+            if (!empty($error['message'])) {
+                $error_message = $error['message'];
+            } elseif (!$archive_success) {
+                $error_message = 'Failed to archive employee data';
+            } elseif (!$delete_success) {
+                $error_message = 'Failed to delete employee from user table. User may be referenced in other records.';
+            }
+            
+            log_message('error', 'EmpCon->delete_user: Failed to archive and delete employee ID=' . $user_id . ' Error: ' . json_encode($error) . ' Archive success: ' . ($archive_success ? 'true' : 'false') . ' Delete success: ' . ($delete_success ? 'true' : 'false') . ' Transaction status: ' . ($this->db->trans_status() === FALSE ? 'FALSE' : 'TRUE'));
+            echo json_encode(['status' => 'error', 'message' => 'Failed to delete employee: ' . $error_message]);
         } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to deactivate employee']);
+            echo json_encode(['status' => 'success', 'message' => 'Employee deleted and archived successfully']);
         }
     }
 }

@@ -111,24 +111,24 @@ function get_status_class($status) {
                 <!-- Addresses Section -->
                 <div id="addresses" class="content-section">
                     <h3>Saved Addresses</h3>
-                    <?php if (!empty($all_addresses)): ?>
-                        <div class="table-wrapper addresses-table-wrapper">
-                            <table class="styled-table">
-                                <thead>
-                                    <tr>
-                                        <th>Unit/House #</th>
-                                        <th>Street</th>
-                                        <th>Subdivision</th>
-                                        <th>Barangay</th>
-                                        <th>City</th>
-                                        <th>Province</th>
-                                        <th>Region</th>
-                                        <th>Country</th>
-                                        <th>Zip Code</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                    <div class="table-wrapper addresses-table-wrapper">
+                        <table class="styled-table">
+                            <thead>
+                                <tr>
+                                    <th>Unit/House #</th>
+                                    <th>Street</th>
+                                    <th>Subdivision</th>
+                                    <th>Barangay</th>
+                                    <th>City</th>
+                                    <th>Province</th>
+                                    <th>Region</th>
+                                    <th>Country</th>
+                                    <th>Zip Code</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (!empty($all_addresses)): ?>
                                     <?php foreach ($all_addresses as $addr): ?>
                                         <tr>
                                             <td>
@@ -154,12 +154,16 @@ function get_status_class($status) {
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php else: ?>
-                        <p>No saved addresses. <button class="btn-add-new-address" id="btnAddNewAddress">Add New Address</button></p>
-                    <?php endif; ?>
+                                <?php else: ?>
+                                    <tr>
+                                        <td colspan="10" style="text-align: center; color: #888; padding: 20px;">
+                                            No saved addresses.
+                                        </td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                     
                     <button class="btn-add-new-address" id="btnAddNewAddressMain" style="margin-top: 2rem;">+ Add New Address</button>
                     
@@ -235,13 +239,13 @@ function get_status_class($status) {
                         </div>
                         
                         <div class="form-field-group">
-                            <label for="addressesUnitHouseNumber">Unit/House Number <span class="required-asterisk">*</span></label>
-                            <input type="text" name="UnitHouseNumber" id="addressesUnitHouseNumber" placeholder="Enter Unit/House Number" required>
+                            <label for="addressesStreet">Street</label>
+                            <input type="text" name="Street" id="addressesStreet" placeholder="Enter Street (optional)">
                         </div>
                         
                         <div class="form-field-group">
-                            <label for="addressesStreet">Street</label>
-                            <input type="text" name="Street" id="addressesStreet" placeholder="Enter Street (optional)">
+                            <label for="addressesUnitHouseNumber">Unit/House Number <span class="required-asterisk">*</span></label>
+                            <input type="text" name="UnitHouseNumber" id="addressesUnitHouseNumber" placeholder="Enter Unit/House Number" required>
                         </div>
                         
                         <div class="form-field-group">
@@ -298,17 +302,17 @@ function get_status_class($status) {
                                     </div>
                                 </div>
 
-                                <!-- Email Address -->
-                                <div class="form-field">
-                                    <label for="email">Email address <span class="required">*</span></label>
-                                    <input type="email" id="email" name="email" value="<?= isset($user) ? htmlspecialchars($user->Email) : '' ?>" required>
+                                <!-- Email Address and Phone Number in one row -->
+                                <div class="form-row">
+                                    <div class="form-field">
+                                        <label for="email">Email address <span class="required">*</span></label>
+                                        <input type="email" id="email" name="email" value="<?= isset($user) ? htmlspecialchars($user->Email) : '' ?>" required>
+                                    </div>
+                                    <div class="form-field">
+                                        <label for="phone">Phone Number <span class="required">*</span></label>
+                                        <input type="text" id="phone" name="phone" value="<?= isset($user) ? htmlspecialchars($user->PhoneNum ?? '') : '' ?>" required>
+                                    </div>
                                 </div>
-
-                                <!-- Phone Number -->
-                                <div class="form-field">
-                    <label for="phone">Phone Number</label>
-                                    <input type="text" id="phone" name="phone" value="<?= isset($user) ? htmlspecialchars($user->PhoneNum ?? '') : '' ?>">
-                    </div>
 
                     <!-- Password Change Section -->
                     <div class="password-section">
@@ -1090,7 +1094,7 @@ function get_status_class($status) {
             
             
             // Add New Address button
-            $("#btnAddNewAddress, #btnAddNewAddressMain").on("click", function() {
+            $("#btnAddNewAddressMain").on("click", function() {
                 $("#addressesAddressForm")[0].reset();
                 $("#addressesEditAddressID").val('');
                 $("#addressesIsDefault").prop('checked', false);
@@ -1106,7 +1110,7 @@ function get_status_class($status) {
             $("#formModalDeleteBtn").on("click", function() {
                 if (!currentAddressId) return;
                 
-                if (!confirm("Are you sure you want to delete this address?")) {
+                if (!confirm("Are you sure you want to archive this address? It will be hidden but can be recovered later.")) {
                     return;
                 }
                 
@@ -1117,11 +1121,11 @@ function get_status_class($status) {
                     dataType: "json",
                     success: function (res) {
                         if (res.success) {
-                            alert("Address deleted successfully!");
+                            alert("Address archived successfully!");
                             closeAddressFormModal();
                             location.reload();
                         } else {
-                            alert(res.message || "Failed to delete address.");
+                            alert(res.message || "Failed to archive address.");
                         }
                     },
                     error: function() {
@@ -1205,16 +1209,21 @@ function get_status_class($status) {
                         citySelect.append(`<option value="${city}">${city}</option>`);
                     });
                 } else if (selectedRegion === "Region III") {
-                    // Populate Region III provinces
-                    Object.keys(addressesRegion3Provinces).forEach(province => {
-                        provinceSelect.append(`<option value="${province}">${province}</option>`);
-                    });
+                    // Only show Bulacan province for Region III
+                    provinceSelect.html('<option value="Bulacan">Bulacan</option>');
+                    provinceSelect.val("Bulacan").trigger('change');
                 } else if (selectedRegion === "Region IV-A") {
                     // Populate Region IV-A provinces
                     Object.keys(addressesRegion4AProvinces).forEach(province => {
                         provinceSelect.append(`<option value="${province}">${province}</option>`);
                     });
                 }
+                
+                // Re-apply dropdown limit after options are populated
+                setTimeout(function() {
+                    setupDropdownLimit("#addressesProvince");
+                    setupDropdownLimit("#addressesCity");
+                }, 50);
             });
 
             // Province change handler for addresses section
@@ -1242,7 +1251,80 @@ function get_status_class($status) {
                         citySelect.append(`<option value="${city}">${city}</option>`);
                     });
                 }
+                
+                // Re-apply dropdown limit after options are populated
+                setTimeout(function() {
+                    setupDropdownLimit("#addressesCity");
+                }, 50);
             });
+
+            // Limit dropdowns to show 5 options at a time with scrolling (only if more than 5 options exist)
+            function setupDropdownLimit(selectId) {
+                const $select = $(selectId);
+                let isOpen = false;
+                let timeoutId = null;
+                
+                function checkAndSetSize() {
+                    const optionCount = $select.find('option').length;
+                    // Only apply size if there are more than 5 options
+                    if (optionCount > 5 && !isOpen) {
+                        isOpen = true;
+                        $select.attr("size", "5");
+                        // Scroll to selected option if any
+                        const selectedIndex = $select[0].selectedIndex;
+                        if (selectedIndex > 0) {
+                            setTimeout(function() {
+                                $select[0].scrollTop = (selectedIndex - 1) * 40; // Approximate option height
+                            }, 50);
+                        }
+                    }
+                }
+                
+                function resetSize() {
+                    if (isOpen) {
+                        isOpen = false;
+                        $select.removeAttr("size");
+                    }
+                    if (timeoutId) {
+                        clearTimeout(timeoutId);
+                        timeoutId = null;
+                    }
+                }
+                
+                // On focus, set size if needed (this happens when dropdown opens)
+                $select.on("focus", function() {
+                    timeoutId = setTimeout(function() {
+                        checkAndSetSize();
+                    }, 100);
+                });
+                
+                // On blur (when losing focus), reset size
+                $select.on("blur", function() {
+                    resetSize();
+                });
+                
+                // When an option is selected, reset size and close dropdown
+                $select.on("change", function() {
+                    resetSize();
+                    // Blur the select to close the dropdown
+                    $(this).blur();
+                });
+                
+                // Handle click to detect when dropdown is opened
+                $select.on("click", function() {
+                    // Use a small delay to check if dropdown opened
+                    setTimeout(function() {
+                        if ($select.is(":focus")) {
+                            checkAndSetSize();
+                        }
+                    }, 50);
+                });
+            }
+
+            // Apply to all three address dropdowns
+            setupDropdownLimit("#addressesRegion");
+            setupDropdownLimit("#addressesProvince");
+            setupDropdownLimit("#addressesCity");
         });
     </script>
 

@@ -109,7 +109,7 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
 }
 
 </style>
-    <h1>Welcome back, <span class="highlight"><?= $user_name ?>!</span></h1>
+    <h1>Welcome, <span class="highlight"><?= $user_name ?>!</span></h1>
     <p class="subtle">What would you like to do today?</p>
 
     <div class="hero-cards">
@@ -229,7 +229,7 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
                             <span><?= htmlspecialchars($order->ProductName ?? 'Custom Order') ?></span>
                         </td>
                         <td><?= htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) ?></td>
-                        <td><?= date('M j, Y', strtotime($order->OrderDate)) ?></td>
+                        <td><?= date('M j, Y', strtotime(isset($order->Updated_Date) && $order->Updated_Date ? $order->Updated_Date : $order->OrderDate)) ?></td>
                         <td><span class="status <?= get_status_class($order->Status ?? 'Pending Review') ?>"><?= htmlspecialchars($order->Status ?? 'Pending Review') ?></span></td>
                         <td><a href="<?= base_url('track_order?order=' . $order->OrderID) ?>" class="view-details">View details</a></td>
                     </tr>
@@ -254,11 +254,14 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
                     <li class="activity-item <?= $index >= 5 ? 'hidden-item' : '' ?>" data-index="<?= $index ?>">
                         <div class="activity-text">
                             <strong><?= get_activity_message($activity->Status) ?></strong>
-                            <p><?= get_activity_description($activity->Status, $activity->OrderID) ?></p>
+                            <p><?= get_activity_description($activity->Status, $activity->OrderNumber ?? 'GI' . str_pad($activity->OrderID, 3, '0', STR_PAD_LEFT)) ?></p>
                         </div>
                         <div class="time-stamp">
-                            <span><?= date('g:i A', strtotime($activity->OrderDate)) ?></span><br>
-                            <span><?= date('m/d/Y', strtotime($activity->OrderDate)) ?></span>
+                            <?php 
+                            $display_date = isset($activity->Updated_Date) && $activity->Updated_Date ? $activity->Updated_Date : $activity->OrderDate;
+                            ?>
+                            <span><?= date('g:i A', strtotime($display_date)) ?></span><br>
+                            <span><?= date('m/d/Y', strtotime($display_date)) ?></span>
                         </div>
                     </li>
                 <?php $index++; endforeach; ?>
@@ -268,9 +271,8 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
                         <strong>No Activity Yet</strong>
                         <p>Your activity feed will appear here once you place an order.</p>
                     </div>
-                    <div class="time-stamp">
-                        <span>--:-- --</span><br>
-                        <span>--/--/----</span>
+                    <div class="time-stamp" style="display: none;">
+                        <!-- Timestamp hidden when no activity -->
                     </div>
                 </li>
             <?php endif; ?>
@@ -435,7 +437,7 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
                     ?>
                     <img src="<?= $image_url ?>" alt="<?= htmlspecialchars($product->ProductName) ?>">
                     <h3><?= htmlspecialchars($product->ProductName) ?></h3>
-                    <button onclick="window.location.href='<?= base_url('shop/customize/' . $product->Product_ID) ?>'">Build and Buy</button>
+                    <button onclick="window.location.href='<?= base_url('2DModeling?id=' . $product->Product_ID) ?>'">Build and Buy</button>
                 </div>
             <?php endforeach; ?>
         <?php else: ?>
@@ -481,11 +483,20 @@ function filterOrders(status, element) {
     event.preventDefault();
     
     const rows = document.querySelectorAll('#ordersTable tbody tr[data-status]');
+    const inProgressStatuses = ['pending', 'approved', 'in-fabrication', 'ready-for-installation'];
+    
     rows.forEach(row => {
-        if (status === 'all' || row.dataset.status === status) {
+        if (status === 'all') {
             row.style.display = '';
+        } else if (status === 'in-progress') {
+            // Show rows that match any in-progress status
+            row.style.display = inProgressStatuses.includes(row.dataset.status) ? '' : 'none';
+        } else if (status === 'completed') {
+            row.style.display = row.dataset.status === 'completed' ? '' : 'none';
+        } else if (status === 'cancelled') {
+            row.style.display = row.dataset.status === 'cancelled' ? '' : 'none';
         } else {
-            row.style.display = 'none';
+            row.style.display = row.dataset.status === status ? '' : 'none';
         }
     });
     

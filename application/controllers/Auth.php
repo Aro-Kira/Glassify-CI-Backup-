@@ -71,13 +71,13 @@ class Auth extends CI_Controller
             
             if ($email_sent) {
                 log_message('info', 'Confirmation email sent successfully to: ' . $email);
-                $this->session->set_flashdata('success', 'Registration successful! Please check your email to confirm your account before logging in.');
             } else {
                 log_message('error', 'Failed to send confirmation email to: ' . $email);
-                $this->session->set_flashdata('success', 'Registration successful! Please check your email to confirm your account before logging in.');
             }
             
-            redirect(base_url('login'));
+            // Set success flag to show popup on registration page
+            $this->session->set_flashdata('registration_success', true);
+            redirect(base_url('register'));
         } else {
             $this->session->set_flashdata('error', 'Registration failed. Please try again.');
             redirect(base_url('register'));
@@ -150,31 +150,6 @@ class Auth extends CI_Controller
         $this->load->view('includes/footer');
     }
 
-    // ===================== INVENTORY LOGIN =====================
-    public function inventory_login()
-    {
-        // If a customer is logged in, log them out automatically
-        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
-            $this->session->sess_destroy();
-        }
-        
-        // Redirect Sales Representatives to their login page
-        $user_role = $this->session->userdata('user_role');
-        if ($user_role === 'Sales Representative') {
-            $this->session->set_flashdata('error', 'Sales Representatives must use the Sales login page.');
-            redirect(base_url('sales-login'));
-        }
-        
-        // Check for Remember Me cookie
-        $remember_email = get_cookie('inventory_remember_email');
-        
-        $data['title'] = "Glassify - Inventory Login";
-        $data['force_guest_header'] = true; // Force guest header on employee login pages
-        $data['remember_email'] = $remember_email ? $remember_email : '';
-        $this->load->view('includes/header', $data);
-        $this->load->view('auth/login_inventory', $data);
-        $this->load->view('includes/footer');
-    }
 
     // ===================== STRONG PASSWORD VALIDATION =====================
     /**
@@ -376,7 +351,6 @@ class Auth extends CI_Controller
         $role_map = [
             'Admin' => 'Admin',
             'Sales' => 'Sales Representative',
-            'Inventory' => 'Inventory Officer',
             'Customer' => 'Customer'
         ];
 
@@ -417,7 +391,7 @@ class Auth extends CI_Controller
         // Verify password
         if (!password_verify($password, $user->Password)) {
             log_message('info', 'Login attempt failed: Incorrect password - email=' . $email . ', role=' . $role);
-            $this->session->set_flashdata('error', 'Invalid email or password. Please try again.');
+            $this->session->set_flashdata('error', 'Invalid password. Please try again.');
             redirect(base_url($redirect_url));
         }
 
@@ -436,9 +410,6 @@ class Auth extends CI_Controller
             if ($user->Role === 'Admin') {
                 $this->session->set_flashdata('error', 'You are an Admin. Please use the Admin login page.');
                 redirect(base_url('Adlog'));
-            } elseif ($user->Role === 'Inventory Officer') {
-                $this->session->set_flashdata('error', 'You are an Inventory Officer. Please use the Inventory login page.');
-                redirect(base_url('Invlog'));
             } elseif ($user->Role === 'Customer') {
                 $this->session->set_flashdata('error', 'You are a Customer. Please use the regular login page.');
                 redirect(base_url('login'));
@@ -484,9 +455,6 @@ class Auth extends CI_Controller
             case 'Sales Representative':
                 $cookie_name = 'sales_remember_email';
                 break;
-            case 'Inventory Officer':
-                $cookie_name = 'inventory_remember_email';
-                break;
             case 'Customer':
                 $cookie_name = 'customer_remember_email';
                 break;
@@ -509,9 +477,6 @@ class Auth extends CI_Controller
                 break;
             case 'Sales Representative':
                 redirect(base_url('sales-dashboard'));
-                break;
-            case 'Inventory Officer':
-                redirect(base_url('inventory-dashboard'));
                 break;
             case 'Customer':
                 redirect(base_url('home-login'));
@@ -541,7 +506,6 @@ class Auth extends CI_Controller
             $forgot_password_routes = [
                 'Admin' => 'admin-forgot-password',
                 'Sales' => 'sales-forgot-password',
-                'Inventory' => 'inventory-forgot-password',
                 'Customer' => 'forgot-password'
             ];
             $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
@@ -557,7 +521,6 @@ class Auth extends CI_Controller
             $forgot_password_routes = [
                 'Admin' => 'admin-forgot-password',
                 'Sales' => 'sales-forgot-password',
-                'Inventory' => 'inventory-forgot-password',
                 'Customer' => 'forgot-password'
             ];
             $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
@@ -569,7 +532,6 @@ class Auth extends CI_Controller
         $role_map = [
             'Admin' => 'Admin',
             'Sales' => 'Sales Representative',
-            'Inventory' => 'Inventory Officer',
             'Customer' => 'Customer'
         ];
         $db_role = $role_map[$role] ?? '';
@@ -581,7 +543,6 @@ class Auth extends CI_Controller
             $forgot_password_routes = [
                 'Admin' => 'admin-forgot-password',
                 'Sales' => 'sales-forgot-password',
-                'Inventory' => 'inventory-forgot-password',
                 'Customer' => 'forgot-password'
             ];
             $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
@@ -595,7 +556,6 @@ class Auth extends CI_Controller
             $forgot_password_routes = [
                 'Admin' => 'admin-forgot-password',
                 'Sales' => 'sales-forgot-password',
-                'Inventory' => 'inventory-forgot-password',
                 'Customer' => 'forgot-password'
             ];
             $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
@@ -644,7 +604,6 @@ class Auth extends CI_Controller
             $login_redirect = [
                 'Admin' => 'Adlog',
                 'Sales' => 'sales-login',
-                'Inventory' => 'Invlog',
                 'Customer' => 'login'
             ];
             $redirect_url = $login_redirect[$role] ?? 'login';
@@ -660,7 +619,6 @@ class Auth extends CI_Controller
             $forgot_password_routes = [
                 'Admin' => 'admin-forgot-password',
                 'Sales' => 'sales-forgot-password',
-                'Inventory' => 'inventory-forgot-password',
                 'Customer' => 'forgot-password'
             ];
             $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
@@ -699,7 +657,6 @@ class Auth extends CI_Controller
             $forgot_password_routes = [
                 'Admin' => 'admin-forgot-password',
                 'Sales' => 'sales-forgot-password',
-                'Inventory' => 'inventory-forgot-password',
                 'Customer' => 'forgot-password'
             ];
             $redirect_url = $forgot_password_routes[$role] ?? 'forgot-password';
@@ -744,7 +701,6 @@ class Auth extends CI_Controller
                     $login_routes = [
                         'Admin' => 'Adlog',
                         'Sales' => 'sales-login',
-                        'Inventory' => 'Invlog',
                         'Customer' => 'login'
                     ];
                     $redirect_url = $login_routes[$role] ?? 'login';
@@ -758,7 +714,6 @@ class Auth extends CI_Controller
                     $login_routes = [
                         'Admin' => 'Adlog',
                         'Sales' => 'sales-login',
-                        'Inventory' => 'Invlog',
                         'Customer' => 'login'
                     ];
                     $redirect_url = $login_routes[$role] ?? 'login';
@@ -772,7 +727,6 @@ class Auth extends CI_Controller
                 $login_routes = [
                     'Admin' => 'Adlog',
                     'Sales' => 'sales-login',
-                    'Inventory' => 'Invlog',
                     'Customer' => 'login'
                 ];
                 $redirect_url = $login_routes[$role] ?? 'login';
@@ -1081,8 +1035,6 @@ class Auth extends CI_Controller
             redirect(base_url('sales-login'));
         } elseif ($user_role === 'Admin') {
             redirect(base_url('Adlog'));
-        } elseif ($user_role === 'Inventory Officer') {
-            redirect(base_url('Invlog'));
         } else {
             redirect(base_url());
         }

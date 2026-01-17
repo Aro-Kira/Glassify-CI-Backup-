@@ -2,9 +2,9 @@
 
 <main class="content-wrapper">
   <div class="content-box">
-    <a href="javascript:history.back()" class="back-btn">
+    <a href="<?php echo base_url('register'); ?>" class="back-btn">
       <img src="<?php echo base_url('assets/images/img-page/icon-park-solid--back.svg'); ?>" alt="Back" class="back-icon">
-      <span>Go back to Registration?</span>
+      <span>Go back to Registration</span>
     </a>
 
     <h2>Terms and Conditions for Account Registration</h2>

@@ -259,7 +259,7 @@ margin-bottom:  50px;
   background: rgba(0,0,0,0.5);
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 1001;
 }
 
 /* Popup Box */
@@ -281,7 +281,7 @@ margin-bottom:  50px;
   color: #666;
 }
 
-/* Form Fields */
+/* Form Fields - Match confirm password styling exactly */
 .popup .form-group {
   margin-bottom: 15px;
   width: 100%;
@@ -292,6 +292,26 @@ margin-bottom:  50px;
 }
 
 .popup .input-text {
+  width: 100%;
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  color: #02455F;
+  box-sizing: border-box;
+}
+
+/* Ensure main popup label and input match confirm password exactly */
+#editPopup #popupLabel {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 5px;
+  text-align: left;
+  width: 100%;
+  color: #02455F;
+}
+
+#editPopup #popupInput {
   width: 100%;
   padding: 8px;
   font-size: 14px;
@@ -314,8 +334,7 @@ margin-bottom:  50px;
 #confirmPasswordGroup label {
   display: block;
   font-weight: 500;
-  margin-bottom: 0;
-  padding-bottom: 4px;
+  margin-bottom: 5px;
   text-align: left;
   width: 100%;
   color: #02455F;
@@ -343,16 +362,34 @@ margin-bottom:  50px;
   box-sizing: border-box;
 }
 
-#editPopup label,
-.popup label,
-.popup .form-group label {
+
+/* Show labels for password fields and ensure proper alignment */
+#editPopup #currentPasswordGroup,
+#editPopup #newPasswordGroup,
+#editPopup #confirmPasswordGroup {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 15px;
+}
+
+#editPopup #currentPasswordGroup label,
+#editPopup #newPasswordGroup label,
+#editPopup #confirmPasswordGroup label {
   display: block;
   font-weight: 500;
-  margin-bottom: 0;
-  padding-bottom: 4px;
-  text-align: left;
+  margin-bottom: 5px;
   width: 100%;
+  text-align: left;
   color: #02455F;
+}
+
+#editPopup #currentPasswordGroup .input-text,
+#editPopup #newPasswordGroup .input-text,
+#editPopup #confirmPasswordGroup .input-text {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 
