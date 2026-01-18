@@ -340,7 +340,7 @@ class CartCon extends CI_Controller
         
         $custom_data = [
             'Customer_ID' => $customer_id,
-            'Product_ID' => $post['product_id'] ?? null,
+            'Product_ID' => intval($post['product_id'] ?? 0),
             'ProductName' => $post['product_name'] ?? null, // Store product name
             'Dimensions' => $post['dimensions'] ?? null, // JSON format
             'GlassShape' => $post['shape'] ?? null,
@@ -349,13 +349,18 @@ class CartCon extends CI_Controller
             'EdgeWork' => $post['edge_work'] ?? null,
             'FrameType' => $post['frame_type'] ?? null,
             'Engraving' => $post['engraving'] ?? null,
-            'DesignRef' => $file_attached, // Store file path(s) in DesignRef (or FileAttached if field exists)
-            'EstimatePrice' => $post['total_quotation'] ?? 0,
-            'TotalQuotation' => $post['total_quotation'] ?? 0, // Store total quotation
+            'DesignRef' => $file_attached, // Store file path(s) in DesignRef
+            'EstimatePrice' => floatval($post['total_quotation'] ?? 0),
+            'TotalQuotation' => floatval($post['total_quotation'] ?? 0), // Store total quotation
             'OrderID' => null, // Will be set when order is created
             'DeliveryAddress' => null, // Will be set when order is created
-            'OrderDate' => null // Will be set when order is created
+            'OrderDate' => null, // Will be set when order is created
+            'PriceBreakdown' => $post['price_breakdown'] ?? null,
+            'Customization' => $post['customization'] ?? null
         ];
+        
+        // Store quantity in session for later use if needed (customization table might not have it)
+        $this->session->set_userdata('buy_now_quantity', intval($post['quantity'] ?? 1));
         
         // If FileAttached field exists, also store there
         if ($this->db->field_exists('FileAttached', 'customization')) {
@@ -783,13 +788,33 @@ class CartCon extends CI_Controller
             
             // Build customization string
             $customization_parts = [];
-            if (!empty($item->Dimensions)) $customization_parts[] = "Size: " . $item->Dimensions;
-            if (!empty($item->GlassShape)) $customization_parts[] = "Shape: " . ucfirst($item->GlassShape);
-            if (!empty($item->GlassType)) $customization_parts[] = "Type: " . ucfirst($item->GlassType);
-            if (!empty($item->GlassThickness)) $customization_parts[] = "Thickness: " . $item->GlassThickness;
-            if (!empty($item->EdgeWork)) $customization_parts[] = "Edge: " . ucfirst(str_replace('-', ' ', $item->EdgeWork));
-            if (!empty($item->FrameType)) $customization_parts[] = "Frame: " . ucfirst($item->FrameType);
-            if (!empty($item->Engraving) && $item->Engraving !== 'None') $customization_parts[] = "Engraving: " . $item->Engraving;
+            
+            // 1. Try to parse dynamic customization JSON (highest priority for accurate details)
+            if (!empty($item->Customization)) {
+                $dynamic_customs = json_decode($item->Customization, true);
+                if (is_array($dynamic_customs)) {
+                    foreach ($dynamic_customs as $key => $val) {
+                        // Skip internal fields
+                        if (in_array($key, ['product_id', 'product_name', 'total_quotation', 'quantity', 'price_breakdown', 'customization'])) continue;
+                        if (empty($val) || $val === 'None') continue;
+                        
+                        // Convert key to readable label
+                        $label = ucfirst(preg_replace('/(?<!^)[A-Z]/', ' $0', str_replace('_', ' ', $key)));
+                        $customization_parts[] = "$label: $val";
+                    }
+                }
+            }
+            
+            // 2. Fallback to standard fields if dynamic parts are empty
+            if (empty($customization_parts)) {
+                if (!empty($item->Dimensions)) $customization_parts[] = "Size: " . $item->Dimensions;
+                if (!empty($item->GlassShape)) $customization_parts[] = "Shape: " . ucfirst($item->GlassShape);
+                if (!empty($item->GlassType)) $customization_parts[] = "Type: " . ucfirst($item->GlassType);
+                if (!empty($item->GlassThickness)) $customization_parts[] = "Thickness: " . $item->GlassThickness;
+                if (!empty($item->EdgeWork)) $customization_parts[] = "Edge: " . ucfirst(str_replace('-', ' ', $item->EdgeWork));
+                if (!empty($item->FrameType)) $customization_parts[] = "Frame: " . ucfirst($item->FrameType);
+                if (!empty($item->Engraving) && $item->Engraving !== 'None') $customization_parts[] = "Engraving: " . $item->Engraving;
+            }
             
             $customization = !empty($customization_parts) ? implode(' | ', $customization_parts) : 'Standard';
             
@@ -932,13 +957,33 @@ class CartCon extends CI_Controller
             
             // Build customization string
             $customization_parts = [];
-            if (!empty($item->Dimensions)) $customization_parts[] = "Size: " . $item->Dimensions;
-            if (!empty($item->GlassShape)) $customization_parts[] = "Shape: " . ucfirst($item->GlassShape);
-            if (!empty($item->GlassType)) $customization_parts[] = "Type: " . ucfirst($item->GlassType);
-            if (!empty($item->GlassThickness)) $customization_parts[] = "Thickness: " . $item->GlassThickness;
-            if (!empty($item->EdgeWork)) $customization_parts[] = "Edge: " . ucfirst(str_replace('-', ' ', $item->EdgeWork));
-            if (!empty($item->FrameType)) $customization_parts[] = "Frame: " . ucfirst($item->FrameType);
-            if (!empty($item->Engraving) && $item->Engraving !== 'None') $customization_parts[] = "Engraving: " . $item->Engraving;
+            
+            // 1. Try to parse dynamic customization JSON (highest priority for accurate details)
+            if (!empty($item->Customization)) {
+                $dynamic_customs = json_decode($item->Customization, true);
+                if (is_array($dynamic_customs)) {
+                    foreach ($dynamic_customs as $key => $val) {
+                        // Skip internal fields
+                        if (in_array($key, ['product_id', 'product_name', 'total_quotation', 'quantity', 'price_breakdown', 'customization'])) continue;
+                        if (empty($val) || $val === 'None') continue;
+                        
+                        // Convert key to readable label
+                        $label = ucfirst(preg_replace('/(?<!^)[A-Z]/', ' $0', str_replace('_', ' ', $key)));
+                        $customization_parts[] = "$label: $val";
+                    }
+                }
+            }
+            
+            // 2. Fallback to standard fields if dynamic parts are empty
+            if (empty($customization_parts)) {
+                if (!empty($item->Dimensions)) $customization_parts[] = "Size: " . $item->Dimensions;
+                if (!empty($item->GlassShape)) $customization_parts[] = "Shape: " . ucfirst($item->GlassShape);
+                if (!empty($item->GlassType)) $customization_parts[] = "Type: " . ucfirst($item->GlassType);
+                if (!empty($item->GlassThickness)) $customization_parts[] = "Thickness: " . $item->GlassThickness;
+                if (!empty($item->EdgeWork)) $customization_parts[] = "Edge: " . ucfirst(str_replace('-', ' ', $item->EdgeWork));
+                if (!empty($item->FrameType)) $customization_parts[] = "Frame: " . ucfirst($item->FrameType);
+                if (!empty($item->Engraving) && $item->Engraving !== 'None') $customization_parts[] = "Engraving: " . $item->Engraving;
+            }
             
             $customization = !empty($customization_parts) ? implode(' | ', $customization_parts) : 'Standard';
             

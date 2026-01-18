@@ -61,26 +61,31 @@
                
                 <td>
                   <?php 
-                  $image_raw = $item->ImageUrl ?? '';
                   $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
                   $product_img = $placeholder_svg;
                   
-                  if (!empty($image_raw)) {
-                      $decoded = json_decode($image_raw, true);
-                      $first_image = '';
-                      if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
-                          $first_image = $decoded[0];
-                      } else {
-                          $first_image = $image_raw;
-                      }
-                      
-                      if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
-                          if (strpos($first_image, 'http') === 0) {
-                              $product_img = $first_image;
-                          } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
-                              $product_img = base_url($first_image);
+                  // Priority: DesignRef (Customized Image) -> ImageUrl (Product Image)
+                  if (!empty($item->DesignRef)) {
+                      $product_img = base_url($item->DesignRef);
+                  } else {
+                      $image_raw = $item->ImageUrl ?? '';
+                      if (!empty($image_raw)) {
+                          $decoded = json_decode($image_raw, true);
+                          $first_image = '';
+                          if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
+                              $first_image = $decoded[0];
                           } else {
-                              $product_img = base_url('uploads/products/' . basename($first_image));
+                              $first_image = $image_raw;
+                          }
+                          
+                          if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
+                              if (strpos($first_image, 'http') === 0) {
+                                  $product_img = $first_image;
+                              } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
+                                  $product_img = base_url($first_image);
+                              } else {
+                                  $product_img = base_url('uploads/products/' . basename($first_image));
+                              }
                           }
                       }
                   }
@@ -101,52 +106,73 @@
                           <span class="view-design-text">Click to view</span>
                         </div>
                       <?php endif; ?>
-                      <div class="custom-details">
-                        <?php if (!empty($item->Dimensions)): ?>
-                          <span class="custom-tag">Size: <?= $item->Dimensions ?></span>
-                        <?php endif; ?>
-                        <?php if (!empty($item->GlassShape)): ?>
-                          <span class="custom-tag">Shape: <?= ucfirst($item->GlassShape) ?></span>
-                        <?php endif; ?>
-                        
+                      <div class="custom-details" id="details-<?= $item->Cart_ID ?>">
                         <?php 
-                        // Try to get additional fields from PriceBreakdown if available
+                        $specs = [];
+                        
+                        // Size first
+                        if (!empty($item->Dimensions)) {
+                            $specs[] = ['label' => 'Size', 'value' => $item->Dimensions];
+                        }
+                        
+                        // Shape second
+                        if (!empty($item->GlassShape)) {
+                            $specs[] = ['label' => 'Shape', 'value' => ucfirst($item->GlassShape)];
+                        }
+                        
+                        // Others from PriceBreakdown in order
                         if (!empty($item->PriceBreakdown)) {
                             $breakdown = json_decode($item->PriceBreakdown, true);
                             if (isset($breakdown['fieldPrices'])) {
-                                foreach ($breakdown['fieldPrices'] as $fieldId => $data) {
-                                    // Skip fields already shown
-                                    if (in_array($fieldId, ['shape', 'dimensions', 'engraving'])) continue;
-                                    
-                                    $label = ucfirst($fieldId);
-                                    // Local fallback for common field IDs
-                                    $fallbacks = [
-                                        'numberOfPanels' => 'Panel',
-                                        'transomType' => 'Transom Type',
-                                        'trackSystem' => 'Track System',
-                                        'panelConfiguration' => 'Panel Configuration',
-                                        'lockType' => 'Lock Type',
-                                        'rollerType' => 'Roller Type',
-                                        'screen' => 'Screen',
-                                        'frameColor' => 'Frame Color',
-                                        'glassType' => 'Glass Type',
-                                        'glassThickness' => 'Thickness'
-                                    ];
-                                    $displayLabel = $fallbacks[$fieldId] ?? $label;
-                                    echo '<span class="custom-tag">' . $displayLabel . ': ' . $data['option'] . '</span>';
+                                // Define the same order as in 2D Modeling
+                                $preferredOrder = [
+                                    'numberOfPanels' => 'Panel',
+                                    'transomType' => 'Transom Type',
+                                    'trackSystem' => 'Track System',
+                                    'panelConfiguration' => 'Panel Configuration',
+                                    'frameColor' => 'Frame Color',
+                                    'frameType' => 'Frame Color',
+                                    'glassType' => 'Glass Type',
+                                    'glassThickness' => 'Thickness',
+                                    'thickness' => 'Thickness',
+                                    'edgeWork' => 'Edge Work',
+                                    'edgeFinish' => 'Edge Finish',
+                                    'lockType' => 'Lock Type',
+                                    'rollerType' => 'Roller Type',
+                                    'screen' => 'Screen',
+                                    'screenOption' => 'Screen'
+                                ];
+
+                                foreach ($preferredOrder as $fieldId => $label) {
+                                    if (isset($breakdown['fieldPrices'][$fieldId])) {
+                                        $specs[] = [
+                                            'label' => $label, 
+                                            'value' => $breakdown['fieldPrices'][$fieldId]['option']
+                                        ];
+                                    }
                                 }
                             }
                         } else {
-                            // Fallback to standard columns if PriceBreakdown not available
-                            if (!empty($item->GlassType)) echo '<span class="custom-tag">Type: ' . ucfirst($item->GlassType) . '</span>';
-                            if (!empty($item->GlassThickness)) echo '<span class="custom-tag">Thickness: ' . $item->GlassThickness . '</span>';
-                            if (!empty($item->EdgeWork)) echo '<span class="custom-tag">Edge: ' . ucfirst(str_replace('-', ' ', $item->EdgeWork)) . '</span>';
-                            if (!empty($item->FrameType)) echo '<span class="custom-tag">Frame: ' . ucfirst($item->FrameType) . '</span>';
+                            // Fallback to standard columns
+                            if (!empty($item->GlassType)) $specs[] = ['label' => 'Type', 'value' => ucfirst($item->GlassType)];
+                            if (!empty($item->GlassThickness)) $specs[] = ['label' => 'Thickness', 'value' => $item->GlassThickness];
+                            if (!empty($item->EdgeWork)) $specs[] = ['label' => 'Edge', 'value' => ucfirst(str_replace('-', ' ', $item->EdgeWork))];
+                            if (!empty($item->FrameType)) $specs[] = ['label' => 'Frame', 'value' => ucfirst($item->FrameType)];
                         }
-                        ?>
 
-                        <?php if (!empty($item->Engraving) && $item->Engraving !== 'None'): ?>
-                          <span class="custom-tag engraving-tag">Engraving: <?= $item->Engraving ?></span>
+                        if (!empty($item->Engraving) && $item->Engraving !== 'None') {
+                            $specs[] = ['label' => 'Engraving', 'value' => $item->Engraving];
+                        }
+
+                        // Display up to 3 specs
+                        $displaySpecs = array_slice($specs, 0, 3);
+                        foreach ($displaySpecs as $spec) {
+                            echo '<span class="custom-tag">' . $spec['label'] . ': ' . $spec['value'] . '</span>';
+                        }
+
+                        // "View All" if more than 3
+                        if (count($specs) > 3): ?>
+                            <button class="view-all-specs" onclick="showAllSpecs(<?= htmlspecialchars(json_encode($specs)) ?>, '<?= $item->ProductName ?>')" style="background: none; border: none; color: #006494; cursor: pointer; padding: 5px 0; font-size: 13px; font-weight: 600; display: block; text-decoration: underline;">View All (<?= count($specs) ?>)</button>
                         <?php endif; ?>
                       </div>
                     </div>
@@ -311,6 +337,60 @@ function downloadDesignImage() {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     closeDesignModal();
+    closeSpecsModal();
   }
 });
+
+// Full Specifications Modal Functions
+function showAllSpecs(specs, productName) {
+    const modal = document.getElementById('specsModal');
+    const title = document.getElementById('specsModalTitle');
+    const body = document.getElementById('specsModalBody');
+    
+    title.textContent = `Specifications - ${productName}`;
+    body.innerHTML = '';
+    
+    specs.forEach(spec => {
+        const row = document.createElement('div');
+        row.className = 'spec-modal-row';
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.padding = '10px 0';
+        row.style.borderBottom = '1px solid #eee';
+        
+        row.innerHTML = `
+            <span style="color: #666;">${spec.label}:</span>
+            <span style="font-weight: 600; color: #0f2b46;">${spec.value}</span>
+        `;
+        body.appendChild(row);
+    });
+    
+    modal.classList.add('active');
+}
+
+function closeSpecsModal() {
+    document.getElementById('specsModal').classList.remove('active');
+}
 </script>
+
+<!-- Full Specifications Modal -->
+<div id="specsModal" class="modal">
+  <div class="modal-overlay" onclick="closeSpecsModal()"></div>
+  <div class="design-modal-content" style="max-width: 400px;">
+    <button class="modal-close" onclick="closeSpecsModal()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+    <div class="design-modal-header">
+      <h3 id="specsModalTitle">Full Specifications</h3>
+    </div>
+    <div class="design-modal-body" id="specsModalBody" style="padding: 10px 20px;">
+      <!-- Specs rows will be injected here -->
+    </div>
+    <div class="design-modal-footer">
+      <button class="btn-primary" onclick="closeSpecsModal()">Close</button>
+    </div>
+  </div>
+</div>

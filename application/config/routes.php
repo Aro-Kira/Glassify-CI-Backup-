@@ -91,6 +91,7 @@ $route['submit-issue'] = 'FaqCon/submit_issue';
 
 $route['products'] = 'ShopCon/products';
 $route['2DModeling'] = 'ShopCon/product_2d';
+$route['get_booked_dates'] = 'ShopCon/get_booked_dates';
 
 /* Customization Fields API Routes */
 $route['customizationFields/get'] = 'CustomizationFieldsCon/get';

@@ -55,7 +55,7 @@
         <div class="breadcrumbs" id="breadcrumbs-container">
             <span>Products</span>
             <span class="chevron-right"></span>
-            <span class="active" id="crumb-main">Glass Shape</span>
+            <span class="active" id="crumb-main">Step 1</span>
         </div>
     </div>
 
@@ -237,54 +237,44 @@
             <div id="custom-wrapper">
                 <!-- Default Size Fields (Width & Height) - Width comes first -->
                 <div class="dimensions-container" id="dimensions-container">
-                    <div class="input-group">
-                        <label class="section-label">Width</label>
-                        <div class="unit-wrapper">
-                            <div class="input-wrapper">
-                                <input type="number" id="input-width" name="width" value="" min="0" step="0.1" placeholder="0.00">
+                    <div class="dimension-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="input-group">
+                            <label class="section-label">Width</label>
+                            <div class="unit-wrapper">
+                                <div class="input-wrapper">
+                                    <input type="number" id="input-width" name="width" value="" min="0" step="0.1" placeholder="0.00">
+                                </div>
                             </div>
-                            <div class="unit-control">
-                                <button type="button" class="unit-select" id="btn-unit-width" data-current-unit="in">
-                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
-                                </button>
-                                <div class="unit-dropdown hidden-step" id="dropdown-width">
-                                    <div class="unit-option" data-value="in">Inches</div>
-                                    <div class="unit-option" data-value="cm">Centimeters</div>
-                                    <div class="unit-option" data-value="mm">Millimeters</div>
+                        </div>
+                        <div class="input-group">
+                            <label class="section-label">Height</label>
+                            <div class="unit-wrapper">
+                                <div class="input-wrapper">
+                                    <input type="number" id="input-height" name="height" value="" min="0" step="0.1" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <!-- Lock/Unlock Button -->
-                    <div class="dimension-lock-container">
-                        <button type="button" id="dimension-lock-btn" class="dimension-lock-btn" title="Lock dimensions to keep height and width equal">
-                            <svg id="lock-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                            </svg>
-                            <svg id="unlock-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
-                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
-                            </svg>
-                        </button>
-                    </div>
-                    <div class="input-group">
-                        <label class="section-label">Height</label>
-                        <div class="unit-wrapper">
-                            <div class="input-wrapper">
-                                <input type="number" id="input-height" name="height" value="" min="0" step="0.1" placeholder="0.00">
-                            </div>
-                            <div class="unit-control">
-                                <button type="button" class="unit-select" id="btn-unit-height" data-current-unit="in">
-                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
-                                </button>
-                                <div class="unit-dropdown hidden-step" id="dropdown-height">
-                                    <div class="unit-option" data-value="in">Inches</div>
-                                    <div class="unit-option" data-value="cm">Centimeters</div>
-                                    <div class="unit-option" data-value="mm">Millimeters</div>
-                                </div>
-                            </div>
+                    
+                    <div class="perimeter-container" style="margin-top: 15px;">
+                        <label class="section-label" style="font-size: 0.85rem; color: #666;">Perimeter</label>
+                        <div class="unit-control-horizontal" style="display: flex; gap: 10px;">
+                            <label class="unit-radio">
+                                <input type="radio" name="dimension-unit" value="cm" checked>
+                                <span>cm</span>
+                            </label>
+                            <label class="unit-radio">
+                                <input type="radio" name="dimension-unit" value="mm">
+                                <span>mm</span>
+                            </label>
+                            <label class="unit-radio">
+                                <input type="radio" name="dimension-unit" value="in">
+                                <span>inch</span>
+                            </label>
                         </div>
+                        <!-- Hidden legacy buttons for JS compatibility -->
+                        <button type="button" id="btn-unit-width" data-current-unit="cm" style="display: none;"></button>
+                        <button type="button" id="btn-unit-height" data-current-unit="cm" style="display: none;"></button>
                     </div>
                 </div>
 
@@ -337,59 +327,19 @@
 
                 <div class="summary-table-container">
                     <div class="summary-header">
-                        Price Breakdown
+                        Order Summary
                     </div>
                     <div class="summary-content">
-                        <div class="summary-row">
-                            <span class="spec-label">Shape:</span>
-                            <span class="spec-value">
-                                <span id="sum-shape">Rectangle</span>
-                                <span class="price-addon" id="sum-shape-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Dimension:</span>
-                            <span class="spec-value">
-                                <span id="sum-dim">45" x 35"</span>
-                                <span class="price-addon" id="sum-dim-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Type:</span>
-                            <span class="spec-value">
-                                <span id="sum-type">Tempered</span>
-                                <span class="price-addon" id="sum-type-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Thickness:</span>
-                            <span class="spec-value">
-                                <span id="sum-thick">5mm</span>
-                                <span class="price-addon" id="sum-thick-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Edge Work:</span>
-                            <span class="spec-value">
-                                <span id="sum-edge">Flat Polish</span>
-                                <span class="price-addon" id="sum-edge-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Frame Type:</span>
-                            <span class="spec-value">
-                                <span id="sum-frame">Vinyl</span>
-                                <span class="price-addon" id="sum-frame-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Engraving:</span>
-                            <span class="spec-value" id="sum-engrave">None</span>
-                        </div>
-
-                        <div class="summary-row total-row">
-                            <span class="spec-label">Total</span>
-                            <span class="spec-value price-final" id="sum-total">₱0.00</span>
+                        <!-- Content will be dynamically generated by JS -->
+                    </div>
+                    
+                    <!-- Quantity Selector in Summary -->
+                    <div class="summary-quantity-container" style="padding: 20px; border-top: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; background: #f9f9f9;">
+                        <span style="font-weight: 600; color: #0f2b46;">Quantity:</span>
+                        <div class="summary-qty-controls" style="display: flex; align-items: center; gap: 15px; background: white; padding: 5px 15px; border-radius: 25px; border: 1px solid #ddd;">
+                            <button type="button" id="summary-qty-minus" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #0f2b46; font-weight: bold; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">−</button>
+                            <input type="number" id="summary-qty-input" value="1" min="1" style="width: 40px; text-align: center; border: none; font-weight: bold; font-size: 16px; -moz-appearance: textfield; pointer-events: none;">
+                            <button type="button" id="summary-qty-plus" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #0f2b46; font-weight: bold; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">+</button>
                         </div>
                     </div>
                 </div>
@@ -406,7 +356,7 @@
                     </button>
 
                     <button class="buy-btn" id="buy-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
-                        Buy Now
+                        Book Now
                     </button>
 
                     <button class="edit-order-btn" id="edit-order-btn">
@@ -516,6 +466,25 @@
             </div>
         </div>
     </section>
+    <script>
+        // Reset scroll position on page load
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+        window.scrollTo(0, 0);
+
+        // Reset scroll on navigation or step changes
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('a, button, .nav-btn, .breakdown-toggle');
+            if (target) {
+                // Exclude quantity buttons and other minor UI toggles from scroll reset
+                if (target.id === 'qty-minus' || target.id === 'qty-plus' || target.classList.contains('qty-btn') || target.closest('.qty-control') || target.closest('.unit-radio')) {
+                    return;
+                }
+                setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+            }
+        });
+    </script>
 </body>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>

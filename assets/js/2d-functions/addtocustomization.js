@@ -93,45 +93,52 @@ $(document).on('click', '#add-to-cart-btn', function () {
         priceBreakdownData = state.priceBreakdown || {};
     }
 
-    // Clean price string (remove ₱ and commas)
-    let priceText = $('#sum-total').text().replace('₱', '').replace(/,/g, '').trim();
+    const totalQuotationVal = $('#sum-total').text().replace(/[₱,]/g, '') || $('#sum-total-breakdown').text().replace(/[₱,]/g, '') || $('#final-price').val() || '0.00';
+    const pbDataObjFinal = JSON.parse($('#final-specs').val() || '{}').priceBreakdown || {};
 
     // Collect all customization values dynamically from selectedCustomizationValues
     // This ensures we capture all fields configured in admin (numberOfPanels, operation, configuration, etc.)
-    const customizationValues = window.selectedCustomizationValues || {};
+    const customSelections = window.selectedCustomizationValues || {};
     
     // Get dimensions with units
     const heightValue = $('#input-height').val() || '';
     const widthValue = $('#input-width').val() || '';
     const heightUnit = $('#btn-unit-height').data('current-unit') || 'in';
     const widthUnit = $('#btn-unit-width').data('current-unit') || 'in';
-    const dimensions = `${heightValue}${heightUnit} x ${widthValue}${widthUnit}`;
+    const dims = `${heightValue}${heightUnit} x ${widthValue}${widthUnit}`;
     
     // Get legacy field values (for backward compatibility)
     // These are still used if dynamic fields aren't available
-    const legacyShape = $('.option-card[data-shape].active').data('shape') || customizationValues.shape || '';
-    const legacyType = $('.option-card[data-glass-type].active').data('glass-type') || customizationValues.glassType || '';
-    const legacyThickness = $('.option-card[data-thickness].active').data('thickness') || customizationValues.thickness || '';
-    const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customizationValues.edgeFinish || '';
-    const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customizationValues.frameColor || '';
+    const legacyShape = $('.option-card[data-shape].active').data('shape') || customSelections.shape || '';
+    const legacyType = $('.option-card[data-glass-type].active').data('glass-type') || customSelections.glassType || '';
+    const legacyThickness = $('.option-card[data-thickness].active').data('thickness') || customSelections.thickness || '';
+    const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customSelections.edgeFinish || '';
+    const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customSelections.frameColor || '';
     
+    // Get current quantity from summary if available
+    let quantity = 1;
+    const summaryQtyInput = $('#summary-qty-input');
+    if (summaryQtyInput.length) {
+        quantity = parseInt(summaryQtyInput.val()) || 1;
+    }
+
     // Build data object with all customization values
     let data = {
         product_id: product_id,
-        dimensions: dimensions,
+        dimensions: dims,
         // Legacy fields (for backward compatibility)
         shape: legacyShape,
         type: legacyType,
         thickness: legacyThickness,
         edge: legacyEdge,
         frame: legacyFrame,
-        engraving: $('#step-3 input').val() || customizationValues.engraving || 'None',
-        price: priceText,
-        quantity: 1,
+        engraving: $('#step-3 input').val() || customSelections.engraving || 'None',
+        price: totalQuotationVal,
+        quantity: quantity,
         design_image: designImageData,
-        price_breakdown: JSON.stringify(priceBreakdownData),
+        price_breakdown: JSON.stringify(pbDataObjFinal),
         // Include all dynamic customization values (synced with admin side)
-        customization: JSON.stringify(customizationValues)
+        customization: JSON.stringify(customSelections)
     };
 
     // Debug: Log the data being sent

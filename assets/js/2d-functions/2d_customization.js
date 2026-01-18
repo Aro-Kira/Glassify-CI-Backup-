@@ -676,33 +676,37 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     const labelColor = '#555';
     
     // W Label (at top)
-    layer.add(new Konva.Text({
+    const wText = originalWidth ? `${originalWidth} ${unit}` : 'W';
+    const wLabel = new Konva.Text({
         x: offsetX + totalWidth / 2,
         y: offsetY - 25,
-        text: 'W',
+        text: wText,
         fontSize: 16,
         fontFamily: 'Montserrat, Arial',
         fontStyle: 'bold',
         fill: labelColor,
         align: 'center',
-        offsetX: 8,
         listening: false,
-    }));
+    });
+    wLabel.offsetX(wLabel.width() / 2);
+    layer.add(wLabel);
     
     // H Label (on right side)
-    layer.add(new Konva.Text({
+    const hText = originalHeight ? `${originalHeight} ${heightUnit || unit}` : 'H';
+    const hLabel = new Konva.Text({
         x: offsetX + totalWidth + 15,
         y: offsetY + totalHeight / 2,
-        text: 'H',
+        text: hText,
         fontSize: 16,
         fontFamily: 'Montserrat, Arial',
         fontStyle: 'bold',
         fill: labelColor,
         align: 'center',
         rotation: 0,
-        offsetY: 8,
         listening: false,
-    }));
+    });
+    hLabel.offsetY(hLabel.height() / 2);
+    layer.add(hLabel);
     
     layer.draw();
 }
@@ -844,32 +848,36 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
     const labelColor = '#555';
     
     // W Label (at top)
-    layer.add(new Konva.Text({
+    const wText = originalWidth ? `${originalWidth} ${unit}` : 'W';
+    const wLabel = new Konva.Text({
         x: offsetX + windowWidth / 2,
         y: offsetY - 25,
-        text: 'W',
+        text: wText,
         fontSize: 16,
         fontFamily: 'Montserrat, Arial',
         fontStyle: 'bold',
         fill: labelColor,
         align: 'center',
-        offsetX: 8,
         listening: false,
-    }));
+    });
+    wLabel.offsetX(wLabel.width() / 2);
+    layer.add(wLabel);
     
     // H Label (on right side)
-    layer.add(new Konva.Text({
+    const hText = originalHeight ? `${originalHeight} ${heightUnit || unit}` : 'H';
+    const hLabel = new Konva.Text({
         x: offsetX + windowWidth + 15,
         y: offsetY + windowHeight / 2,
-        text: 'H',
+        text: hText,
         fontSize: 16,
         fontFamily: 'Montserrat, Arial',
         fontStyle: 'bold',
         fill: labelColor,
         align: 'center',
-        offsetY: 8,
         listening: false,
-    }));
+    });
+    hLabel.offsetY(hLabel.height() / 2);
+    layer.add(hLabel);
 
     layer.draw();
 }
@@ -1197,32 +1205,7 @@ function updateDimensions(type, value, unit) {
         currentDimensions[type] = { value: val, unit };
     }
     
-    // If dimensions are locked, update the other dimension to match
-    if (dimensionsLocked && (currentDimensions[type].value !== '')) {
-        const otherType = type === 'height' ? 'width' : 'height';
-        const otherInput = type === 'height' ? inputWidth : inputHeight;
-        const otherBtn = type === 'height' ? btnUnitWidth : btnUnitHeight;
-        
-        // Convert value to the other dimension's unit if needed
-        let convertedValue = parseFloat(value);
-        const otherUnit = otherBtn ? otherBtn.dataset.currentUnit : unit;
-        
-        if (unit !== otherUnit) {
-            // Convert to millimeters first, then to target unit
-            const unitMap = {
-                'in': { toMm: 25.4 },
-                'cm': { toMm: 10 },
-                'mm': { toMm: 1 }
-            };
-            const valueInMm = convertedValue * (unitMap[unit]?.toMm || 1);
-            convertedValue = valueInMm / (unitMap[otherUnit]?.toMm || 1);
-        }
-        
-        if (otherInput) {
-            otherInput.value = Math.round(convertedValue * 100) / 100;
-            currentDimensions[otherType] = { value: convertedValue, unit: otherUnit };
-        }
-    }
+    // Independent dimensions as requested - removing automatic locking/syncing logic
     
     renderCustomState(); // Call the wrapper function
 }
@@ -1672,10 +1655,25 @@ function updateActionArea(step) {
 
 function updateBreadcrumbs(step) {
     if (!crumbMain) return;
-    crumbMain.innerText = 'Glass Shape'; crumbMain.classList.add('active');
-    removeCrumb('crumb-step2'); removeCrumb('crumb-step3');
-    if (step >= 2) { crumbMain.classList.remove('active'); addBreadcrumb('Type & Thickness', 'crumb-step2', step === 2); }
-    if (step === 3) { document.getElementById('crumb-step2')?.classList.remove('active'); addBreadcrumb('Edge Work & Frame', 'crumb-step3', true); }
+    crumbMain.innerText = 'Step 1'; crumbMain.classList.add('active');
+    removeCrumb('crumb-step2'); removeCrumb('crumb-step3'); removeCrumb('crumb-step4'); removeCrumb('crumb-review');
+    
+    if (step >= 2) { 
+        crumbMain.classList.remove('active'); 
+        addBreadcrumb('Step 2', 'crumb-step2', step === 2); 
+    }
+    if (step >= 3) { 
+        document.getElementById('crumb-step2')?.classList.remove('active'); 
+        addBreadcrumb('Step 3', 'crumb-step3', step === 3); 
+    }
+    if (step >= 4) {
+        document.getElementById('crumb-step3')?.classList.remove('active');
+        addBreadcrumb('Step 4', 'crumb-step4', step === 4);
+    }
+    if (step === 5) {
+        document.getElementById('crumb-step4')?.classList.remove('active');
+        addBreadcrumb('Review order', 'crumb-review', true);
+    }
 }
 
 function resetBreadcrumbsToStandard() {
@@ -2153,7 +2151,9 @@ function formatPrice(amount) {
     }).format(amount);
 }
 
-// --- REAL-TIME PRICE UPDATE WITH BREAKDOWN ---
+    // --- EVENT LISTENER UPDATES ---
+    
+    // --- REAL-TIME PRICE UPDATE WITH BREAKDOWN ---
 function updateRealTimePriceDisplay() {
     // Initialize pricing database if needed
     if (!pricingDatabase) {
@@ -2162,6 +2162,15 @@ function updateRealTimePriceDisplay() {
     
     // 1. Calculate total (also updates priceBreakdown)
     const total = calculateTotal();
+    
+    // Update 2D preview labels if dimensions are present
+    const hInp = document.getElementById('input-height');
+    const wInp = document.getElementById('input-width');
+    const hV = hInp?.value;
+    const wV = wInp?.value;
+    if (hV && wV && typeof window.updateKonvaLabels === 'function') {
+        window.updateKonvaLabels(wV, hV);
+    }
 
     // 2. Update main price display
     const priceValue = document.getElementById('total-price');
@@ -2189,10 +2198,10 @@ function renderBreakdownRow(container, fieldId, displayName, option = null, pric
     row.className = `${rowClass} dynamic-row-${fieldId}`;
     row.style.display = 'flex';
     row.style.justifyContent = 'space-between';
-    row.style.alignItems = 'flex-start'; // Align to top for multi-line right side
+    row.style.alignItems = 'flex-start';
     row.style.width = '100%';
-    row.style.padding = '8px 0';
-    row.style.borderBottom = '1px solid #f0f0f0';
+    row.style.padding = '10px 0';
+    row.style.borderBottom = '1px solid #eee';
     
     let optionText = option || 'Not Selected';
     let costText = '—';
@@ -2203,31 +2212,33 @@ function renderBreakdownRow(container, fieldId, displayName, option = null, pric
     }
 
     row.innerHTML = `
-        <span style="color: #666; font-size: 0.95em;">${displayName}:</span>
+        <span style="color: #666; font-size: 0.95em;">${displayName}</span>
         <div style="text-align: right;">
             <div id="label-${fieldId}" style="font-weight: bold; color: #333;">${optionText}</div>
-            <div id="cost-${fieldId}" style="font-size: 0.85em; color: ${price > 0 ? '#ee4d2d' : (price === 0 ? '#28a745' : '#999')}">${costText}</div>
+            <div id="cost-${fieldId}" style="font-size: 0.85em; color: ${price > 0 ? '#ee4d2d' : (price === 0 ? '#999' : '#999')}">${costText}</div>
         </div>
     `;
     
     container.appendChild(row);
 }
 
-function updatePriceBreakdown() {
-    const breakdownDetailsContainer = document.getElementById('breakdown-details');
-    if (!breakdownDetailsContainer) return;
+    function updatePriceBreakdown() {
+        const breakdownDetailsContainer = document.getElementById('breakdown-details');
+        const breakdownTitle = document.querySelector('#breakdown-toggle h3');
+        if (breakdownTitle) breakdownTitle.textContent = 'Order Summary';
+        
+        if (!breakdownDetailsContainer) return;
 
     // Clear everything first
     breakdownDetailsContainer.innerHTML = '';
     const addedFields = new Set();
 
     // 1. Gather all fields in correct order
-    // DEFINED ORDER based on user feedback/screenshot
+    // DEFINED ORDER based on user screenshot
     const preferredOrder = [
-        'shape',
         'numberOfPanels',
         'transomType',
-        'dimensions', // Special case handled by helper
+        'dimensions',
         'trackSystem',
         'panelConfiguration',
         'frameColor',
@@ -2240,7 +2251,8 @@ function updatePriceBreakdown() {
         'lockType',
         'rollerType',
         'screen',
-        'screenOption'
+        'screenOption',
+        'shape' // Shape at end if not in screenshot
     ];
 
     const fieldIdsToProcess = new Set();
@@ -2301,9 +2313,8 @@ function updatePriceBreakdown() {
     baseAreaRow.style.justifyContent = 'space-between';
     baseAreaRow.style.alignItems = 'flex-start';
     baseAreaRow.style.width = '100%';
-    baseAreaRow.style.padding = '12px 0';
-    baseAreaRow.style.marginTop = '10px';
-    baseAreaRow.style.borderTop = '1px solid #eee';
+    baseAreaRow.style.padding = '10px 0';
+    baseAreaRow.style.marginTop = '5px';
     
     baseAreaRow.innerHTML = `
         <span style="color: #666; font-size: 0.95em;">Base Area Cost:</span>
@@ -2314,6 +2325,17 @@ function updatePriceBreakdown() {
     `;
     breakdownDetailsContainer.appendChild(baseAreaRow);
 
+    // 3.5 Add Minimum Order Price Notice if applicable
+    if (priceBreakdown.total <= 16000) {
+        const minPriceNotice = document.createElement('div');
+        minPriceNotice.style.color = '#ee4d2d';
+        minPriceNotice.style.fontSize = '0.85em';
+        minPriceNotice.style.padding = '5px 0';
+        minPriceNotice.style.borderTop = '1px solid #f0f0f0';
+        minPriceNotice.textContent = 'Minimum order price applied';
+        breakdownDetailsContainer.appendChild(minPriceNotice);
+    }
+
     // 4. Add Total
     const totalRow = document.createElement('div');
     totalRow.className = 'breakdown-row total-price-row';
@@ -2321,16 +2343,31 @@ function updatePriceBreakdown() {
     totalRow.style.justifyContent = 'space-between';
     totalRow.style.alignItems = 'center';
     totalRow.style.width = '100%';
-    totalRow.style.marginTop = '8px';
-    totalRow.style.padding = '12px 0';
+    totalRow.style.marginTop = '10px';
+    totalRow.style.padding = '15px 0';
     totalRow.style.borderTop = '2px solid #0f2b46';
     totalRow.style.color = '#0f2b46';
     
     totalRow.innerHTML = `
-        <span style="font-weight: bold; font-size: 1.1em;">Total</span>
-        <span style="font-weight: bold; font-size: 1.2em; color: #ee4d2d;">${formatPrice(priceBreakdown.total)}</span>
+        <span style="font-weight: bold; font-size: 1em;">Total</span>
+        <span id="sum-total-breakdown" style="font-weight: bold; font-size: 1.2em;">${formatPrice(priceBreakdown.total)}</span>
     `;
     breakdownDetailsContainer.appendChild(totalRow);
+
+    // Update hidden fields
+    const fPrice = document.getElementById('final-price');
+    if (fPrice) fPrice.value = priceBreakdown.total;
+    
+    const fSpecs = document.getElementById('final-specs');
+    if (fSpecs) {
+        const specs = {
+            ...selectedCustomizationValues,
+            dimensions: `${currentDimensions.width.value}${currentDimensions.width.unit} × ${currentDimensions.height.value}${currentDimensions.height.unit}`,
+            baseArea: priceBreakdown.baseArea,
+            priceBreakdown: priceBreakdown
+        };
+        fSpecs.value = JSON.stringify(specs);
+    }
 }
 
 function addDimensionsToBreakdown(container, addedSet, rowClass) {
@@ -2342,8 +2379,8 @@ function addDimensionsToBreakdown(container, addedSet, rowClass) {
     dimRow.style.justifyContent = 'space-between';
     dimRow.style.alignItems = 'flex-start';
     dimRow.style.width = '100%';
-    dimRow.style.padding = '8px 0';
-    dimRow.style.borderBottom = '1px solid #f0f0f0';
+    dimRow.style.padding = '10px 0';
+    dimRow.style.borderBottom = '1px solid #eee';
     
     const wVal = currentDimensions.width.value;
     const hVal = currentDimensions.height.value;
@@ -2353,7 +2390,7 @@ function addDimensionsToBreakdown(container, addedSet, rowClass) {
         <span style="color: #666; font-size: 0.95em;">Dimensions:</span>
         <div style="text-align: right;">
             <div id="label-dimensions" style="font-weight: bold; color: #333;">${dimText}</div>
-            <div id="cost-dim" style="font-size: 0.85em; color: ${(wVal && hVal) ? '#28a745' : '#999'};">${(wVal && hVal) ? 'Included' : '—'}</div>
+            <div id="cost-dim" style="font-size: 0.85em; color: #999;">${(wVal && hVal) ? 'Included' : '—'}</div>
         </div>
     `;
     container.appendChild(dimRow);
@@ -2418,6 +2455,33 @@ let currentDesignImageData = null;
 
 // --- SUMMARY VIEW LOGIC ---
 
+/**
+ * Updates dimension labels directly on the Konva stage
+ * @param {number|string} w - Width value
+ * @param {number|string} h - Height value
+ */
+window.updateKonvaLabels = function(w, h) {
+    if (typeof stage === 'undefined' || !stage) return;
+    
+    // Find text objects that represent dimensions
+    // Convention: they usually have name/id like 'dim-w', 'dim-h' or similar
+    const textNodes = stage.find('Text');
+    textNodes.forEach(node => {
+        const text = node.text();
+        // Look for existing dimension-like text (e.g. "123 in")
+        if (text.includes('in') || text.includes('mm') || text.includes('cm')) {
+            // Check if it's horizontal or vertical based on position or rotation
+            if (node.rotation() === 0) {
+                node.text(w + (currentDimensions?.width?.unit || 'in'));
+            } else {
+                node.text(h + (currentDimensions?.height?.unit || 'in'));
+            }
+        }
+    });
+    
+    if (typeof layer !== 'undefined' && layer) layer.batchDraw();
+};
+
 function showOrderSummary() {
     console.log('Showing Order Summary...');
     
@@ -2460,6 +2524,9 @@ function showOrderSummary() {
     }
 
     // 4. Update Summary Data with consistent Price Breakdown
+    const summaryHeader = document.querySelector('.summary-header');
+    if (summaryHeader) summaryHeader.textContent = 'Order Summary';
+
     const summaryContent = document.querySelector('.summary-content');
     if (!summaryContent) {
         console.warn('Could not find .summary-content container');
@@ -2470,9 +2537,8 @@ function showOrderSummary() {
     summaryContent.innerHTML = '';
     const addedSummaryFields = new Set();
 
-    // DEFINED ORDER (Consistent with updatePriceBreakdown)
+    // DEFINED ORDER (Consistent with updatePriceBreakdown and screenshot)
     const preferredOrder = [
-        'shape',
         'numberOfPanels',
         'transomType',
         'dimensions',
@@ -2488,7 +2554,8 @@ function showOrderSummary() {
         'lockType',
         'rollerType',
         'screen',
-        'screenOption'
+        'screenOption',
+        'shape'
     ];
 
     const fieldIdsToProcess = new Set();
@@ -2548,9 +2615,8 @@ function showOrderSummary() {
     baseAreaRow.style.justifyContent = 'space-between';
     baseAreaRow.style.alignItems = 'flex-start';
     baseAreaRow.style.width = '100%';
-    baseAreaRow.style.padding = '12px 0';
-    baseAreaRow.style.marginTop = '10px';
-    baseAreaRow.style.borderTop = '1px solid #eee';
+    baseAreaRow.style.padding = '10px 0';
+    baseAreaRow.style.marginTop = '5px';
     
     baseAreaRow.innerHTML = `
         <span style="color: #666; font-size: 0.95em;">Base Area Cost:</span>
@@ -2561,22 +2627,47 @@ function showOrderSummary() {
     `;
     summaryContent.appendChild(baseAreaRow);
 
-    // Add Final Total (Consistent with updatePriceBreakdown)
+    // Add Minimum Order Price Notice if applicable
+    if (priceBreakdown.total <= 16000) {
+        const minPriceNotice = document.createElement('div');
+        minPriceNotice.style.color = '#ee4d2d';
+        minPriceNotice.style.fontSize = '0.85em';
+        minPriceNotice.style.padding = '5px 0';
+        minPriceNotice.style.borderTop = '1px solid #f0f0f0';
+        minPriceNotice.textContent = 'Minimum order price applied';
+        summaryContent.appendChild(minPriceNotice);
+    }
+
     const totalRow = document.createElement('div');
     totalRow.className = 'summary-row total-row';
     totalRow.style.display = 'flex';
     totalRow.style.justifyContent = 'space-between';
     totalRow.style.alignItems = 'center';
     totalRow.style.width = '100%';
-    totalRow.style.marginTop = '15px';
+    totalRow.style.marginTop = '10px';
     totalRow.style.padding = '15px 0';
     totalRow.style.borderTop = '2px solid #0f2b46';
     
     totalRow.innerHTML = `
-        <span class="spec-label" style="font-weight: bold; font-size: 1.1em; color: #0f2b46;">Total</span>
-        <span class="spec-value price-final" style="font-weight: bold; font-size: 1.2em; color: #ee4d2d;">${formatPrice(priceBreakdown.total)}</span>
+        <span class="spec-label" style="font-weight: bold; font-size: 1em; color: #0f2b46;">Total</span>
+        <span class="spec-value price-final" id="sum-total" style="font-weight: bold; font-size: 1.2em; color: #333;">${formatPrice(priceBreakdown.total)}</span>
     `;
     summaryContent.appendChild(totalRow);
+
+    // 5. Update hidden fields for cart/buy-now
+    const fPriceInput = document.getElementById('final-price');
+    if (fPriceInput) fPriceInput.value = priceBreakdown.total;
+    
+    const fSpecsInput = document.getElementById('final-specs');
+    if (fSpecsInput) {
+        const specs = {
+            ...selectedCustomizationValues,
+            dimensions: `${currentDimensions.width.value}${currentDimensions.width.unit} × ${currentDimensions.height.value}${currentDimensions.height.unit}`,
+            baseArea: priceBreakdown.baseArea,
+            priceBreakdown: priceBreakdown // Store complete breakdown for summary pages
+        };
+        fSpecsInput.value = JSON.stringify(specs);
+    }
 
     // Update Final Order Data fields
     const finalPriceInput = document.getElementById('final-price');
@@ -2677,7 +2768,41 @@ function formatText(str) {
     return str.split('-').map(word => capitalize(word)).join(' ');
 }
 
-// --- EVENT LISTENER UPDATES ---
+    // === Real-time Dimension Update in 2D Preview ===
+    const hInpField = document.getElementById('input-height');
+    const wInpField = document.getElementById('input-width');
+    const uHBtn = document.getElementById('btn-unit-height');
+    const uWBtn = document.getElementById('btn-unit-width');
+
+    function updatePreviewDimensions() {
+        const hVal = hInpField?.value || '';
+        const wVal = wInpField?.value || '';
+        const hUnit = uHBtn?.dataset.currentUnit || 'in';
+        const wUnit = uWBtn?.dataset.currentUnit || 'in';
+        
+        if (hVal && wVal) {
+            console.log(`[Preview] Updating dimensions: ${wVal}${wUnit} x ${hVal}${hUnit}`);
+            
+            // 1. Trigger regular Konva re-render (which usually handles shape scaling)
+            if (typeof syncStateFromActiveSelections === 'function') {
+                syncStateFromActiveSelections();
+            }
+            
+            // 2. Explicitly update the text labels on the Konva stage
+            if (typeof window.updateKonvaLabels === 'function') {
+                window.updateKonvaLabels(wVal, hVal);
+            }
+        }
+    }
+
+    [hInpField, wInpField].forEach(el => {
+        el?.addEventListener('input', updatePreviewDimensions);
+    });
+    
+    // Unit changes also trigger re-render
+    const uObs = new MutationObserver(updatePreviewDimensions);
+    if (uHBtn) uObs.observe(uHBtn, { attributes: true, attributeFilter: ['data-current-unit'] });
+    if (uWBtn) uObs.observe(uWBtn, { attributes: true, attributeFilter: ['data-current-unit'] });
 
 // 2. Finalize Button (Standard Flow)
 // FIND the onclick attribute in the HTML for the Standard finalize button
@@ -2693,7 +2818,51 @@ if (stdFinalizeBtn) {
 }
 
 // 3. Edit Order Button
-document.getElementById('edit-order-btn').addEventListener('click', editConfiguration);
+const editOrderBtn = document.getElementById('edit-order-btn');
+if (editOrderBtn) {
+    editOrderBtn.addEventListener('click', editConfiguration);
+}
+
+// --- SUMMARY QUANTITY LOGIC ---
+const sumQtyMinus = document.getElementById('summary-qty-minus');
+const sumQtyPlus = document.getElementById('summary-qty-plus');
+const sumQtyInput = document.getElementById('summary-qty-input');
+
+if (sumQtyMinus && sumQtyPlus && sumQtyInput) {
+    sumQtyMinus.addEventListener('click', () => {
+        let val = parseInt(sumQtyInput.value) || 1;
+        if (val > 1) {
+            sumQtyInput.value = val - 1;
+            updateSummaryPriceWithQty();
+        }
+    });
+
+    sumQtyPlus.addEventListener('click', () => {
+        let val = parseInt(sumQtyInput.value) || 1;
+        sumQtyInput.value = val + 1;
+        updateSummaryPriceWithQty();
+    });
+}
+
+function updateSummaryPriceWithQty() {
+    const qty = parseInt(sumQtyInput.value) || 1;
+    const baseTotal = priceBreakdown.total;
+    const finalTotal = baseTotal * qty;
+    
+    const sumTotalEl = document.getElementById('sum-total');
+    const sumTotalBreakdownEl = document.getElementById('sum-total-breakdown');
+    
+    if (sumTotalEl) {
+        sumTotalEl.textContent = formatPrice(finalTotal);
+    }
+    if (sumTotalBreakdownEl) {
+        sumTotalBreakdownEl.textContent = formatPrice(finalTotal);
+    }
+    
+    // Update hidden input for cart submission if needed
+    const finalPriceInput = document.getElementById('final-price');
+    if (finalPriceInput) finalPriceInput.value = finalTotal;
+}
 
 
 // --- 2D PREVIEW MODAL LOGIC ---

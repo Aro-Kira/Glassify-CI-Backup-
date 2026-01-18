@@ -42,10 +42,11 @@ main {
   margin: 3% 10% 0 10%;
 }
 
-.title-divider{
+.title-divider {
   height: 1px;
   background-color: #333;
-  width: 72.5%;
+  width: 123.5%;
+  margin-left: 0;
 }
 
 .cart-title h2 {

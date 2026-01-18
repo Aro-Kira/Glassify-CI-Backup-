@@ -49,15 +49,23 @@ function get_status_class($status) {
             <!-- Left Sidebar Navigation -->
             <aside class="profile-sidebar">
                 <nav class="sidebar-nav">
-                    <a href="#account-details" class="nav-item <?php echo $current_section === 'account-details' ? 'active' : ''; ?>">
+                    <a href="#account-details" class="nav-item <?php echo $current_section === 'account-details' ? 'active' : ''; ?>" onclick="switchSection('account-details', this)">
                         <i class="fas fa-user"></i>
                         <span>Account details</span>
                     </a>
-                    <a href="#orders" class="nav-item <?php echo $current_section === 'orders' ? 'active' : ''; ?>">
-                        <i class="fas fa-envelope"></i>
-                        <span>Orders</span>
-                    </a>
-                    <a href="#addresses" class="nav-item <?php echo $current_section === 'addresses' ? 'active' : ''; ?>">
+                    <div class="nav-group <?php echo $current_section === 'orders' ? 'expanded' : ''; ?>" id="orders-nav-group">
+                        <a href="#orders" class="nav-item <?php echo $current_section === 'orders' ? 'active' : ''; ?>" onclick="toggleOrdersDropdown(event, this)">
+                            <i class="fas fa-envelope"></i>
+                            <span>Orders</span>
+                            <i class="fas fa-chevron-down dropdown-arrow"></i>
+                        </a>
+                        <div class="nav-sub-items">
+                            <a href="#ongoing-orders" class="nav-sub-item" onclick="showOrderCategory('ongoing-orders', this)">Ongoing Orders</a>
+                            <a href="#completed-orders" class="nav-sub-item" onclick="showOrderCategory('completed-orders', this)">Completed Orders</a>
+                            <a href="#cancelled-orders" class="nav-sub-item" onclick="showOrderCategory('cancelled-orders', this)">Cancelled Orders</a>
+                        </div>
+                    </div>
+                    <a href="#addresses" class="nav-item <?php echo $current_section === 'addresses' ? 'active' : ''; ?>" onclick="switchSection('addresses', this)">
                         <i class="fas fa-home"></i>
                         <span>Addresses</span>
                     </a>
@@ -72,24 +80,52 @@ function get_status_class($status) {
             <section class="profile-content">
                 <!-- Orders Section -->
                 <div id="orders" class="content-section">
-                    <h3>Your Orders</h3>
-                    <?php if (!empty($orders_with_products)): ?>
+                    <div class="orders-header">
+                        <h3>Your Orders</h3>
+                    </div>
+
+                    <?php
+                    // Group orders by status categories
+                    $ongoing_orders = [];
+                    $completed_orders = [];
+                    $cancelled_orders = [];
+
+                    if (!empty($orders_with_products)) {
+                        foreach ($orders_with_products as $order) {
+                            $status_lower = strtolower(trim($order->Status));
+                            if ($status_lower === 'completed' || $status_lower === 'delivered') {
+                                $completed_orders[] = $order;
+                            } elseif ($status_lower === 'cancelled' || $status_lower === 'returned') {
+                                $cancelled_orders[] = $order;
+                            } else {
+                                $ongoing_orders[] = $order;
+                            }
+                        }
+                    }
+
+                    // Helper to render order table
+                    function render_order_table($orders, $category_id) {
+                        if (empty($orders)) {
+                            echo '<p class="empty-msg">No ' . strtolower(str_replace('-', ' ', $category_id)) . ' found.</p>';
+                            return;
+                        }
+                        ?>
                         <div class="table-wrapper">
                             <table class="styled-table">
                                 <thead>
                                     <tr>
-                                        <th>Product</th>
-                                        <th>Order ID</th>
-                                        <th>Date</th>
-                                        <th>Status</th>
-                                        <th>Payment Status</th>
-                                        <th></th>
+                                        <th>Product Image</th>
+                                        <th>Product Name</th>
+                                        <th>Price</th>
+                                        <th>Quantity</th>
+                                        <th>Total Price</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($orders_with_products as $order): ?>
+                                    <?php foreach ($orders as $order): ?>
                                         <tr>
-                                            <td class="product-cell">
+                                            <td>
                                                 <?php 
                                                 $image_raw = $order->ImageUrl ?? '';
                                                 $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
@@ -115,22 +151,117 @@ function get_status_class($status) {
                                                     }
                                                 }
                                                 ?>
-                                                <img src="<?= $product_img ?>" alt="<?= htmlspecialchars($order->ProductName ?? 'Product') ?>" class="product-thumb">
-                                                <span><?= htmlspecialchars($order->ProductName ?? 'Custom Order') ?></span>
+                                                <img src="<?= $product_img ?>" alt="Product" class="product-thumb" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;">
                                             </td>
-                                            <td><?= htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) ?></td>
-                                            <td><?= date('M j, Y', strtotime($order->OrderDate)) ?></td>
-                                            <td><span class="status <?= get_status_class($order->Status) ?>"><?= htmlspecialchars($order->Status) ?></span></td>
-                                            <td><span class="status <?= get_status_class($order->PaymentStatus) ?>"><?= htmlspecialchars($order->PaymentStatus) ?></span></td>
-                                            <td><a href="<?= base_url('track_order?order=' . $order->OrderID) ?>" class="btn-view-details">View details</a></td>
+                                            <td><?= htmlspecialchars($order->ProductName ?? 'Custom Order') ?></td>
+                                            <td>₱<?= number_format($order->ItemPrice ?? ($order->TotalAmount / ($order->Quantity ?: 1)), 2) ?></td>
+                                            <td><?= $order->Quantity ?: 1 ?></td>
+                                            <td style="font-weight: 600; color: #0f2b46;">₱<?= number_format($order->TotalAmount, 2) ?></td>
+                                            <td>
+                                                <a href="<?= base_url('track_order?order=' . $order->OrderID) ?>" class="btn-view-details">View Details</a>
+                                            </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
-                    <?php else: ?>
-                        <p>You haven't placed any orders yet. <a href="<?= base_url('products') ?>">Start shopping!</a></p>
-                    <?php endif; ?>
+                        <?php
+                    }
+                    ?>
+
+                    <div class="order-categories">
+                        <!-- Content area -->
+                        <div class="order-category-content-area">
+                            <div id="ongoing-orders" class="category-content active">
+                                <h4 style="margin: 0 0 20px 0; color: #0f2b46;">Ongoing Orders (<?= count($ongoing_orders) ?>)</h4>
+                                <?php render_order_table($ongoing_orders, 'ongoing-orders'); ?>
+                            </div>
+                            <div id="completed-orders" class="category-content">
+                                <h4 style="margin: 0 0 20px 0; color: #0f2b46;">Completed Orders (<?= count($completed_orders) ?>)</h4>
+                                <?php render_order_table($completed_orders, 'completed-orders'); ?>
+                            </div>
+                            <div id="cancelled-orders" class="category-content">
+                                <h4 style="margin: 0 0 20px 0; color: #0f2b46;">Cancelled Orders (<?= count($cancelled_orders) ?>)</h4>
+                                <?php render_order_table($cancelled_orders, 'cancelled-orders'); ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <script>
+                        function toggleOrdersDropdown(event, element) {
+                            const group = element.closest('.nav-group');
+                            group.classList.toggle('expanded');
+                            
+                            // If it's the main orders section click, show the first sub-item content
+                            if (!element.classList.contains('nav-sub-item')) {
+                                switchSection('orders', element);
+                                // Default to ongoing
+                                const firstSub = group.querySelector('.nav-sub-item');
+                                if (firstSub) showOrderCategory('ongoing-orders', firstSub);
+                            }
+                        }
+
+                        function switchSection(sectionId, element) {
+                            // Hide all sections
+                            document.querySelectorAll('.content-section').forEach(sec => {
+                                sec.style.display = 'none';
+                            });
+                            
+                            // Show target section
+                            const target = document.getElementById(sectionId);
+                            if (target) target.style.display = 'block';
+                            
+                            // Update active state in sidebar
+                            document.querySelectorAll('.nav-item').forEach(item => {
+                                item.classList.remove('active');
+                            });
+                            
+                            // Remove active from any nav-sub-item
+                            document.querySelectorAll('.nav-sub-item').forEach(item => {
+                                item.classList.remove('active');
+                            });
+
+                            element.classList.add('active');
+
+                            // Close orders dropdown if switching away from orders
+                            if (sectionId !== 'orders') {
+                                document.getElementById('orders-nav-group').classList.remove('expanded');
+                            }
+                        }
+
+                        function showOrderCategory(categoryId, element) {
+                            // Ensure Orders section is visible
+                            document.querySelectorAll('.content-section').forEach(sec => {
+                                sec.style.display = 'none';
+                            });
+                            document.getElementById('orders').style.display = 'block';
+
+                            // Hide all contents
+                            document.querySelectorAll('.category-content').forEach(content => {
+                                content.classList.remove('active');
+                            });
+                            
+                            // Deactivate all sub-items
+                            document.querySelectorAll('.nav-sub-item').forEach(item => {
+                                item.classList.remove('active');
+                            });
+                            
+                            // Show selected content
+                            document.getElementById(categoryId).classList.add('active');
+                            
+                            // Activate selected sub-item
+                            element.classList.add('active');
+                            
+                            // Update main orders nav as active
+                            document.querySelectorAll('.nav-item').forEach(item => {
+                                item.classList.remove('active');
+                            });
+                            document.getElementById('orders-nav-group').querySelector('.nav-item').classList.add('active');
+
+                            // Scroll to top
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    </script>
                 </div>
 
                 <!-- Addresses Section -->
@@ -567,6 +698,7 @@ function get_status_class($status) {
 
 
     <script>
+
         $(document).ready(function () {
 
             // ========= MODAL SETUP =========

@@ -370,9 +370,10 @@ h1 {
 .breakdown-row {
     display: flex;
     justify-content: space-between;
-    padding: 6px 0;
-    font-size: 0.85rem;
-    border-bottom: 1px dashed #eee;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #f0f0f0;
 }
 
 .breakdown-row:last-child {
@@ -380,12 +381,14 @@ h1 {
 }
 
 .breakdown-row span:first-child {
-    color: #666;
+    color: #555;
+    font-weight: 500;
 }
 
 .breakdown-row span:last-child {
     font-weight: 600;
-    color: var(--accent-green);
+    color: var(--primary-dark);
+    text-align: right;
 }
 
 /* Shape Selection & General Grid */
@@ -643,12 +646,133 @@ h1 {
 }
 
 /* Dimensions Inputs */
+/* Dimensions Inputs */
 .dimensions-container {
+    margin-bottom: 25px;
+    padding: 0 15px; /* Added padding to container */
+}
+
+.dimension-row {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 20px;
+}
+
+.unit-radio {
+    cursor: pointer;
+    display: flex;
     align-items: center;
-    margin-bottom: 60px;
+    gap: 5px;
+    font-size: 0.9rem;
+    color: #555;
+    background: #f8f9fa;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    transition: all 0.2s;
+}
+
+.unit-radio input {
+    margin: 0;
+}
+
+.unit-radio:has(input:checked) {
+    background: #0f2b46;
+    color: white;
+    border-color: #0f2b46;
+}
+
+.breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 25px; /* Consistent internal padding, not touching edges */
+    font-size: 0.95rem;
+    border-bottom: 1px dashed #eee;
+}
+
+.breakdown-details {
+    margin-top: 15px;
+    background: white;
+    border-radius: 8px;
+    padding: 10px 0; /* Padding inside breakdown box */
+    border: 1px solid #e8e8e8;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.dimensions-container .input-group {
+    width: 100%;
+}
+
+.dimensions-container .input-wrapper {
+    width: 100%;
+}
+
+.dimensions-container .unit-wrapper {
+    display: flex;
+    gap: 0;
+    border: 1px solid #999;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.dimensions-container .input-wrapper {
+    border: none;
+    flex: 1;
+}
+
+.dimensions-container .unit-control {
+    width: 120px;
+    border-left: 1px solid #999;
+}
+
+.dimensions-container .unit-select {
+    border: none;
+    border-radius: 0;
+}
+
+/* Price Breakdown Enhancements */
+.price-breakdown {
+    border-top: 1px solid #ddd;
+    padding: 15px 0;
+}
+
+.breakdown-details {
+    margin-top: 10px;
+    background: white;
+    border-radius: 6px;
+    padding: 10px;
+    border: 1px solid #e8e8e8;
+}
+
+.breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 0.85rem;
+    border-bottom: 1px dashed #eee;
+}
+
+.breakdown-row:last-child {
+    border-bottom: none;
+}
+
+.breakdown-row span:first-child {
+    color: #666;
+}
+
+.breakdown-row span:last-child {
+    font-weight: 600;
+    color: var(--accent-green);
+}
+
+.breakdown-row .included-label {
+    font-size: 0.75rem;
+    color: #999;
+    font-weight: normal;
+}
+
+.dimensions-container .input-group {
+    width: 100%;
 }
 
 .dimension-lock-container {

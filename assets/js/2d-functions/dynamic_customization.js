@@ -1345,39 +1345,31 @@ function validateStep(stepNum) {
   const stepEl = document.getElementById(`step-${stepNum}`);
   if (!stepEl) return [];
   
+  // Find all field containers in this step
   const containers = stepEl.querySelectorAll('[data-field-id]');
   let missingFields = [];
   const addedToMissing = new Set();
   
   containers.forEach(container => {
+    // Skip if it's an option-card itself
     if (container.classList.contains('option-card')) return;
+    
+    // Skip if hidden
     if (container.style.display === 'none' || container.closest('.hidden-step')) return;
     
     const fieldId = container.dataset.fieldId;
     if (!fieldId) return;
 
-    const hasOptions = container.querySelectorAll('.option-card').length > 0;
-    if (!hasOptions) return;
+    // Special case: check if this is a container that actually holds options
+    const options = container.querySelectorAll('.option-card');
+    if (options.length === 0) return;
 
+    // Check for active selection
     const activeCard = container.querySelector('.option-card.active');
     if (!activeCard) {
       let label = fieldId;
       if (typeof window.getFieldDisplayName === 'function') {
         label = window.getFieldDisplayName(fieldId).replace(':', '');
-      } else {
-        const fallbacks = {
-          'numberOfPanels': 'Panel',
-          'transomType': 'Transom Type',
-          'trackSystem': 'Track System',
-          'panelConfiguration': 'Panel Configuration',
-          'lockType': 'Lock Type',
-          'rollerType': 'Roller Type',
-          'screen': 'Screen',
-          'frameColor': 'Frame Color',
-          'glassType': 'Glass Type',
-          'glassThickness': 'Glass Thickness'
-        };
-        label = fallbacks[fieldId] || fieldId;
       }
         
       if (!addedToMissing.has(label)) {
@@ -1394,7 +1386,10 @@ function validateStep(stepNum) {
     const widthInput = document.getElementById('input-width');
     
     if (!heightInput?.value || !widthInput?.value || parseFloat(heightInput.value) <= 0 || parseFloat(widthInput.value) <= 0) {
-      missingFields.push('Dimensions (Height & Width)');
+      if (!addedToMissing.has('Dimensions')) {
+        missingFields.push('Dimensions (Height & Width)');
+        addedToMissing.add('Dimensions');
+      }
     }
   }
   
@@ -1514,6 +1509,21 @@ function setupDynamicStepNavigation(totalSteps, stepNames = null) {
  */
 function goToDynamicStep(targetStep) {
   const totalSteps = window.totalCustomizationSteps || 1;
+  
+  // STRICT NAVIGATION: Check if trying to skip ahead
+  if (targetStep > (window.currentStep || 1) + 1 && targetStep <= totalSteps) {
+    console.warn(`[Nav] Blocking jump from ${window.currentStep} to ${targetStep}`);
+    return;
+  }
+
+  // VALIDATION: Check previous step before moving forward
+  if (targetStep > (window.currentStep || 1)) {
+    const missingFields = validateStep(window.currentStep || 1);
+    if (missingFields.length > 0) {
+      showValidationWarning(missingFields);
+      return;
+    }
+  }
   
   // Hide all step containers
   for (let i = 1; i <= totalSteps; i++) {

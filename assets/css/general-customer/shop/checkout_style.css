@@ -385,54 +385,69 @@ input[type="checkbox"] {
 
 .order-summary-content{
     flex: 1;
-     background: #fff;
-     border: 1px solid #0f2b46;
-      padding: 20px;
+    background: #fff;
+    border: 1px solid #0f2b46;
+    border-radius: 8px;
+    padding: 24px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
-
-
 
 .order-summary h3 {
   background: #0f2b46;
   color: #fff;
-  padding: 10px;
-  margin: -20px -20px 15px -20px;
+  padding: 12px 24px;
+  margin: -24px -24px 24px -24px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .order-summary p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 8px 0;
+  margin: 10px 0;
+  font-size: 0.95rem;
 }
 
 .order-summary p span:first-child {
   flex: 1;
+  color: #666;
 }
 
 .order-summary p span:last-child {
   text-align: right;
   min-width: 100px;
+  font-weight: 600;
+  color: #333;
 }
 
-#summary-subtotal, 
-#summary-shipping,
-#summary-handling,
-#summary-total,
-#summary-items {
-    margin-left: 0;
-} 
+.summary-totals-box {
+    margin-top: 15px;
+}
 
-.summary-divider{
-  height: 2px;
-  margin: 10px 0;
-  background-color: #333;
+.summary-divider {
+  height: 1px;
+  margin: 15px 0;
+  background-color: #eee;
 }
 
 .order-summary .total {
-  margin: 10px 0px;
-  font-weight: bold;
-  font-size: 1.2em;
+  margin: 15px 0 0 0;
+  padding-top: 15px;
+  border-top: 2px solid #0f2b46;
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: #0f2b46;
+}
+
+.order-summary .total span:first-child {
+    color: #0f2b46;
+}
+
+.order-summary .total span:last-child {
+    color: #0f2b46;
 }
 
 .placeOrder-btn {
@@ -643,6 +658,8 @@ input[type="checkbox"] {
   margin: 3vh auto;
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   z-index: 1;
 }
@@ -695,7 +712,7 @@ input[type="checkbox"] {
 /* Modal Body */
 .modal-body {
   padding: 28px;
-  max-height: 65vh;
+  flex: 1;
   overflow-y: auto;
 }
 
@@ -1118,6 +1135,12 @@ input[type="checkbox"] {
   background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
   color: #2e7d32;
   border: 1px solid #a5d6a7;
+}
+
+.payment-badge.card {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1565c0;
+  border: 1px solid #90caf9;
 }
 
 .payment-badge.cod {
