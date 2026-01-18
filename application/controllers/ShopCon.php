@@ -107,7 +107,6 @@ public function product_2d()
             'Doors' => 'Doors',
             'Glass Partitions & Enclosures' => 'Partitions',
             'Mirrors & Specialty Glass' => 'Specialty',
-            'Cabinets & Furniture' => 'Cabinets',
             'Commercial & Exterior' => 'Commercial'
         ];
         

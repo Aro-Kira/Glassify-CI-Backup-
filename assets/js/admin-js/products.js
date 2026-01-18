@@ -472,7 +472,6 @@ const orderTypeCategories = {
     "Windows",                    // Sliding, Awning, Casement, Fixed Glass (Large-Scale)
     "Doors",                      // Sliding, Frameless (Large-Scale)
     "Glass Partitions & Enclosures", // Frameless Glass, Shower Enclosure (Large-Scale)
-    "Cabinets & Furniture",       // Kitchen Cabinet, Wardrobe Cabinet (Large-Scale)
     "Commercial & Exterior"       // Storefront, Glass Balcony, Stair Railings (Large-Scale)
   ]
 };
@@ -484,7 +483,6 @@ const categorySubcategories = {
   "Doors": ["Sliding", "Frameless"],
   "Glass Partitions & Enclosures": ["Frameless Glass", "Shower Enclosure", "Fixed Glass"],
   "Mirrors & Specialty Glass": ["Mirrors", "Top Glass", "Glass Board"],
-  "Cabinets & Furniture": ["Kitchen Cabinet", "Wardrobe Cabinet"],
   "Commercial & Exterior": ["Storefront", "Glass Balcony", "Stair Railings"]
 };
 
@@ -603,12 +601,11 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
         let subcategory = '';
         
         if (parts.length >= 2) {
-          const prefixMap = {
+        const prefixMap = {
             'Windows': 'Windows',
             'Doors': 'Doors',
             'Partitions': 'Glass Partitions & Enclosures',
             'Specialty': 'Mirrors & Specialty Glass',
-            'Cabinets': 'Cabinets & Furniture',
             'Commercial': 'Commercial & Exterior'
           };
           
@@ -642,7 +639,6 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
             'Doors': 'Doors',
             'Partitions': 'Glass Partitions & Enclosures',
             'Specialty': 'Mirrors & Specialty Glass',
-            'Cabinets': 'Cabinets & Furniture',
             'Commercial': 'Commercial & Exterior'
           };
           
@@ -951,49 +947,6 @@ function initializeDefaultCustomizationFields() {
     "1": "Basic Options",
     "2": "Details & Installation"
   },
-  // Cabinets & Furniture subcategories - Enhanced with catalog options
-  "Cabinets_Kitchen Cabinet": [
-    // Step 1: Basic Material & Frame
-    { type: "tags", label: "Material", id: "material", options: ["Wood", "MDF", "Metal", "Glass", "Aluminum Composite Panel (ACP)"], stepNumber: 1 },
-    { type: "tags", label: "Frame Type", id: "frameType", options: ["Lockstile Frames", "ACP Frames"], stepNumber: 1 },
-    { type: "tags", label: "Cabinet Color/Finish", id: "cabinetColorFinish", options: ["White", "Light Gray", "Black", "Custom colors"], stepNumber: 1 },
-    { type: "tags", label: "Finish Type", id: "finish", options: ["Matte", "Glossy", "Laminate", "Semi-gloss", "Satin", "Textured"], stepNumber: 1 },
-    // Step 2: Door Style & Design
-    { type: "tags", label: "Cabinet Door Style", id: "doorType", options: ["Flat panel", "Shaker style", "Raised panel", "Panel with raised border", "Solid Panel (lower)", "Glass panel (upper)", "Recessed panel variations", "Horizontal slatted/louvered", "Solid Panel", "Glass Insert"], stepNumber: 2 },
-    { type: "tags", label: "Door Design", id: "doorDesign", options: ["Solid panels", "Frosted/translucent glass inserts", "Glass", "Solid"], stepNumber: 2 },
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Smoke Glass", "Clear Glass", "Frosted Glass", "Patterned Glass", "Other colored/tinted glass"], stepNumber: 2 },
-    // Step 3: Hardware & Features
-    { type: "tags", label: "Hinges", id: "hinges", options: ["Soft Close Hinges", "Standard Hinges"], stepNumber: 3 },
-    { type: "tags", label: "Handles/Pulls", id: "handlesPulls", options: ["Bar handles", "Knob handles", "Recessed handles", "Integrated finger pulls", "Handle-less (push-to-open)", "Handles", "Locks", "Soft-close"], stepNumber: 3 },
-    { type: "tags", label: "Frame Material/Finish", id: "frameMaterialFinish", options: ["Aluminum", "Frame Color (White, Black, Silver, Custom colors)"], stepNumber: 3 },
-    { type: "tags", label: "Frame Profile", id: "frameProfile", options: ["Lockstile Frames", "Other styles"], stepNumber: 3 },
-    // Step 4: Layout & Configuration
-    { type: "tags", label: "Layout Configuration", id: "layoutConfiguration", options: ["Linear", "L-shape", "U-shape", "Island configurations"], stepNumber: 4 },
-    { type: "tags", label: "Open Shelving", id: "openShelving", options: ["Inclusion/Exclusion", "Number and spacing of shelves", "Placement (end units, mid-section)"], stepNumber: 4 },
-    { type: "tags", label: "Lighting", id: "lighting", options: ["Integrated LED strips", "Puck lights", "Under-cabinet lighting", "Various color temperatures"], stepNumber: 4 },
-    // Step 5: Surfaces & Accessories
-    { type: "tags", label: "Countertop Material", id: "countertopMaterial", options: ["Tiled", "Quartz", "Granite", "Solid surface", "Laminate", "Various colors"], stepNumber: 5 },
-    { type: "tags", label: "Backsplash Material", id: "backsplashMaterial", options: ["Matching countertop", "Subway tile", "Glass", "Painted", "Various designs"], stepNumber: 5 },
-    { type: "tags", label: "Accessories", id: "accessories", options: ["Handles", "Locks", "Soft-close", "Utensil Organizer", "Stainless Pull out Basket for Plates", "Stainless Pull out Basket for Cups/Mugs", "Stainless Pull out Condiment Rack", "Stainless Pantry", "Multiple utensil organizers", "Multiple plate/cup baskets", "Additional condiment racks", "Lazy Susans for corner cabinets", "Pantry pull-outs", "Waste bin pull-outs", "Drawer dividers", "Spice racks", "Pot and pan organizers", "Adjustable shelving"], stepNumber: 5 },
-    { type: "tags", label: "Organizer Materials", id: "organizerMaterials", options: ["Stainless steel (standard)", "Plastic", "Wood (for some organizers)"], stepNumber: 5 }
-  ],
-  "Cabinets_Kitchen Cabinet_stepNames": {
-    "1": "Basic Material & Frame",
-    "2": "Door Style & Design",
-    "3": "Hardware & Features",
-    "4": "Layout & Configuration",
-    "5": "Surfaces & Accessories"
-  },
-  "Cabinets_Wardrobe Cabinet": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Material", id: "material", options: ["Wood", "MDF", "Metal", "Glass", "Aluminum Composite Panel (ACP)"], stepNumber: 1 },
-    { type: "tags", label: "Finish", id: "finish", options: ["Matte", "Glossy", "Laminate", "Semi-gloss", "Satin"], stepNumber: 1 },
-    { type: "tags", label: "Door Type", id: "doorType", options: ["Glass", "Solid", "Flat panel", "Shaker style", "Raised panel"], stepNumber: 1 },
-    { type: "tags", label: "Accessories", id: "accessories", options: ["Handles", "Locks", "Soft-close"], stepNumber: 1 }
-  ],
-  "Cabinets_Wardrobe Cabinet_stepNames": {
-    "1": "Basic Options"
-  },
   // Commercial & Exterior subcategories - Enhanced with catalog options
   "Commercial_Storefront": [
     // Step 1: Basic Options
@@ -1124,8 +1077,6 @@ function showManageCustomizationFields(category, subcategory) {
     fieldKey = `Partitions_${subcategory}`;
   } else if (category === "Mirrors & Specialty Glass") {
     fieldKey = `Specialty_${subcategory}`;
-  } else if (category === "Cabinets & Furniture") {
-    fieldKey = `Cabinets_${subcategory}`;
   } else if (category === "Commercial & Exterior") {
     fieldKey = `Commercial_${subcategory}`;
   } else {
@@ -2028,8 +1979,6 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
     fieldKey = `Partitions_${subcategory}`;
   } else if (category === "Mirrors & Specialty Glass") {
     fieldKey = `Specialty_${subcategory}`;
-  } else if (category === "Cabinets & Furniture") {
-    fieldKey = `Cabinets_${subcategory}`;
   } else if (category === "Commercial & Exterior") {
     fieldKey = `Commercial_${subcategory}`;
   } else {

@@ -233,19 +233,7 @@
           <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Select a series to auto-fill customization fields, or choose None to configure manually</small>
         </div>
 
-        <!-- Customization and Standard Tabs -->
-        <div class="form-group">
-          <div class="customization-tabs">
-            <button type="button" class="tab-btn active" id="customizeTab" data-tab="customize">
-              Customize Build
-            </button>
-            <button type="button" class="tab-btn" id="standardTab" data-tab="standard">
-              Standard
-            </button>
-          </div>
-        </div>
-
-        <!-- Customization Tab Content -->
+        <!-- Customization Build Fields -->
         <div id="customizeTabContent" class="tab-content active">
           <!-- Manage Customization Fields Button (shown when subcategory is selected) -->
           <div class="form-group" id="manageCustomizationGroup" style="display: none;">
@@ -256,21 +244,6 @@
           <!-- Dynamic Customization Fields Container -->
           <div id="customizationFields" class="customization-fields-container">
             <!-- Fields will be dynamically generated here based on category/subcategory selection -->
-          </div>
-        </div>
-
-        <!-- Standard Tab Content -->
-        <div id="standardTabContent" class="tab-content">
-          <div class="form-group">
-            <label>Standard Sizes (Series)</label>
-            <small style="color: #666; font-size: 12px; display: block; margin-bottom: 8px;">Add multiple series, each with their own measurements</small>
-            <div class="standard-series-container" id="standardSeriesContainer">
-              <!-- Series will be added here -->
-              <p style="color: #999; font-size: 13px; text-align: center; padding: 10px;">No series added yet. Click "Add Series" to start.</p>
-            </div>
-            <button type="button" class="add-series-btn" id="addSeriesBtn" style="margin-top: 10px;">
-              <i class="fas fa-plus"></i> Add Series
-            </button>
           </div>
         </div>
       </div>
@@ -404,19 +377,7 @@
           <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Select a series to auto-fill customization fields, or choose None to configure manually</small>
         </div>
 
-        <!-- Customization and Standard Tabs -->
-        <div class="form-group">
-          <div class="customization-tabs">
-            <button type="button" class="tab-btn active" id="editCustomizeTab" data-tab="customize">
-              Customize Build
-            </button>
-            <button type="button" class="tab-btn" id="editStandardTab" data-tab="standard">
-              Standard
-            </button>
-          </div>
-        </div>
-
-        <!-- Customization Tab Content -->
+        <!-- Customization Build Fields -->
         <div id="editCustomizeTabContent" class="tab-content active">
           <!-- Manage Customization Fields Button (shown when subcategory is selected) -->
           <div class="form-group" id="editManageCustomizationGroup" style="display: none;">
@@ -430,20 +391,6 @@
           </div>
         </div>
 
-        <!-- Standard Tab Content -->
-        <div id="editStandardTabContent" class="tab-content">
-          <div class="form-group">
-            <label>Standard Sizes (Series)</label>
-            <small style="color: #666; font-size: 12px; display: block; margin-bottom: 8px;">Add multiple series, each with their own measurements</small>
-            <div class="standard-series-container" id="editStandardSeriesContainer">
-              <!-- Series will be added here -->
-              <p style="color: #999; font-size: 13px; text-align: center; padding: 10px;">No series added yet. Click "Add Series" to start.</p>
-            </div>
-            <button type="button" class="add-series-btn" id="editAddSeriesBtn" style="margin-top: 10px;">
-              <i class="fas fa-plus"></i> Add Series
-            </button>
-          </div>
-        </div>
       </div>
     </div>
 

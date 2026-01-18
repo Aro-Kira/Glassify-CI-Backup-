@@ -33,7 +33,6 @@ class CustomizationFieldsCon extends CI_Controller
                 'Doors' => 'Doors',
                 'Glass Partitions & Enclosures' => 'Partitions',
                 'Mirrors & Specialty Glass' => 'Specialty',
-                'Cabinets & Furniture' => 'Cabinets',
                 'Commercial & Exterior' => 'Commercial'
             ];
             $prefix = $prefixMap[$category] ?? '';
@@ -128,7 +127,6 @@ class CustomizationFieldsCon extends CI_Controller
                     'Doors' => 'Doors',
                     'Glass Partitions & Enclosures' => 'Partitions',
                     'Mirrors & Specialty Glass' => 'Specialty',
-                    'Cabinets & Furniture' => 'Cabinets',
                     'Commercial & Exterior' => 'Commercial'
                 ];
                 $prefix = $prefixMap[$category] ?? '';

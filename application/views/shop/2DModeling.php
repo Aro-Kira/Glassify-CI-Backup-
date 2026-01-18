@@ -1001,7 +1001,6 @@
                 'Doors': 'Doors',
                 'Glass Partitions & Enclosures': 'Partitions',
                 'Mirrors & Specialty Glass': 'Specialty',
-                'Cabinets & Furniture': 'Cabinets',
                 'Commercial & Exterior': 'Commercial'
             };
             
