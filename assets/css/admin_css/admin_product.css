@@ -270,11 +270,13 @@ body {
   width: 600px;
   max-width: 90vw;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden; /* Changed from overflow-y: auto to prevent popup scrolling */
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   position: relative;
   animation: fadeIn 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Two Column Layout for Add Product */
@@ -283,12 +285,25 @@ body {
   max-width: 95vw;
 }
 
+.popup h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 24px;
+  font-weight: bold;
+  text-align: center;
+  font-family: 'DM Sans', sans-serif;
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
 .form-columns-container {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   gap: 0;
   margin-top: 20px;
   position: relative;
+  flex: 1; /* Take remaining space */
+  min-height: 0; /* Important for flex children to respect overflow */
+  overflow: hidden; /* Prevent container from scrolling */
 }
 
 .form-column-left {
@@ -296,6 +311,16 @@ body {
   flex-direction: column;
   gap: 10px;
   padding-right: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0; /* Important for flex children to respect overflow */
+  /* Hide scrollbar for image column */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.form-column-left::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .form-column-divider {
@@ -303,6 +328,7 @@ body {
   background: #ddd;
   margin: 0 20px;
   align-self: stretch;
+  flex-shrink: 0;
 }
 
 .form-column-right {
@@ -310,6 +336,30 @@ body {
   flex-direction: column;
   gap: 15px;
   padding-left: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0; /* Important for flex children to respect overflow */
+  /* Show scrollbar for order type column */
+  scrollbar-width: thin;
+  scrollbar-color: #006494 #f1f1f1;
+}
+
+.form-column-right::-webkit-scrollbar {
+  width: 8px;
+}
+
+.form-column-right::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.form-column-right::-webkit-scrollbar-thumb {
+  background: #006494;
+  border-radius: 4px;
+}
+
+.form-column-right::-webkit-scrollbar-thumb:hover {
+  background: #005177;
 }
 
 /* Price Range */
@@ -351,14 +401,7 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.popup h3 {
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 24px;
-  font-weight: bold;
-  text-align: center;
-  font-family: 'DM Sans', sans-serif;
-}
+/* .popup h3 moved up to be with popup styles for flex layout */
 
 /* Close Button */
 .close-btn {
@@ -1424,6 +1467,7 @@ body {
   .form-columns-container {
     grid-template-columns: 1fr;
     gap: 20px;
+    max-height: none; /* Remove height restriction on mobile */
   }
   
   .form-column-divider {
@@ -1433,6 +1477,13 @@ body {
   .form-column-left,
   .form-column-right {
     padding: 0;
+    max-height: none; /* Remove height restriction on mobile */
+    overflow-y: visible; /* Allow natural flow on mobile */
+  }
+  
+  .form-column-left::-webkit-scrollbar,
+  .form-column-right::-webkit-scrollbar {
+    display: none; /* Hide scrollbars on mobile too */
   }
   
   .input-text,
@@ -1494,11 +1545,10 @@ body {
   padding: 15px 30px;
   border-top: 1px solid #e0e0e0;
   background: #fff;
-  position: sticky;
-  bottom: -15px;
   margin: 20px -30px -15px -30px;
   z-index: 100;
   border-radius: 0 0 8px 8px;
+  flex-shrink: 0; /* Prevent action buttons from shrinking */
 }
 .save-btn,
 .cancel-btn {

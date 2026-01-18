@@ -1014,14 +1014,30 @@ class AdminCon extends CI_Controller
    public function admin_product()
 {
     $this->load->model('Product_model');
+    $this->load->model('Inventory_model');
     
     $data['title'] = "Glassify - Products";
     $data['active'] = 'product';
     $data['content_view'] = 'admin_page/admin_product';
     $data['page_css'] = 'admin_css/admin_product.css';
 
-    // Fetch products from the DB
+    // Fetch ALL products first (admin needs to see all for management)
+    $allProducts = $this->Product_model->get_all_products();
+    
+    // Update product status based on materials for each product
+    foreach ($allProducts as $product) {
+        $this->Inventory_model->update_product_status_from_materials($product->Product_ID);
+    }
+    
+    // Reload products - get products that customers can see (In Stock or Low Stock)
+    // This ensures admin sees the same products that customers see
     $data['products'] = $this->Product_model->get_products();
+    
+    // Ensure we have products to display - if filtering removed all products,
+    // show all products so admin can manage them
+    if (empty($data['products']) && !empty($allProducts)) {
+        $data['products'] = $allProducts;
+    }
 
     $this->load->view('admin_page/layout', $data);
 }

@@ -39,9 +39,13 @@ class ProductCon extends CI_Controller
         $files = $_FILES['productImages'];
         $file_count = count($files['name']);
         
-        // Validate minimum 3 images
-        if ($file_count < 3) {
-            echo json_encode(['status' => 'error', 'msg' => 'Please upload at least 3 images.']);
+        // Validate image count (min 1, max 10)
+        if ($file_count < 1) {
+            echo json_encode(['status' => 'error', 'msg' => 'Please upload at least 1 image.']);
+            return;
+        }
+        if ($file_count > 10) {
+            echo json_encode(['status' => 'error', 'msg' => 'Maximum 10 images allowed per product.']);
             return;
         }
         
@@ -71,9 +75,13 @@ class ProductCon extends CI_Controller
         }
     }
 
-    // Validate minimum 3 images
-    if (count($uploaded_images) < 3) {
-        echo json_encode(['status' => 'error', 'msg' => 'Please upload at least 3 images.']);
+    // Validate image count (min 1, max 10)
+    if (count($uploaded_images) < 1) {
+        echo json_encode(['status' => 'error', 'msg' => 'Please upload at least 1 image.']);
+        return;
+    }
+    if (count($uploaded_images) > 10) {
+        echo json_encode(['status' => 'error', 'msg' => 'Maximum 10 images allowed per product.']);
         return;
     }
 
@@ -100,9 +108,16 @@ class ProductCon extends CI_Controller
 
     $orderType = $this->input->post('orderType', true);
     $subcategory = $this->input->post('subcategory', true);
+    $productName = $this->input->post('name', true);
+    
+    // Check for duplicate product name
+    if ($this->Product_model->product_name_exists($productName)) {
+        echo json_encode(['status' => 'error', 'msg' => 'A product with this name already exists. Product names must be unique.']);
+        return;
+    }
     
     $data = [
-        'ProductName' => $this->input->post('name', true),
+        'ProductName' => $productName,
         'Category'    => $this->input->post('category', true),
         'Subcategory'  => $subcategory ? $subcategory : null, // Store subcategory
         'OrderType'   => $orderType ? $orderType : 'direct', // Store order type (direct or site-assessment)
@@ -309,9 +324,13 @@ public function update_product($id)
             
             // If new images uploaded, use them; otherwise keep existing
             if (count($uploaded_images) > 0) {
-                // Validate minimum 3 images if new uploads exist
-                if (count($uploaded_images) < 3) {
-                    echo json_encode(['status' => 'error', 'msg' => 'Please upload at least 3 images.']);
+                // Validate image count (min 1, max 10) if new uploads exist
+                if (count($uploaded_images) < 1) {
+                    echo json_encode(['status' => 'error', 'msg' => 'Please upload at least 1 image.']);
+                    return;
+                }
+                if (count($uploaded_images) > 10) {
+                    echo json_encode(['status' => 'error', 'msg' => 'Maximum 10 images allowed per product.']);
                     return;
                 }
                 $data['ImageUrl'] = json_encode($uploaded_images);
@@ -354,7 +373,13 @@ public function update_product($id)
         
         // Admin can update name, order type, price range (category and subcategory are read-only)
         if ($this->input->post('name')) {
-            $data['ProductName'] = $this->input->post('name', true);
+            $newProductName = $this->input->post('name', true);
+            // Check for duplicate product name (excluding current product)
+            if ($this->Product_model->product_name_exists($newProductName, $id)) {
+                echo json_encode(['status' => 'error', 'msg' => 'A product with this name already exists. Product names must be unique.']);
+                return;
+            }
+            $data['ProductName'] = $newProductName;
         }
         // Category and subcategory are read-only - don't update them
         // if ($this->input->post('category')) {
@@ -775,6 +800,23 @@ public function update_product($id)
                 'standardSeries' => $standard_series
             ]
         ]);
+    }
+    
+    /**
+     * Check if a product name already exists
+     * Used for frontend validation before form submission
+     */
+    public function check_product_name() {
+        $name = $this->input->get('name', true);
+        $excludeId = $this->input->get('excludeId', true); // For updates, exclude current product
+        
+        if (empty($name)) {
+            echo json_encode(['exists' => false]);
+            return;
+        }
+        
+        $exists = $this->Product_model->product_name_exists($name, $excludeId ? (int)$excludeId : null);
+        echo json_encode(['exists' => $exists]);
     }
     
     /**

@@ -13,15 +13,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // 🔎 Apply filters + search
   function applyFilters() {
     const selected = {
-      Category: null,
-      Availability: null,
+      Category: [],
+      Availability: [],
     };
 
-    // collect selected checkboxes
+    // collect selected checkboxes - allow multiple selections per group
     checkboxes.forEach(cb => {
       if (cb.checked) {
         const group = cb.closest(".filter-group").querySelector("h4").textContent;
-        selected[group] = cb.value;
+        if (group === "Category") {
+          selected.Category.push(cb.value);
+        } else if (group === "Availability") {
+          selected.Availability.push(cb.value);
+        }
       }
     });
 
@@ -31,10 +35,39 @@ document.addEventListener("DOMContentLoaded", () => {
     filteredProducts = allProducts.filter(product => {
       let show = true;
 
-      if (selected.Category && product.dataset.category !== selected.Category) show = false;
-      if (selected.Availability && product.dataset.availability !== selected.Availability) show = false;
+      // Category filter - check if product matches any selected category
+      if (selected.Category.length > 0) {
+        const productCategory = (product.dataset.category || "").trim();
+        const matchesCategory = selected.Category.some(selectedCat => {
+          const normalizedProduct = productCategory.toLowerCase();
+          const normalizedSelected = selectedCat.toLowerCase();
+          // Exact match or contains match for flexibility
+          return normalizedProduct === normalizedSelected || 
+                 normalizedProduct.includes(normalizedSelected) || 
+                 normalizedSelected.includes(normalizedProduct);
+        });
+        if (!matchesCategory) {
+          show = false;
+        }
+      }
+      
+      // Availability filter - check if product matches any selected availability
+      if (selected.Availability.length > 0) {
+        const productAvailability = (product.dataset.availability || "").trim();
+        const matchesAvailability = selected.Availability.includes(productAvailability);
+        if (!matchesAvailability) {
+          show = false;
+        }
+      }
 
-      if (searchTerm && !product.textContent.toLowerCase().includes(searchTerm)) show = false;
+      // Search filter
+      if (searchTerm) {
+        const productText = product.textContent.toLowerCase();
+        const productName = product.querySelector('.product-name')?.textContent.toLowerCase() || '';
+        if (!productText.includes(searchTerm) && !productName.includes(searchTerm)) {
+          show = false;
+        }
+      }
 
       return show;
     });
@@ -160,13 +193,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ✅ Only one per group
+  // ✅ Allow multiple selections per group (removed single-selection restriction)
   checkboxes.forEach(checkbox => {
     checkbox.addEventListener("change", e => {
-      const group = e.target.closest(".filter-group");
-      group.querySelectorAll("input[type='checkbox']").forEach(cb => {
-        if (cb !== e.target) cb.checked = false;
-      });
       applyFilters();
     });
   });

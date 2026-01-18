@@ -68,6 +68,9 @@
                     // Handle ImageUrl - it might be JSON array or single string
                     $imageUrl = $product->ImageUrl ?? '';
                     $productImages = [];
+                    $imagePaths = [];
+                    $placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                    
                     if (!empty($imageUrl)) {
                         $decoded = json_decode($imageUrl, true);
                         if (is_array($decoded) && !empty($decoded)) {
@@ -76,17 +79,45 @@
                             $productImages = [$imageUrl];
                         }
                     }
-                    $totalImages = count($productImages);
+                    
+                    // Build proper image paths
+                    foreach ($productImages as $image) {
+                        $image = trim($image);
+                        
+                        if (empty($image) || strpos($image, 'broken-image-icon') !== false) {
+                            $imagePaths[] = $placeholderSvg;
+                            continue;
+                        }
+                        
+                        $image = ltrim($image, '/');
+                        
+                        if (strpos($image, 'http://') === 0 || strpos($image, 'https://') === 0) {
+                            $imagePaths[] = $image;
+                        } else if (strpos($image, 'assets/') === 0) {
+                            $imagePaths[] = base_url($image);
+                        } else if (strpos($image, 'uploads/') === 0) {
+                            $imagePaths[] = base_url($image);
+                        } else {
+                            $filename = basename($image);
+                            $imagePaths[] = base_url('uploads/products/' . $filename);
+                        }
+                    }
+                    
+                    if (empty($imagePaths)) {
+                        $imagePaths = [$placeholderSvg];
+                    }
+                    
+                    $totalImages = count($imagePaths);
                     ?>
                     <div class="product-info" id="product-image-container">
-                        <?php if (!empty($productImages)): ?>
-                            <?php foreach ($productImages as $index => $img): ?>
-                                <img src="<?= base_url('uploads/products/' . $img) ?>"
+                        <?php if (!empty($imagePaths)): ?>
+                            <?php foreach ($imagePaths as $index => $imgPath): ?>
+                                <img src="<?= htmlspecialchars($imgPath) ?>"
                                     alt="<?= htmlspecialchars($product->ProductName ?? 'Product') ?>" 
                                     class="main-product-image <?= $index === 0 ? 'active' : '' ?>"
                                     data-image-index="<?= $index ?>"
                                     style="<?= $index === 0 ? '' : 'display: none;' ?>"
-                                    onerror="this.style.display='none';">
+                                    onerror="this.onerror=null; this.src='<?= $placeholderSvg ?>';">
                             <?php endforeach; ?>
                         <?php endif; ?>
                         <?php if (empty($productImages)): ?>
@@ -465,6 +496,8 @@
                             <div class="p-image">
                                 <?php 
                                 $rec_images = [];
+                                $placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                                
                                 if (!empty($rec_product->ImageUrl)) {
                                     $decoded = json_decode($rec_product->ImageUrl, true);
                                     if (is_array($decoded)) {
@@ -473,11 +506,26 @@
                                         $rec_images = [$rec_product->ImageUrl];
                                     }
                                 }
-                                $image_url = !empty($rec_images) 
-                                    ? base_url('uploads/products/' . $rec_images[0]) 
-                                    : base_url('assets/img/placeholder.png');
+                                
+                                $image_url = $placeholderSvg;
+                                if (!empty($rec_images)) {
+                                    $firstImg = trim($rec_images[0]);
+                                    if (!empty($firstImg) && strpos($firstImg, 'broken-image-icon') === false) {
+                                        $firstImg = ltrim($firstImg, '/');
+                                        if (strpos($firstImg, 'http://') === 0 || strpos($firstImg, 'https://') === 0) {
+                                            $image_url = $firstImg;
+                                        } else if (strpos($firstImg, 'assets/') === 0) {
+                                            $image_url = base_url($firstImg);
+                                        } else if (strpos($firstImg, 'uploads/') === 0) {
+                                            $image_url = base_url($firstImg);
+                                        } else {
+                                            $filename = basename($firstImg);
+                                            $image_url = base_url('uploads/products/' . $filename);
+                                        }
+                                    }
+                                }
                                 ?>
-                                <img src="<?= $image_url ?>" alt="<?= htmlspecialchars($rec_product->ProductName) ?>" onerror="this.src='<?= base_url('assets/img/placeholder.png') ?>'">
+                                <img src="<?= htmlspecialchars($image_url) ?>" alt="<?= htmlspecialchars($rec_product->ProductName) ?>" onerror="this.onerror=null; this.src='<?= $placeholderSvg ?>';">
                             </div>
                             <div class="p-info">
                                 <p><?= htmlspecialchars($rec_product->ProductName) ?></p>
@@ -661,13 +709,29 @@
         // Handle ImageUrl - it might be JSON array or single string
         <?php 
         $imageUrl = $product->ImageUrl ?? '';
-        $imageSrc = '';
+        $imageSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+        
         if (!empty($imageUrl)) {
             $decoded = json_decode($imageUrl, true);
+            $firstImage = '';
             if (is_array($decoded) && !empty($decoded[0])) {
-                $imageSrc = base_url('uploads/products/' . $decoded[0]);
+                $firstImage = trim($decoded[0]);
             } else {
-                $imageSrc = base_url('uploads/products/' . $imageUrl);
+                $firstImage = trim($imageUrl);
+            }
+            
+            if (!empty($firstImage) && strpos($firstImage, 'broken-image-icon') === false) {
+                $firstImage = ltrim($firstImage, '/');
+                if (strpos($firstImage, 'http://') === 0 || strpos($firstImage, 'https://') === 0) {
+                    $imageSrc = $firstImage;
+                } else if (strpos($firstImage, 'assets/') === 0) {
+                    $imageSrc = base_url($firstImage);
+                } else if (strpos($firstImage, 'uploads/') === 0) {
+                    $imageSrc = base_url($firstImage);
+                } else {
+                    $filename = basename($firstImage);
+                    $imageSrc = base_url('uploads/products/' . $filename);
+                }
             }
         }
         ?>
@@ -948,18 +1012,22 @@
             // These are comprehensive defaults that match the admin configuration
             const defaultFields = {
                 'Windows_Sliding': [
-                    { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Tinted', 'Frosted', 'Low-E', 'Double-pane', 'Tempered', 'Laminated', 'Reflective'], stepNumber: 1 },
-                    { type: 'tags', label: 'Frame Color/Material', id: 'frameColor', options: ['White', 'Black', 'Brown (wood-grain)', 'Silver', 'Bronze', 'Gold', 'Analok (dark/bronze)', 'Custom colors'], stepNumber: 1 },
-                    { type: 'tags', label: 'Number of Panels', id: 'numberOfPanels', options: ['2-panel', '3-panel', '4-panel', 'Multi-panel'], stepNumber: 1 },
-                    { type: 'tags', label: 'Operation', id: 'operation', options: ['Sliding (left-to-right)', 'Sliding (right-to-left)', 'Sliding (single)', 'Sliding (double)', 'Sliding (multi-track)'], stepNumber: 1 },
-                    { type: 'tags', label: 'Grid Pattern', id: 'gridPattern', options: ['Standard', 'French type (grid pattern)', 'French (colonial)', 'Prairie', 'Custom grid patterns'], stepNumber: 2 },
-                    { type: 'tags', label: 'Grid Position', id: 'gridPosition', options: ['Internal grids', 'External grids'], stepNumber: 2 },
-                    { type: 'number', label: 'Thickness (mm)', id: 'thickness', min: 1, step: 0.1, stepNumber: 2 },
-                    { type: 'checkbox', label: 'Screen', id: 'screen', stepNumber: 2 }
+                    { type: 'tags', label: 'Number of Panels', id: 'numberOfPanels', options: ['2 Panels', '4 Panels'], stepNumber: 1 },
+                    { type: 'tags', label: 'Transom Type (Top / Bottom Fixed Panel)', id: 'transomType', options: ['None', 'Fixed Transom Head (Fixed glass at top)', 'Fixed Transom Sill (Fixed glass at bottom)'], stepNumber: 1 },
+                    { type: 'tags', label: 'Track System (Sliding Rail Count)', id: 'trackSystem', options: ['2 Tracks', '3 Tracks'], stepNumber: 2 },
+                    { type: 'tags', label: 'Panel Configuration', id: 'panelConfiguration', options: ['S | S (Sliding | Sliding)', 'F | S (Fixed | Sliding)', 'S | S | S | S (All Sliding)', 'F | S | S | F (Fixed | Sliding | Sliding | Fixed)'], stepNumber: 2 },
+                    { type: 'tags', label: 'Frame Color', id: 'frameColor', options: ['Hanalok', 'White', 'Black', 'Gray', 'Wood Finish'], stepNumber: 3 },
+                    { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Ultra Clear', 'Bronze', 'Light Green', 'Dark Gray', 'Copperfree Mirror', 'Euro Gray', 'Ford Blue', 'Reflective: Clear', 'Reflective: Gray', 'Reflective: Light Blue', 'Reflective: Dark Blue', 'Reflective: Light Green', 'Reflective: Dark Green', 'Reflective: Light Bronze', 'Tempered: Clear', 'Tempered: Bronze'], stepNumber: 3 },
+                    { type: 'tags', label: 'Glass Thickness', id: 'glassThickness', options: ['6mm'], stepNumber: 3 },
+                    { type: 'tags', label: 'Lock Type', id: 'lockType', options: ['Center Lok 904 Big', 'Flushlok #12', 'Durable Flushlok', 'New Auto Flushlock'], stepNumber: 4 },
+                    { type: 'tags', label: 'Roller Type', id: 'rollerType', options: ['Single Panel Roller', 'Blue Single Roller', 'Blue Double Roller'], stepNumber: 4 },
+                    { type: 'tags', label: 'Screen', id: 'screen', options: ['With Screen', 'Without Screen'], stepNumber: 4 }
                 ],
                 'Windows_Sliding_stepNames': {
-                    '1': 'Basic Options',
-                    '2': 'Design & Details'
+                    '1': 'Window Type',
+                    '2': 'Sliding System & Size',
+                    '3': 'Frame & Glass',
+                    '4': 'Hardware & Accessories'
                 },
                 'Doors_Sliding': [
                     { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Tinted', 'Frosted', 'Low-E', 'Tempered', 'Laminated', 'Laminated safety glass'], stepNumber: 1 },

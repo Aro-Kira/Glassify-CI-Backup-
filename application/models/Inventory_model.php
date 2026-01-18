@@ -149,10 +149,17 @@ class Inventory_model extends CI_Model
         $materials = $this->get_product_materials($product_id);
         
         if (empty($materials)) {
-            // No materials linked - set to Out of Stock
+            // No materials linked - set to In Stock by default (so product is visible)
+            // Admin can manage materials later, but product should still be visible
             $this->db->where('Product_ID', $product_id);
-            $this->db->update('product', ['Status' => 'Out of Stock']);
-            return 'Out of Stock';
+            $current_status = $this->db->select('Status')->get('product')->row()->Status ?? 'In Stock';
+            // Only update if status is null or empty, otherwise keep existing status
+            if (empty($current_status) || $current_status === 'Out of Stock') {
+                $this->db->where('Product_ID', $product_id);
+                $this->db->update('product', ['Status' => 'In Stock']);
+                return 'In Stock';
+            }
+            return $current_status;
         }
         
         $has_out_of_stock = false;

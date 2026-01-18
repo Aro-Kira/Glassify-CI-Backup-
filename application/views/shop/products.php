@@ -23,12 +23,18 @@
 
       <div class="filter-group">
         <h4>Category</h4>
-        <label><input type="checkbox" value="Mirrors"> Mirrors</label>
-        <label><input type="checkbox" value="Shower Enclosure/Partition"> Shower Enclosure/Partition</label>
-        <label><input type="checkbox" value="Stair Railings"> Stair Railings</label>
-        <label><input type="checkbox" value="Windows"> Windows</label>
-        <label><input type="checkbox" value="Glass Partition"> Glass Partition</label>
-        <label><input type="checkbox" value="Doors"> Doors</label>
+        <?php
+        // Get unique categories from products
+        $categories = [];
+        foreach ($products as $product) {
+          if (!empty($product->Category) && !in_array($product->Category, $categories)) {
+            $categories[] = $product->Category;
+          }
+        }
+        sort($categories);
+        foreach ($categories as $category): ?>
+          <label><input type="checkbox" value="<?= htmlspecialchars($category); ?>"> <?= htmlspecialchars($category); ?></label>
+        <?php endforeach; ?>
       </div>
 
       <div class="filter-group">
@@ -69,16 +75,63 @@
             
             // Handle images - can be JSON array or single string
             $images = [];
+            $imagePaths = [];
+            $placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+            
             if (!empty($p->ImageUrl)) {
               $decoded = json_decode($p->ImageUrl, true);
-              if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+              if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
                 $images = $decoded;
-              } else {
+              } else if (!empty($p->ImageUrl)) {
+                // Single image (backward compatibility)
                 $images = [$p->ImageUrl];
               }
             }
-            if (empty($images)) {
-              $images = ['default.jpg'];
+            
+            // Build proper image paths
+            if (!empty($images)) {
+              foreach ($images as $image) {
+                // Trim whitespace
+                $image = trim($image);
+                
+                // Check for empty or broken image icon FIRST (before any path processing)
+                if (empty($image) || strpos($image, 'broken-image-icon') !== false) {
+                  // Use placeholder SVG data URI for broken image icons or empty images
+                  $imagePaths[] = $placeholderSvg;
+                  continue; // Skip to next image
+                }
+                
+                // Remove leading slash if present for consistent checking
+                $image = ltrim($image, '/');
+                
+                // Check for full URLs
+                if (strpos($image, 'http://') === 0 || strpos($image, 'https://') === 0) {
+                  // It's a full URL, use it as-is
+                  $imagePaths[] = $image;
+                } 
+                // Check for assets paths
+                else if (strpos($image, 'assets/') === 0) {
+                  // It's an assets path, use it as-is
+                  $imagePaths[] = base_url($image);
+                } 
+                // Check for uploads paths
+                else if (strpos($image, 'uploads/') === 0) {
+                  // It already has uploads/ path, use it as-is
+                  $imagePaths[] = base_url($image);
+                } 
+                // Otherwise, treat as filename in uploads/products/
+                else {
+                  // It's just a filename, prepend uploads/products/
+                  // Use basename to ensure we only have the filename
+                  $filename = basename($image);
+                  $imagePaths[] = base_url('uploads/products/' . $filename);
+                }
+              }
+            }
+            
+            // If no images found, use placeholder
+            if (empty($imagePaths)) {
+              $imagePaths = [$placeholderSvg];
             }
             
             // Get order type
@@ -103,18 +156,22 @@
 
               <!-- Image Slideshow -->
               <div class="product-image-slideshow" data-product-id="<?= $p->Product_ID ?>">
-                <?php foreach ($images as $index => $image): ?>
-                  <img src="<?= base_url('uploads/products/' . $image) ?>" 
-                       alt="<?= htmlspecialchars($p->ProductName) ?>" 
-                       class="product-slide <?= $index === 0 ? 'active' : '' ?>"
-                       onerror="this.onerror=null; this.style.display='none'; var placeholder = this.nextElementSibling; if(placeholder && placeholder.classList.contains('product-image-placeholder')) { placeholder.style.display='flex'; }">
-                  <div class="product-image-placeholder" style="display: none; width: 100%; height: 100%; background: #f0f0f0; align-items: center; justify-content: center; color: #999; font-size: 14px;">
+                <?php if (!empty($imagePaths)): ?>
+                  <?php foreach ($imagePaths as $index => $imagePath): ?>
+                    <img src="<?= htmlspecialchars($imagePath) ?>" 
+                         alt="<?= htmlspecialchars($p->ProductName) ?>" 
+                         class="product-slide <?= $index === 0 ? 'active' : '' ?>"
+                         data-image-path="<?= htmlspecialchars($imagePath) ?>"
+                         onerror="console.error('Image failed to load:', this.dataset.imagePath); this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';">
+                  <?php endforeach; ?>
+                <?php else: ?>
+                  <div class="product-image-placeholder" style="display: flex; width: 100%; height: 100%; background: #f0f0f0; align-items: center; justify-content: center; color: #999; font-size: 14px;">
                     No Image Available
                   </div>
-                <?php endforeach; ?>
-                <?php if (count($images) > 1): ?>
+                <?php endif; ?>
+                <?php if (count($imagePaths) > 1): ?>
                   <div class="slideshow-indicators">
-                    <?php for ($i = 0; $i < count($images); $i++): ?>
+                    <?php for ($i = 0; $i < count($imagePaths); $i++): ?>
                       <span class="indicator <?= $i === 0 ? 'active' : '' ?>" data-slide="<?= $i ?>"></span>
                     <?php endfor; ?>
                   </div>

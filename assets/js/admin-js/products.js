@@ -100,6 +100,8 @@ function setupMultipleImageUpload(inputId, dropzoneId, previewGridId, countIndic
  * Handle file selection and create previews
  */
 function handleFiles(files, previewGrid, countIndicator, mode) {
+  const MAX_IMAGES = 10;
+  
   files.forEach(file => {
     if (!file.type.startsWith('image/')) {
       showToast(`${file.name} is not an image file.`, 'error');
@@ -109,6 +111,12 @@ function handleFiles(files, previewGrid, countIndicator, mode) {
     // Check if file already exists
     if (uploadedImages[mode].some(f => f.name === file.name && f.size === file.size)) {
       return; // Skip duplicates
+    }
+
+    // Check maximum limit before adding
+    if (uploadedImages[mode].length >= MAX_IMAGES) {
+      showToast(`Maximum ${MAX_IMAGES} images allowed per product.`, 'error');
+      return;
     }
 
     uploadedImages[mode].push(file);
@@ -200,14 +208,18 @@ function updateImageCount(countIndicator, count) {
   const indicator = countIndicator.closest('.image-count-indicator');
   if (!indicator) return;
 
+  const MAX_IMAGES = 10;
+  // Show only the count, not "X / 10"
   countIndicator.textContent = count;
 
-  // Update styling based on count
-  indicator.classList.remove('invalid', 'valid');
+  // Update styling based on count (min 1, max 10)
+  indicator.classList.remove('invalid', 'valid', 'warning');
   
   if (count === 0) {
     indicator.classList.add('invalid');
-  } else if (count >= 3) {
+  } else if (count > MAX_IMAGES) {
+    indicator.classList.add('invalid');
+  } else if (count >= 1 && count <= MAX_IMAGES) {
     indicator.classList.add('valid');
   } else {
     indicator.classList.add('invalid');
@@ -215,14 +227,23 @@ function updateImageCount(countIndicator, count) {
 }
 
 /**
- * Validate minimum image requirement
+ * Validate image count requirement (min 1, max 10)
  */
 function validateImageCount(mode) {
+  const MIN_IMAGES = 1;
+  const MAX_IMAGES = 10;
   const count = uploadedImages[mode].length;
-  if (count < 3) {
-    showToast(`Please upload at least 3 images. Currently uploaded: ${count}`, 'error');
+  
+  if (count < MIN_IMAGES) {
+    showToast(`Please upload at least ${MIN_IMAGES} image. Currently uploaded: ${count}`, 'error');
     return false;
   }
+  
+  if (count > MAX_IMAGES) {
+    showToast(`Maximum ${MAX_IMAGES} images allowed per product. Currently uploaded: ${count}`, 'error');
+    return false;
+  }
+  
   return true;
 }
 
@@ -322,9 +343,9 @@ function initDeletePopup() {
 function openDeletePopup(card) {
   initDeletePopup();
   cardToDelete = card;
-  const name = card.querySelector(".product-name").textContent;
-  deleteMessage.textContent = `Are you sure you want to delete "${name}"?`;
-  deletePopup.style.display = "flex";
+  const name = card.querySelector(".product-name")?.textContent || "Product";
+  if (deleteMessage) deleteMessage.textContent = `Are you sure you want to delete "${name}"?`;
+  if (deletePopup) deletePopup.style.display = "flex";
 }
 
 function closeDeletePopup() {
@@ -337,27 +358,82 @@ function setupSearchFilter() {
   const searchInput = document.querySelector(".search-input");
   const searchButton = document.querySelector(".search-button");
   const categoryFilter = document.querySelector(".filter-category");
-  const productCards = document.querySelectorAll(".product-card");
-
-  function filterProducts() {
-    const searchTerm = searchInput.value.toLowerCase();
-    const selectedCategory = categoryFilter.value.toLowerCase();
-
-    productCards.forEach(card => {
-      const name = card.querySelector(".product-name").textContent.toLowerCase();
-      const category = card.dataset.category.toLowerCase();
-
-      const show =
-        name.includes(searchTerm) &&
-        (selectedCategory === "" || selectedCategory === category);
-
-      card.style.display = show ? "" : "none";
-    });
+  
+  if (!searchInput || !searchButton || !categoryFilter) {
+    console.warn('Search/filter elements not found, retrying...');
+    setTimeout(setupSearchFilter, 100);
+    return;
   }
 
-  searchButton?.addEventListener("click", filterProducts);
-  searchInput?.addEventListener("keyup", e => e.key === "Enter" && filterProducts());
-  categoryFilter?.addEventListener("change", filterProducts);
+  function filterProducts() {
+    // Re-query product cards each time to handle dynamic content
+    const productCards = document.querySelectorAll(".product-card");
+    if (productCards.length === 0) {
+      console.warn('No product cards found for filtering');
+      return;
+    }
+
+    const searchTerm = (searchInput?.value || "").toLowerCase().trim();
+    const selectedCategory = (categoryFilter?.value || "").toLowerCase().trim();
+
+    let visibleCount = 0;
+    productCards.forEach(card => {
+      if (!card) return;
+      
+      const nameEl = card.querySelector(".product-name");
+      const name = nameEl ? nameEl.textContent.toLowerCase() : "";
+      const category = (card.dataset.category || "").toLowerCase();
+      
+      // Normalize category for comparison (handle different formats)
+      const normalizedCategory = category.replace(/\s+/g, "-").toLowerCase();
+      const normalizedSelectedCategory = selectedCategory.replace(/\s+/g, "-").toLowerCase();
+
+      const matchesSearch = !searchTerm || name.includes(searchTerm);
+      const matchesCategory = !selectedCategory || normalizedCategory === normalizedSelectedCategory || category.includes(selectedCategory);
+
+      const show = matchesSearch && matchesCategory;
+      
+      card.style.display = show ? "" : "none";
+      if (show) visibleCount++;
+    });
+    
+    // Show message if no products match
+    const productGrid = document.querySelector(".product-grid");
+    let noResultsMsg = productGrid?.querySelector(".no-results-message");
+    if (visibleCount === 0 && productCards.length > 0) {
+      if (!noResultsMsg) {
+        noResultsMsg = document.createElement("div");
+        noResultsMsg.className = "no-results-message";
+        noResultsMsg.style.cssText = "grid-column: 1 / -1; text-align: center; padding: 40px; color: #666; font-size: 16px;";
+        noResultsMsg.textContent = "No products found matching your search criteria.";
+        if (productGrid) productGrid.appendChild(noResultsMsg);
+      }
+      noResultsMsg.style.display = "block";
+    } else if (noResultsMsg) {
+      noResultsMsg.style.display = "none";
+    }
+  }
+
+  // Attach event listeners
+  searchButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    filterProducts();
+  });
+  
+  searchInput.addEventListener("keyup", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      filterProducts();
+    } else {
+      // Real-time search as user types (optional)
+      // filterProducts();
+    }
+  });
+  
+  categoryFilter.addEventListener("change", filterProducts);
+  
+  // Initial filter to ensure everything is visible
+  filterProducts();
 }
 
 // -------------------- DYNAMIC CUSTOMIZATION FIELDS --------------------
@@ -612,20 +688,26 @@ function initializeDefaultCustomizationFields() {
   customizationFields = {
   // Windows subcategories - Enhanced with catalog options
   "Windows_Sliding": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Clear", "Tinted", "Frosted", "Low-E", "Double-pane", "Tempered", "Laminated", "Reflective"], stepNumber: 1 },
-    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["White", "Black", "Brown (wood-grain)", "Silver", "Bronze", "Gold", "Analok (dark/bronze)", "Custom colors"], stepNumber: 1 },
-    { type: "tags", label: "Number of Panels", id: "numberOfPanels", options: ["2-panel", "3-panel", "4-panel", "Multi-panel"], stepNumber: 1 },
-    { type: "tags", label: "Operation", id: "operation", options: ["Sliding (left-to-right)", "Sliding (right-to-left)", "Sliding (single)", "Sliding (double)", "Sliding (multi-track)"], stepNumber: 1 },
-    // Step 2: Design & Details
-    { type: "tags", label: "Grid Pattern", id: "gridPattern", options: ["Standard", "French type (grid pattern)", "French (colonial)", "Prairie", "Custom grid patterns"], stepNumber: 2 },
-    { type: "tags", label: "Grid Position", id: "gridPosition", options: ["Internal grids", "External grids"], stepNumber: 2 },
-    { type: "number", label: "Thickness (mm)", id: "thickness", min: 1, step: 0.1, stepNumber: 2 },
-    { type: "checkbox", label: "Screen", id: "screen", stepNumber: 2 }
+    // Step 1: Window Type
+    { type: "tags", label: "Number of Panels", id: "numberOfPanels", options: ["2 Panels", "4 Panels"], stepNumber: 1 },
+    { type: "tags", label: "Transom Type (Top / Bottom Fixed Panel)", id: "transomType", options: ["None", "Fixed Transom Head (Fixed glass at top)", "Fixed Transom Sill (Fixed glass at bottom)"], stepNumber: 1 },
+    // Step 2: Sliding System & Size
+    { type: "tags", label: "Track System (Sliding Rail Count)", id: "trackSystem", options: ["2 Tracks", "3 Tracks"], stepNumber: 2 },
+    { type: "tags", label: "Panel Configuration", id: "panelConfiguration", options: ["S | S (Sliding | Sliding)", "F | S (Fixed | Sliding)", "S | S | S | S (All Sliding)", "F | S | S | F (Fixed | Sliding | Sliding | Fixed)"], stepNumber: 2 },
+    // Step 3: Frame & Glass
+    { type: "tags", label: "Frame Color", id: "frameColor", options: ["Hanalok", "White", "Black", "Gray", "Wood Finish"], stepNumber: 3 },
+    { type: "tags", label: "Glass Type", id: "glassType", options: ["Clear", "Ultra Clear", "Bronze", "Light Green", "Dark Gray", "Copperfree Mirror", "Euro Gray", "Ford Blue", "Reflective: Clear", "Reflective: Gray", "Reflective: Light Blue", "Reflective: Dark Blue", "Reflective: Light Green", "Reflective: Dark Green", "Reflective: Light Bronze", "Tempered: Clear", "Tempered: Bronze"], stepNumber: 3 },
+    { type: "tags", label: "Glass Thickness", id: "glassThickness", options: ["6mm"], stepNumber: 3 },
+    // Step 4: Hardware & Accessories
+    { type: "tags", label: "Lock Type", id: "lockType", options: ["Center Lok 904 Big", "Flushlok #12", "Durable Flushlok", "New Auto Flushlock"], stepNumber: 4 },
+    { type: "tags", label: "Roller Type", id: "rollerType", options: ["Single Panel Roller", "Blue Single Roller", "Blue Double Roller"], stepNumber: 4 },
+    { type: "tags", label: "Screen", id: "screen", options: ["With Screen", "Without Screen"], stepNumber: 4 }
   ],
   "Windows_Sliding_stepNames": {
-    "1": "Basic Options",
-    "2": "Design & Details"
+    "1": "Window Type",
+    "2": "Sliding System & Size",
+    "3": "Frame & Glass",
+    "4": "Hardware & Accessories"
   },
   "Windows_Awning": [
     // Step 1: Basic Options
@@ -675,6 +757,57 @@ function initializeDefaultCustomizationFields() {
   "Windows_Fixed Glass_stepNames": {
     "1": "Basic Options",
     "2": "Installation & Details"
+  },
+  // Series Presets - Auto-fill configurations for each series
+  "Series_Presets": {
+    "900 Series": {
+      "numberOfPanels": ["2 Panels"],
+      "transomType": ["None"],
+      "trackSystem": ["2 Tracks"],
+      "panelConfiguration": ["S | S (Sliding | Sliding)"],
+      "frameColor": ["White"],
+      "glassType": ["Clear"],
+      "glassThickness": ["6mm"],
+      "lockType": ["Center Lok 904 Big"],
+      "rollerType": ["Blue Single Roller"],
+      "screen": ["Without Screen"]
+    },
+    "798 Series": {
+      "numberOfPanels": ["2 Panels"],
+      "transomType": ["None"],
+      "trackSystem": ["2 Tracks"],
+      "panelConfiguration": ["S | S (Sliding | Sliding)"],
+      "frameColor": ["White"],
+      "glassType": ["Clear"],
+      "glassThickness": ["6mm"],
+      "lockType": ["Flushlok #12"],
+      "rollerType": ["Single Panel Roller"],
+      "screen": ["Without Screen"]
+    },
+    "868-DMX Series": {
+      "numberOfPanels": ["4 Panels"],
+      "transomType": ["Fixed Transom Head (Fixed glass at top)"],
+      "trackSystem": ["3 Tracks"],
+      "panelConfiguration": ["F | S | S | F (Fixed | Sliding | Sliding | Fixed)"],
+      "frameColor": ["Black"],
+      "glassType": ["Ultra Clear"],
+      "glassThickness": ["6mm"],
+      "lockType": ["Durable Flushlok"],
+      "rollerType": ["Blue Double Roller"],
+      "screen": ["With Screen"]
+    },
+    "130-DMX Series": {
+      "numberOfPanels": ["2 Panels"],
+      "transomType": ["None"],
+      "trackSystem": ["2 Tracks"],
+      "panelConfiguration": ["F | S (Fixed | Sliding)"],
+      "frameColor": ["Gray"],
+      "glassType": ["Bronze"],
+      "glassThickness": ["6mm"],
+      "lockType": ["New Auto Flushlock"],
+      "rollerType": ["Blue Single Roller"],
+      "screen": ["Without Screen"]
+    }
   },
   // Doors subcategories - Enhanced with catalog options
   "Doors_Sliding": [
@@ -942,23 +1075,36 @@ function populateCategories(orderType, categorySelect) {
  * @param {string} orderType - Selected order type (optional, for filtering)
  */
 function populateSubcategories(category, subcategorySelect, orderType = null) {
-  // Clear existing options except the first placeholder
-  subcategorySelect.innerHTML = '<option value="" disabled selected>Select subcategory</option>';
+  // Defensive check - ensure element exists and is valid
+  if (!subcategorySelect || !subcategorySelect.nodeType || subcategorySelect.nodeType !== 1) {
+    console.warn('populateSubcategories: subcategorySelect is null or invalid');
+    return;
+  }
   
-  if (category && categorySubcategories[category]) {
-    let subcategories = categorySubcategories[category];
+  try {
+    // Clear existing options and set placeholder with selected attribute
+    subcategorySelect.innerHTML = '<option value="" disabled selected>Select subcategory</option>';
     
-    // Filter subcategories based on order type if category has order-type-specific subcategories
-    if (orderType && orderTypeSubcategories[category] && orderTypeSubcategories[category][orderType]) {
-      subcategories = orderTypeSubcategories[category][orderType];
+    if (category && categorySubcategories[category]) {
+      let subcategories = categorySubcategories[category];
+      
+      // Filter subcategories based on order type if category has order-type-specific subcategories
+      if (orderType && orderTypeSubcategories[category] && orderTypeSubcategories[category][orderType]) {
+        subcategories = orderTypeSubcategories[category][orderType];
+      }
+      
+      subcategories.forEach(subcat => {
+        const option = document.createElement("option");
+        option.value = subcat;
+        option.textContent = subcat;
+        // Double-check element still exists before appending
+        if (subcategorySelect && subcategorySelect.nodeType === 1) {
+          subcategorySelect.appendChild(option);
+        }
+      });
     }
-    
-    subcategories.forEach(subcat => {
-      const option = document.createElement("option");
-      option.value = subcat;
-      option.textContent = subcat;
-      subcategorySelect.appendChild(option);
-    });
+  } catch (error) {
+    console.error('Error in populateSubcategories:', error, { category, orderType });
   }
 }
 
@@ -1016,7 +1162,7 @@ function showManageCustomizationFields(category, subcategory) {
         Category: <strong>${category}</strong> | Subcategory: <strong>${subcategory}</strong>
       </p>
       <p style="color: #d9534f; font-size: 12px; margin-bottom: 15px; padding: 8px; background: #ffe0e0; border-radius: 4px;">
-        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Maximum 3-4 fields per step recommended for better customer experience.
+        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Minimum of 2 is enough.
       </p>
       
       <div class="customization-fields-manager" id="fieldsManagerContainer">
@@ -1903,7 +2049,8 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
   // Group fields by step
   const fieldsByStep = {};
   fields.forEach(field => {
-    const stepNum = field.stepNumber || 1;
+    // Handle stepNumber 0 correctly (0 is falsy, so use nullish coalescing or explicit check)
+    const stepNum = field.stepNumber !== undefined && field.stepNumber !== null ? field.stepNumber : 1;
     if (!fieldsByStep[stepNum]) {
       fieldsByStep[stepNum] = [];
     }
@@ -1925,7 +2072,12 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
     
     const stepTitle = document.createElement("h4");
     stepTitle.style.cssText = "margin: 0; color: #005b82; font-size: 14px; font-weight: 600;";
-    stepTitle.textContent = stepName ? `${stepName} (Step ${stepNum})` : `Step ${stepNum}`;
+    // Handle Step 0 display (show as "Series Selection" or "Step 0")
+    if (stepNum === 0) {
+      stepTitle.textContent = stepName || "Series Selection";
+    } else {
+      stepTitle.textContent = stepName ? `${stepName} (Step ${stepNum})` : `Step ${stepNum}`;
+    }
     stepHeader.appendChild(stepTitle);
     container.appendChild(stepHeader);
     
@@ -1999,6 +2151,10 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
         label.style.marginLeft = "8px";
         label.style.fontWeight = "normal";
         formGroup.insertBefore(input, label);
+        // Add auto-save on change
+        input.addEventListener("change", () => {
+          autoSaveCustomizationFields(prefix);
+        });
         break;
         
       case "color":
@@ -2020,6 +2176,17 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
         input.min = field.min || 0;
         input.step = field.step || 1;
         input.placeholder = `Enter ${field.label.toLowerCase()}`;
+        // Add auto-save on change
+        input.addEventListener("change", () => {
+          autoSaveCustomizationFields(prefix);
+        });
+        input.addEventListener("input", () => {
+          // Debounce auto-save on input
+          clearTimeout(input._autoSaveTimeout);
+          input._autoSaveTimeout = setTimeout(() => {
+            autoSaveCustomizationFields(prefix);
+          }, 500);
+        });
         break;
     }
     
@@ -2158,6 +2325,27 @@ function renderTags(container, options, prefix, fieldId) {
   if (hiddenInput) {
     hiddenInput.value = JSON.stringify(selectedValues);
   }
+  
+  // Add event listener for series field to auto-fill when tags are clicked
+  if (fieldId === "series") {
+    // Use event delegation on the container for dynamically added tags
+    container.addEventListener("click", (e) => {
+      const tag = e.target.closest(".tag");
+      if (tag && !e.target.closest(".tag-edit") && !e.target.closest(".tag-remove")) {
+        // Wait for toggleTagSelection to complete
+        setTimeout(() => {
+          const seriesInput = document.getElementById(`${prefix}series`);
+          if (seriesInput) {
+            const seriesValues = JSON.parse(seriesInput.value || "[]");
+            const seriesValue = seriesValues.find(v => v !== "None");
+            if (seriesValue && customizationFields["Series_Presets"] && customizationFields["Series_Presets"][seriesValue]) {
+              autoFillSeriesPreset(seriesValue, prefix);
+            }
+          }
+        }, 150);
+      }
+    });
+  }
 }
 
 /**
@@ -2188,6 +2376,61 @@ function toggleTagSelection(tag, prefix, fieldId) {
   
   // Update hidden input
   hiddenInput.value = JSON.stringify(selectedValues);
+  
+  // Auto-fill fields if series is selected (and not "None")
+  if (fieldId === "series" && value !== "None" && selectedValues.includes(value)) {
+    autoFillSeriesPreset(value, prefix);
+  }
+  
+  // Auto-save customization fields
+  autoSaveCustomizationFields(prefix);
+}
+
+/**
+ * Auto-fills customization fields based on selected series preset
+ * @param {string} seriesName - Name of the selected series (e.g., "900 Series")
+ * @param {string} prefix - Field prefix
+ */
+function autoFillSeriesPreset(seriesName, prefix) {
+  const presets = customizationFields["Series_Presets"];
+  if (!presets || !presets[seriesName]) {
+    return;
+  }
+  
+  const preset = presets[seriesName];
+  
+  // Fill each field in the preset
+  Object.keys(preset).forEach(fieldId => {
+    const values = preset[fieldId];
+    const hiddenInput = document.getElementById(`${prefix}${fieldId}`);
+    const container = document.getElementById(`${prefix}${fieldId}Container`);
+    
+    if (hiddenInput && container) {
+      // Set the selected values
+      hiddenInput.value = JSON.stringify(Array.isArray(values) ? values : [values]);
+      
+      // Update the tag display
+      const availableOptions = JSON.parse(container.dataset.availableOptions || "[]");
+      renderTags(container, availableOptions, prefix, fieldId);
+    }
+  });
+  
+  // Auto-save after filling
+  autoSaveCustomizationFields(prefix);
+}
+
+/**
+ * Auto-saves customization fields to product (for add/edit forms)
+ * @param {string} prefix - Field prefix ("add" or "edit")
+ */
+function autoSaveCustomizationFields(prefix) {
+  // This function will be called automatically when fields change
+  // The actual save happens when the form is submitted
+  // But we can update the form data in real-time here if needed
+  
+  // For now, just ensure the data is collected correctly
+  // The actual save happens on form submission
+  console.log(`[Auto-Save] Customization fields updated for ${prefix}`);
 }
 
 /**
@@ -4729,6 +4972,9 @@ function setupProductPopups() {
     populateCategories("direct", addCategorySelect);
   }
 
+  // Get orderTypeInput early to avoid reference errors
+  const orderTypeInput = document.getElementById("productOrderType");
+
   // ---------- ADD MODAL: Category Change Handler ----------
   addCategorySelect?.addEventListener("change", function() {
     const selectedCategory = this.value;
@@ -4736,37 +4982,59 @@ function setupProductPopups() {
       // Get current order type
       const currentOrderType = orderTypeInput ? orderTypeInput.value : "direct";
       // Show subcategory dropdown and populate it (with order type filtering)
-      addSubcategoryGroup.style.display = "block";
-      populateSubcategories(selectedCategory, addSubcategorySelect, currentOrderType);
+      if (addSubcategoryGroup) addSubcategoryGroup.style.display = "block";
+      if (addSubcategorySelect) populateSubcategories(selectedCategory, addSubcategorySelect, currentOrderType);
       // Clear customization fields until subcategory is selected
-      addCustomizationContainer.innerHTML = "";
+      if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
     } else {
-      addSubcategoryGroup.style.display = "none";
-      addCustomizationContainer.innerHTML = "";
+      if (addSubcategoryGroup) addSubcategoryGroup.style.display = "none";
+      if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
     }
   });
 
   // ---------- ADD MODAL: Subcategory Change Handler ----------
   addSubcategorySelect?.addEventListener("change", function() {
     const selectedSubcategory = this.value;
-    const selectedCategory = addCategorySelect.value;
+    const selectedCategory = addCategorySelect ? addCategorySelect.value : "";
     const manageGroup = document.getElementById("manageCustomizationGroup");
+    const seriesGroup = document.getElementById("seriesGroup");
+    const seriesSelect = document.getElementById("productSeries");
+    
     if (selectedSubcategory) {
+      // Show Series dropdown for Windows subcategories
+      if (selectedCategory === "Windows" && seriesGroup && seriesSelect) {
+        seriesGroup.style.display = "block";
+        seriesSelect.value = ""; // Reset to None
+      } else if (seriesGroup) {
+        seriesGroup.style.display = "none";
+      }
+      
       generateCustomizationFields(selectedSubcategory, addCustomizationContainer, "", selectedCategory);
       // Show manage button for Customize Build tab
       if (manageGroup) manageGroup.style.display = "block";
     } else {
-      addCustomizationContainer.innerHTML = "";
-      // Hide manage button
+      if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
+      // Hide manage button and series group
       if (manageGroup) manageGroup.style.display = "none";
+      if (seriesGroup) seriesGroup.style.display = "none";
+    }
+  });
+  
+  // ---------- ADD MODAL: Series Change Handler ----------
+  const seriesSelect = document.getElementById("productSeries");
+  seriesSelect?.addEventListener("change", function() {
+    const selectedSeries = this.value;
+    if (selectedSeries && selectedSeries !== "" && customizationFields["Series_Presets"] && customizationFields["Series_Presets"][selectedSeries]) {
+      // Auto-fill customization fields with series preset
+      autoFillSeriesPreset(selectedSeries, "");
     }
   });
   
   // Setup manage customization fields button (Customize Build tab)
   const manageCustomizationBtn = document.getElementById("manageCustomizationBtn");
   manageCustomizationBtn?.addEventListener("click", () => {
-    const selectedCategory = addCategorySelect.value;
-    const selectedSubcategory = addSubcategorySelect.value;
+    const selectedCategory = addCategorySelect ? addCategorySelect.value : "";
+    const selectedSubcategory = addSubcategorySelect ? addSubcategorySelect.value : "";
     if (selectedCategory && selectedSubcategory) {
       showManageCustomizationFields(selectedCategory, selectedSubcategory);
     }
@@ -4778,37 +5046,59 @@ function setupProductPopups() {
     const selectedCategory = this.value;
     if (selectedCategory) {
       // Show subcategory dropdown and populate it
-      editSubcategoryGroup.style.display = "block";
-      populateSubcategories(selectedCategory, editSubcategorySelect);
+      if (editSubcategoryGroup) editSubcategoryGroup.style.display = "block";
+      if (editSubcategorySelect) populateSubcategories(selectedCategory, editSubcategorySelect);
       // Clear customization fields until subcategory is selected
-      editCustomizationContainer.innerHTML = "";
+      if (editCustomizationContainer) editCustomizationContainer.innerHTML = "";
     } else {
-      editSubcategoryGroup.style.display = "none";
-      editCustomizationContainer.innerHTML = "";
+      if (editSubcategoryGroup) editSubcategoryGroup.style.display = "none";
+      if (editCustomizationContainer) editCustomizationContainer.innerHTML = "";
     }
   });
 
   // ---------- EDIT MODAL: Subcategory Change Handler ----------
   editSubcategorySelect?.addEventListener("change", function() {
     const selectedSubcategory = this.value;
-    const selectedCategory = editCategorySelect.value;
+    const selectedCategory = editCategorySelect ? editCategorySelect.value : "";
     const editManageGroup = document.getElementById("editManageCustomizationGroup");
+    const editSeriesGroup = document.getElementById("editSeriesGroup");
+    const editSeriesSelect = document.getElementById("editProductSeries");
+    
     if (selectedSubcategory) {
+      // Show Series dropdown for Windows subcategories
+      if (selectedCategory === "Windows" && editSeriesGroup && editSeriesSelect) {
+        editSeriesGroup.style.display = "block";
+        editSeriesSelect.value = ""; // Reset to None
+      } else if (editSeriesGroup) {
+        editSeriesGroup.style.display = "none";
+      }
+      
       generateCustomizationFields(selectedSubcategory, editCustomizationContainer, "edit", selectedCategory);
       // Show manage button for Customize Build tab
       if (editManageGroup) editManageGroup.style.display = "block";
     } else {
       editCustomizationContainer.innerHTML = "";
-      // Hide manage button
+      // Hide manage button and series group
       if (editManageGroup) editManageGroup.style.display = "none";
+      if (editSeriesGroup) editSeriesGroup.style.display = "none";
+    }
+  });
+  
+  // ---------- EDIT MODAL: Series Change Handler ----------
+  const editSeriesSelect = document.getElementById("editProductSeries");
+  editSeriesSelect?.addEventListener("change", function() {
+    const selectedSeries = this.value;
+    if (selectedSeries && selectedSeries !== "" && customizationFields["Series_Presets"] && customizationFields["Series_Presets"][selectedSeries]) {
+      // Auto-fill customization fields with series preset
+      autoFillSeriesPreset(selectedSeries, "edit");
     }
   });
   
   // Setup manage customization fields button (Edit - Customize Build tab)
   const editManageCustomizationBtn = document.getElementById("editManageCustomizationBtn");
   editManageCustomizationBtn?.addEventListener("click", () => {
-    const selectedCategory = editCategorySelect.value;
-    const selectedSubcategory = editSubcategorySelect.value;
+    const selectedCategory = editCategorySelect ? editCategorySelect.value : "";
+    const selectedSubcategory = editSubcategorySelect ? editSubcategorySelect.value : "";
     if (selectedCategory && selectedSubcategory) {
       showManageCustomizationFields(selectedCategory, selectedSubcategory);
     }
@@ -4817,16 +5107,19 @@ function setupProductPopups() {
   // Setup manage customization fields button (Edit - Standard tab)
   const editStandardManageCustomizationBtn = document.getElementById("editStandardManageCustomizationBtn");
   editStandardManageCustomizationBtn?.addEventListener("click", () => {
-    const selectedCategory = editCategorySelect.value;
-    const selectedSubcategory = editSubcategorySelect.value;
+    const selectedCategory = editCategorySelect ? editCategorySelect.value : "";
+    const selectedSubcategory = editSubcategorySelect ? editSubcategorySelect.value : "";
     if (selectedCategory && selectedSubcategory) {
       showManageCustomizationFields(selectedCategory, selectedSubcategory);
     }
   });
 
   // ---------- ADD PRODUCT ----------
-  addBtn?.addEventListener("click", () => {
-    addPopup.style.display = "flex";
+  if (addBtn && addPopup) {
+    addBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      addPopup.style.display = "flex";
       // Reset standard series
       standardSeries = [];
       renderStandardSeries();
@@ -4837,16 +5130,19 @@ function setupProductPopups() {
       // Reset order type to direct
       setOrderType("direct");
     
-    // Setup add series button when popup opens (in case button wasn't found initially)
-    const addSeriesBtn = document.getElementById("addSeriesBtn");
-    if (addSeriesBtn) {
-      // Remove any existing listeners
-      const newBtn = addSeriesBtn.cloneNode(true);
-      addSeriesBtn.parentNode.replaceChild(newBtn, addSeriesBtn);
-      // Attach new listener
-      document.getElementById("addSeriesBtn").addEventListener("click", addSeries);
-    }
-  });
+      // Setup add series button when popup opens (in case button wasn't found initially)
+      const addSeriesBtn = document.getElementById("addSeriesBtn");
+      if (addSeriesBtn) {
+        // Remove any existing listeners
+        const newBtn = addSeriesBtn.cloneNode(true);
+        addSeriesBtn.parentNode.replaceChild(newBtn, addSeriesBtn);
+        // Attach new listener
+        document.getElementById("addSeriesBtn").addEventListener("click", addSeries);
+      }
+    });
+  } else {
+    console.warn('Add product button or popup not found');
+  }
   
   // Setup add series button on initial load (if popup is already in DOM)
   const addSeriesBtn = document.getElementById("addSeriesBtn");
@@ -4881,7 +5177,7 @@ function setupProductPopups() {
   // Setup Order Type Buttons
   const directOrderBtn = document.getElementById("directOrderBtn");
   const siteAssessmentBtn = document.getElementById("siteAssessmentBtn");
-  const orderTypeInput = document.getElementById("productOrderType");
+  // orderTypeInput is already declared earlier in the function
 
   function setOrderType(orderType) {
     // Remove active class from both buttons
@@ -4907,7 +5203,10 @@ function setupProductPopups() {
         const subcategorySelect = document.getElementById("productSubcategory");
         const subcategoryGroup = document.getElementById("subcategoryGroup");
         if (subcategorySelect && subcategoryGroup && subcategoryGroup.style.display !== "none") {
-          populateSubcategories(selectedCategory, subcategorySelect, orderType);
+          // Double-check subcategorySelect is still valid before calling
+          if (subcategorySelect && subcategorySelect.nodeType === 1) {
+            populateSubcategories(selectedCategory, subcategorySelect, orderType);
+          }
         }
       }
     }
@@ -4918,18 +5217,18 @@ function setupProductPopups() {
 
   [addCloseBtn, addCancelBtn].forEach(btn =>
     btn?.addEventListener("click", () => {
-      addPopup.style.display = "none";
-      addNameInput.value = "";
+      if (addPopup) addPopup.style.display = "none";
+      if (addNameInput) addNameInput.value = "";
       if (addPriceMinInput) addPriceMinInput.value = "";
       if (addPriceMaxInput) addPriceMaxInput.value = "";
       clearImages('add');
       // Reset order type to direct
       setOrderType("direct");
       // Reset category and subcategory
-      addCategorySelect.value = "";
-      addSubcategorySelect.value = "";
-      addSubcategoryGroup.style.display = "none";
-      addCustomizationContainer.innerHTML = "";
+      if (addCategorySelect) addCategorySelect.value = "";
+      if (addSubcategorySelect) addSubcategorySelect.value = "";
+      if (addSubcategoryGroup) addSubcategoryGroup.style.display = "none";
+      if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
       // Reset standard series
       standardSeries = [];
       renderStandardSeries();
@@ -4944,7 +5243,7 @@ function setupProductPopups() {
   // Flag to prevent duplicate submissions
   let isSubmitting = false;
 
-  addSaveBtn?.addEventListener("click", (e) => {
+  addSaveBtn?.addEventListener("click", async (e) => {
     e.preventDefault(); // Prevent default button behavior
     
     // Prevent duplicate submissions
@@ -4967,6 +5266,19 @@ function setupProductPopups() {
     if (!name || !category || !orderType) {
       showToast("Please complete all required fields.", 'error');
       return;
+    }
+
+    // Check for duplicate product name
+    try {
+      const checkResponse = await fetch(base_url + "ProductCon/check_product_name?name=" + encodeURIComponent(name));
+      const checkData = await checkResponse.json();
+      if (checkData.exists) {
+        showToast("A product with this name already exists. Product names must be unique.", 'error');
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking product name:', error);
+      // Continue with submission if check fails (backend will catch it)
     }
 
     if (!priceMin && !priceMax) {
@@ -5083,6 +5395,9 @@ function setupProductPopups() {
 
 // ---------- POPULATE EDIT FORM ----------
 function populateEditForm(product) {
+  // Store product data globally for access by manage customization button
+  window.currentEditingProduct = product;
+  
   // Clear previous data
   clearImages('edit');
   tagPrices = {};
@@ -5128,26 +5443,180 @@ function populateEditForm(product) {
   if (editCategoryEl) {
     populateCategories(orderType, editCategoryEl);
     if (product.Category) {
-      editCategoryEl.value = product.Category;
-      // Keep disabled (read-only)
-      editCategoryEl.disabled = true;
+      const categoryValue = String(product.Category).trim();
       
-      // Populate subcategories
-      if (product.Subcategory && editSubcategoryEl) {
-        populateSubcategories(product.Category, editSubcategoryEl, orderType);
-        editSubcategoryEl.value = product.Subcategory;
-        // Keep disabled (read-only)
-        editSubcategoryEl.disabled = true;
-        if (editSubcategoryGroup) editSubcategoryGroup.style.display = "block";
-        
-        // Generate customization fields
-        if (editCustomizationContainer) {
-          generateCustomizationFields(product.Subcategory, editCustomizationContainer, "edit", product.Category);
-        }
-        
-        // Show manage customization button for Customize Build tab
-        if (editManageCustomizationGroup) editManageCustomizationGroup.style.display = "block";
-      }
+          // Use requestAnimationFrame to ensure DOM is updated after populateCategories
+          requestAnimationFrame(() => {
+            // Use setTimeout as additional safety
+            setTimeout(() => {
+              if (editCategoryEl) {
+                // IMPORTANT: Temporarily enable the select to set the value
+                // Some browsers don't allow setting value on disabled selects
+                const wasDisabled = editCategoryEl.disabled;
+                editCategoryEl.disabled = false;
+                
+                // Remove selected attribute from placeholder option FIRST
+                const placeholderOption = editCategoryEl.querySelector('option[value=""]');
+                if (placeholderOption) {
+                  placeholderOption.removeAttribute('selected');
+                  placeholderOption.selected = false;
+                }
+                
+                // Log available options for debugging
+                const availableOptions = Array.from(editCategoryEl.options).map(o => ({
+                  value: o.value,
+                  text: o.text,
+                  index: o.index
+                }));
+                console.log('[Edit Form] Setting category:', categoryValue, 'Available options:', availableOptions);
+                
+                // Try to set the value directly
+                editCategoryEl.value = categoryValue;
+                
+                // Verify it was set
+                if (editCategoryEl.value !== categoryValue) {
+                  // If direct value setting failed, try manual selection
+                  const options = editCategoryEl.options;
+                  let foundIndex = -1;
+                  
+                  for (let i = 0; i < options.length; i++) {
+                    // Skip placeholder
+                    if (options[i].value === "" || options[i].disabled) continue;
+                    
+                    const optValue = String(options[i].value).trim();
+                    const optText = String(options[i].text).trim();
+                    
+                    if (optValue === categoryValue || 
+                        optText === categoryValue ||
+                        optValue.toLowerCase() === categoryValue.toLowerCase() ||
+                        optText.toLowerCase() === categoryValue.toLowerCase()) {
+                      foundIndex = i;
+                      break;
+                    }
+                  }
+                  
+                  if (foundIndex >= 0) {
+                    editCategoryEl.selectedIndex = foundIndex;
+                    console.log('[Edit Form] Category set via selectedIndex:', foundIndex);
+                  } else {
+                    console.warn('[Edit Form] Category not found in options:', categoryValue);
+                  }
+                } else {
+                  console.log('[Edit Form] Category set successfully via value property');
+                }
+                
+                // Force a re-render by triggering change event (for some browsers)
+                editCategoryEl.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                // Re-disable the select (read-only)
+                editCategoryEl.disabled = wasDisabled;
+          
+          // Populate subcategories after category is set
+          // Use the actual category value that was set (or the product category as fallback)
+          const actualCategory = editCategoryEl.value || categoryValue || product.Category;
+          
+          if (product.Subcategory && editSubcategoryEl && actualCategory) {
+            // Populate subcategories based on the actual category
+            populateSubcategories(actualCategory, editSubcategoryEl, orderType);
+            
+            // Wait for subcategories to be populated before setting value
+            setTimeout(() => {
+              if (editSubcategoryEl && editSubcategoryEl.nodeType === 1) {
+                try {
+                  const subcategoryValue = String(product.Subcategory).trim();
+                  
+                  // IMPORTANT: Temporarily enable the select to set the value
+                  const wasSubDisabled = editSubcategoryEl.disabled;
+                  editSubcategoryEl.disabled = false;
+                  
+                  // Remove selected attribute from placeholder option
+                  const subPlaceholderOption = editSubcategoryEl.querySelector('option[value=""]');
+                  if (subPlaceholderOption) {
+                    subPlaceholderOption.removeAttribute('selected');
+                    subPlaceholderOption.selected = false;
+                  }
+                  
+                  // Try to set the value directly
+                  editSubcategoryEl.value = subcategoryValue;
+                  
+                  // If value didn't set, try to find and select the option manually
+                  if (editSubcategoryEl.value !== subcategoryValue) {
+                    const options = editSubcategoryEl.options;
+                    let found = false;
+                    for (let i = 0; i < options.length; i++) {
+                      // Skip placeholder option
+                      if (options[i].value === "" || options[i].disabled) continue;
+                      
+                      const optValue = String(options[i].value).trim();
+                      const optText = String(options[i].text).trim();
+                      
+                      if (optValue === subcategoryValue || 
+                          optText === subcategoryValue ||
+                          optValue.toLowerCase() === subcategoryValue.toLowerCase() ||
+                          optText.toLowerCase() === subcategoryValue.toLowerCase()) {
+                        editSubcategoryEl.selectedIndex = i;
+                        found = true;
+                        break;
+                      }
+                    }
+                    
+                    // If still not found, log for debugging
+                    if (!found) {
+                      console.warn('Subcategory not found:', subcategoryValue, 'Available options:', 
+                        Array.from(editSubcategoryEl.options).map(o => ({value: o.value, text: o.text})));
+                    }
+                  }
+                  
+                  // Verify the value is set correctly
+                  const finalSubValue = editSubcategoryEl.value || 
+                    (editSubcategoryEl.selectedIndex > 0 ? editSubcategoryEl.options[editSubcategoryEl.selectedIndex].value : "");
+                  
+                  if (finalSubValue === subcategoryValue || editSubcategoryEl.selectedIndex > 0) {
+                    // Re-disable the select (read-only)
+                    editSubcategoryEl.disabled = wasSubDisabled;
+                    
+                    // Show subcategory group
+                    if (editSubcategoryGroup) editSubcategoryGroup.style.display = "block";
+                    
+                    // Show Series dropdown for Windows subcategories
+                    const editSeriesGroup = document.getElementById("editSeriesGroup");
+                    const editSeriesSelect = document.getElementById("editProductSeries");
+                    if (actualCategory === "Windows" && editSeriesGroup && editSeriesSelect) {
+                      editSeriesGroup.style.display = "block";
+                      // Try to get series from customization fields if available
+                      // For now, set to None - can be enhanced later to read from saved data
+                      editSeriesSelect.value = "";
+                    } else if (editSeriesGroup) {
+                      editSeriesGroup.style.display = "none";
+                    }
+                    
+                    // Generate customization fields
+                    if (editCustomizationContainer) {
+                      generateCustomizationFields(product.Subcategory, editCustomizationContainer, "edit", actualCategory);
+                    }
+                    
+                    // Show manage customization button for Customize Build tab
+                    if (editManageCustomizationGroup) editManageCustomizationGroup.style.display = "block";
+                  } else {
+                    console.warn('Subcategory value could not be set:', product.Subcategory, 'Category:', actualCategory);
+                  }
+                } catch (error) {
+                  console.error('Error setting subcategory value:', error, { 
+                    subcategory: product.Subcategory, 
+                    category: actualCategory 
+                  });
+                }
+              }
+            }, 100); // Increased delay to ensure subcategories are fully populated
+          } else if (product.Subcategory && !actualCategory) {
+            console.warn('Cannot populate subcategories: category is missing', { 
+              productCategory: product.Category, 
+              categoryValue: categoryValue 
+            });
+          }
+          }
+        }, 50); // Delay to ensure categories are populated
+      });
     }
   }
   
@@ -5493,7 +5962,16 @@ function renderStandardSeriesForEdit(container) {
 function setupEditPopupHandlers() {
   // ---------- EDIT PRODUCT / REMOVE PRODUCT CLICK HANDLERS ----------
   const productGridEl = document.querySelector(".product-grid");
-  productGridEl?.addEventListener("click", e => {
+  if (!productGridEl) {
+    console.warn('Product grid not found, retrying in 100ms...');
+    setTimeout(setupEditPopupHandlers, 100);
+    return;
+  }
+  
+  // Declare editPopup once at the top of the function
+  const editPopup = document.getElementById("editPopup");
+  
+  productGridEl.addEventListener("click", e => {
     const editBtn = e.target.closest(".edit-btn");
     if (editBtn) {
       e.stopPropagation();
@@ -5564,11 +6042,81 @@ function setupEditPopupHandlers() {
   // Category and subcategory are read-only in edit mode - no change handlers needed
   
   // Manage Customization Fields button for edit (Customize Build tab)
-  editManageCustomizationBtn?.addEventListener("click", () => {
-    const selectedCategory = editCategorySelect ? editCategorySelect.value : "";
-    const selectedSubcategory = editSubcategorySelect ? editSubcategorySelect.value : "";
+  // Use event delegation since button might not exist when this runs
+  if (editPopup) {
+    editPopup.addEventListener("click", (e) => {
+      if (e.target.closest("#editManageCustomizationBtn")) {
+        e.preventDefault();
+        e.stopPropagation();
+        // Get values from selects (even if disabled, value should still be accessible)
+        let selectedCategory = editCategorySelect ? editCategorySelect.value : "";
+        let selectedSubcategory = editSubcategorySelect ? editSubcategorySelect.value : "";
+        
+        // If values are empty (disabled selects sometimes don't return value), use stored product data
+        if (!selectedCategory || !selectedSubcategory) {
+          if (window.currentEditingProduct) {
+            selectedCategory = selectedCategory || window.currentEditingProduct.Category || "";
+            selectedSubcategory = selectedSubcategory || window.currentEditingProduct.Subcategory || "";
+          }
+        }
+        
+        // Fallback: try reading from selected option index
+        if (!selectedCategory && editCategorySelect && editCategorySelect.selectedIndex >= 0) {
+          const selectedOption = editCategorySelect.options[editCategorySelect.selectedIndex];
+          if (selectedOption && selectedOption.value) {
+            selectedCategory = selectedOption.value;
+          }
+        }
+        if (!selectedSubcategory && editSubcategorySelect && editSubcategorySelect.selectedIndex >= 0) {
+          const selectedOption = editSubcategorySelect.options[editSubcategorySelect.selectedIndex];
+          if (selectedOption && selectedOption.value) {
+            selectedSubcategory = selectedOption.value;
+          }
+        }
+        
+        if (selectedCategory && selectedSubcategory) {
+          showManageCustomizationFields(selectedCategory, selectedSubcategory);
+        } else {
+          showToast("Please ensure category and subcategory are set.", 'error');
+        }
+      }
+    });
+  }
+  
+  // Also attach directly if button exists (for immediate availability)
+  editManageCustomizationBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Get values from selects (even if disabled, value should still be accessible)
+    let selectedCategory = editCategorySelect ? editCategorySelect.value : "";
+    let selectedSubcategory = editSubcategorySelect ? editSubcategorySelect.value : "";
+    
+    // If values are empty (disabled selects sometimes don't return value), use stored product data
+    if (!selectedCategory || !selectedSubcategory) {
+      if (window.currentEditingProduct) {
+        selectedCategory = selectedCategory || window.currentEditingProduct.Category || "";
+        selectedSubcategory = selectedSubcategory || window.currentEditingProduct.Subcategory || "";
+      }
+    }
+    
+    // Fallback: try reading from selected option index
+    if (!selectedCategory && editCategorySelect && editCategorySelect.selectedIndex >= 0) {
+      const selectedOption = editCategorySelect.options[editCategorySelect.selectedIndex];
+      if (selectedOption && selectedOption.value) {
+        selectedCategory = selectedOption.value;
+      }
+    }
+    if (!selectedSubcategory && editSubcategorySelect && editSubcategorySelect.selectedIndex >= 0) {
+      const selectedOption = editSubcategorySelect.options[editSubcategorySelect.selectedIndex];
+      if (selectedOption && selectedOption.value) {
+        selectedSubcategory = selectedOption.value;
+      }
+    }
+    
     if (selectedCategory && selectedSubcategory) {
       showManageCustomizationFields(selectedCategory, selectedSubcategory);
+    } else {
+      showToast("Please ensure category and subcategory are set.", 'error');
     }
   });
   
@@ -5621,7 +6169,7 @@ function setupEditPopupHandlers() {
   }
   
   // Close popup handlers
-  const editPopup = document.getElementById("editPopup");
+  // editPopup already declared at the top of the function
   const editCloseBtn = document.getElementById("closeEditPopup");
   const editCancelBtn = document.getElementById("cancelEdit");
   const editSaveBtn = document.getElementById("editSaveBtn");
@@ -5629,6 +6177,7 @@ function setupEditPopupHandlers() {
   const closeEditPopup = () => {
     if (editPopup) editPopup.style.display = "none";
     window.productBeingEdited = null;
+    window.currentEditingProduct = null; // Clear stored product data
     clearImages('edit');
     tagPrices = {};
     standardSeries = [];
@@ -5676,7 +6225,7 @@ function setupEditPopupHandlers() {
   editCancelBtn?.addEventListener("click", closeEditPopup);
 
   // Save changes handler
-  editSaveBtn?.addEventListener("click", () => {
+  editSaveBtn?.addEventListener("click", async () => {
     if (!window.productBeingEdited) return;
 
     const id = window.productBeingEdited.dataset.id;
@@ -5694,19 +6243,34 @@ function setupEditPopupHandlers() {
     let priceMin = editPriceMinInput ? parseFloat(editPriceMinInput.value) : 0;
     let priceMax = editPriceMaxInput ? parseFloat(editPriceMaxInput.value) : 0;
 
+    // For editing, get existing product data if fields are empty (allows image-only updates)
     if (!name || !category || !orderType) {
-      showToast("Please complete all required fields.", 'error');
-      return;
+      // Try to get values from the product being edited
+      const productData = window.productBeingEdited.dataset;
+      if (!name && productData.name) name = productData.name;
+      if (!category && productData.category) category = productData.category;
+      if (!orderType && productData.orderType) orderType = productData.orderType || 'direct';
+      
+      // If still missing required fields, show error
+      if (!name || !category || !orderType) {
+        showToast("Please complete all required fields.", 'error');
+        return;
+      }
     }
 
-    if (!priceMin && !priceMax) {
-      showToast("Please enter at least a minimum or maximum price.", 'error');
-      return;
-    }
-
-    if (priceMin && priceMax && priceMin > priceMax) {
-      showToast("Minimum price cannot be greater than maximum price.", 'error');
-      return;
+    // Check for duplicate product name (only if name changed)
+    if (name && window.currentEditingProduct && name !== window.currentEditingProduct.ProductName) {
+      try {
+        const checkResponse = await fetch(base_url + "ProductCon/check_product_name?name=" + encodeURIComponent(name) + "&excludeId=" + id);
+        const checkData = await checkResponse.json();
+        if (checkData.exists) {
+          showToast("A product with this name already exists. Product names must be unique.", 'error');
+          return;
+        }
+      } catch (error) {
+        console.error('Error checking product name:', error);
+        // Continue with submission if check fails (backend will catch it)
+      }
     }
 
     // Validate image count (check if new images uploaded or existing images present)
@@ -5714,9 +6278,28 @@ function setupEditPopupHandlers() {
     const existingImageCount = editPreviewGrid ? editPreviewGrid.querySelectorAll('.image-preview-item').length : 0;
     const newImageCount = uploadedImages.edit.length;
     const totalImageCount = existingImageCount + newImageCount;
+    const MIN_IMAGES = 1;
+    const MAX_IMAGES = 10;
     
-    if (totalImageCount < 3) {
-      showToast(`Please ensure at least 3 images are present. Currently: ${totalImageCount}`, 'error');
+    // For editing, allow image-only updates without requiring prices
+    // Only require prices if no images are being updated
+    if (!priceMin && !priceMax && totalImageCount === 0) {
+      showToast("Please enter at least a minimum or maximum price, or upload images.", 'error');
+      return;
+    }
+
+    if (priceMin && priceMax && priceMin > priceMax) {
+      showToast("Minimum price cannot be greater than maximum price.", 'error');
+      return;
+    }
+    
+    if (totalImageCount < MIN_IMAGES) {
+      showToast(`Please ensure at least ${MIN_IMAGES} image is present. Currently: ${totalImageCount}`, 'error');
+      return;
+    }
+    
+    if (totalImageCount > MAX_IMAGES) {
+      showToast(`Maximum ${MAX_IMAGES} images allowed per product. Currently: ${totalImageCount}`, 'error');
       return;
     }
 
@@ -5814,20 +6397,48 @@ function setupProductSorting() {
   const sortSelect = document.getElementById("sortProducts");
   const productGrid = document.querySelector(".product-grid");
 
-  sortSelect?.addEventListener("change", () => {
+  if (!sortSelect || !productGrid) {
+    console.warn('Sort elements not found, retrying...');
+    setTimeout(setupProductSorting, 100);
+    return;
+  }
+
+  sortSelect.addEventListener("change", () => {
     let cards = Array.from(productGrid.querySelectorAll(".product-card"));
-    if (sortSelect.value === "recent") cards.reverse();
+    if (sortSelect.value === "recent") {
+      // Sort by most recent (already in DOM order, just reverse)
+      cards.reverse();
+    } else if (sortSelect.value === "last") {
+      // Sort by oldest first
+      cards.reverse();
+    }
+    // Re-append cards in new order
     cards.forEach(card => productGrid.appendChild(card));
   });
 }
 
 // -------------------- INIT --------------------
 document.addEventListener("DOMContentLoaded", () => {
+  console.log('Products page DOM loaded, initializing...');
+  
   // Load customization fields first (async, but we don't need to wait)
   loadCustomizationFields().catch(e => console.error('Error loading customization fields:', e));
   
-  setupSearchFilter();
-  setupProductPopups();
-  setupProductSorting();
-  setupEditPopupHandlers();
+  // Setup functions with retry logic
+  function initializeAll() {
+    try {
+      setupSearchFilter();
+      setupProductPopups();
+      setupProductSorting();
+      setupEditPopupHandlers();
+      console.log('All product page functions initialized successfully');
+    } catch (error) {
+      console.error('Error initializing product page:', error);
+      // Retry after a short delay
+      setTimeout(initializeAll, 200);
+    }
+  }
+  
+  // Small delay to ensure DOM is fully ready
+  setTimeout(initializeAll, 50);
 });

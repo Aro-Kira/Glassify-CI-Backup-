@@ -18,15 +18,16 @@ public function products()
     $data['title'] = "Glassify - Products";
     $this->load->model('Inventory_model');
 
-    // Load products from database
-    $products = $this->Product_model->get_products();
+    // Get all products first to update their status
+    $allProducts = $this->Product_model->get_all_products();
     
     // Update product status based on materials for each product
-    foreach ($products as $product) {
+    foreach ($allProducts as $product) {
         $this->Inventory_model->update_product_status_from_materials($product->Product_ID);
     }
     
-    // Reload products to get updated status
+    // Load products that customers can see (In Stock or Low Stock)
+    // This matches what admin shows
     $products = $this->Product_model->get_products();
     
     // Fetch tags and series for each product

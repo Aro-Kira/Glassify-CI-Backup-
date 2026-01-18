@@ -10,10 +10,19 @@ class Product_model extends CI_Model {
     }
 public function get_products() {
     // Only show products that are available (In Stock or Low Stock)
+    // Explicitly select all columns including ImageUrl
+    $this->db->select('*');
     $this->db->group_start();
     $this->db->where('Status', 'In Stock');
     $this->db->or_where('Status', 'Low Stock');
     $this->db->group_end();
+    return $this->db->order_by('DateAdded', 'DESC')->get('product')->result();
+}
+
+public function get_all_products() {
+    // Get all products regardless of status (for admin)
+    // Explicitly select all columns including ImageUrl
+    $this->db->select('*');
     return $this->db->order_by('DateAdded', 'DESC')->get('product')->result();
 }
 
@@ -34,6 +43,21 @@ public function get_product($id) {
     $this->db->select('*');
     $this->db->where('Product_ID', $id);
     return $this->db->get('product')->row();
+}
+
+/**
+ * Check if a product name already exists
+ * @param string $productName The product name to check
+ * @param int $excludeId Optional product ID to exclude from check (for updates)
+ * @return bool True if name exists, False otherwise
+ */
+public function product_name_exists($productName, $excludeId = null) {
+    $this->db->where('ProductName', $productName);
+    if ($excludeId !== null) {
+        $this->db->where('Product_ID !=', $excludeId);
+    }
+    $query = $this->db->get('product');
+    return $query->num_rows() > 0;
 }
 
 /**

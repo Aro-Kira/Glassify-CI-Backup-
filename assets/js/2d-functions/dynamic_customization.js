@@ -193,6 +193,38 @@ function renderDynamicCustomizationFields(fields, tagPrices, container, tagImage
   // This ensures the first selected shape is applied to the canvas
   setTimeout(() => {
     syncStateFromActiveSelections();
+    
+    // Initialize conditional logic for Windows_Sliding fields after fields are rendered
+    setTimeout(() => {
+      // Check initial state of fields that affect conditionals
+      const transomTypeContainer = document.querySelector('[data-field-id="transomType"]');
+      const numberOfPanelsContainer = document.querySelector('[data-field-id="numberOfPanels"]');
+      const trackSystemContainer = document.querySelector('[data-field-id="trackSystem"]');
+      
+      if (transomTypeContainer) {
+        const activeTransom = transomTypeContainer.querySelector('.option-card.active');
+        if (activeTransom) {
+          const transomValue = activeTransom.dataset.value || activeTransom.textContent.trim();
+          handleWindowsSlidingConditionals('transomType', transomValue);
+        }
+      }
+      
+      if (numberOfPanelsContainer) {
+        const activePanels = numberOfPanelsContainer.querySelector('.option-card.active');
+        if (activePanels) {
+          const panelsValue = activePanels.dataset.value || activePanels.textContent.trim();
+          handleWindowsSlidingConditionals('numberOfPanels', panelsValue);
+        }
+      }
+      
+      if (trackSystemContainer) {
+        const activeTrack = trackSystemContainer.querySelector('.option-card.active');
+        if (activeTrack) {
+          const trackValue = activeTrack.dataset.value || activeTrack.textContent.trim();
+          handleWindowsSlidingConditionals('trackSystem', trackValue);
+        }
+      }
+    }, 350);
   }, 300);
 }
 
@@ -447,6 +479,9 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
         }, 50);
       }
       
+      // Handle Windows_Sliding conditional logic
+      handleWindowsSlidingConditionals(field.id, option);
+      
       // Trigger price recalculation
       if (typeof window !== 'undefined' && typeof window.updateRealTimePriceDisplay === 'function') {
         window.updateRealTimePriceDisplay();
@@ -458,6 +493,13 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
 
   tagContainer.appendChild(tagsGrid);
   container.appendChild(tagContainer);
+  
+  // For Screen field, check initial track system state after rendering
+  if (field.id === 'screen') {
+    setTimeout(() => {
+      updateScreenAvailability();
+    }, 150);
+  }
   
   // Immediately ensure only one option is active in this field group
   setTimeout(() => {
@@ -501,6 +543,8 @@ function updatePriceFromTagSelection(fieldId, tagName, isSelected) {
 function renderCheckboxField(field, container) {
   const checkboxWrapper = document.createElement('div');
   checkboxWrapper.className = 'checkbox-wrapper';
+  checkboxWrapper.id = `${field.id}Container`;
+  checkboxWrapper.dataset.fieldId = field.id;
   
   const checkbox = document.createElement('input');
   checkbox.type = 'checkbox';
@@ -517,6 +561,14 @@ function renderCheckboxField(field, container) {
 
   checkboxWrapper.appendChild(checkbox);
   checkboxWrapper.appendChild(label);
+  
+  // For Screen field, check initial track system state
+  if (field.id === 'screen') {
+    setTimeout(() => {
+      updateScreenAvailability();
+    }, 100);
+  }
+  
   container.appendChild(checkboxWrapper);
 }
 
@@ -591,6 +643,176 @@ function checkCornerRadiusVisibility(container) {
     if (input) {
       input.value = '0';
       updateKonvaFromField('cornerRadius', 0, true);
+    }
+  }
+}
+
+/**
+ * Handle conditional logic for Windows_Sliding fields
+ */
+function handleWindowsSlidingConditionals(changedFieldId, selectedValue) {
+  // Rule 1: Track System depends on Transom Type
+  if (changedFieldId === 'transomType') {
+    const trackSystemContainer = document.querySelector('[data-field-id="trackSystem"]');
+    if (trackSystemContainer) {
+      const trackOptions = trackSystemContainer.querySelectorAll('.option-card');
+      const isFixedTransomSill = selectedValue.includes('Fixed Transom Sill');
+      
+      trackOptions.forEach(option => {
+        const optionValue = option.dataset.value || option.textContent.trim();
+        if (isFixedTransomSill && optionValue === '3 Tracks') {
+          // Disable 3 Tracks if Fixed Transom Sill is selected
+          option.style.opacity = '0.5';
+          option.style.pointerEvents = 'none';
+          option.classList.add('disabled');
+          // If 3 Tracks was selected, switch to 2 Tracks
+          if (option.classList.contains('active')) {
+            option.classList.remove('active');
+            const twoTracksOption = Array.from(trackOptions).find(opt => opt.dataset.value === '2 Tracks');
+            if (twoTracksOption) {
+              twoTracksOption.classList.add('active');
+              selectedCustomizationValues['trackSystem'] = '2 Tracks';
+            }
+          }
+        } else {
+          // Enable all options if None or Fixed Transom Head
+          option.style.opacity = '';
+          option.style.pointerEvents = '';
+          option.classList.remove('disabled');
+        }
+      });
+      
+      // Update Screen checkbox based on track system
+      updateScreenAvailability();
+    }
+  }
+  
+  // Rule 2: Track System changes affect Screen availability
+  if (changedFieldId === 'trackSystem') {
+    updateScreenAvailability();
+  }
+  
+  // Rule 3: Panel Configuration depends on Number of Panels
+  if (changedFieldId === 'numberOfPanels') {
+    const panelConfigContainer = document.querySelector('[data-field-id="panelConfiguration"]');
+    if (panelConfigContainer) {
+      const configOptions = panelConfigContainer.querySelectorAll('.option-card');
+      const isTwoPanels = selectedValue === '2 Panels';
+      const isFourPanels = selectedValue === '4 Panels';
+      
+      configOptions.forEach(option => {
+        const optionValue = option.dataset.value || option.textContent.trim();
+        // Check if it's a 2-panel option (S | S or F | S, but not S | S | S | S)
+        const isTwoPanelOption = (optionValue.includes('S | S') && !optionValue.includes('S | S | S | S')) || 
+                                  (optionValue.includes('F | S') && !optionValue.includes('F | S | S | F'));
+        // Check if it's a 4-panel option
+        const isFourPanelOption = optionValue.includes('S | S | S | S') || optionValue.includes('F | S | S | F');
+        
+        if (isTwoPanels) {
+          // Show only 2-panel options, hide 4-panel options
+          if (isTwoPanelOption) {
+            option.style.display = '';
+          } else {
+            option.style.display = 'none';
+            if (option.classList.contains('active')) {
+              option.classList.remove('active');
+            }
+          }
+        } else if (isFourPanels) {
+          // Show only 4-panel options, hide 2-panel options
+          if (isFourPanelOption) {
+            option.style.display = '';
+          } else {
+            option.style.display = 'none';
+            if (option.classList.contains('active')) {
+              option.classList.remove('active');
+            }
+          }
+        }
+      });
+      
+      // Auto-select first visible option if none selected
+      setTimeout(() => {
+        const activeConfig = panelConfigContainer.querySelector('.option-card.active');
+        if (!activeConfig || activeConfig.style.display === 'none') {
+          const visibleOptions = Array.from(panelConfigContainer.querySelectorAll('.option-card')).filter(opt => opt.style.display !== 'none');
+          if (visibleOptions.length > 0) {
+            visibleOptions[0].classList.add('active');
+            selectedCustomizationValues['panelConfiguration'] = visibleOptions[0].dataset.value || visibleOptions[0].textContent.trim();
+          }
+        }
+      }, 50);
+    }
+  }
+}
+
+/**
+ * Update Screen tags field availability based on Track System
+ */
+function updateScreenAvailability() {
+  const trackSystemContainer = document.querySelector('[data-field-id="trackSystem"]');
+  const screenContainer = document.querySelector('[data-field-id="screen"]');
+  
+  if (!trackSystemContainer || !screenContainer) return;
+  
+  const activeTrackOption = trackSystemContainer.querySelector('.option-card.active');
+  if (!activeTrackOption) return;
+  
+  const selectedTrack = activeTrackOption.dataset.value || activeTrackOption.textContent.trim();
+  const screenOptions = screenContainer.querySelectorAll('.option-card');
+  
+  if (screenOptions.length > 0) {
+    if (selectedTrack === '3 Tracks') {
+      // Disable "With Screen" option for 3 Tracks
+      screenOptions.forEach(option => {
+        const optionValue = option.dataset.value || option.textContent.trim();
+        if (optionValue === 'With Screen') {
+          option.style.opacity = '0.5';
+          option.style.pointerEvents = 'none';
+          option.classList.add('disabled');
+          // If "With Screen" was selected, switch to "Without Screen"
+          if (option.classList.contains('active')) {
+            option.classList.remove('active');
+            const withoutScreenOption = Array.from(screenOptions).find(opt => {
+              const val = opt.dataset.value || opt.textContent.trim();
+              return val === 'Without Screen';
+            });
+            if (withoutScreenOption) {
+              withoutScreenOption.classList.add('active');
+              selectedCustomizationValues['screen'] = 'Without Screen';
+            }
+          }
+        } else {
+          // Enable "Without Screen" option
+          option.style.opacity = '';
+          option.style.pointerEvents = '';
+          option.classList.remove('disabled');
+        }
+      });
+      
+      // Show message
+      let messageEl = screenContainer.querySelector('.conditional-message');
+      if (!messageEl) {
+        messageEl = document.createElement('div');
+        messageEl.className = 'conditional-message';
+        messageEl.style.color = '#999';
+        messageEl.style.fontSize = '12px';
+        messageEl.style.marginTop = '5px';
+        messageEl.style.textAlign = 'center';
+        screenContainer.appendChild(messageEl);
+      }
+      messageEl.textContent = 'Screen not available for 3 Tracks';
+    } else {
+      // Enable all screen options for 2 Tracks
+      screenOptions.forEach(option => {
+        option.style.opacity = '';
+        option.style.pointerEvents = '';
+        option.classList.remove('disabled');
+      });
+      const messageEl = screenContainer.querySelector('.conditional-message');
+      if (messageEl) {
+        messageEl.remove();
+      }
     }
   }
 }

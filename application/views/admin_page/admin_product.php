@@ -23,18 +23,18 @@
 
       <select class="filter-category">
         <option value="">All Category</option>
-        <option value="balcony">Balcony</option>
-        <option value="board">Board</option>
-        <option value="cabinet">Cabinet</option>
-        <option value="doors">Doors</option>
-        <option value="mirrors">Mirrors</option>
-        <option value="partition">Partition</option>
-        <option value="shower-enclosure">Shower Enclosure</option>
-        <option value="sliding-doors">Sliding Doors</option>
-        <option value="sliding-windows">Sliding Windows</option>
-        <option value="stair-railings">Stair Railings</option>
-        <option value="storefront">Storefront</option>
-        <option value="windows">Windows</option>
+        <?php
+        // Get unique categories from products
+        $categories = [];
+        foreach ($products as $product) {
+          if (!empty($product->Category) && !in_array($product->Category, $categories)) {
+            $categories[] = $product->Category;
+          }
+        }
+        sort($categories);
+        foreach ($categories as $category): ?>
+          <option value="<?= htmlspecialchars($category); ?>"><?= htmlspecialchars($category); ?></option>
+        <?php endforeach; ?>
       </select>
       <select class="sort-products" id="sortProducts">
         <option value="recent">Recently Added</option>
@@ -55,6 +55,7 @@
               // Handle both JSON array and single string formats
               $imageUrl = $product->ImageUrl ?? '';
               $firstImage = 'default.png';
+              $imagePath = '';
               
               if (!empty($imageUrl)) {
                 // Check if it's a JSON array
@@ -65,10 +66,28 @@
                   // Single image (backward compatibility)
                   $firstImage = $imageUrl;
                 }
+                
+                // Check if image path already includes a full path or is just a filename
+                if (strpos($firstImage, 'broken-image-icon') !== false) {
+                  // Use placeholder SVG data URI for broken image icons
+                  $imagePath = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                } else if (strpos($firstImage, 'assets/') === 0 || strpos($firstImage, '/assets/') === 0) {
+                  // It's an assets path, use it as-is
+                  $imagePath = base_url($firstImage);
+                } else if (strpos($firstImage, 'http://') === 0 || strpos($firstImage, 'https://') === 0) {
+                  // It's a full URL, use it as-is
+                  $imagePath = $firstImage;
+                } else {
+                  // It's just a filename, prepend uploads/products/
+                  $imagePath = base_url('uploads/products/' . $firstImage);
+                }
+              } else {
+                $imagePath = base_url('uploads/products/default.png');
               }
             ?>
-            <img src="<?= base_url('uploads/products/' . $firstImage); ?>"
-              alt="<?= $product->ProductName; ?>">
+            <img src="<?= $imagePath; ?>"
+              alt="<?= $product->ProductName; ?>"
+              onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';">
           </div>
           <p class="product-name"><?= $product->ProductName; ?></p>
           <p class="product-price">₱<?= isset($product->Price) ? number_format($product->Price, 2) : '0.00'; ?></p>
@@ -108,7 +127,7 @@
         <!-- Multiple Image Upload -->
         <div class="form-group">
           <label>Product Images <span class="required-indicator">*</span></label>
-          <small class="image-requirement">Minimum 3-4 images required</small>
+          <small class="image-requirement">Minimum 1 image required</small>
           
           <!-- Image Upload Area -->
           <div class="multiple-image-upload-container">
@@ -119,7 +138,7 @@
               <div class="dropzone-content">
                 <i class="fas fa-cloud-upload-alt"></i>
                 <p class="dropzone-text">Drag & drop images here or <span class="browse-link">browse</span></p>
-                <p class="dropzone-subtext">Upload at least 3-4 images (JPG, PNG, GIF)</p>
+                <p class="dropzone-subtext">Upload at least 1 image (JPG, PNG, GIF) - Maximum 10 images</p>
               </div>
             </div>
             
@@ -130,7 +149,7 @@
             
             <!-- Image Count Indicator -->
             <div class="image-count-indicator">
-              <span id="imageCount">0</span> / 4+ images uploaded
+              <span id="imageCount">0</span> images uploaded
             </div>
           </div>
         </div>
@@ -201,6 +220,19 @@
           </select>
         </div>
 
+        <!-- Series Selection (appears after subcategory is selected, only for Windows subcategories) -->
+        <div class="form-group" id="seriesGroup" style="display: none;">
+          <label for="productSeries">Series <span style="color: #999; font-weight: normal;">(Optional)</span></label>
+          <select id="productSeries" class="input-text">
+            <option value="" selected>None</option>
+            <option value="798 Series">798 Series</option>
+            <option value="868-DMX Series">868-DMX Series</option>
+            <option value="900 Series">900 Series</option>
+            <option value="130-DMX Series">130-DMX Series</option>
+          </select>
+          <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Select a series to auto-fill customization fields, or choose None to configure manually</small>
+        </div>
+
         <!-- Customization and Standard Tabs -->
         <div class="form-group">
           <div class="customization-tabs">
@@ -264,7 +296,7 @@
         <!-- Multiple Image Upload -->
         <div class="form-group">
           <label>Product Images <span class="required-indicator">*</span></label>
-          <small class="image-requirement">Minimum 3-4 images required</small>
+          <small class="image-requirement">Minimum 1 image required</small>
           
           <!-- Image Upload Area -->
           <div class="multiple-image-upload-container">
@@ -275,7 +307,7 @@
               <div class="dropzone-content">
                 <i class="fas fa-cloud-upload-alt"></i>
                 <p class="dropzone-text">Drag & drop images here or <span class="browse-link">browse</span></p>
-                <p class="dropzone-subtext">Upload at least 3-4 images (JPG, PNG, GIF)</p>
+                <p class="dropzone-subtext">Upload at least 1 image (JPG, PNG, GIF) - Maximum 10 images</p>
               </div>
             </div>
             
@@ -286,7 +318,7 @@
             
             <!-- Image Count Indicator -->
             <div class="image-count-indicator">
-              <span id="editImageCount">0</span> / 4+ images uploaded
+              <span id="editImageCount">0</span> images uploaded
             </div>
           </div>
         </div>
@@ -357,6 +389,19 @@
             <option value="" disabled selected>Select subcategory</option>
           </select>
           <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Subcategory cannot be edited</small>
+        </div>
+
+        <!-- Series Selection (appears after subcategory is selected, only for Windows subcategories) -->
+        <div class="form-group" id="editSeriesGroup" style="display: none;">
+          <label for="editProductSeries">Series <span style="color: #999; font-weight: normal;">(Optional)</span></label>
+          <select id="editProductSeries" class="input-text">
+            <option value="" selected>None</option>
+            <option value="798 Series">798 Series</option>
+            <option value="868-DMX Series">868-DMX Series</option>
+            <option value="900 Series">900 Series</option>
+            <option value="130-DMX Series">130-DMX Series</option>
+          </select>
+          <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Select a series to auto-fill customization fields, or choose None to configure manually</small>
         </div>
 
         <!-- Customization and Standard Tabs -->
@@ -711,4 +756,3 @@
 
 <!-- Konva Visual Presets - Smart auto-suggestions for tag visual configs -->
 <script src="<?php echo base_url('assets/js/admin-js/konva_visual_presets.js'); ?>"></script>
-<script src="<?php echo base_url('assets/js/admin-js/products.js'); ?>"></script>
