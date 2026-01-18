@@ -516,62 +516,6 @@
             </div>
         </div>
     </section>
-
-  <!-- Testimonials -->
-  <section id="testimonials-section" class="testimonials">
-    <h2>Customer Testimonials</h2>
-    <div class="testimonial-content">
-      <button class="testimonial-arrow left">
-        <img src="<?php echo base_url(''); ?>assets/images/img-page/testimonials-arrow.png" alt="Previous">
-      </button>
-
-      <div class="testimonial-wrapper">
-        <div class="testimonial-text active">
-          <p>Highly recommending this shop! Very smooth and fast transaction. Despite unfortunate events, they were
-            still able to deliver. Owner and staff are committed at great service. Exceeds expectations. Will definitely
-            be our go-to-shop for glass and aluminum.</p>
-          <div class="stars">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-          </div>
-          <h3 class="author">Kris-Ann Munda-Rebullana</h3>
-        </div>
-
-        <div class="testimonial-text">
-          <p>Highly recommended ⭐⭐⭐⭐⭐ Very accommodating staff. Responded immediately to queries and concerns. Quality
-            materials and great workmanship. We'll ask them DEFINITELY to do collab again in our next project 👍👍</p>
-          <div class="stars">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-          </div>
-          <h3 class="author">Anne Cruz</h3>
-        </div>
-
-        <div class="testimonial-text">
-          <p>Highly recommended! GlassWorth Builders service was excellent, and the quality of materials was top-notch.
-            Their installers were kind and demonstrated good workmanship. I'm thoroughly impressed!</p>
-          <div class="stars">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
-          </div>
-          <h3 class="author">Jandoc Jun</h3>
-        </div>
-      </div>
-
-      <button class="testimonial-arrow right">
-        <img src="<?php echo base_url('assets/images/img-page/testimonials-arrow.png'); ?>" alt="Next">
-      </button>
-    </div>
-  </section>
 </body>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -767,6 +711,38 @@
             // Set global reference for dynamic_customization.js
             if (typeof window !== 'undefined') {
                 window.selectedProduct = selectedProduct;
+            }
+
+            // Check if we are editing an existing cart item
+            const urlParams = new URLSearchParams(window.location.search);
+            const editCartId = urlParams.get('cart_id');
+            if (editCartId) {
+                console.log(`[Edit] Detected Edit Mode for Cart ID: ${editCartId}`);
+                try {
+                    const editResponse = await fetch(base_url + 'CartCon/get_item_customization_ajax?cart_id=' + editCartId);
+                    const editResult = await editResponse.json();
+                    if (editResult.status === 'success' && editResult.customization) {
+                        console.log('[Edit] Preloading customization:', editResult.customization);
+                        window.preloadedCustomization = editResult.customization;
+                        
+                        // Set dimensions if available
+                        if (editResult.customization.Dimensions) {
+                            const dims = editResult.customization.Dimensions.toLowerCase().split('x');
+                            if (dims.length === 2) {
+                                const wMatch = dims[0].match(/(\d+\.?\d*)(in|cm|mm)/);
+                                const hMatch = dims[1].match(/(\d+\.?\d*)(in|cm|mm)/);
+                                if (wMatch && hMatch) {
+                                    window.preloadedDimensions = {
+                                        width: { value: wMatch[1], unit: wMatch[2] },
+                                        height: { value: hMatch[1], unit: hMatch[2] }
+                                    };
+                                }
+                            }
+                        }
+                    }
+                } catch(e) {
+                    console.error('[Edit] Error loading item customization:', e);
+                }
             }
 
             // Wait a bit for scripts to load and initialize

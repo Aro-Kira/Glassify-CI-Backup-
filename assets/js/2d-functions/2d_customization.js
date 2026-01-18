@@ -38,12 +38,22 @@ let currentStep = 1;
 let isStandardMode = false;
 let dimensionsLocked = false; // Lock state for equalizing height and width
 
+// PRICING STATE
+let pricingDatabase = null;
+let priceBreakdown = {
+    baseArea: 0,
+    fieldPrices: {},
+    total: 0,
+    isMinimumPriceApplied: false,
+    minimumPrice: 0
+};
+
 // CUSTOM STATE VARIABLES
-let currentShape = 'rectangle';
-let currentGlassType = 'tempered';
-let currentThickness = '5mm';
-let currentEdgeWork = 'flat-polish';
-let currentFrameType = 'vinyl';
+let currentShape = null;
+let currentGlassType = null;
+let currentThickness = null;
+let currentEdgeWork = null;
+let currentFrameType = null;
 // Corner radius in inches (applies to rectangle/square only)
 let currentCornerRadius = 0;
 let currentDimensions = {
@@ -1159,19 +1169,21 @@ function syncShapeFromActiveSelection() {
 
 // --- TOGGLE MODE LOGIC (UPDATED) ---
 
-btnCustomize.addEventListener('click', () => {
-    if (!isStandardMode) return;
-    isStandardMode = false;
+if (btnCustomize) {
+    btnCustomize.addEventListener('click', () => {
+        if (!isStandardMode) return;
+        isStandardMode = false;
 
-    // UI Updates
-    btnCustomize.classList.add('active'); btnCustomize.classList.remove('inactive');
-    customWrapper.classList.remove('hidden-step'); 
-    priceBox.classList.remove('hidden-step'); 
-    updateBreadcrumbs(currentStep);
+        // UI Updates
+        btnCustomize.classList.add('active'); btnCustomize.classList.remove('inactive');
+        customWrapper.classList.remove('hidden-step'); 
+        priceBox.classList.remove('hidden-step'); 
+        updateBreadcrumbs(currentStep);
 
-    // DRAWING UPDATE: Restore the User's Custom State
-    renderCustomState();
-});
+        // DRAWING UPDATE: Restore the User's Custom State
+        renderCustomState();
+    });
+}
 
 
 // --- CUSTOM EVENT LISTENERS (EXISTING) ---
@@ -1488,7 +1500,15 @@ function setupUnitDropdown(btnId, dropdownId, inputId, dimensionType) {
     const btn = document.getElementById(btnId);
     const dropdown = document.getElementById(dropdownId);
     const input = document.getElementById(inputId);
-    btn.addEventListener('click', (e) => { e.stopPropagation(); document.querySelectorAll('.unit-dropdown').forEach(d => d !== dropdown && d.classList.add('hidden-step')); dropdown.classList.toggle('hidden-step'); });
+    
+    if (!btn || !dropdown || !input) return;
+
+    btn.addEventListener('click', (e) => { 
+        e.stopPropagation(); 
+        document.querySelectorAll('.unit-dropdown').forEach(d => d !== dropdown && d.classList.add('hidden-step')); 
+        dropdown.classList.toggle('hidden-step'); 
+    });
+
     dropdown.querySelectorAll('.unit-option').forEach(opt => {
         opt.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1498,10 +1518,12 @@ function setupUnitDropdown(btnId, dropdownId, inputId, dimensionType) {
             const val = parseFloat(input.value);
             if (!isNaN(val)) { input.value = Math.round((val * unitMap[currentUnit].toMm / unitMap[targetUnit].toMm) * 100) / 100; }
             btn.dataset.currentUnit = targetUnit;
+            
             const otherType = dimensionType === 'height' ? 'width' : 'height';
             const otherBtn = document.getElementById(`btn-unit-${otherType}`);
             const otherInput = document.getElementById(`input-${otherType}`);
-            if (otherBtn.dataset.currentUnit !== targetUnit) {
+            
+            if (otherBtn && otherInput && otherBtn.dataset.currentUnit !== targetUnit) {
                 const otherVal = parseFloat(otherInput.value);
                 if (!isNaN(otherVal)) { otherInput.value = Math.round((otherVal * unitMap[otherBtn.dataset.currentUnit].toMm / unitMap[targetUnit].toMm) * 100) / 100; }
                 otherBtn.dataset.currentUnit = targetUnit;
@@ -1509,7 +1531,9 @@ function setupUnitDropdown(btnId, dropdownId, inputId, dimensionType) {
             }
             // Update both dimensions since units are synced
             updateDimensions(dimensionType, input.value, targetUnit);
-            updateDimensions(otherType, otherInput.value, targetUnit);
+            if (otherInput) {
+                updateDimensions(otherType, otherInput.value, targetUnit);
+            }
             dropdown.classList.add('hidden-step');
         });
     });
@@ -1523,105 +1547,113 @@ document.addEventListener('click', (e) => {
 });
 
 // Navigation Logic (single next/back handler covers standard & custom flows)
-nextBtn.addEventListener('click', () => {
-    // Standard mode: move to standard step or finalize
-    if (isStandardMode) {
-        if (currentStep < 2) {
-            goToStep(2);
-        } else {
-            // Finalize standard order
-            console.log('Finalizing Standard Order...');
+if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+        // Standard mode: move to standard step or finalize
+        if (isStandardMode) {
+            if (currentStep < 2) {
+                goToStep(2);
+            } else {
+                // Finalize standard order
+                console.log('Finalizing Standard Order...');
+                showOrderSummary();
+                logOrderSummary();
+            }
+            return;
+        }
+
+        // VALIDATION: Check if all visible fields in current step have a selection
+        const currentStepEl = document.getElementById(`step-${currentStep}`);
+        const warningEl = document.getElementById('validation-warning');
+
+        if (currentStepEl) {
+            // Find all containers that should have a selection
+            const containers = currentStepEl.querySelectorAll('[data-field-id]');
+            let missingFields = [];
+            const addedToMissing = new Set();
+            
+            containers.forEach(container => {
+                // Skip if it's an option-card itself
+                if (container.classList.contains('option-card')) return;
+                
+                // Skip if hidden
+                if (container.style.display === 'none' || container.closest('.hidden-step')) return;
+                
+                const fieldId = container.dataset.fieldId;
+                if (!fieldId) return;
+
+                // Special case: check if this is a container that actually holds options
+                const hasOptions = container.querySelectorAll('.option-card').length > 0;
+                if (!hasOptions) return;
+
+                // Check for active selection
+                const activeCard = container.querySelector('.option-card.active');
+                if (!activeCard) {
+                    const label = getFieldDisplayName(fieldId);
+                    if (!addedToMissing.has(label)) {
+                        missingFields.push(label);
+                        addedToMissing.add(label);
+                    }
+                }
+            });
+
+            // Also check dimensions
+            const dimContainer = document.querySelector('.dimensions-container');
+            if (dimContainer && !dimContainer.classList.contains('hidden-step')) {
+                if (!inputHeight?.value || !inputWidth?.value || parseFloat(inputHeight.value) <= 0 || parseFloat(inputWidth.value) <= 0) {
+                    missingFields.push('Dimensions (Height & Width)');
+                }
+            }
+
+            if (missingFields.length > 0) {
+                if (warningEl) {
+                    warningEl.innerHTML = '<div style="display: flex; align-items: center; gap: 10px;">' +
+                                        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
+                                        '<span>Please complete the following specifications: <strong>' + missingFields.join(', ') + '</strong></span>' +
+                                        '</div>';
+                    warningEl.style.display = 'block';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    alert('Please complete: ' + missingFields.join(', '));
+                }
+                return;
+            } else {
+                if (warningEl) warningEl.style.display = 'none';
+            }
+        }
+
+        // Custom mode normal flow
+        if (currentStep === 1) goToStep(2);
+        else if (currentStep === 2) goToStep(3);
+        else {
+            // Step 3 -> Finalize custom order
+            console.log('Finalizing Custom Order...');
             showOrderSummary();
             logOrderSummary();
         }
-        return;
-    }
-
-    // VALIDATION: Check if all visible fields in current step have a selection
-    const currentStepEl = document.getElementById(`step-${currentStep}`);
-    const warningEl = document.getElementById('validation-warning');
-
-    if (currentStepEl) {
-        // Find all containers that should have a selection
-        const containers = currentStepEl.querySelectorAll('[data-field-id]');
-        let missingFields = [];
-        const addedToMissing = new Set();
-        
-        containers.forEach(container => {
-            // Skip if it's an option-card itself
-            if (container.classList.contains('option-card')) return;
-            
-            // Skip if hidden
-            if (container.style.display === 'none' || container.closest('.hidden-step')) return;
-            
-            const fieldId = container.dataset.fieldId;
-            if (!fieldId) return;
-
-            // Special case: check if this is a container that actually holds options
-            const hasOptions = container.querySelectorAll('.option-card').length > 0;
-            if (!hasOptions) return;
-
-            // Check for active selection
-            const activeCard = container.querySelector('.option-card.active');
-            if (!activeCard) {
-                const label = getFieldDisplayName(fieldId);
-                if (!addedToMissing.has(label)) {
-                    missingFields.push(label);
-                    addedToMissing.add(label);
-                }
-            }
-        });
-
-        // Also check dimensions
-        const dimContainer = document.querySelector('.dimensions-container');
-        if (dimContainer && !dimContainer.classList.contains('hidden-step')) {
-            if (!inputHeight?.value || !inputWidth?.value || parseFloat(inputHeight.value) <= 0 || parseFloat(inputWidth.value) <= 0) {
-                missingFields.push('Dimensions (Height & Width)');
-            }
-        }
-
-        if (missingFields.length > 0) {
-            if (warningEl) {
-                warningEl.innerHTML = '<div style="display: flex; align-items: center; gap: 10px;">' +
-                                    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
-                                    '<span>Please complete the following specifications: <strong>' + missingFields.join(', ') + '</strong></span>' +
-                                    '</div>';
-                warningEl.style.display = 'block';
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            } else {
-                alert('Please complete: ' + missingFields.join(', '));
-            }
-            return;
-        } else {
-            if (warningEl) warningEl.style.display = 'none';
-        }
-    }
-
-    // Custom mode normal flow
-    if (currentStep === 1) goToStep(2);
-    else if (currentStep === 2) goToStep(3);
-    else {
-        // Step 3 -> Finalize custom order
-        console.log('Finalizing Custom Order...');
-        showOrderSummary();
-        logOrderSummary();
-    }
-});
+    });
+}
 
 
-backBtn.addEventListener('click', () => {
-    if (currentStep === 2) goToStep(1);
-    else if (currentStep === 3) goToStep(2);
-});
+if (backBtn) {
+if (backBtn) {
+    backBtn.addEventListener('click', () => {
+        if (currentStep === 2) goToStep(1);
+        else if (currentStep === 3) goToStep(2);
+    });
+}
+}
 
 function goToStep(targetStep) {
     // Hide all steps first
-    [step1, step2, step3].forEach(s => s.classList.add('hidden-step'));
+    [step1, step2, step3].forEach(s => {
+        if (s) s.classList.add('hidden-step');
+    });
 
     // Show the target step
-    if (targetStep === 1) step1.classList.remove('hidden-step');
-    if (targetStep === 2) step2.classList.remove('hidden-step');
-    if (targetStep === 3) step3.classList.remove('hidden-step');
+    if (targetStep === 1 && step1) step1.classList.remove('hidden-step');
+    if (targetStep === 2 && step2) step2.classList.remove('hidden-step');
+    if (targetStep === 3 && step3) step3.classList.remove('hidden-step');
 
     // Update UI
     updateActionArea(targetStep);
@@ -1639,6 +1671,7 @@ function updateActionArea(step) {
 }
 
 function updateBreadcrumbs(step) {
+    if (!crumbMain) return;
     crumbMain.innerText = 'Glass Shape'; crumbMain.classList.add('active');
     removeCrumb('crumb-step2'); removeCrumb('crumb-step3');
     if (step >= 2) { crumbMain.classList.remove('active'); addBreadcrumb('Type & Thickness', 'crumb-step2', step === 2); }
@@ -1646,6 +1679,7 @@ function updateBreadcrumbs(step) {
 }
 
 function resetBreadcrumbsToStandard() {
+    if (!crumbMain) return;
     crumbMain.innerText = 'Standard';
     crumbMain.classList.add('active');
     removeCrumb('crumb-step2');
@@ -1655,7 +1689,7 @@ function resetBreadcrumbsToStandard() {
 
 
 function addBreadcrumb(text, id, isActive) {
-    if (document.getElementById(id)) return;
+    if (!breadcrumbsContainer || document.getElementById(id)) return;
     const newChevron = document.createElement('span'); newChevron.className = 'chevron-right'; newChevron.id = 'chevron-' + id;
     const newCrumb = document.createElement('span'); newCrumb.className = isActive ? 'active' : ''; newCrumb.id = id; newCrumb.innerText = text;
     breadcrumbsContainer.appendChild(newChevron); breadcrumbsContainer.appendChild(newCrumb);
@@ -1883,7 +1917,6 @@ function updateExternalFileDisplay() {
 // --- PRICING LOGIC (Philippines Context) ---
 // Price per square inch based on product base price
 // Initialize pricingDatabase early to avoid hoisting issues
-let pricingDatabase = null;
 
 // Initialize pricing database (must be called after productBasePrice is available)
 function initializePricingDatabase() {
@@ -1977,6 +2010,18 @@ function getSelectedValueForField(fieldId) {
         }
     }
     
+    // Also try to get from active option card in DOM
+    const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
+    if (fieldContainer) {
+        const activeCard = fieldContainer.querySelector('.option-card.active');
+        if (activeCard && activeCard.dataset.value) {
+            return activeCard.dataset.value;
+        }
+        // If the field exists in DOM but nothing is active, return null
+        // This ensures the breakdown shows "(Not Selected)" instead of defaults
+        return null;
+    }
+    
     // Fallback to legacy field mappings (for backward compatibility)
     const legacyMappings = {
         'shape': currentShape,
@@ -1988,24 +2033,10 @@ function getSelectedValueForField(fieldId) {
         'edgeFinish': currentEdgeWork
     };
     
-    // Also try to get from active option card in DOM
-    const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
-    if (fieldContainer) {
-        const activeCard = fieldContainer.querySelector('.option-card.active');
-        if (activeCard && activeCard.dataset.value) {
-            return activeCard.dataset.value;
-        }
-    }
-    
     return legacyMappings[fieldId] || null;
 }
 
 // Store calculated price breakdown
-let priceBreakdown = {
-    baseArea: 0,
-    fieldPrices: {}, // Store prices for each field { fieldId: { option: price, label: "..." } }
-    total: 0
-};
 
 function calculateTotal() {
     // Initialize pricing database if not already done
@@ -2032,7 +2063,12 @@ function calculateTotal() {
     const areaSqIn = h_in * w_in;
 
     // 2. Calculate base area cost from database base price
-    const baseAreaCost = areaSqIn * pricingDatabase.baseRatePerSqIn;
+    // Ensure Base Area Cost reflects at least the minimum price (16,000)
+    let baseAreaCost = areaSqIn * pricingDatabase.baseRatePerSqIn;
+    if (baseAreaCost < pricingDatabase.minimumPrice) {
+        baseAreaCost = pricingDatabase.minimumPrice;
+    }
+    
     priceBreakdown.baseArea = baseAreaCost;
     priceBreakdown.fieldPrices = {}; // Reset field prices
 
@@ -2096,16 +2132,14 @@ function calculateTotal() {
     
     // 4. Calculate total: base area cost + all field option prices
     let total = baseAreaCost + totalFieldPrices;
-    let isMinimumPriceApplied = false;
-
-    // Apply minimum price constraint
+    
+    // Always use minimum if final total is somehow below it (safety)
     if (total < pricingDatabase.minimumPrice) {
         total = pricingDatabase.minimumPrice;
-        isMinimumPriceApplied = true;
     }
 
     priceBreakdown.total = total;
-    priceBreakdown.isMinimumPriceApplied = isMinimumPriceApplied;
+    priceBreakdown.isMinimumPriceApplied = true; // Minimum is the baseline now
     priceBreakdown.minimumPrice = pricingDatabase.minimumPrice;
     return total;
 }
@@ -2139,165 +2173,191 @@ function updateRealTimePriceDisplay() {
     updatePriceBreakdown();
 }
 
+// --- PRICE BREAKDOWN RENDERING ---
+
+/**
+ * Shared helper to render a price breakdown row consistently across all views
+ * @param {HTMLElement} container - The container to append the row to
+ * @param {string} fieldId - Field identifier
+ * @param {string} displayName - Display name for the field
+ * @param {string} option - Selected option value
+ * @param {number|null} price - Price for the option
+ * @param {string} rowClass - CSS class for the row
+ */
+function renderBreakdownRow(container, fieldId, displayName, option = null, price = null, rowClass = 'breakdown-row') {
+    const row = document.createElement('div');
+    row.className = `${rowClass} dynamic-row-${fieldId}`;
+    row.style.display = 'flex';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'flex-start'; // Align to top for multi-line right side
+    row.style.width = '100%';
+    row.style.padding = '8px 0';
+    row.style.borderBottom = '1px solid #f0f0f0';
+    
+    let optionText = option || 'Not Selected';
+    let costText = '—';
+
+    if (price !== null) {
+        costText = price > 0 ? '+' + formatPrice(price) : 
+                   (price < 0 ? formatPrice(price) : 'Included');
+    }
+
+    row.innerHTML = `
+        <span style="color: #666; font-size: 0.95em;">${displayName}:</span>
+        <div style="text-align: right;">
+            <div id="label-${fieldId}" style="font-weight: bold; color: #333;">${optionText}</div>
+            <div id="cost-${fieldId}" style="font-size: 0.85em; color: ${price > 0 ? '#ee4d2d' : (price === 0 ? '#28a745' : '#999')}">${costText}</div>
+        </div>
+    `;
+    
+    container.appendChild(row);
+}
+
 function updatePriceBreakdown() {
-    console.log('[Price] Updating price breakdown...', priceBreakdown);
-    // Initialize pricing database if needed
-    if (!pricingDatabase) {
-        initializePricingDatabase();
-    }
-    
-    // Safety check
-    if (!pricingDatabase) {
-        console.warn('Pricing database not available for breakdown');
-        return;
-    }
-    
     const breakdownDetailsContainer = document.getElementById('breakdown-details');
     if (!breakdownDetailsContainer) return;
 
-    // 1. Clear everything first
+    // Clear everything first
     breakdownDetailsContainer.innerHTML = '';
-
     const addedFields = new Set();
 
-    // Helper to add a row to breakdown (Modified to show "Not Selected" if no data)
-    const addRow = (fieldId, displayName, option = null, price = null) => {
-        if (addedFields.has(fieldId)) return;
-        addedFields.add(fieldId);
+    // 1. Gather all fields in correct order
+    // DEFINED ORDER based on user feedback/screenshot
+    const preferredOrder = [
+        'shape',
+        'numberOfPanels',
+        'transomType',
+        'dimensions', // Special case handled by helper
+        'trackSystem',
+        'panelConfiguration',
+        'frameColor',
+        'frameType',
+        'glassType',
+        'glassThickness',
+        'thickness',
+        'edgeWork',
+        'edgeFinish',
+        'lockType',
+        'rollerType',
+        'screen',
+        'screenOption'
+    ];
 
-        const row = document.createElement('div');
-        row.className = 'breakdown-row dynamic-breakdown-row';
-        row.style.display = 'flex';
-        
-        let optionText = option || 'Not Selected';
-        let costText = '—';
-
-        if (price !== null) {
-            costText = price > 0 ? '+' + formatPrice(price) : 
-                       (price < 0 ? formatPrice(price) : 'Included');
-        } else if (option === 'Not Selected') {
-            costText = '—';
-        }
-
-        row.innerHTML = `
-            <span>${displayName} (<span id="label-${fieldId}">${optionText}</span>):</span>
-            <span id="cost-${fieldId}">${costText}</span>
-        `;
-        
-        breakdownDetailsContainer.appendChild(row);
-    };
-
-    // 2. Gather ALL available fields from the steps to show them in order
-    // Important: check both priceBreakdown.fieldPrices AND the DOM to catch everything
-    const allFieldContainers = document.querySelectorAll('[data-field-id]');
-    
-    // Create a list of all field IDs to process
     const fieldIdsToProcess = new Set();
     
-    // Add IDs from priceBreakdown (already selected)
+    // Add preferred order fields first if they exist in DOM or data
+    preferredOrder.forEach(fid => {
+        const inDom = document.querySelector(`[data-field-id="${fid}"]`);
+        const inData = priceBreakdown.fieldPrices && priceBreakdown.fieldPrices[fid];
+        if (inDom || inData || fid === 'dimensions') {
+            fieldIdsToProcess.add(fid);
+        }
+    });
+
+    // Add any remaining fields from DOM
+    document.querySelectorAll('[data-field-id]').forEach(container => {
+        const fid = container.dataset.fieldId;
+        if (fid) fieldIdsToProcess.add(fid);
+    });
+    
+    // Add any remaining fields from data
     if (priceBreakdown.fieldPrices) {
         Object.keys(priceBreakdown.fieldPrices).forEach(fid => fieldIdsToProcess.add(fid));
     }
-    
-    // Add IDs from DOM (all available fields)
-    allFieldContainers.forEach(container => {
-        if (container.dataset.fieldId) fieldIdsToProcess.add(container.dataset.fieldId);
-    });
 
+    // 2. Render each field
     fieldIdsToProcess.forEach(fieldId => {
         if (addedFields.has(fieldId)) return;
-
-        // Skip dimensions and engraving for now, we'll add them at the end or specific positions
-        if (fieldId === 'dimensions' || fieldId === 'engraving') return;
+        
+        // Handle dimensions separately
+        if (fieldId === 'dimensions') {
+            addDimensionsToBreakdown(breakdownDetailsContainer, addedFields, 'breakdown-row');
+            return;
+        }
+        
+        if (fieldId === 'engraving') return;
 
         const displayName = getFieldDisplayName(fieldId);
         const fieldData = priceBreakdown.fieldPrices ? priceBreakdown.fieldPrices[fieldId] : null;
         
         if (fieldData) {
-            addRow(fieldId, displayName, fieldData.option, fieldData.price);
+            renderBreakdownRow(breakdownDetailsContainer, fieldId, displayName, fieldData.option, fieldData.price, 'breakdown-row');
         } else {
-            // Try to find selected value from global state if not in breakdown yet
             const selectedVal = getSelectedValueForField(fieldId);
             if (selectedVal) {
                 const price = getPriceFromDatabase(fieldId, selectedVal);
-                addRow(fieldId, displayName, selectedVal, price);
+                renderBreakdownRow(breakdownDetailsContainer, fieldId, displayName, selectedVal, price, 'breakdown-row');
             } else {
-                addRow(fieldId, displayName);
+                renderBreakdownRow(breakdownDetailsContainer, fieldId, displayName, null, null, 'breakdown-row');
             }
         }
-
-        // CUSTOM ORDER: Dimension comes after transomType
-        if (fieldId === 'transomType') {
-            addDimensionsRow();
-        }
+        addedFields.add(fieldId);
     });
 
-    // 3. Add Dimensions ONLY IF NOT ADDED YET
-    if (!addedFields.has('dimensions')) {
-        addDimensionsRow();
-    }
-
-    function addDimensionsRow() {
-        if (addedFields.has('dimensions')) return;
-        
-        const dimRow = document.createElement('div');
-        dimRow.className = 'breakdown-row';
-        dimRow.style.display = 'flex';
-        
-        const wVal = currentDimensions.width.value;
-        const hVal = currentDimensions.height.value;
-        const dimText = (wVal && hVal) ? `${wVal}${currentDimensions.width.unit} × ${hVal}${currentDimensions.height.unit}` : 'Not Selected';
-        
-        dimRow.innerHTML = `
-            <span>Dimensions (<span id="label-dimensions">${dimText}</span>):</span>
-            <span id="cost-dim">${(wVal && hVal) ? 'Included' : '—'}</span>
-        `;
-        breakdownDetailsContainer.appendChild(dimRow);
-        addedFields.add('dimensions');
-    }
-
-    // 4. Add Engraving (if any)
-    let engravingInput = document.querySelector('.engraving-section input');
-    const engravingText = engravingInput ? engravingInput.value : '';
-    if (engravingText) {
-        const engRow = document.createElement('div');
-        engRow.className = 'breakdown-row';
-        engRow.style.display = 'flex';
-        engRow.innerHTML = `
-            <span>Engraving:</span>
-            <span>${engravingText}</span>
-        `;
-        breakdownDetailsContainer.appendChild(engRow);
-    }
-
-    // 5. Add Base Area Cost at the very bottom
+    // 3. Add Base Area Cost
     const baseAreaRow = document.createElement('div');
-    baseAreaRow.className = 'breakdown-row';
-    baseAreaRow.id = 'base-area-row';
+    baseAreaRow.className = 'breakdown-row base-area-row';
     baseAreaRow.style.display = 'flex';
+    baseAreaRow.style.justifyContent = 'space-between';
+    baseAreaRow.style.alignItems = 'flex-start';
+    baseAreaRow.style.width = '100%';
+    baseAreaRow.style.padding = '12px 0';
+    baseAreaRow.style.marginTop = '10px';
+    baseAreaRow.style.borderTop = '1px solid #eee';
+    
     baseAreaRow.innerHTML = `
-        <span>Base Area Cost:</span>
-        <span id="cost-area">${formatPrice(priceBreakdown.baseArea)}</span>
+        <span style="color: #666; font-size: 0.95em;">Base Area Cost:</span>
+        <div style="text-align: right;">
+            <div style="font-weight: bold; color: #333;">Standard</div>
+            <div id="cost-area" style="font-size: 0.85em; color: #333; font-weight: 600;">${formatPrice(priceBreakdown.baseArea)}</div>
+        </div>
     `;
     breakdownDetailsContainer.appendChild(baseAreaRow);
 
-    // 6. Add Minimum Price Adjustment if applied
-    if (priceBreakdown.isMinimumPriceApplied) {
-        const minPriceRow = document.createElement('div');
-        minPriceRow.className = 'breakdown-row minimum-price-row';
-        minPriceRow.style.display = 'flex';
-        minPriceRow.style.borderTop = '1px dashed #d9534f';
-        minPriceRow.style.marginTop = '8px';
-        minPriceRow.style.paddingTop = '8px';
-        minPriceRow.style.color = '#d9534f';
-        minPriceRow.style.fontWeight = 'bold';
-        
-        minPriceRow.innerHTML = `
-            <span>Minimum Order Price:</span>
-            <span>Applied (${formatPrice(priceBreakdown.minimumPrice)})</span>
-        `;
-        breakdownDetailsContainer.appendChild(minPriceRow);
-    }
+    // 4. Add Total
+    const totalRow = document.createElement('div');
+    totalRow.className = 'breakdown-row total-price-row';
+    totalRow.style.display = 'flex';
+    totalRow.style.justifyContent = 'space-between';
+    totalRow.style.alignItems = 'center';
+    totalRow.style.width = '100%';
+    totalRow.style.marginTop = '8px';
+    totalRow.style.padding = '12px 0';
+    totalRow.style.borderTop = '2px solid #0f2b46';
+    totalRow.style.color = '#0f2b46';
+    
+    totalRow.innerHTML = `
+        <span style="font-weight: bold; font-size: 1.1em;">Total</span>
+        <span style="font-weight: bold; font-size: 1.2em; color: #ee4d2d;">${formatPrice(priceBreakdown.total)}</span>
+    `;
+    breakdownDetailsContainer.appendChild(totalRow);
+}
+
+function addDimensionsToBreakdown(container, addedSet, rowClass) {
+    if (addedSet.has('dimensions')) return;
+    
+    const dimRow = document.createElement('div');
+    dimRow.className = rowClass;
+    dimRow.style.display = 'flex';
+    dimRow.style.justifyContent = 'space-between';
+    dimRow.style.alignItems = 'flex-start';
+    dimRow.style.width = '100%';
+    dimRow.style.padding = '8px 0';
+    dimRow.style.borderBottom = '1px solid #f0f0f0';
+    
+    const wVal = currentDimensions.width.value;
+    const hVal = currentDimensions.height.value;
+    const dimText = (wVal && hVal) ? `${wVal}${currentDimensions.width.unit} × ${hVal}${currentDimensions.height.unit}` : 'Not Selected';
+    
+    dimRow.innerHTML = `
+        <span style="color: #666; font-size: 0.95em;">Dimensions:</span>
+        <div style="text-align: right;">
+            <div id="label-dimensions" style="font-weight: bold; color: #333;">${dimText}</div>
+            <div id="cost-dim" style="font-size: 0.85em; color: ${(wVal && hVal) ? '#28a745' : '#999'};">${(wVal && hVal) ? 'Included' : '—'}</div>
+        </div>
+    `;
+    container.appendChild(dimRow);
+    addedSet.add('dimensions');
 }
 
 // Helper function to get display name for a field
@@ -2308,7 +2368,7 @@ function getFieldDisplayName(fieldId) {
         'glassType': 'Glass Type',
         'thickness': 'Thickness',
         'glassThickness': 'Thickness',
-        'frameType': 'Frame',
+        'frameType': 'Frame Color',
         'frameColor': 'Frame Color',
         'edgeWork': 'Edge Work',
         'edgeFinish': 'Edge Finish',
@@ -2322,26 +2382,14 @@ function getFieldDisplayName(fieldId) {
         'screenOption': 'Screen'
     };
 
-    if (fallbacks[fieldId]) return fallbacks[fieldId];
-
-    // Try to get from the field container label in the DOM
-    const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
-    if (fieldContainer) {
-        // Try sibling or child first
-        const label = fieldContainer.querySelector('.section-label') || 
-                      fieldContainer.parentElement?.querySelector('.section-label');
-        if (label) {
-            return label.textContent.trim().replace(':', '');
-        }
-        
-        // Try parent step labels with more classes
-        const parentLabel = fieldContainer.closest('.field-section, .type-section, .thickness-section, .edge-section, .frame-section, .checkbox-section, .color-section')?.querySelector('.section-label');
-        if (parentLabel) {
-            return parentLabel.textContent.trim().replace(':', '');
-        }
+    let name = fallbacks[fieldId] || fieldId;
+    
+    // Add colon if not present (to match user screenshot)
+    if (!name.endsWith(':')) {
+        name += ':';
     }
     
-    return fieldId;
+    return name;
 }
 
 // Toggle price breakdown visibility
@@ -2388,209 +2436,149 @@ function showOrderSummary() {
     }
 
     // 2. Hide Builder UI
-    const customWrapper = document.getElementById('custom-wrapper');
-    const standardWrapper = document.getElementById('standard-wrapper');
-    const priceBox = document.getElementById('price-box');
+    const elementsToHide = [
+        'custom-wrapper', 'standard-wrapper', 'price-box', 
+        'standard-subtitle', 'related-products-section'
+    ];
+    elementsToHide.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.classList.add('hidden-step'); el.style.display = 'none'; }
+    });
+    
     const buildToggle = document.querySelector('.build-toggle');
-    const standardSubtitle = document.getElementById('standard-subtitle');
-    const relatedProducts = document.getElementById('related-products-section');
+    if (buildToggle) { buildToggle.classList.add('hidden-step'); buildToggle.style.display = 'none'; }
+    
     const actionArea = document.querySelector('.action-area');
-
-    if (customWrapper) {
-        customWrapper.classList.add('hidden-step');
-        customWrapper.style.display = 'none';
-    }
-    if (standardWrapper) {
-        standardWrapper.classList.add('hidden-step');
-        standardWrapper.style.display = 'none';
-    }
-    if (priceBox) {
-        priceBox.classList.add('hidden-step');
-        priceBox.style.display = 'none';
-    }
-    if (buildToggle) {
-        buildToggle.classList.add('hidden-step');
-        buildToggle.style.display = 'none';
-    }
-    if (standardSubtitle) {
-        standardSubtitle.classList.add('hidden-step');
-        standardSubtitle.style.display = 'none';
-    }
-    if (relatedProducts) {
-        relatedProducts.classList.add('hidden-step');
-        relatedProducts.style.display = 'none';
-    }
-    if (actionArea) {
-        actionArea.style.display = 'none';
-    }
+    if (actionArea) actionArea.style.display = 'none';
 
     // 3. Show Summary UI
     const summaryWrapper = document.getElementById('summary-wrapper');
     if (summaryWrapper) {
         summaryWrapper.classList.remove('hidden-step');
         summaryWrapper.style.display = 'block'; 
-        
-        // Scroll to review section so user can see it
-        setTimeout(() => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 100);
+        setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
     }
 
-    // 4. Update Summary Data with price breakdown
+    // 4. Update Summary Data with consistent Price Breakdown
     const summaryContent = document.querySelector('.summary-content');
     if (!summaryContent) {
         console.warn('Could not find .summary-content container');
         return;
     }
 
-    // Save the total row before clearing
-    let totalRow = summaryContent.querySelector('.summary-row.total-row');
-    if (totalRow) {
-        totalRow = totalRow.cloneNode(true); // Clone so we don't lose it when clearing innerHTML
-    }
-    
     // Clear existing content
     summaryContent.innerHTML = '';
-    
     const addedSummaryFields = new Set();
 
-    // Helper to add a row to summary
-    const addSummaryRow = (fieldId, displayName, option = null, price = null) => {
-        if (addedSummaryFields.has(fieldId)) return;
-        addedSummaryFields.add(fieldId);
+    // DEFINED ORDER (Consistent with updatePriceBreakdown)
+    const preferredOrder = [
+        'shape',
+        'numberOfPanels',
+        'transomType',
+        'dimensions',
+        'trackSystem',
+        'panelConfiguration',
+        'frameColor',
+        'frameType',
+        'glassType',
+        'glassThickness',
+        'thickness',
+        'edgeWork',
+        'edgeFinish',
+        'lockType',
+        'rollerType',
+        'screen',
+        'screenOption'
+    ];
 
-        const row = document.createElement('div');
-        row.className = 'summary-row dynamic-summary-row';
-        row.style.display = 'flex';
-        
-        let optionText = option || 'Not Selected';
-        let costText = '—';
-
-        if (price !== null) {
-            costText = price > 0 ? '+' + formatPrice(price) : 
-                       (price < 0 ? formatPrice(price) : 'Included');
-        } else if (option === 'Not Selected') {
-            costText = '—';
-        }
-
-        row.innerHTML = `
-            <span class="spec-label">${displayName}:</span>
-            <span class="spec-value">
-                <span>${optionText}</span>
-                <span class="price-addon">${costText}</span>
-            </span>
-        `;
-        
-        summaryContent.appendChild(row);
-    };
-
-    // Gather ALL available fields from the steps
-    // Look for any element with data-field-id
-    const allFieldContainers = document.querySelectorAll('[data-field-id]');
-    console.log(`Found ${allFieldContainers.length} field containers for summary`);
+    const fieldIdsToProcess = new Set();
     
-    allFieldContainers.forEach(container => {
-        const fieldId = container.dataset.fieldId;
-        
-        // Skip if it's a summary row we just added or something else
-        if (!fieldId || addedSummaryFields.has(fieldId)) return;
-        if (fieldId === 'dimensions' || fieldId === 'engraving') return;
-        
-        // Skip elements that are not field containers (like the summary rows itself if they had data-field-id)
-        if (container.classList.contains('summary-row')) return;
-
-        const displayName = getFieldDisplayName(fieldId);
-        const fieldData = priceBreakdown.fieldPrices[fieldId];
-        
-        console.log(`Adding summary row for: ${fieldId} (${displayName})`);
-        
-        if (fieldData) {
-            addSummaryRow(fieldId, displayName, fieldData.option, fieldData.price);
-        } else {
-            addSummaryRow(fieldId, displayName);
-        }
-
-        // CUSTOM ORDER: Dimension comes after transomType
-        if (fieldId === 'transomType') {
-            const wVal = currentDimensions.width.value;
-            const hVal = currentDimensions.height.value;
-            const dimText = (wVal && hVal) ? `${wVal}${currentDimensions.width.unit} × ${hVal}${currentDimensions.height.unit}` : 'Not Selected';
-            const dimCost = (wVal && hVal) ? 'Included' : '—';
-
-            const row = document.createElement('div');
-            row.className = 'summary-row';
-            row.style.display = 'flex';
-            row.innerHTML = `
-                <span class="spec-label">Dimensions:</span>
-                <span class="spec-value">
-                    <span>${dimText}</span>
-                    <span class="price-addon">${dimCost}</span>
-                </span>
-            `;
-            summaryContent.appendChild(row);
-            addedSummaryFields.add('dimensions');
+    preferredOrder.forEach(fid => {
+        const inDom = document.querySelector(`[data-field-id="${fid}"]`);
+        const inData = priceBreakdown.fieldPrices && priceBreakdown.fieldPrices[fid];
+        if (inDom || inData || fid === 'dimensions') {
+            fieldIdsToProcess.add(fid);
         }
     });
 
-    // Add Dimensions ONLY IF NOT ADDED YET
-    if (!addedSummaryFields.has('dimensions')) {
-        const wVal = currentDimensions.width.value;
-        const hVal = currentDimensions.height.value;
-        const dimText = (wVal && hVal) ? `${wVal}${currentDimensions.width.unit} × ${hVal}${currentDimensions.height.unit}` : 'Not Selected';
-        const dimCost = (wVal && hVal) ? 'Included' : '—';
-
-        const row = document.createElement('div');
-        row.className = 'summary-row';
-        row.style.display = 'flex';
-        row.innerHTML = `
-            <span class="spec-label">Dimensions:</span>
-            <span class="spec-value">
-                <span>${dimText}</span>
-                <span class="price-addon">${dimCost}</span>
-            </span>
-        `;
-        summaryContent.appendChild(row);
-        addedSummaryFields.add('dimensions');
+    // Add any remaining fields from DOM/Data
+    document.querySelectorAll('[data-field-id]').forEach(container => {
+        const fid = container.dataset.fieldId;
+        if (fid && !container.classList.contains('summary-row')) fieldIdsToProcess.add(fid);
+    });
+    if (priceBreakdown.fieldPrices) {
+        Object.keys(priceBreakdown.fieldPrices).forEach(fid => fieldIdsToProcess.add(fid));
     }
 
-    // Add Base Area Cost at the very bottom
-    const baseRow = document.createElement('div');
-    baseRow.className = 'summary-row';
-    baseRow.style.display = 'flex';
-    baseRow.innerHTML = `
-        <span class="spec-label">Base Area Cost:</span>
-        <span class="spec-value">
-            <span>Standard</span>
-            <span class="price-addon">${formatPrice(priceBreakdown.baseArea)}</span>
-        </span>
+    // Render each field using the shared renderBreakdownRow helper
+    fieldIdsToProcess.forEach(fieldId => {
+        if (addedSummaryFields.has(fieldId)) return;
+        
+        if (fieldId === 'dimensions') {
+            addDimensionsToBreakdown(summaryContent, addedSummaryFields, 'summary-row');
+            return;
+        }
+        
+        if (fieldId === 'engraving') return;
+
+        const displayName = getFieldDisplayName(fieldId);
+        const fieldData = priceBreakdown.fieldPrices ? priceBreakdown.fieldPrices[fieldId] : null;
+        
+        if (fieldData) {
+            renderBreakdownRow(summaryContent, fieldId, displayName, fieldData.option, fieldData.price, 'summary-row');
+        } else {
+            const selectedVal = getSelectedValueForField(fieldId);
+            if (selectedVal) {
+                const price = getPriceFromDatabase(fieldId, selectedVal);
+                renderBreakdownRow(summaryContent, fieldId, displayName, selectedVal, price, 'summary-row');
+            } else {
+                renderBreakdownRow(summaryContent, fieldId, displayName, null, null, 'summary-row');
+            }
+        }
+        addedSummaryFields.add(fieldId);
+    });
+
+    // Add Dimensions if not added
+    addDimensionsToBreakdown(summaryContent, addedSummaryFields, 'summary-row');
+
+    // Add Base Area Cost (Consistent with updatePriceBreakdown)
+    const baseAreaRow = document.createElement('div');
+    baseAreaRow.className = 'summary-row base-area-row';
+    baseAreaRow.style.display = 'flex';
+    baseAreaRow.style.justifyContent = 'space-between';
+    baseAreaRow.style.alignItems = 'flex-start';
+    baseAreaRow.style.width = '100%';
+    baseAreaRow.style.padding = '12px 0';
+    baseAreaRow.style.marginTop = '10px';
+    baseAreaRow.style.borderTop = '1px solid #eee';
+    
+    baseAreaRow.innerHTML = `
+        <span style="color: #666; font-size: 0.95em;">Base Area Cost:</span>
+        <div style="text-align: right;">
+            <div style="font-weight: bold; color: #333;">Standard</div>
+            <div class="spec-value" style="font-size: 0.85em; color: #333; font-weight: 600;">${formatPrice(priceBreakdown.baseArea)}</div>
+        </div>
     `;
-    summaryContent.appendChild(baseRow);
+    summaryContent.appendChild(baseAreaRow);
 
-    // Re-append the total row
-    if (totalRow) {
-        // Update total price first - look for sum-total ID or price-final class
-        const totalValueSpan = totalRow.querySelector('#sum-total') || totalRow.querySelector('.price-final') || totalRow.querySelector('.total-price');
-        if (totalValueSpan) {
-            totalValueSpan.textContent = formatPrice(priceBreakdown.total);
-        }
-        
-        // If minimum price was applied, add a small note near the total
-        if (priceBreakdown.isMinimumPriceApplied) {
-            const minPriceNote = document.createElement('div');
-            minPriceNote.className = 'summary-row minimum-price-note';
-            minPriceNote.style.fontSize = '0.8rem';
-            minPriceNote.style.color = '#d9534f';
-            minPriceNote.style.textAlign = 'right';
-            minPriceNote.style.marginTop = '-10px';
-            minPriceNote.style.marginBottom = '10px';
-            minPriceNote.innerHTML = `<span>Minimum order price applied</span>`;
-            summaryContent.appendChild(minPriceNote);
-        }
-        
-        summaryContent.appendChild(totalRow);
-    }
+    // Add Final Total (Consistent with updatePriceBreakdown)
+    const totalRow = document.createElement('div');
+    totalRow.className = 'summary-row total-row';
+    totalRow.style.display = 'flex';
+    totalRow.style.justifyContent = 'space-between';
+    totalRow.style.alignItems = 'center';
+    totalRow.style.width = '100%';
+    totalRow.style.marginTop = '15px';
+    totalRow.style.padding = '15px 0';
+    totalRow.style.borderTop = '2px solid #0f2b46';
+    
+    totalRow.innerHTML = `
+        <span class="spec-label" style="font-weight: bold; font-size: 1.1em; color: #0f2b46;">Total</span>
+        <span class="spec-value price-final" style="font-weight: bold; font-size: 1.2em; color: #ee4d2d;">${formatPrice(priceBreakdown.total)}</span>
+    `;
+    summaryContent.appendChild(totalRow);
 
-    // 5. Update Final Order Data fields
+    // Update Final Order Data fields
     const finalPriceInput = document.getElementById('final-price');
     if (finalPriceInput) finalPriceInput.value = priceBreakdown.total;
     
@@ -2604,11 +2592,14 @@ function showOrderSummary() {
         finalSpecsInput.value = JSON.stringify(specs);
     }
 
-    // 6. Update Breadcrumbs
-    crumbMain.innerText = 'Review Order';
-    crumbMain.classList.add('active');
-    removeCrumb('crumb-step2');
-    removeCrumb('crumb-step3');
+    // Update Breadcrumbs
+    const crumbMain = document.getElementById('crumb-main');
+    if (crumbMain) {
+        crumbMain.innerText = 'Review Order';
+        crumbMain.classList.add('active');
+    }
+    const dynamicCrumbs = document.querySelectorAll('[id^="crumb-step"], [id^="chevron-crumb-step"]');
+    dynamicCrumbs.forEach(crumb => crumb.remove());
 }
 
 function editConfiguration() {

@@ -576,6 +576,12 @@ $(document).ready(function () {
         window.location.href = BASE_URL + 'payment?selected=' + selectedIds.join(',');
     });
 
+    $(document).on('click', '.edit-btn', function () {
+        const product_id = $(this).data('product-id');
+        const cart_id = $(this).data('id');
+        window.location.href = BASE_URL + '2DModeling?id=' + product_id + '&cart_id=' + cart_id;
+    });
+
     // =============================
     // DELETE ITEM (With Undo - Delete immediately if user navigates away)
     // =============================

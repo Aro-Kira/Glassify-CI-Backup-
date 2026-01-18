@@ -1541,12 +1541,12 @@ $(document).ready(function() {
         const unitHouseNumber = form.querySelector("input[name='unit_house_number']")?.value || '';
         const street = form.querySelector("input[name='street']")?.value || '';
         const subdivision = form.querySelector("input[name='subdivision']")?.value || '';
-        const barangay = form.querySelector("input[name='barangay']").value;
-        const city = form.querySelector("input[name='city']").value;
-        const province = form.querySelector("input[name='province']").value;
+        const barangay = form.querySelector("input[name='barangay']")?.value || '';
+        const city = form.querySelector("input[name='city']")?.value || '';
+        const province = form.querySelector("input[name='province']")?.value || '';
         const region = form.querySelector("input[name='region']")?.value || '';
-        const zipcode = form.querySelector("input[name='zipcode']").value;
-        const country = form.querySelector("input[name='country']").value;
+        const zipcode = form.querySelector("input[name='zipcode']")?.value || '';
+        const country = form.querySelector("input[name='country']")?.value || 'Philippines';
         const preferredInstallationDate = form.querySelector("input[name='preferred_installation_date']")?.value || '';
 
         // Build complete address

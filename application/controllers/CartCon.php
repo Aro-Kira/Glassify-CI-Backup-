@@ -793,6 +793,31 @@ class CartCon extends CI_Controller
             
             $customization = !empty($customization_parts) ? implode(' | ', $customization_parts) : 'Standard';
             
+            // Handle image - can be JSON or string
+            $image_raw = $item->ImageUrl ?? 'default.jpg';
+            $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+            $image_url = $placeholder_svg;
+            
+            if (!empty($image_raw)) {
+                $decoded = json_decode($image_raw, true);
+                $first_image = '';
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
+                    $first_image = $decoded[0];
+                } else {
+                    $first_image = $image_raw;
+                }
+                
+                if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
+                    if (strpos($first_image, 'http') === 0) {
+                        $image_url = $first_image;
+                    } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
+                        $image_url = base_url($first_image);
+                    } else {
+                        $image_url = base_url('uploads/products/' . basename($first_image));
+                    }
+                }
+            }
+
             $items[] = [
                 'cart_id' => $item->Cart_ID,
                 'product_id' => $item->Product_ID,
@@ -802,13 +827,53 @@ class CartCon extends CI_Controller
                 'unit_price' => $price,
                 'total' => $total,
                 'customization' => $customization,
-                'image' => base_url('uploads/products/' . ($item->ImageUrl ?? 'default.jpg')),
+                'image' => $image_url,
                 'has_design' => !empty($item->DesignRef),
                 'design_ref' => !empty($item->DesignRef) ? base_url($item->DesignRef) : null
             ];
         }
 
         echo json_encode(['status' => 'success', 'items' => $items, 'summary' => $summary]);
+    }
+
+    // ===================== GET ITEM CUSTOMIZATION FOR EDIT =====================
+    public function get_item_customization_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        $customer_id = $this->session->userdata('customer_id');
+        $cart_id = $this->input->get('cart_id');
+
+        if (!$customer_id || !$cart_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid request']);
+            return;
+        }
+
+        // Get cart row to verify ownership and get CustomizationID
+        $this->db->where('Cart_ID', $cart_id);
+        $this->db->where('Customer_ID', $customer_id);
+        $cart_item = $this->db->get('cart')->row();
+
+        if (!$cart_item) {
+            echo json_encode(['status' => 'error', 'message' => 'Item not found']);
+            return;
+        }
+
+        if (empty($cart_item->CustomizationID)) {
+            echo json_encode(['status' => 'error', 'message' => 'No customization found']);
+            return;
+        }
+
+        // Get customization details
+        $this->load->model('Customization_model');
+        $customization = $this->Customization_model->get_customization($cart_item->CustomizationID, $cart_item->Product_ID);
+
+        if (!$customization) {
+            echo json_encode(['status' => 'error', 'message' => 'Customization data missing']);
+            return;
+        }
+
+        echo json_encode(['status' => 'success', 'customization' => $customization]);
     }
 
     // ===================== GET SELECTED CART ITEMS FOR CHECKOUT =====================
@@ -877,6 +942,31 @@ class CartCon extends CI_Controller
             
             $customization = !empty($customization_parts) ? implode(' | ', $customization_parts) : 'Standard';
             
+            // Handle image - can be JSON or string
+            $image_raw = $item->ImageUrl ?? 'default.jpg';
+            $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+            $image_url = $placeholder_svg;
+            
+            if (!empty($image_raw)) {
+                $decoded = json_decode($image_raw, true);
+                $first_image = '';
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
+                    $first_image = $decoded[0];
+                } else {
+                    $first_image = $image_raw;
+                }
+                
+                if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
+                    if (strpos($first_image, 'http') === 0) {
+                        $image_url = $first_image;
+                    } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
+                        $image_url = base_url($first_image);
+                    } else {
+                        $image_url = base_url('uploads/products/' . basename($first_image));
+                    }
+                }
+            }
+            
             $items[] = [
                 'cart_id' => $item->Cart_ID,
                 'product_id' => $item->Product_ID,
@@ -885,7 +975,7 @@ class CartCon extends CI_Controller
                 'unit_price' => $price,
                 'total' => $total,
                 'customization' => $customization,
-                'image' => base_url('uploads/products/' . ($item->ImageUrl ?? 'default.jpg')),
+                'image' => $image_url,
                 'has_design' => !empty($item->DesignRef),
                 'design_ref' => !empty($item->DesignRef) ? base_url($item->DesignRef) : null
             ];

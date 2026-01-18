@@ -60,7 +60,32 @@
                 </td>
                
                 <td>
-                  <img src="<?= base_url('uploads/products/' . $item->ImageUrl) ?>" alt="<?= $item->ProductName ?>"
+                  <?php 
+                  $image_raw = $item->ImageUrl ?? '';
+                  $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                  $product_img = $placeholder_svg;
+                  
+                  if (!empty($image_raw)) {
+                      $decoded = json_decode($image_raw, true);
+                      $first_image = '';
+                      if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
+                          $first_image = $decoded[0];
+                      } else {
+                          $first_image = $image_raw;
+                      }
+                      
+                      if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
+                          if (strpos($first_image, 'http') === 0) {
+                              $product_img = $first_image;
+                          } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
+                              $product_img = base_url($first_image);
+                          } else {
+                              $product_img = base_url('uploads/products/' . basename($first_image));
+                          }
+                      }
+                  }
+                  ?>
+                  <img src="<?= $product_img ?>" alt="<?= $item->ProductName ?>"
                     class="cart-product-img">
                 </td>
                 <td><?= $item->ProductName ?></td>
@@ -83,18 +108,43 @@
                         <?php if (!empty($item->GlassShape)): ?>
                           <span class="custom-tag">Shape: <?= ucfirst($item->GlassShape) ?></span>
                         <?php endif; ?>
-                        <?php if (!empty($item->GlassType)): ?>
-                          <span class="custom-tag">Type: <?= ucfirst($item->GlassType) ?></span>
-                        <?php endif; ?>
-                        <?php if (!empty($item->GlassThickness)): ?>
-                          <span class="custom-tag">Thickness: <?= $item->GlassThickness ?></span>
-                        <?php endif; ?>
-                        <?php if (!empty($item->EdgeWork)): ?>
-                          <span class="custom-tag">Edge: <?= ucfirst(str_replace('-', ' ', $item->EdgeWork)) ?></span>
-                        <?php endif; ?>
-                        <?php if (!empty($item->FrameType)): ?>
-                          <span class="custom-tag">Frame: <?= ucfirst($item->FrameType) ?></span>
-                        <?php endif; ?>
+                        
+                        <?php 
+                        // Try to get additional fields from PriceBreakdown if available
+                        if (!empty($item->PriceBreakdown)) {
+                            $breakdown = json_decode($item->PriceBreakdown, true);
+                            if (isset($breakdown['fieldPrices'])) {
+                                foreach ($breakdown['fieldPrices'] as $fieldId => $data) {
+                                    // Skip fields already shown
+                                    if (in_array($fieldId, ['shape', 'dimensions', 'engraving'])) continue;
+                                    
+                                    $label = ucfirst($fieldId);
+                                    // Local fallback for common field IDs
+                                    $fallbacks = [
+                                        'numberOfPanels' => 'Panel',
+                                        'transomType' => 'Transom Type',
+                                        'trackSystem' => 'Track System',
+                                        'panelConfiguration' => 'Panel Configuration',
+                                        'lockType' => 'Lock Type',
+                                        'rollerType' => 'Roller Type',
+                                        'screen' => 'Screen',
+                                        'frameColor' => 'Frame Color',
+                                        'glassType' => 'Glass Type',
+                                        'glassThickness' => 'Thickness'
+                                    ];
+                                    $displayLabel = $fallbacks[$fieldId] ?? $label;
+                                    echo '<span class="custom-tag">' . $displayLabel . ': ' . $data['option'] . '</span>';
+                                }
+                            }
+                        } else {
+                            // Fallback to standard columns if PriceBreakdown not available
+                            if (!empty($item->GlassType)) echo '<span class="custom-tag">Type: ' . ucfirst($item->GlassType) . '</span>';
+                            if (!empty($item->GlassThickness)) echo '<span class="custom-tag">Thickness: ' . $item->GlassThickness . '</span>';
+                            if (!empty($item->EdgeWork)) echo '<span class="custom-tag">Edge: ' . ucfirst(str_replace('-', ' ', $item->EdgeWork)) . '</span>';
+                            if (!empty($item->FrameType)) echo '<span class="custom-tag">Frame: ' . ucfirst($item->FrameType) . '</span>';
+                        }
+                        ?>
+
                         <?php if (!empty($item->Engraving) && $item->Engraving !== 'None'): ?>
                           <span class="custom-tag engraving-tag">Engraving: <?= $item->Engraving ?></span>
                         <?php endif; ?>
@@ -111,11 +161,11 @@
                     if ($basePrice > $currentPrice): 
                   ?>
                     <div class="price-container">
-                      <span class="original-price">₱<?= number_format($basePrice, 2) ?></span>
-                      <span class="current-price">₱<?= number_format($currentPrice, 2) ?></span>
+                      <span class="original-price price-val">₱<?= number_format($basePrice, 2) ?></span>
+                      <span class="current-price price-val">₱<?= number_format($currentPrice, 2) ?></span>
                     </div>
                   <?php else: ?>
-                    <span class="current-price">₱<?= number_format($currentPrice, 2) ?></span>
+                    <span class="current-price price-val">₱<?= number_format($currentPrice, 2) ?></span>
                   <?php endif; ?>
                 </td>
                 <td>
@@ -126,9 +176,20 @@
                     <button type="button" class="qty-btn qty-plus" data-id="<?= $item->Cart_ID ?>">+</button>
                   </div>
                 </td>
-                <td class="item-total">₱<?= number_format($item->Price * $item->Quantity, 2) ?></td>
+                <td class="item-total"><span class="price-val">₱<?= number_format($item->Price * $item->Quantity, 2) ?></span></td>
                 <td>
-                  <button class="remove-btn" data-id="<?= $item->Cart_ID ?>" data-product-id="<?= $item->Product_ID ?>" data-customization-id="<?= $item->CustomizationID ?>">X</button>
+                  <button class="edit-btn" data-id="<?= $item->Cart_ID ?>" data-product-id="<?= $item->Product_ID ?>" data-customization-id="<?= $item->CustomizationID ?>" title="Edit Customization">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                  </button>
+                  <button class="remove-btn" data-id="<?= $item->Cart_ID ?>" data-product-id="<?= $item->Product_ID ?>" data-customization-id="<?= $item->CustomizationID ?>" title="Remove from Cart">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
                 </td>
               </tr>
             <?php endforeach; ?>
@@ -151,11 +212,11 @@
       <div class="order-summary-content">
         <h3>Order Summary</h3>
         <p><span>Items:</span> <span id="summary-items">0</span></p>
-        <p><span>Subtotal:</span> ₱<span id="summary-subtotal">0.00</span></p>
-        <p><span>Shipping Fee:</span> ₱<span id="summary-shipping">0.00</span></p>
-        <p><span>Handling Fee:</span> ₱<span id="summary-handling">0.00</span></p>
+        <p><span>Subtotal:</span> <span class="price-val">₱<span id="summary-subtotal">0.00</span></span></p>
+        <p><span>Shipping Fee:</span> <span class="price-val">₱<span id="summary-shipping">0.00</span></span></p>
+        <p><span>Handling Fee:</span> <span class="price-val">₱<span id="summary-handling">0.00</span></span></p>
         <div class="summary-divider"></div>
-        <p class="total"><span>Total:</span> ₱<span id="summary-total">0.00</span></p>
+        <p class="total"><span>Total:</span> <span class="price-val">₱<span id="summary-total">0.00</span></span></p>
         <div class="btn-container">
           <button class="checkout-btn" id="checkout-selected-btn">Check Out (<span id="selected-count">0</span> items)</button>
         </div>
@@ -174,11 +235,11 @@
               <span id="summary-items-mobile">0</span> item(s)
             </div>
             <div class="order-summary-mobile-fees">
-              <span class="fee-item">Shipping: ₱<span id="summary-shipping-mobile">0.00</span></span>
-              <span class="fee-item">Handling: ₱<span id="summary-handling-mobile">0.00</span></span>
+              <span class="fee-item">Shipping: <span class="price-val">₱<span id="summary-shipping-mobile">0.00</span></span></span>
+              <span class="fee-item">Handling: <span class="price-val">₱<span id="summary-handling-mobile">0.00</span></span></span>
             </div>
             <div class="order-summary-mobile-total">
-              Total: ₱<span id="summary-total-mobile">0.00</span>
+              Total: <span class="price-val">₱<span id="summary-total-mobile">0.00</span></span>
             </div>
           </div>
         </div>

@@ -384,14 +384,7 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
     const tag = document.createElement('div');
     tag.className = 'option-card';
     
-    // User requested NO pre-selected options EXCEPT for Glass Thickness
-    if (field.id === 'glassThickness' || field.id === 'thickness') {
-      // Auto-select first thickness (usually 6mm as per previous request)
-      if (index === 0) {
-        tag.classList.add('active');
-        selectedCustomizationValues[field.id] = option;
-      }
-    }
+    // User requested NO pre-selected options
     // Screen auto-selection is now handled exclusively by handleWindowsSlidingConditionals or user interaction
     
     // DO NOT add active to any other option
@@ -852,15 +845,16 @@ function updateScreenAvailability() {
       });
       
       // Show message
-      let messageEl = container.querySelector('.conditional-message');
+      let messageEl = container.parentNode.querySelector('.conditional-message');
       if (!messageEl) {
         messageEl = document.createElement('div');
         messageEl.className = 'conditional-message';
-        messageEl.style.color = '#999';
+        messageEl.style.color = '#d9534f'; // Use alert red
         messageEl.style.fontSize = '12px';
-        messageEl.style.marginTop = '5px';
-        messageEl.style.textAlign = 'center';
-        container.appendChild(messageEl);
+        messageEl.style.marginTop = '8px';
+        messageEl.style.width = '100%';
+        messageEl.style.textAlign = 'left';
+        container.parentNode.appendChild(messageEl);
       }
       messageEl.textContent = 'Screen not available for 3 Tracks';
     } else {
@@ -870,7 +864,7 @@ function updateScreenAvailability() {
         option.style.pointerEvents = '';
         option.classList.remove('disabled');
       });
-      const messageEl = container.querySelector('.conditional-message');
+      const messageEl = container.parentNode.querySelector('.conditional-message');
       if (messageEl) {
         messageEl.remove();
       }
@@ -1317,15 +1311,10 @@ function setupDirectToSummaryNavigation() {
   freshNextBtn.addEventListener('click', () => {
     console.log('[Nav] Direct-to-summary clicked');
     // VALIDATION: Check dimensions even if no customization steps
-    const dimContainer = document.querySelector('.dimensions-container');
-    if (dimContainer && !dimContainer.classList.contains('hidden-step')) {
-      const heightInput = document.getElementById('input-height');
-      const widthInput = document.getElementById('input-width');
-      
-      if (!heightInput?.value || !widthInput?.value || parseFloat(heightInput.value) <= 0 || parseFloat(widthInput.value) <= 0) {
-        alert('Please enter valid Dimensions (Height & Width) before proceeding.');
-        return;
-      }
+    const missingFields = validateStep(1); // Check Step 1 (dimensions)
+    if (missingFields.length > 0) {
+      showValidationWarning(missingFields);
+      return;
     }
 
     console.log('[Nav] Calling showOrderSummary...');
@@ -1344,6 +1333,89 @@ function setupDirectToSummaryNavigation() {
     if (backGroup) {
       backGroup.classList.add('hidden-step');
     }
+  }
+}
+
+/**
+ * Validates all fields in a specific step
+ * @param {number} stepNum - Step number to validate
+ * @returns {Array} List of missing field labels
+ */
+function validateStep(stepNum) {
+  const stepEl = document.getElementById(`step-${stepNum}`);
+  if (!stepEl) return [];
+  
+  const containers = stepEl.querySelectorAll('[data-field-id]');
+  let missingFields = [];
+  const addedToMissing = new Set();
+  
+  containers.forEach(container => {
+    if (container.classList.contains('option-card')) return;
+    if (container.style.display === 'none' || container.closest('.hidden-step')) return;
+    
+    const fieldId = container.dataset.fieldId;
+    if (!fieldId) return;
+
+    const hasOptions = container.querySelectorAll('.option-card').length > 0;
+    if (!hasOptions) return;
+
+    const activeCard = container.querySelector('.option-card.active');
+    if (!activeCard) {
+      let label = fieldId;
+      if (typeof window.getFieldDisplayName === 'function') {
+        label = window.getFieldDisplayName(fieldId).replace(':', '');
+      } else {
+        const fallbacks = {
+          'numberOfPanels': 'Panel',
+          'transomType': 'Transom Type',
+          'trackSystem': 'Track System',
+          'panelConfiguration': 'Panel Configuration',
+          'lockType': 'Lock Type',
+          'rollerType': 'Roller Type',
+          'screen': 'Screen',
+          'frameColor': 'Frame Color',
+          'glassType': 'Glass Type',
+          'glassThickness': 'Glass Thickness'
+        };
+        label = fallbacks[fieldId] || fieldId;
+      }
+        
+      if (!addedToMissing.has(label)) {
+        missingFields.push(label);
+        addedToMissing.add(label);
+      }
+    }
+  });
+
+  // Also check dimensions if they are visible in this step
+  const dimContainer = document.querySelector('.dimensions-container');
+  if (dimContainer && !dimContainer.classList.contains('hidden-step')) {
+    const heightInput = document.getElementById('input-height');
+    const widthInput = document.getElementById('input-width');
+    
+    if (!heightInput?.value || !widthInput?.value || parseFloat(heightInput.value) <= 0 || parseFloat(widthInput.value) <= 0) {
+      missingFields.push('Dimensions (Height & Width)');
+    }
+  }
+  
+  return missingFields;
+}
+
+/**
+ * Shows validation warning message
+ * @param {Array} missingFields - List of missing field labels
+ */
+function showValidationWarning(missingFields) {
+  const warningEl = document.getElementById('validation-warning');
+  if (warningEl) {
+    warningEl.innerHTML = '<div style="display: flex; align-items: center; gap: 10px;">' +
+                          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
+                          '<span>Please complete the following specifications: <strong>' + missingFields.join(', ') + '</strong></span>' +
+                          '</div>';
+    warningEl.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else {
+    alert('Please complete: ' + missingFields.join(', '));
   }
 }
 
@@ -1375,103 +1447,37 @@ function setupDynamicStepNavigation(totalSteps, stepNames = null) {
     const currentStepNum = window.currentStep || 1;
     
     // VALIDATION: Check if all fields in the current step have a selection
-    const currentStepEl = document.getElementById(`step-${currentStepNum}`);
-    const warningEl = document.getElementById('validation-warning');
-    
-    if (currentStepEl) {
-      // Find all containers that should have a selection
-      const containers = currentStepEl.querySelectorAll('[data-field-id]');
-      let missingFields = [];
-      const addedToMissing = new Set();
-      
-      containers.forEach(container => {
-        // Skip if it's an option-card itself
-        if (container.classList.contains('option-card')) return;
-        
-        // Skip if hidden
-        if (container.style.display === 'none' || container.closest('.hidden-step')) return;
-        
-        const fieldId = container.dataset.fieldId;
-        if (!fieldId) return;
-
-        // Special case: check if this is a container that actually holds options
-        const hasOptions = container.querySelectorAll('.option-card').length > 0;
-        if (!hasOptions) return;
-
-        // Check for active selection
-        const activeCard = container.querySelector('.option-card.active');
-        if (!activeCard) {
-          let label = fieldId;
-          if (typeof window.getFieldDisplayName === 'function') {
-            label = window.getFieldDisplayName(fieldId);
-          } else {
-            // Local fallback for common field IDs
-            const fallbacks = {
-              'numberOfPanels': 'Panel',
-              'transomType': 'Transom Type',
-              'trackSystem': 'Track System',
-              'panelConfiguration': 'Panel Configuration',
-              'lockType': 'Lock Type',
-              'rollerType': 'Roller Type',
-              'screen': 'Screen',
-              'frameColor': 'Frame Color',
-              'glassType': 'Glass Type',
-              'glassThickness': 'Glass Thickness'
-            };
-            label = fallbacks[fieldId] || fieldId;
-          }
-            
-          if (!addedToMissing.has(label)) {
-            missingFields.push(label);
-            addedToMissing.add(label);
-          }
-        }
-      });
-
-      // Also check dimensions if they are visible in this step
-      const dimContainer = document.querySelector('.dimensions-container');
-      if (dimContainer && !dimContainer.classList.contains('hidden-step')) {
-        const heightInput = document.getElementById('input-height');
-        const widthInput = document.getElementById('input-width');
-        
-        if (!heightInput?.value || !widthInput?.value || parseFloat(heightInput.value) <= 0 || parseFloat(widthInput.value) <= 0) {
-          missingFields.push('Dimensions (Height & Width)');
-        }
-      }
-
-      if (missingFields.length > 0) {
-        if (warningEl) {
-          warningEl.innerHTML = '<div style="display: flex; align-items: center; gap: 10px;">' +
-                                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
-                                '<span>Please complete the following specifications: <strong>' + missingFields.join(', ') + '</strong></span>' +
-                                '</div>';
-          warningEl.style.display = 'block';
-          // Scroll to top to see the warning
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-          alert('Please complete: ' + missingFields.join(', '));
-        }
-        return; // Prevent proceeding
-      } else {
-        if (warningEl) warningEl.style.display = 'none';
-      }
+    const missingFields = validateStep(currentStepNum);
+    if (missingFields.length > 0) {
+      showValidationWarning(missingFields);
+      return;
+    } else {
+      const warningEl = document.getElementById('validation-warning');
+      if (warningEl) warningEl.style.display = 'none';
     }
     
     const totalSteps = window.totalCustomizationSteps || 1;
     console.log(`[Nav] Next clicked. Current step: ${currentStepNum}/${totalSteps}`);
 
     if (currentStepNum < totalSteps) {
-      // Move to next step
-      console.log(`[Nav] Moving to step ${currentStepNum + 1}`);
+      // Move to next step (STRICT FLOW: 1 -> 2 -> 3 -> 4)
+      console.log(`[Nav] Moving to next step: ${currentStepNum + 1}`);
       goToDynamicStep(currentStepNum + 1);
     } else {
-      // Final step - show summary
-      console.log(`[Nav] Final step reached. Showing order summary...`);
+      // Final step reached (Step 4) - now show summary
+      console.log(`[Nav] Step ${totalSteps} completed. Transitioning to Review Order...`);
+      
+      // Validation: Final check before summary
+      const missingFields = validateStep(currentStepNum);
+      if (missingFields.length > 0) {
+        showValidationWarning(missingFields);
+        return;
+      }
       
       // Ensure the button shows loading state
       const originalHtml = freshNextBtn.innerHTML;
       freshNextBtn.disabled = true;
-      freshNextBtn.innerHTML = 'Processing... <span class="spinner-border spinner-border-sm"></span>';
+      freshNextBtn.innerHTML = 'Generating Review... <span class="spinner-border spinner-border-sm"></span>';
       
       setTimeout(() => {
         if (typeof window.showOrderSummary === 'function') {
@@ -1483,7 +1489,7 @@ function setupDynamicStepNavigation(totalSteps, stepNames = null) {
           alert('Could not show order summary. Please contact support.');
         }
         
-        // Restore button state (though it might be hidden now)
+        // Restore button state
         freshNextBtn.disabled = false;
         freshNextBtn.innerHTML = originalHtml;
       }, 300);
@@ -1647,6 +1653,94 @@ function updateDynamicBreadcrumbs(currentStep, totalSteps, stepNames = null) {
 }
 
 /**
+ * Preloads customization selections from window.preloadedCustomization
+ */
+function preloadSelections() {
+  if (!window.preloadedCustomization) return;
+  
+  console.log('[Preload] Starting pre-selection process...');
+  const customization = window.preloadedCustomization;
+  
+  // Mapping of database columns to field IDs
+  const colToFieldMap = {
+    'GlassShape': 'shape',
+    'GlassType': 'glassType',
+    'GlassThickness': 'glassThickness',
+    'EdgeWork': 'edgeWork',
+    'FrameType': 'frameColor', // Standard field ID for frame color
+    'Engraving': 'engraving'
+  };
+
+  // Try to parse dynamic customization JSON if it exists
+  let dynamicCustomization = {};
+  if (customization.Customization) {
+    try {
+      dynamicCustomization = typeof customization.Customization === 'string' 
+        ? JSON.parse(customization.Customization) 
+        : customization.Customization;
+      console.log('[Preload] Found dynamic customization JSON:', dynamicCustomization);
+    } catch(e) {
+      console.error('[Preload] Error parsing dynamic customization JSON:', e);
+    }
+  }
+
+  // Combine standard columns and dynamic JSON
+  const allSelections = { ...customization, ...dynamicCustomization };
+  
+  // Iterate through all possible field containers in DOM
+  const fieldContainers = document.querySelectorAll('[data-field-id]');
+  fieldContainers.forEach(container => {
+    const fieldId = container.dataset.fieldId;
+    let targetValue = allSelections[fieldId];
+    
+    // If not found by fieldId, try the column mapping
+    if (!targetValue) {
+      for (const [col, fid] of Object.entries(colToFieldMap)) {
+        if (fid === fieldId) {
+          targetValue = customization[col];
+          break;
+        }
+      }
+    }
+
+    if (targetValue) {
+      console.log(`[Preload] Attempting to select value "${targetValue}" for field "${fieldId}"`);
+      
+      const options = container.querySelectorAll('.option-card');
+      options.forEach(option => {
+        const val = option.dataset.value || option.textContent.trim();
+        // Use loose comparison or normalization if needed
+        if (val === targetValue || val.toLowerCase() === String(targetValue).toLowerCase()) {
+          option.click(); // Trigger the click handler to update UI and Konva
+          console.log(`[Preload] Selected "${val}" for "${fieldId}"`);
+        }
+      });
+    }
+  });
+
+  // Preload dimensions
+  if (window.preloadedDimensions) {
+    const inputWidth = document.getElementById('input-width');
+    const inputHeight = document.getElementById('input-height');
+    const btnUnitWidth = document.getElementById('btn-unit-width');
+    const btnUnitHeight = document.getElementById('btn-unit-height');
+
+    if (inputWidth) inputWidth.value = window.preloadedDimensions.width.value;
+    if (inputHeight) inputHeight.value = window.preloadedDimensions.height.value;
+    
+    // Units might need triggering change events or manual updates to labels
+    if (btnUnitWidth) btnUnitWidth.dataset.currentUnit = window.preloadedDimensions.width.unit;
+    if (btnUnitHeight) btnUnitHeight.dataset.currentUnit = window.preloadedDimensions.height.unit;
+    
+    // Trigger updateDimensions if available
+    if (typeof window.updateDimensions === 'function') {
+      window.updateDimensions('width', window.preloadedDimensions.width.value, window.preloadedDimensions.width.unit);
+      window.updateDimensions('height', window.preloadedDimensions.height.value, window.preloadedDimensions.height.unit);
+    }
+  }
+}
+
+/**
  * Syncs JavaScript state variables with the active DOM selections
  * This ensures Konva renders the correct shape when the page loads
  * Must be called AFTER fields are rendered and enforceSingleSelection() runs
@@ -1656,6 +1750,13 @@ function updateDynamicBreadcrumbs(currentStep, totalSteps, stepNames = null) {
  */
 function syncStateFromActiveSelections() {
   console.log('[Sync] ========== SYNCING STATE FROM DOM ==========');
+  
+  // If we have preloaded data, run preloading first
+  if (window.preloadedCustomization) {
+    preloadSelections();
+    // Clear it so we don't re-run it multiple times
+    delete window.preloadedCustomization;
+  }
   
   // First, ensure visual configs are loaded (for frame colors like Gold, Silver, etc.)
   // This is CRITICAL for syncing admin's 2D preview settings to customer side
