@@ -831,7 +831,7 @@ function saveAppointmentChanges() {
             closePopup();
             loadAppointments(); // This will also refresh the calendar
         } else {
-            showToast('Error: ' + data.message, 'error');
+            showToast(data.message, 'error');
         }
     })
     .catch(error => {

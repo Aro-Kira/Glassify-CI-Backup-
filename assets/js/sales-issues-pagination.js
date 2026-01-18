@@ -793,7 +793,7 @@
      * Show error message
      */
     function showError(message) {
-        showToast('Error: ' + message, 'error');
+        showToast(message, 'error');
     }
 
     /**

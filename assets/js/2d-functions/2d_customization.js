@@ -1,8 +1,6 @@
 // --- DOM ELEMENTS AND STATE ---
 const btnCustomize = document.getElementById('btn-customize');
-const btnStandard = document.getElementById('btn-standard');
 const customWrapper = document.getElementById('custom-wrapper');
-const standardWrapper = document.getElementById('standard-wrapper');
 const priceBox = document.getElementById('price-box');
 const standardSubtitle = document.getElementById('standard-subtitle');
 const nextBtn = document.getElementById('next-btn');
@@ -49,8 +47,8 @@ let currentFrameType = 'vinyl';
 // Corner radius in inches (applies to rectangle/square only)
 let currentCornerRadius = 0;
 let currentDimensions = {
-    height: { value: 45, unit: 'in' },
-    width: { value: 35, unit: 'in' }
+    height: { value: '', unit: 'in' },
+    width: { value: '', unit: 'in' }
 };
 
 const unitMap = {
@@ -64,7 +62,7 @@ const unitMap = {
 
 const KONVA_CONTAINER_ID = 'konva-container';
 const konvaWrapper = document.getElementById(KONVA_CONTAINER_ID);
-const STAGE_SIZE = konvaWrapper.offsetWidth;
+const STAGE_SIZE = konvaWrapper ? konvaWrapper.offsetWidth : 500; // Fallback size if container not found yet
 
 const PADDING = 40;
 const DRAWING_SIZE = STAGE_SIZE - PADDING * 2;
@@ -513,18 +511,10 @@ stage.add(layer);
 function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, edgeWork, frameType, originalWidth, originalHeight, heightUnit, customizationValues = {}) {
     layer.destroyChildren();
 
-    // Get panel configuration from customization values
-    const numberOfPanels = extractPanelCount(customizationValues.numberOfPanels || customizationValues.NumberOfPanels || '2-panel');
-    const operation = (customizationValues.operation || customizationValues.Operation || 'sliding').toLowerCase();
-    const configuration = (customizationValues.configuration || customizationValues.Configuration || '').toLowerCase();
-    
-    // Determine if panels are fixed or operable
-    const hasFixedPanels = configuration.includes('fixed') || operation.includes('fixed');
-    const isSliding = operation.includes('sliding');
-    const isSwing = operation.includes('swing');
-    
-    // Calculate panel dimensions
-    const actualRatio = widthIn / heightIn;
+    // Ratio and Scale - Use visual defaults if dimensions are missing (to ensure preview is visible)
+    const visualWidth = parseFloat(widthIn) || 35;
+    const visualHeight = parseFloat(heightIn) || 45;
+    const actualRatio = visualWidth / visualHeight;
     let totalWidth, totalHeight;
     
     if (actualRatio > 1) {
@@ -537,6 +527,16 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     
     const offsetX = (STAGE_SIZE - totalWidth) / 2;
     const offsetY = (STAGE_SIZE - totalHeight) / 2;
+    
+    // Get panel configuration from customization values
+    const numberOfPanels = extractPanelCount(customizationValues.numberOfPanels || customizationValues.NumberOfPanels || '2-panel');
+    const operation = (customizationValues.operation || customizationValues.Operation || 'sliding').toLowerCase();
+    const configuration = (customizationValues.configuration || customizationValues.Configuration || '').toLowerCase();
+    
+    // Determine if panels are fixed or operable
+    const hasFixedPanels = configuration.includes('fixed') || operation.includes('fixed');
+    const isSliding = operation.includes('sliding');
+    const isSwing = operation.includes('swing');
     
     // Normalize styles
     const normalizedGlassType = normalizeGlassType(glassType);
@@ -589,48 +589,23 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     const operableSectionHeight = panelHeight - fixedSectionHeight;
     
     // Draw panels
+    const configValue = customizationValues.panelConfiguration || '';
+    const panelLabels = configValue.split('(')[0].split('|').map(s => s.trim());
+    
+    // Only show labels if transom type has been selected
+    const transomType = customizationValues.transomType || customizationValues.TransomType || '';
+    const showLabels = transomType !== '';
+
     for (let i = 0; i < numberOfPanels; i++) {
         const panelX = offsetX + (i * panelWidth);
         const panelY = offsetY;
         
-        // Draw fixed section (top portion with "F" label) - show on all panels for multi-panel products
-        if (showFixedSection) {
-            const fixedRect = new Konva.Rect({
-                x: panelX,
-                y: panelY,
-                width: panelWidth,
-                height: fixedSectionHeight,
-                fill: '#4A90E2', // Darker blue for fixed section
-                opacity: 0.8,
-                stroke: fStyle.color,
-                strokeWidth: fStyle.width,
-                listening: false,
-            });
-            layer.add(fixedRect);
-            
-            // Add "F" label for Fixed
-            const fixedLabel = new Konva.Text({
-                x: panelX + panelWidth / 2,
-                y: panelY + fixedSectionHeight / 2,
-                text: 'F',
-                fontSize: 16,
-                fontFamily: 'Montserrat, Arial',
-                fontStyle: 'bold',
-                fill: '#FFFFFF',
-                align: 'center',
-                offsetX: 8,
-                offsetY: 8,
-                listening: false,
-            });
-            layer.add(fixedLabel);
-        }
-        
-        // Draw operable section (main glass panel)
+        // Draw the main glass panel
         const glassRect = new Konva.Rect({
             x: panelX,
-            y: panelY + fixedSectionHeight,
+            y: panelY,
             width: panelWidth,
-            height: operableSectionHeight,
+            height: panelHeight,
             fill: gStyle.fill,
             opacity: gStyle.opacity,
             stroke: fStyle.color,
@@ -639,20 +614,28 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         });
         layer.add(glassRect);
         
-        // Add handle/opening indicator (circle "O") in center of operable section
-        const handleX = panelX + panelWidth / 2;
-        const handleY = panelY + fixedSectionHeight + operableSectionHeight / 2;
-        
-        const handleCircle = new Konva.Circle({
-            x: handleX,
-            y: handleY,
-            radius: 8,
-            fill: 'transparent',
-            stroke: '#FFFFFF',
-            strokeWidth: 2,
-            listening: false,
-        });
-        layer.add(handleCircle);
+        // Add label (F or S) from configuration if available - ONLY if transom type is selected
+        if (showLabels) {
+            const labelText = panelLabels[i] || (i === 0 ? 'F' : 'S'); // Fallback if no label
+            
+            const label = new Konva.Text({
+                x: panelX + panelWidth / 2,
+                y: panelY + panelHeight / 2,
+                text: labelText,
+                fontSize: 24,
+                fontFamily: 'Montserrat, Arial',
+                fontStyle: 'bold',
+                fill: fStyle.color,
+                opacity: 0.8,
+                align: 'center',
+                verticalAlign: 'middle',
+                listening: false,
+            });
+            // Center the text
+            label.offsetX(label.width() / 2);
+            label.offsetY(label.height() / 2);
+            layer.add(label);
+        }
         
         // Add panel divider (vertical line between panels)
         if (i < numberOfPanels - 1) {
@@ -679,94 +662,35 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     });
     layer.add(outerFrame);
     
-    // Draw dimensions (same as single panel)
-    const dimColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-dark').trim() || '#333';
-    const DIM_EXTENSION = 20;
-    const DIM_LINE_OFFSET = 15;
+    // Draw W and H labels
+    const labelColor = '#555';
     
-    // Width dimension (top)
-    layer.add(new Konva.Line({ 
-        points: [offsetX, offsetY, offsetX, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION], 
-        stroke: dimColor, 
-        strokeWidth: 1.5,
-        listening: false
-    }));
-    layer.add(new Konva.Line({ 
-        points: [offsetX + totalWidth, offsetY, offsetX + totalWidth, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION], 
-        stroke: dimColor, 
-        strokeWidth: 1.5,
-        listening: false
-    }));
-    layer.add(new Konva.Line({ 
-        points: [offsetX, offsetY - DIM_LINE_OFFSET, offsetX + totalWidth, offsetY - DIM_LINE_OFFSET], 
-        stroke: dimColor, 
-        strokeWidth: 1.5, 
-        dash: [5, 3],
-        listening: false
-    }));
-    const widthText = `${originalWidth}${unit}`;
+    // W Label (at top)
     layer.add(new Konva.Text({
         x: offsetX + totalWidth / 2,
-        y: offsetY - DIM_LINE_OFFSET - 18,
-        text: widthText,
-        fontSize: 11,
+        y: offsetY - 25,
+        text: 'W',
+        fontSize: 16,
         fontFamily: 'Montserrat, Arial',
-        fontStyle: 'normal',
-        fill: dimColor,
-        align: 'center',
-        offsetX: (widthText.length * 6) / 2,
-        listening: false,
-    }));
-    
-    // Height dimension (right side)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + totalWidth, offsetY, offsetX + totalWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY], 
-        stroke: dimColor, 
-        strokeWidth: 1.5,
-        listening: false
-    }));
-    layer.add(new Konva.Line({ 
-        points: [offsetX + totalWidth, offsetY + totalHeight, offsetX + totalWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY + totalHeight], 
-        stroke: dimColor, 
-        strokeWidth: 1.5,
-        listening: false
-    }));
-    layer.add(new Konva.Line({ 
-        points: [offsetX + totalWidth + DIM_LINE_OFFSET, offsetY, offsetX + totalWidth + DIM_LINE_OFFSET, offsetY + totalHeight], 
-        stroke: dimColor, 
-        strokeWidth: 1.5, 
-        dash: [5, 3],
-        listening: false
-    }));
-    const heightText = `${originalHeight}${heightUnit}`;
-    layer.add(new Konva.Text({
-        x: offsetX + totalWidth + DIM_LINE_OFFSET + 18,
-        y: offsetY + totalHeight / 2,
-        text: heightText,
-        fontSize: 11,
-        fontFamily: 'Montserrat, Arial',
-        fontStyle: 'normal',
-        fill: dimColor,
-        align: 'center',
-        rotation: 90,
-        offsetX: (heightText.length * 6) / 2,
-        listening: false,
-    }));
-    
-    // Annotations
-    const formatEdge = edgeWork.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    const formatThickness = thickness.replace('mm', '') + 'mm';
-    const annotationText = `Thickness: ${formatThickness}  |  Edge: ${formatEdge}`;
-    
-    layer.add(new Konva.Text({
-        x: offsetX + totalWidth / 2,
-        y: offsetY + totalHeight + 15,
-        text: annotationText,
-        fontSize: 11,
         fontStyle: 'bold',
-        fontFamily: 'Montserrat',
-        fill: '#555',
-        offsetX: (annotationText.length * 6) / 2,
+        fill: labelColor,
+        align: 'center',
+        offsetX: 8,
+        listening: false,
+    }));
+    
+    // H Label (on right side)
+    layer.add(new Konva.Text({
+        x: offsetX + totalWidth + 15,
+        y: offsetY + totalHeight / 2,
+        text: 'H',
+        fontSize: 16,
+        fontFamily: 'Montserrat, Arial',
+        fontStyle: 'bold',
+        fill: labelColor,
+        align: 'center',
+        rotation: 0,
+        offsetY: 8,
         listening: false,
     }));
     
@@ -829,8 +753,10 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
         return;
     }
 
-    // Ratio and Scale
-    const actualRatio = widthIn / heightIn;
+    // Ratio and Scale - Use visual defaults if dimensions are missing (to ensure preview is visible)
+    const visualWidth = parseFloat(widthIn) || 35;
+    const visualHeight = parseFloat(heightIn) || 45;
+    const actualRatio = visualWidth / visualHeight;
     let windowWidth, windowHeight;
 
     if (actualRatio > 1) {
@@ -847,7 +773,7 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
     // Normalize values (handle preset values)
     const normalizedGlassType = normalizeGlassType(glassType);
     const normalizedFrameType = normalizeFrameType(frameType);
-    const normalizedShape = normalizeShape(shape);
+    const normalizedShape = 'rectangle'; // Force rectangle as per request
 
     // Styles - with fallback color handling
     const gStyle = glassStyles[normalizedGlassType] || glassStyles['clear'];
@@ -890,253 +816,48 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
         frameStyles[normalizedFrameType] = fStyle;
     }
 
-    // Draw glass shape based on preset shapes
-    let glassShape;
-    const centerX = offsetX + windowWidth / 2;
-    const centerY = offsetY + windowHeight / 2;
-    const minRadius = Math.min(windowWidth, windowHeight) / 2;
+    // Rectangle (always rectangle as per request)
+    const glassRect = new Konva.Rect({
+        x: offsetX,
+        y: offsetY,
+        width: windowWidth,
+        height: windowHeight,
+        fill: gStyle.fill,
+        opacity: gStyle.opacity,
+        stroke: fStyle.color,
+        strokeWidth: fStyle.width,
+        listening: false,
+    });
+    layer.add(glassRect);
 
-    // Corner radius (inches -> pixels), used for rectangle/square only
-    const safeCornerRadiusIn = Math.max(0, parseFloat(cornerRadiusIn) || 0);
-    const pxPerInX = widthIn > 0 ? (windowWidth / widthIn) : 0;
-    const pxPerInY = heightIn > 0 ? (windowHeight / heightIn) : 0;
-    const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
-    const cornerRadiusPx = Math.min(minRadius, safeCornerRadiusIn * (pxPerIn || 0));
+    // Draw W and H labels
+    const labelColor = '#555';
     
-    if (normalizedShape === 'round' || normalizedShape === 'circle') {
-        // Circle
-        glassShape = new Konva.Circle({
-            x: centerX,
-            y: centerY,
-            radius: minRadius,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            listening: false,
-        });
-    } else if (normalizedShape === 'oval' || normalizedShape === 'ellipse') {
-        // Ellipse
-        glassShape = new Konva.Ellipse({
-            x: centerX,
-            y: centerY,
-            radiusX: windowWidth / 2,
-            radiusY: windowHeight / 2,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            listening: false,
-        });
-    } else if (normalizedShape === 'triangle') {
-        // Triangle - 3-sided polygon
-        const points = [
-            centerX, offsetY,                    // Top point
-            offsetX, offsetY + windowHeight,     // Bottom left
-            offsetX + windowWidth, offsetY + windowHeight // Bottom right
-        ];
-        glassShape = new Konva.Line({
-            points: points,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            closed: true,
-            listening: false,
-        });
-    } else if (normalizedShape === 'pentagon') {
-        // Pentagon - 5-sided regular polygon
-        glassShape = new Konva.RegularPolygon({
-            x: centerX,
-            y: centerY,
-            sides: 5,
-            radius: minRadius,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            listening: false,
-        });
-    } else if (normalizedShape === 'hexagon') {
-        // Hexagon - 6-sided regular polygon
-        glassShape = new Konva.RegularPolygon({
-            x: centerX,
-            y: centerY,
-            sides: 6,
-            radius: minRadius,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            listening: false,
-        });
-    } else if (normalizedShape === 'octagon') {
-        // Octagon - 8-sided regular polygon
-        glassShape = new Konva.RegularPolygon({
-            x: centerX,
-            y: centerY,
-            sides: 8,
-            radius: minRadius,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            listening: false,
-        });
-    } else if (normalizedShape === 'star') {
-        // Star - 5-pointed star
-        glassShape = new Konva.Star({
-            x: centerX,
-            y: centerY,
-            numPoints: 5,
-            innerRadius: minRadius * 0.5,
-            outerRadius: minRadius,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            listening: false,
-        });
-    } else if (normalizedShape === 'diamond') {
-        // Diamond - 4-sided polygon rotated 45 degrees
-        const points = [
-            centerX, offsetY,                    // Top
-            offsetX + windowWidth, centerY,      // Right
-            centerX, offsetY + windowHeight,     // Bottom
-            offsetX, centerY                    // Left
-        ];
-        glassShape = new Konva.Line({
-            points: points,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            closed: true,
-            listening: false,
-        });
-    } else {
-        // Rectangle (default)
-        glassShape = new Konva.Rect({
-            x: offsetX,
-            y: offsetY,
-            width: windowWidth,
-            height: windowHeight,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            cornerRadius: cornerRadiusPx > 0 ? cornerRadiusPx : 0,
-            listening: false,
-        });
-    }
-    layer.add(glassShape);
-
-    // Draw Dimensions (Reference style: extension lines with dashed dimension line and labels)
-    const dimColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-dark').trim() || '#333';
-    const DIM_EXTENSION = 20; // Extension line length
-    const DIM_LINE_OFFSET = 15; // Distance from glass panel to dimension line
-
-    // Width Dimension (at top) - Reference: horizontal dashed line with "35in" label
-    // Left extension line (vertical line extending upward from left corner)
-    layer.add(new Konva.Line({ 
-        points: [offsetX, offsetY, offsetX, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION], 
-        stroke: dimColor, 
-        strokeWidth: 1.5,
-        listening: false
-    }));
-    // Right extension line (vertical line extending upward from right corner)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + windowWidth, offsetY, offsetX + windowWidth, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION], 
-        stroke: dimColor, 
-        strokeWidth: 1.5,
-        listening: false
-    }));
-    // Horizontal dashed dimension line (reference style)
-    layer.add(new Konva.Line({ 
-        points: [offsetX, offsetY - DIM_LINE_OFFSET, offsetX + windowWidth, offsetY - DIM_LINE_OFFSET], 
-        stroke: dimColor, 
-        strokeWidth: 1.5, 
-        dash: [5, 3],
-        listening: false
-    }));
-    // Width label text (centered above dimension line)
-    // Use original values if provided, otherwise use converted inches
-    const widthValue = originalWidth !== undefined ? originalWidth : widthIn;
-    const widthText = `${widthValue}${unit}`;
-    const WIDTH_LABEL_OFFSET = 18; // Space between dimension line and label text
+    // W Label (at top)
     layer.add(new Konva.Text({
         x: offsetX + windowWidth / 2,
-        y: offsetY - DIM_LINE_OFFSET - WIDTH_LABEL_OFFSET,
-        text: widthText,
-        fontSize: 11,
+        y: offsetY - 25,
+        text: 'W',
+        fontSize: 16,
         fontFamily: 'Montserrat, Arial',
-        fontStyle: 'normal',
-        fill: dimColor,
-        align: 'center',
-        offsetX: (widthText.length * 6) / 2,
-        listening: false,
-    }));
-
-    // Height Dimension (on right side) - Reference: vertical dashed line with "45in" label
-    // Top extension line (horizontal line extending rightward from top corner)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + windowWidth, offsetY, offsetX + windowWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY], 
-        stroke: dimColor, 
-        strokeWidth: 1.5,
-        listening: false
-    }));
-    // Bottom extension line (horizontal line extending rightward from bottom corner)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + windowWidth, offsetY + windowHeight, offsetX + windowWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY + windowHeight], 
-        stroke: dimColor, 
-        strokeWidth: 1.5,
-        listening: false
-    }));
-    // Vertical dashed dimension line (reference style)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + windowWidth + DIM_LINE_OFFSET, offsetY, offsetX + windowWidth + DIM_LINE_OFFSET, offsetY + windowHeight], 
-        stroke: dimColor, 
-        strokeWidth: 1.5, 
-        dash: [5, 3],
-        listening: false
-    }));
-    // Height label text (rotated, centered on dimension line)
-    // Use original values if provided, otherwise use converted inches
-    // Use heightUnit if provided, otherwise fall back to unit parameter
-    const heightValue = originalHeight !== undefined ? originalHeight : heightIn;
-    const heightLabelUnit = heightUnit !== undefined ? heightUnit : unit;
-    const heightText = `${heightValue}${heightLabelUnit}`;
-    const HEIGHT_LABEL_OFFSET = 18; // Space between dimension line and label text
-    layer.add(new Konva.Text({
-        x: offsetX + windowWidth + DIM_LINE_OFFSET + HEIGHT_LABEL_OFFSET,
-        y: offsetY + windowHeight / 2,
-        text: heightText,
-        fontSize: 11,
-        fontFamily: 'Montserrat, Arial',
-        fontStyle: 'normal',
-        fill: dimColor,
-        align: 'center',
-        rotation: 90,
-        offsetX: (heightText.length * 6) / 2,
-        listening: false,
-    }));
-
-    // Annotations - Reference format: "Thickness: 5mm" and "Edge: Polished"
-    const formatEdge = edgeWork.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    const formatThickness = thickness.replace('mm', '') + 'mm'; // Ensure mm format
-    
-    // Display thickness and edge info below the glass panel
-    const annotationText = `Thickness: ${formatThickness}  |  Edge: ${formatEdge}`;
-
-    layer.add(new Konva.Text({
-        x: offsetX + windowWidth / 2,
-        y: offsetY + windowHeight + 15,
-        text: annotationText,
-        fontSize: 11,
         fontStyle: 'bold',
-        fontFamily: 'Montserrat',
-        fill: '#555',
-        offsetX: (annotationText.length * 6) / 2,
+        fill: labelColor,
+        align: 'center',
+        offsetX: 8,
+        listening: false,
+    }));
+    
+    // H Label (on right side)
+    layer.add(new Konva.Text({
+        x: offsetX + windowWidth + 15,
+        y: offsetY + windowHeight / 2,
+        text: 'H',
+        fontSize: 16,
+        fontFamily: 'Montserrat, Arial',
+        fontStyle: 'bold',
+        fill: labelColor,
+        align: 'center',
+        offsetY: 8,
         listening: false,
     }));
 
@@ -1260,18 +981,15 @@ function renderCustomState() {
     const heightUnit = currentDimensions.height.unit;
     
     // Convert width to inches
-    if (widthUnit === 'cm') {
-        widthIn /= 2.54;
-    } else if (widthUnit === 'mm') {
-        widthIn /= 25.4;
+    if (widthIn !== '' && !isNaN(parseFloat(widthIn))) {
+        if (widthUnit === 'cm') widthIn /= 2.54;
+        else if (widthUnit === 'mm') widthIn /= 25.4;
     }
-    // If unit is 'in', no conversion needed
     
     // Convert height to inches
-    if (heightUnit === 'cm') {
-        heightIn /= 2.54;
-    } else if (heightUnit === 'mm') {
-        heightIn /= 25.4;
+    if (heightIn !== '' && !isNaN(parseFloat(heightIn))) {
+        if (heightUnit === 'cm') heightIn /= 2.54;
+        else if (heightUnit === 'mm') heightIn /= 25.4;
     }
     // If unit is 'in', no conversion needed
     
@@ -1340,13 +1058,13 @@ window.onload = function() {
     
     // Initialize default dimensions and render initial state
     if (inputHeight && inputWidth) {
-        // Ensure default values are set if inputs are empty
-        if (!inputHeight.value || inputHeight.value === '') inputHeight.value = '45';
-        if (!inputWidth.value || inputWidth.value === '') inputWidth.value = '35';
+        // Ensure default values are set if inputs are empty - UPDATED: Start blank
+        if (!inputHeight.value || inputHeight.value === '') inputHeight.value = '';
+        if (!inputWidth.value || inputWidth.value === '') inputWidth.value = '';
         
-        // Update currentDimensions with values from inputs (or defaults)
-        const heightValue = parseFloat(inputHeight.value) || 45;
-        const widthValue = parseFloat(inputWidth.value) || 35;
+        // Update currentDimensions with values from inputs
+        const heightValue = parseFloat(inputHeight.value) || '';
+        const widthValue = parseFloat(inputWidth.value) || '';
         const heightUnit = btnUnitHeight ? (btnUnitHeight.dataset.currentUnit || 'in') : 'in';
         const widthUnit = btnUnitWidth ? (btnUnitWidth.dataset.currentUnit || 'in') : 'in';
         
@@ -1399,6 +1117,9 @@ window.onload = function() {
         if (typeof renderCustomState === 'function') {
             renderCustomState();
         }
+        
+        // Force initial price update
+        updateRealTimePriceDisplay();
     }, 1200);
 };
 
@@ -1431,24 +1152,8 @@ function syncShapeFromActiveSelection() {
     }
     
     // No active shape found, check if there are shape cards at all and make first one active
-    const firstDynamicShapeCard = document.querySelector('[data-field-id="shape"] .option-card');
-    if (firstDynamicShapeCard) {
-        firstDynamicShapeCard.classList.add('active');
-        const shapeValue = (firstDynamicShapeCard.dataset.value || firstDynamicShapeCard.textContent.trim()).toLowerCase().replace(/\s+/g, '-');
-        console.log('[Init] No active shape found, setting first option:', shapeValue);
-        currentShape = shapeValue;
-        window.currentShape = shapeValue;
-        return;
-    }
-    
-    const firstLegacyShapeCard = document.querySelector('.option-card[data-shape]');
-    if (firstLegacyShapeCard) {
-        firstLegacyShapeCard.classList.add('active');
-        const shapeValue = firstLegacyShapeCard.dataset.shape.toLowerCase().replace(/\s+/g, '-');
-        console.log('[Init] No active legacy shape found, setting first option:', shapeValue);
-        currentShape = shapeValue;
-        window.currentShape = shapeValue;
-    }
+    // No active shape found - do not auto-select (per user request)
+    console.log('[Init] No active shape found, leaving unselected');
 }
 
 
@@ -1460,74 +1165,28 @@ btnCustomize.addEventListener('click', () => {
 
     // UI Updates
     btnCustomize.classList.add('active'); btnCustomize.classList.remove('inactive');
-    btnStandard.classList.remove('active'); btnStandard.classList.add('inactive');
-    customWrapper.classList.remove('hidden-step'); standardWrapper.classList.add('hidden-step');
-    priceBox.classList.remove('hidden-step'); standardSubtitle.classList.add('hidden-step');
+    customWrapper.classList.remove('hidden-step'); 
+    priceBox.classList.remove('hidden-step'); 
     updateBreadcrumbs(currentStep);
 
     // DRAWING UPDATE: Restore the User's Custom State
     renderCustomState();
 });
 
-btnStandard.addEventListener('click', () => {
-    if (isStandardMode) return;
-    isStandardMode = true;
-
-    // Set standard mode defaults for summary
-    currentShape = 'rectangle';
-    currentGlassType = 'tempered';
-    currentThickness = '5mm';
-    currentEdgeWork = 'flat-polish';
-    currentFrameType = 'vinyl';
-
-    // UI Updates
-    btnStandard.classList.add('active'); btnStandard.classList.remove('inactive');
-    btnCustomize.classList.remove('active'); btnCustomize.classList.add('inactive');
-    standardWrapper.classList.remove('hidden-step'); customWrapper.classList.add('hidden-step');
-    priceBox.classList.add('hidden-step'); standardSubtitle.classList.remove('hidden-step');
-    resetBreadcrumbsToStandard();
-
-    // DRAWING UPDATE: Force Standard Look
-    // Get the currently selected standard card values
-    const activeStdCard = document.querySelector('#standard-wrapper .option-card.active');
-    if (activeStdCard) {
-        const h = parseFloat(activeStdCard.dataset.height);
-        const w = parseFloat(activeStdCard.dataset.width);
-        currentDimensions.height = { value: h, unit: 'in' };
-        currentDimensions.width = { value: w, unit: 'in' };
-        renderStandardState(w, h);
-    }
-});
-
-
-// --- STANDARD BUTTON LISTENERS (NEW) ---
-const standardCards = document.querySelectorAll('#standard-wrapper .option-card');
-standardCards.forEach(card => {
-    card.addEventListener('click', function () {
-        // Visual toggle
-        standardCards.forEach(c => c.classList.remove('active'));
-        this.classList.add('active');
-
-        // Update dimensions for summary display
-        const h = parseFloat(this.dataset.height);
-        const w = parseFloat(this.dataset.width);
-        currentDimensions.height = { value: h, unit: 'in' };
-        currentDimensions.width = { value: w, unit: 'in' };
-
-        // Render Standard
-        renderStandardState(w, h);
-    });
-});
-
 
 // --- CUSTOM EVENT LISTENERS (EXISTING) ---
 
 function updateDimensions(type, value, unit) {
-    if (isNaN(value) || value <= 0) return;
-    currentDimensions[type] = { value: parseFloat(value), unit };
+    if (value === '' || value === null || isNaN(parseFloat(value))) {
+        currentDimensions[type] = { value: '', unit };
+    } else {
+        const val = parseFloat(value);
+        if (val < 0) return;
+        currentDimensions[type] = { value: val, unit };
+    }
     
     // If dimensions are locked, update the other dimension to match
-    if (dimensionsLocked) {
+    if (dimensionsLocked && (currentDimensions[type].value !== '')) {
         const otherType = type === 'height' ? 'width' : 'height';
         const otherInput = type === 'height' ? inputWidth : inputHeight;
         const otherBtn = type === 'height' ? btnUnitWidth : btnUnitHeight;
@@ -1878,6 +1537,66 @@ nextBtn.addEventListener('click', () => {
         return;
     }
 
+    // VALIDATION: Check if all visible fields in current step have a selection
+    const currentStepEl = document.getElementById(`step-${currentStep}`);
+    const warningEl = document.getElementById('validation-warning');
+
+    if (currentStepEl) {
+        // Find all containers that should have a selection
+        const containers = currentStepEl.querySelectorAll('[data-field-id]');
+        let missingFields = [];
+        const addedToMissing = new Set();
+        
+        containers.forEach(container => {
+            // Skip if it's an option-card itself
+            if (container.classList.contains('option-card')) return;
+            
+            // Skip if hidden
+            if (container.style.display === 'none' || container.closest('.hidden-step')) return;
+            
+            const fieldId = container.dataset.fieldId;
+            if (!fieldId) return;
+
+            // Special case: check if this is a container that actually holds options
+            const hasOptions = container.querySelectorAll('.option-card').length > 0;
+            if (!hasOptions) return;
+
+            // Check for active selection
+            const activeCard = container.querySelector('.option-card.active');
+            if (!activeCard) {
+                const label = getFieldDisplayName(fieldId);
+                if (!addedToMissing.has(label)) {
+                    missingFields.push(label);
+                    addedToMissing.add(label);
+                }
+            }
+        });
+
+        // Also check dimensions
+        const dimContainer = document.querySelector('.dimensions-container');
+        if (dimContainer && !dimContainer.classList.contains('hidden-step')) {
+            if (!inputHeight?.value || !inputWidth?.value || parseFloat(inputHeight.value) <= 0 || parseFloat(inputWidth.value) <= 0) {
+                missingFields.push('Dimensions (Height & Width)');
+            }
+        }
+
+        if (missingFields.length > 0) {
+            if (warningEl) {
+                warningEl.innerHTML = '<div style="display: flex; align-items: center; gap: 10px;">' +
+                                    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
+                                    '<span>Please complete the following specifications: <strong>' + missingFields.join(', ') + '</strong></span>' +
+                                    '</div>';
+                warningEl.style.display = 'block';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                alert('Please complete: ' + missingFields.join(', '));
+            }
+            return;
+        } else {
+            if (warningEl) warningEl.style.display = 'none';
+        }
+    }
+
     // Custom mode normal flow
     if (currentStep === 1) goToStep(2);
     else if (currentStep === 2) goToStep(3);
@@ -1916,7 +1635,7 @@ function goToStep(targetStep) {
 function updateActionArea(step) {
     if (step === 1) { backGroup.classList.add('hidden-step'); nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`; nextNote.innerText = 'Glass Type & Thickness'; backNote.innerText = ''; }
     if (step === 2) { backGroup.classList.remove('hidden-step'); nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`; backNote.innerText = 'Glass Shape'; nextNote.innerText = 'Edge Work & Frame Type'; }
-    if (step === 3) { backGroup.classList.remove('hidden-step'); nextBtn.innerHTML = `Finalize Order <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`; backNote.innerText = 'Type & Thickness'; nextNote.innerText = ''; }
+    if (step === 3) { backGroup.classList.remove('hidden-step'); nextBtn.innerHTML = `Finalize Design <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`; backNote.innerText = 'Type & Thickness'; nextNote.innerText = ''; }
 }
 
 function updateBreadcrumbs(step) {
@@ -1949,7 +1668,21 @@ function removeCrumb(id) {
 
 // Modal & File Logic
 function closeUploadModal() { uploadModal.classList.add('hidden-step'); }
-openModalBtn.addEventListener('click', () => { uploadModal.classList.remove('hidden-step'); });
+    if (openModalBtn) {
+        openModalBtn.addEventListener('click', () => { 
+            const customerId = document.body.getAttribute('data-customer-id');
+            if (!customerId || customerId === '') {
+                // User not logged in - show Toastr message
+                if (typeof showToast === 'function') {
+                    showToast('The customer needs to log in in order to upload a file', 'error');
+                } else {
+                    alert('The customer needs to log in in order to upload a file');
+                }
+                return;
+            }
+            uploadModal.classList.remove('hidden-step'); 
+        });
+    }
 modalCloseBtn.addEventListener('click', closeUploadModal);
 modalCancelBtn.addEventListener('click', closeUploadModal);
 modalDoneBtn.addEventListener('click', closeUploadModal);
@@ -2287,12 +2020,14 @@ function calculateTotal() {
     }
     
     // 1. Convert dimensions to Inches for calculation
-    let h_in = currentDimensions.height.value;
-    let w_in = currentDimensions.width.value;
+    let h_in = parseFloat(currentDimensions.height.value) || 0;
+    let w_in = parseFloat(currentDimensions.width.value) || 0;
     const unit = currentDimensions.height.unit;
 
-    if (unit === 'cm') { h_in /= 2.54; w_in /= 2.54; }
-    if (unit === 'mm') { h_in /= 25.4; w_in /= 25.4; }
+    if (h_in > 0 && w_in > 0) {
+        if (unit === 'cm') { h_in /= 2.54; w_in /= 2.54; }
+        else if (unit === 'mm') { h_in /= 25.4; w_in /= 25.4; }
+    }
 
     const areaSqIn = h_in * w_in;
 
@@ -2323,8 +2058,9 @@ function calculateTotal() {
     }
     
     // Also check all active option-cards in the DOM to ensure we catch any selections
-    // This ensures we get selections even if selectedCustomizationValues isn't updated
+    // CRITICAL: Only include fields that are actually part of the current product configuration
     const allFieldContainers = document.querySelectorAll('[data-field-id]');
+    
     allFieldContainers.forEach(container => {
         const fieldId = container.dataset.fieldId;
         const activeCard = container.querySelector('.option-card.active');
@@ -2360,13 +2096,17 @@ function calculateTotal() {
     
     // 4. Calculate total: base area cost + all field option prices
     let total = baseAreaCost + totalFieldPrices;
+    let isMinimumPriceApplied = false;
 
     // Apply minimum price constraint
     if (total < pricingDatabase.minimumPrice) {
         total = pricingDatabase.minimumPrice;
+        isMinimumPriceApplied = true;
     }
 
     priceBreakdown.total = total;
+    priceBreakdown.isMinimumPriceApplied = isMinimumPriceApplied;
+    priceBreakdown.minimumPrice = pricingDatabase.minimumPrice;
     return total;
 }
 
@@ -2400,6 +2140,7 @@ function updateRealTimePriceDisplay() {
 }
 
 function updatePriceBreakdown() {
+    console.log('[Price] Updating price breakdown...', priceBreakdown);
     // Initialize pricing database if needed
     if (!pricingDatabase) {
         initializePricingDatabase();
@@ -2411,90 +2152,196 @@ function updatePriceBreakdown() {
         return;
     }
     
-    // Update base area cost
-    const costArea = document.getElementById('cost-area');
-    if (costArea) costArea.textContent = formatPrice(priceBreakdown.baseArea);
+    const breakdownDetailsContainer = document.getElementById('breakdown-details');
+    if (!breakdownDetailsContainer) return;
 
-    // Field ID to HTML element mapping (for legacy fields and common dynamic fields)
-    const fieldMappings = {
-        'shape': { labelId: 'label-shape', costId: 'cost-shape', displayName: 'Shape' },
-        'glassType': { labelId: 'label-type', costId: 'cost-type', displayName: 'Glass Type' },
-        'thickness': { labelId: 'label-thickness', costId: 'cost-thickness', displayName: 'Thickness' },
-        'frameType': { labelId: 'label-frame', costId: 'cost-frame', displayName: 'Frame' },
-        'edgeWork': { labelId: 'label-edge', costId: 'cost-edge', displayName: 'Edge Work' },
-        'frameColor': { labelId: 'label-frame', costId: 'cost-frame', displayName: 'Frame' },
-        'edgeFinish': { labelId: 'label-edge', costId: 'cost-edge', displayName: 'Edge Work' },
-        'mountingMethod': { labelId: 'label-edge', costId: 'cost-edge', displayName: 'Mounting Method' } // Fallback mapping
+    // 1. Clear everything first
+    breakdownDetailsContainer.innerHTML = '';
+
+    const addedFields = new Set();
+
+    // Helper to add a row to breakdown (Modified to show "Not Selected" if no data)
+    const addRow = (fieldId, displayName, option = null, price = null) => {
+        if (addedFields.has(fieldId)) return;
+        addedFields.add(fieldId);
+
+        const row = document.createElement('div');
+        row.className = 'breakdown-row dynamic-breakdown-row';
+        row.style.display = 'flex';
+        
+        let optionText = option || 'Not Selected';
+        let costText = '—';
+
+        if (price !== null) {
+            costText = price > 0 ? '+' + formatPrice(price) : 
+                       (price < 0 ? formatPrice(price) : 'Included');
+        } else if (option === 'Not Selected') {
+            costText = '—';
+        }
+
+        row.innerHTML = `
+            <span>${displayName} (<span id="label-${fieldId}">${optionText}</span>):</span>
+            <span id="cost-${fieldId}">${costText}</span>
+        `;
+        
+        breakdownDetailsContainer.appendChild(row);
     };
 
-    // Update each field that has a price from database
-    for (const fieldId in priceBreakdown.fieldPrices) {
-        const fieldData = priceBreakdown.fieldPrices[fieldId];
-        const mapping = fieldMappings[fieldId];
+    // 2. Gather ALL available fields from the steps to show them in order
+    // Important: check both priceBreakdown.fieldPrices AND the DOM to catch everything
+    const allFieldContainers = document.querySelectorAll('[data-field-id]');
+    
+    // Create a list of all field IDs to process
+    const fieldIdsToProcess = new Set();
+    
+    // Add IDs from priceBreakdown (already selected)
+    if (priceBreakdown.fieldPrices) {
+        Object.keys(priceBreakdown.fieldPrices).forEach(fid => fieldIdsToProcess.add(fid));
+    }
+    
+    // Add IDs from DOM (all available fields)
+    allFieldContainers.forEach(container => {
+        if (container.dataset.fieldId) fieldIdsToProcess.add(container.dataset.fieldId);
+    });
+
+    fieldIdsToProcess.forEach(fieldId => {
+        if (addedFields.has(fieldId)) return;
+
+        // Skip dimensions and engraving for now, we'll add them at the end or specific positions
+        if (fieldId === 'dimensions' || fieldId === 'engraving') return;
+
+        const displayName = getFieldDisplayName(fieldId);
+        const fieldData = priceBreakdown.fieldPrices ? priceBreakdown.fieldPrices[fieldId] : null;
         
-        if (mapping) {
-            // Update legacy fields with specific HTML IDs
-            const labelEl = document.getElementById(mapping.labelId);
-            const costEl = document.getElementById(mapping.costId);
-            
-            if (labelEl) {
-                // Capitalize first letter of option name, handle camelCase
-                let optionName = fieldData.option;
-                // Convert camelCase to Title Case (e.g., "flatPolish" -> "Flat Polish")
-                optionName = optionName.replace(/([A-Z])/g, ' $1').trim();
-                optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1);
-                labelEl.textContent = optionName;
-            }
-            
-            if (costEl) {
-                if (fieldData.price > 0) {
-                    costEl.textContent = '+' + formatPrice(fieldData.price);
-                } else if (fieldData.price < 0) {
-                    costEl.textContent = formatPrice(fieldData.price); // Negative prices show as-is
-                } else {
-                    // Price is 0 - determine appropriate text based on field type
-                    if (fieldId === 'glassType' || fieldId === 'thickness') {
-                        costEl.textContent = 'Standard';
-                    } else {
-                        costEl.textContent = 'Included';
-                    }
-                }
-            }
+        if (fieldData) {
+            addRow(fieldId, displayName, fieldData.option, fieldData.price);
         } else {
-            // This is a dynamic field not in legacy mapping - try to find it in DOM
-            const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
-            if (fieldContainer) {
-                // For dynamic fields, we might need to update a custom breakdown row
-                // For now, log it for debugging
-                console.log(`Dynamic field ${fieldId} with option ${fieldData.option} has price:`, fieldData.price);
+            // Try to find selected value from global state if not in breakdown yet
+            const selectedVal = getSelectedValueForField(fieldId);
+            if (selectedVal) {
+                const price = getPriceFromDatabase(fieldId, selectedVal);
+                addRow(fieldId, displayName, selectedVal, price);
+            } else {
+                addRow(fieldId, displayName);
             }
+        }
+
+        // CUSTOM ORDER: Dimension comes after transomType
+        if (fieldId === 'transomType') {
+            addDimensionsRow();
+        }
+    });
+
+    // 3. Add Dimensions ONLY IF NOT ADDED YET
+    if (!addedFields.has('dimensions')) {
+        addDimensionsRow();
+    }
+
+    function addDimensionsRow() {
+        if (addedFields.has('dimensions')) return;
+        
+        const dimRow = document.createElement('div');
+        dimRow.className = 'breakdown-row';
+        dimRow.style.display = 'flex';
+        
+        const wVal = currentDimensions.width.value;
+        const hVal = currentDimensions.height.value;
+        const dimText = (wVal && hVal) ? `${wVal}${currentDimensions.width.unit} × ${hVal}${currentDimensions.height.unit}` : 'Not Selected';
+        
+        dimRow.innerHTML = `
+            <span>Dimensions (<span id="label-dimensions">${dimText}</span>):</span>
+            <span id="cost-dim">${(wVal && hVal) ? 'Included' : '—'}</span>
+        `;
+        breakdownDetailsContainer.appendChild(dimRow);
+        addedFields.add('dimensions');
+    }
+
+    // 4. Add Engraving (if any)
+    let engravingInput = document.querySelector('.engraving-section input');
+    const engravingText = engravingInput ? engravingInput.value : '';
+    if (engravingText) {
+        const engRow = document.createElement('div');
+        engRow.className = 'breakdown-row';
+        engRow.style.display = 'flex';
+        engRow.innerHTML = `
+            <span>Engraving:</span>
+            <span>${engravingText}</span>
+        `;
+        breakdownDetailsContainer.appendChild(engRow);
+    }
+
+    // 5. Add Base Area Cost at the very bottom
+    const baseAreaRow = document.createElement('div');
+    baseAreaRow.className = 'breakdown-row';
+    baseAreaRow.id = 'base-area-row';
+    baseAreaRow.style.display = 'flex';
+    baseAreaRow.innerHTML = `
+        <span>Base Area Cost:</span>
+        <span id="cost-area">${formatPrice(priceBreakdown.baseArea)}</span>
+    `;
+    breakdownDetailsContainer.appendChild(baseAreaRow);
+
+    // 6. Add Minimum Price Adjustment if applied
+    if (priceBreakdown.isMinimumPriceApplied) {
+        const minPriceRow = document.createElement('div');
+        minPriceRow.className = 'breakdown-row minimum-price-row';
+        minPriceRow.style.display = 'flex';
+        minPriceRow.style.borderTop = '1px dashed #d9534f';
+        minPriceRow.style.marginTop = '8px';
+        minPriceRow.style.paddingTop = '8px';
+        minPriceRow.style.color = '#d9534f';
+        minPriceRow.style.fontWeight = 'bold';
+        
+        minPriceRow.innerHTML = `
+            <span>Minimum Order Price:</span>
+            <span>Applied (${formatPrice(priceBreakdown.minimumPrice)})</span>
+        `;
+        breakdownDetailsContainer.appendChild(minPriceRow);
+    }
+}
+
+// Helper function to get display name for a field
+function getFieldDisplayName(fieldId) {
+    // Fallback display names for common fields (Check this FIRST for consistency)
+    const fallbacks = {
+        'shape': 'Shape',
+        'glassType': 'Glass Type',
+        'thickness': 'Thickness',
+        'glassThickness': 'Thickness',
+        'frameType': 'Frame',
+        'frameColor': 'Frame Color',
+        'edgeWork': 'Edge Work',
+        'edgeFinish': 'Edge Finish',
+        'numberOfPanels': 'Panel',
+        'transomType': 'Transom Type',
+        'trackSystem': 'Track System',
+        'panelConfiguration': 'Panel Configuration',
+        'lockType': 'Lock Type',
+        'rollerType': 'Roller Type',
+        'screen': 'Screen',
+        'screenOption': 'Screen'
+    };
+
+    if (fallbacks[fieldId]) return fallbacks[fieldId];
+
+    // Try to get from the field container label in the DOM
+    const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
+    if (fieldContainer) {
+        // Try sibling or child first
+        const label = fieldContainer.querySelector('.section-label') || 
+                      fieldContainer.parentElement?.querySelector('.section-label');
+        if (label) {
+            return label.textContent.trim().replace(':', '');
+        }
+        
+        // Try parent step labels with more classes
+        const parentLabel = fieldContainer.closest('.field-section, .type-section, .thickness-section, .edge-section, .frame-section, .checkbox-section, .color-section')?.querySelector('.section-label');
+        if (parentLabel) {
+            return parentLabel.textContent.trim().replace(':', '');
         }
     }
     
-    // Helper function to get display name for a field
-    function getFieldDisplayName(fieldId) {
-        // Try to get from active option card
-        const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
-        if (fieldContainer) {
-            const activeCard = fieldContainer.querySelector('.option-card.active');
-            if (activeCard) {
-                const label = activeCard.closest('.field-section, .type-section, .thickness-section, .edge-section, .frame-section')?.querySelector('.section-label');
-                if (label) {
-                    return label.textContent.trim();
-                }
-            }
-        }
-        return fieldMappings[fieldId]?.displayName || fieldId;
-    }
-    
-    // Update fields that might not be in the legacy mapping
-    for (const fieldId in priceBreakdown.fieldPrices) {
-        if (!fieldMappings[fieldId]) {
-            // This is a dynamic field - we might need to create or update a breakdown row
-            // For now, we'll log it - in the future, we could dynamically add rows
-            console.log(`Dynamic field ${fieldId} has price:`, priceBreakdown.fieldPrices[fieldId]);
-        }
-    }
+    return fieldId;
 }
 
 // Toggle price breakdown visibility
@@ -2507,8 +2354,6 @@ if (breakdownToggle && breakdownDetails) {
         breakdownToggle.classList.toggle('active');
     });
 }
-
-// Log will be done after initialization
 
 // --- KONVA IMAGE EXPORT FUNCTIONS ---
 
@@ -2526,110 +2371,238 @@ let currentDesignImageData = null;
 // --- SUMMARY VIEW LOGIC ---
 
 function showOrderSummary() {
-    // Hide testimonials section when finalize order is clicked
-    const testimonialsSection = document.getElementById('testimonials-section');
-    if (testimonialsSection) {
-        testimonialsSection.style.display = 'none';
-    }
-    // 1. Hide Builder UI
-    customWrapper.classList.add('hidden-step');
-    standardWrapper.classList.add('hidden-step');
-    priceBox.classList.add('hidden-step');
-    document.querySelector('.build-toggle').classList.add('hidden-step');
-    document.getElementById('standard-subtitle').classList.add('hidden-step');
-
-    // --- Hide Related Products and Testimonials ---
-    document.getElementById('related-products-section').classList.add('hidden-step');
-
-    // 2. Show Summary UI
-    const summaryWrapper = document.getElementById('summary-wrapper');
-    summaryWrapper.classList.remove('hidden-step');
+    console.log('Showing Order Summary...');
     
-    // Scroll to review section so user can see it
-    setTimeout(() => {
-        summaryWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    // 0. Ensure prices are calculated before showing summary
+    calculateTotal();
+    
+    // 1. Generate design preview image BEFORE hiding the stage
+    try {
+        currentDesignImageData = getKonvaImageData(3);
+        const designPreviewImg = document.getElementById('design-preview-img');
+        if (designPreviewImg) {
+            designPreviewImg.src = currentDesignImageData;
+        }
+    } catch (e) {
+        console.warn('Could not generate design preview:', e);
+    }
 
-    // 3. Generate and display design preview image
-    currentDesignImageData = getKonvaImageData(3);
-    const designPreviewImg = document.getElementById('design-preview-img');
-    if (designPreviewImg) {
-        designPreviewImg.src = currentDesignImageData;
+    // 2. Hide Builder UI
+    const customWrapper = document.getElementById('custom-wrapper');
+    const standardWrapper = document.getElementById('standard-wrapper');
+    const priceBox = document.getElementById('price-box');
+    const buildToggle = document.querySelector('.build-toggle');
+    const standardSubtitle = document.getElementById('standard-subtitle');
+    const relatedProducts = document.getElementById('related-products-section');
+    const actionArea = document.querySelector('.action-area');
+
+    if (customWrapper) {
+        customWrapper.classList.add('hidden-step');
+        customWrapper.style.display = 'none';
+    }
+    if (standardWrapper) {
+        standardWrapper.classList.add('hidden-step');
+        standardWrapper.style.display = 'none';
+    }
+    if (priceBox) {
+        priceBox.classList.add('hidden-step');
+        priceBox.style.display = 'none';
+    }
+    if (buildToggle) {
+        buildToggle.classList.add('hidden-step');
+        buildToggle.style.display = 'none';
+    }
+    if (standardSubtitle) {
+        standardSubtitle.classList.add('hidden-step');
+        standardSubtitle.style.display = 'none';
+    }
+    if (relatedProducts) {
+        relatedProducts.classList.add('hidden-step');
+        relatedProducts.style.display = 'none';
+    }
+    if (actionArea) {
+        actionArea.style.display = 'none';
+    }
+
+    // 3. Show Summary UI
+    const summaryWrapper = document.getElementById('summary-wrapper');
+    if (summaryWrapper) {
+        summaryWrapper.classList.remove('hidden-step');
+        summaryWrapper.style.display = 'block'; 
+        
+        // Scroll to review section so user can see it
+        setTimeout(() => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 100);
     }
 
     // 4. Update Summary Data with price breakdown
-    const shapeData = pricingDatabase.prices.shapes[currentShape];
-    const typeData = pricingDatabase.prices.glassTypes[currentGlassType];
-    const thickData = pricingDatabase.prices.thickness[currentThickness];
-    const frameData = pricingDatabase.prices.frames[currentFrameType];
-    const edgeData = pricingDatabase.prices.edges[currentEdgeWork];
-
-    // Shape
-    document.getElementById('sum-shape').textContent = shapeData.label;
-    const sumShapePrice = document.getElementById('sum-shape-price');
-    if (sumShapePrice) {
-        sumShapePrice.textContent = priceBreakdown.shapeAddon > 0 
-            ? '+' + formatPrice(priceBreakdown.shapeAddon) 
-            : shapeData.desc;
+    const summaryContent = document.querySelector('.summary-content');
+    if (!summaryContent) {
+        console.warn('Could not find .summary-content container');
+        return;
     }
 
-    // Dimensions
-    document.getElementById('sum-dim').textContent =
-        `${currentDimensions.width.value}${currentDimensions.width.unit} × ${currentDimensions.height.value}${currentDimensions.height.unit}`;
-    const sumDimPrice = document.getElementById('sum-dim-price');
-    if (sumDimPrice) {
-        sumDimPrice.textContent = 'Base: ' + formatPrice(priceBreakdown.baseArea);
+    // Save the total row before clearing
+    let totalRow = summaryContent.querySelector('.summary-row.total-row');
+    if (totalRow) {
+        totalRow = totalRow.cloneNode(true); // Clone so we don't lose it when clearing innerHTML
     }
+    
+    // Clear existing content
+    summaryContent.innerHTML = '';
+    
+    const addedSummaryFields = new Set();
 
-    // Glass Type
-    document.getElementById('sum-type').textContent = typeData.label;
-    const sumTypePrice = document.getElementById('sum-type-price');
-    if (sumTypePrice) {
-        sumTypePrice.textContent = priceBreakdown.typeAddon > 0 
-            ? '+' + formatPrice(priceBreakdown.typeAddon)
-            : typeData.desc;
-    }
+    // Helper to add a row to summary
+    const addSummaryRow = (fieldId, displayName, option = null, price = null) => {
+        if (addedSummaryFields.has(fieldId)) return;
+        addedSummaryFields.add(fieldId);
 
-    // Thickness
-    document.getElementById('sum-thick').textContent = thickData.label;
-    const sumThickPrice = document.getElementById('sum-thick-price');
-    if (sumThickPrice) {
-        if (priceBreakdown.thicknessAddon !== 0) {
-            sumThickPrice.textContent = (priceBreakdown.thicknessAddon > 0 ? '+' : '') + formatPrice(priceBreakdown.thicknessAddon);
-        } else {
-            sumThickPrice.textContent = thickData.desc;
+        const row = document.createElement('div');
+        row.className = 'summary-row dynamic-summary-row';
+        row.style.display = 'flex';
+        
+        let optionText = option || 'Not Selected';
+        let costText = '—';
+
+        if (price !== null) {
+            costText = price > 0 ? '+' + formatPrice(price) : 
+                       (price < 0 ? formatPrice(price) : 'Included');
+        } else if (option === 'Not Selected') {
+            costText = '—';
         }
+
+        row.innerHTML = `
+            <span class="spec-label">${displayName}:</span>
+            <span class="spec-value">
+                <span>${optionText}</span>
+                <span class="price-addon">${costText}</span>
+            </span>
+        `;
+        
+        summaryContent.appendChild(row);
+    };
+
+    // Gather ALL available fields from the steps
+    // Look for any element with data-field-id
+    const allFieldContainers = document.querySelectorAll('[data-field-id]');
+    console.log(`Found ${allFieldContainers.length} field containers for summary`);
+    
+    allFieldContainers.forEach(container => {
+        const fieldId = container.dataset.fieldId;
+        
+        // Skip if it's a summary row we just added or something else
+        if (!fieldId || addedSummaryFields.has(fieldId)) return;
+        if (fieldId === 'dimensions' || fieldId === 'engraving') return;
+        
+        // Skip elements that are not field containers (like the summary rows itself if they had data-field-id)
+        if (container.classList.contains('summary-row')) return;
+
+        const displayName = getFieldDisplayName(fieldId);
+        const fieldData = priceBreakdown.fieldPrices[fieldId];
+        
+        console.log(`Adding summary row for: ${fieldId} (${displayName})`);
+        
+        if (fieldData) {
+            addSummaryRow(fieldId, displayName, fieldData.option, fieldData.price);
+        } else {
+            addSummaryRow(fieldId, displayName);
+        }
+
+        // CUSTOM ORDER: Dimension comes after transomType
+        if (fieldId === 'transomType') {
+            const wVal = currentDimensions.width.value;
+            const hVal = currentDimensions.height.value;
+            const dimText = (wVal && hVal) ? `${wVal}${currentDimensions.width.unit} × ${hVal}${currentDimensions.height.unit}` : 'Not Selected';
+            const dimCost = (wVal && hVal) ? 'Included' : '—';
+
+            const row = document.createElement('div');
+            row.className = 'summary-row';
+            row.style.display = 'flex';
+            row.innerHTML = `
+                <span class="spec-label">Dimensions:</span>
+                <span class="spec-value">
+                    <span>${dimText}</span>
+                    <span class="price-addon">${dimCost}</span>
+                </span>
+            `;
+            summaryContent.appendChild(row);
+            addedSummaryFields.add('dimensions');
+        }
+    });
+
+    // Add Dimensions ONLY IF NOT ADDED YET
+    if (!addedSummaryFields.has('dimensions')) {
+        const wVal = currentDimensions.width.value;
+        const hVal = currentDimensions.height.value;
+        const dimText = (wVal && hVal) ? `${wVal}${currentDimensions.width.unit} × ${hVal}${currentDimensions.height.unit}` : 'Not Selected';
+        const dimCost = (wVal && hVal) ? 'Included' : '—';
+
+        const row = document.createElement('div');
+        row.className = 'summary-row';
+        row.style.display = 'flex';
+        row.innerHTML = `
+            <span class="spec-label">Dimensions:</span>
+            <span class="spec-value">
+                <span>${dimText}</span>
+                <span class="price-addon">${dimCost}</span>
+            </span>
+        `;
+        summaryContent.appendChild(row);
+        addedSummaryFields.add('dimensions');
     }
 
-    // Edge Work
-    document.getElementById('sum-edge').textContent = edgeData.label;
-    const sumEdgePrice = document.getElementById('sum-edge-price');
-    if (sumEdgePrice) {
-        sumEdgePrice.textContent = priceBreakdown.edgeAddon > 0 
-            ? '+' + formatPrice(priceBreakdown.edgeAddon)
-            : edgeData.desc;
+    // Add Base Area Cost at the very bottom
+    const baseRow = document.createElement('div');
+    baseRow.className = 'summary-row';
+    baseRow.style.display = 'flex';
+    baseRow.innerHTML = `
+        <span class="spec-label">Base Area Cost:</span>
+        <span class="spec-value">
+            <span>Standard</span>
+            <span class="price-addon">${formatPrice(priceBreakdown.baseArea)}</span>
+        </span>
+    `;
+    summaryContent.appendChild(baseRow);
+
+    // Re-append the total row
+    if (totalRow) {
+        // Update total price first - look for sum-total ID or price-final class
+        const totalValueSpan = totalRow.querySelector('#sum-total') || totalRow.querySelector('.price-final') || totalRow.querySelector('.total-price');
+        if (totalValueSpan) {
+            totalValueSpan.textContent = formatPrice(priceBreakdown.total);
+        }
+        
+        // If minimum price was applied, add a small note near the total
+        if (priceBreakdown.isMinimumPriceApplied) {
+            const minPriceNote = document.createElement('div');
+            minPriceNote.className = 'summary-row minimum-price-note';
+            minPriceNote.style.fontSize = '0.8rem';
+            minPriceNote.style.color = '#d9534f';
+            minPriceNote.style.textAlign = 'right';
+            minPriceNote.style.marginTop = '-10px';
+            minPriceNote.style.marginBottom = '10px';
+            minPriceNote.innerHTML = `<span>Minimum order price applied</span>`;
+            summaryContent.appendChild(minPriceNote);
+        }
+        
+        summaryContent.appendChild(totalRow);
     }
 
-    // Frame Type
-    document.getElementById('sum-frame').textContent = frameData.label;
-    const sumFramePrice = document.getElementById('sum-frame-price');
-    if (sumFramePrice) {
-        sumFramePrice.textContent = priceBreakdown.frameAddon > 0 
-            ? '+' + formatPrice(priceBreakdown.frameAddon)
-            : frameData.desc;
+    // 5. Update Final Order Data fields
+    const finalPriceInput = document.getElementById('final-price');
+    if (finalPriceInput) finalPriceInput.value = priceBreakdown.total;
+    
+    const finalSpecsInput = document.getElementById('final-specs');
+    if (finalSpecsInput) {
+        const specs = {
+            ...selectedCustomizationValues,
+            dimensions: `${currentDimensions.width.value}${currentDimensions.width.unit} × ${currentDimensions.height.value}${currentDimensions.height.unit}`,
+            baseArea: priceBreakdown.baseArea
+        };
+        finalSpecsInput.value = JSON.stringify(specs);
     }
-
-    // Engraving - Check both custom step-3 and standard wrapper
-    let engravingInput = document.querySelector('#step-3 .engraving-section input');
-    if (!engravingInput || !engravingInput.value) {
-        engravingInput = document.querySelector('#standard-wrapper .engraving-section input');
-    }
-    const engravingText = engravingInput ? engravingInput.value : '';
-    document.getElementById('sum-engrave').textContent = engravingText || 'None';
-
-    // 5. Update Total Price
-    const totalPrice = calculateTotal();
-    document.getElementById('sum-total').textContent = formatPrice(totalPrice);
 
     // 6. Update Breadcrumbs
     crumbMain.innerText = 'Review Order';
@@ -2640,24 +2613,66 @@ function showOrderSummary() {
 
 function editConfiguration() {
     // Hide Summary
-    document.getElementById('summary-wrapper').classList.add('hidden-step');
+    const summaryWrapper = document.getElementById('summary-wrapper');
+    if (summaryWrapper) {
+        summaryWrapper.classList.add('hidden-step');
+        summaryWrapper.style.display = 'none';
+    }
 
-    // --- Show Related Products again (Testimonials should already be visible) ---
-    document.getElementById('related-products-section').classList.remove('hidden-step');
-    // Testimonials are always visible, no need to show/hide
+    // Restore related products
+    const relatedProducts = document.getElementById('related-products-section');
+    if (relatedProducts) {
+        relatedProducts.classList.remove('hidden-step');
+        relatedProducts.style.display = '';
+    }
 
     // Show Toggle and Subtitle
-    document.querySelector('.build-toggle').classList.remove('hidden-step');
+    const buildToggle = document.querySelector('.build-toggle');
+    if (buildToggle) {
+        buildToggle.classList.remove('hidden-step');
+        buildToggle.style.display = '';
+    }
+
+    const priceBox = document.getElementById('price-box');
+    if (priceBox) {
+        priceBox.classList.remove('hidden-step');
+        priceBox.style.display = '';
+    }
+
+    const actionArea = document.querySelector('.action-area');
+    if (actionArea) {
+        actionArea.style.display = '';
+    }
 
     // Determine which wrapper to show based on mode
+    const standardWrapper = document.getElementById('standard-wrapper');
+    const customWrapper = document.getElementById('custom-wrapper');
+    
     if (isStandardMode) {
-        standardWrapper.classList.remove('hidden-step');
-        document.getElementById('standard-subtitle').classList.remove('hidden-step');
+        if (standardWrapper) {
+            standardWrapper.classList.remove('hidden-step');
+            standardWrapper.style.display = '';
+        }
+        const standardSubtitle = document.getElementById('standard-subtitle');
+        if (standardSubtitle) {
+            standardSubtitle.classList.remove('hidden-step');
+            standardSubtitle.style.display = '';
+        }
     } else {
-        customWrapper.classList.remove('hidden-step');
-        priceBox.classList.remove('hidden-step');
-        // Return to Step 3 to allow immediate editing
-        goToStep(3);
+        if (customWrapper) {
+            customWrapper.classList.remove('hidden-step');
+            customWrapper.style.display = '';
+        }
+        
+        // Return to the last step to allow immediate editing
+        const totalSteps = window.totalCustomizationSteps || 1;
+        if (typeof window.goToDynamicStep === 'function') {
+            window.goToDynamicStep(totalSteps);
+        } else if (typeof goToDynamicStep === 'function') {
+            goToDynamicStep(totalSteps);
+        } else {
+            goToStep(totalSteps);
+        }
     }
 }
 
@@ -2846,6 +2861,15 @@ function logOrderSummary() {
     // Initialize counter and display
     updateImageCounter();
 })();
+
+// Export functions to window for access from other scripts (like dynamic_customization.js)
+window.showOrderSummary = showOrderSummary;
+window.updateRealTimePriceDisplay = updateRealTimePriceDisplay;
+window.renderCustomState = renderCustomState;
+window.formatPrice = formatPrice;
+window.calculateTotal = calculateTotal;
+window.updatePriceBreakdown = updatePriceBreakdown;
+window.getFieldDisplayName = getFieldDisplayName;
 
 
 

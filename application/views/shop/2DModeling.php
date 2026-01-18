@@ -174,8 +174,10 @@
             <div class="title-row">
                 <div>
                     <?php if (isset($product) && $product): ?>
-                        <div class="product-info">
+                        <div class="product-title-container" style="display: flex; flex-direction: column; align-items: flex-start;">
                             <h2><?= htmlspecialchars($product->ProductName) ?></h2>
+                            <!-- Validation warning message container -->
+                            <div id="validation-warning" class="validation-warning" style="display: none; width: 100%; background: #fff5f5; color: #d9534f; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #d9534f; margin-top: 10px; font-weight: 600; font-size: 0.9rem; line-height: 1.4; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"></div>
                         </div>
                     <?php endif; ?>
 
@@ -189,12 +191,8 @@
                 </button>
             </div>
 
-            <div class="build-toggle">
-                <button class="toggle-btn active" id="btn-customize">Customize Build</button>
-                <div class="divider-v"></div>
-                <button class="toggle-btn inactive" id="btn-standard">Standard</button>
-            </div>
-
+            <!-- Removed Customize Build button as per user request -->
+            
             <div class="price-box" id="price-box">
                 <div class="price-main">
                     <span class="price-label">Estimated Price</span>
@@ -237,19 +235,19 @@
             </div>
 
             <div id="custom-wrapper">
-                <!-- Default Size Fields (Height & Width) - Only visible on Step 1 -->
+                <!-- Default Size Fields (Width & Height) - Width comes first -->
                 <div class="dimensions-container" id="dimensions-container">
                     <div class="input-group">
-                        <label class="section-label">Height</label>
+                        <label class="section-label">Width</label>
                         <div class="unit-wrapper">
                             <div class="input-wrapper">
-                                <input type="number" id="input-height" name="height" value="45" min="0" step="0.1" placeholder="45">
+                                <input type="number" id="input-width" name="width" value="" min="0" step="0.1" placeholder="0.00">
                             </div>
                             <div class="unit-control">
-                                <button type="button" class="unit-select" id="btn-unit-height" data-current-unit="in">
+                                <button type="button" class="unit-select" id="btn-unit-width" data-current-unit="in">
                                     Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
                                 </button>
-                                <div class="unit-dropdown hidden-step" id="dropdown-height">
+                                <div class="unit-dropdown hidden-step" id="dropdown-width">
                                     <div class="unit-option" data-value="in">Inches</div>
                                     <div class="unit-option" data-value="cm">Centimeters</div>
                                     <div class="unit-option" data-value="mm">Millimeters</div>
@@ -271,16 +269,16 @@
                         </button>
                     </div>
                     <div class="input-group">
-                        <label class="section-label">Width</label>
+                        <label class="section-label">Height</label>
                         <div class="unit-wrapper">
                             <div class="input-wrapper">
-                                <input type="number" id="input-width" name="width" value="35" min="0" step="0.1" placeholder="35">
+                                <input type="number" id="input-height" name="height" value="" min="0" step="0.1" placeholder="0.00">
                             </div>
                             <div class="unit-control">
-                                <button type="button" class="unit-select" id="btn-unit-width" data-current-unit="in">
+                                <button type="button" class="unit-select" id="btn-unit-height" data-current-unit="in">
                                     Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
                                 </button>
-                                <div class="unit-dropdown hidden-step" id="dropdown-width">
+                                <div class="unit-dropdown hidden-step" id="dropdown-height">
                                     <div class="unit-option" data-value="in">Inches</div>
                                     <div class="unit-option" data-value="cm">Centimeters</div>
                                     <div class="unit-option" data-value="mm">Millimeters</div>
@@ -317,29 +315,7 @@
                 </div>
             </div>
 
-            <div id="standard-wrapper" class="hidden-step">
-                <!-- Dynamic standard sizes will be rendered here -->
-                <div id="dynamic-standard-container">
-                    <!-- Standard series and sizes will be dynamically generated based on product configuration -->
-                </div>
-
-                <div class="engraving-section" style="margin-top: 30px; margin-bottom: 60px;">
-                    <label class="section-label">Engraving (Optional)</label>
-                    <div class="input-wrapper">
-                        <input type="text" placeholder=""
-                            style="border: none; width: 100%; padding: 12px; font-family: inherit; background: #f8f9fa;">
-                    </div>
-                </div>
-
-                <div class="action-area" style="justify-content: center;">
-                    <button class="nav-btn next-btn">
-                        Finalize Order
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+            <!-- Standard wrapper removed as per user request to remove standard tab -->
 
             <div id="summary-wrapper" class="hidden-step">
                 <h2 class="summary-title">Review your order</h2>
@@ -626,8 +602,8 @@
     <?php endif; ?>
 </script>
 
-<script src="<?= base_url('assets/js/2d-functions/dynamic_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
+<script src="<?= base_url('assets/js/2d-functions/dynamic_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtocustomization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtowishlist.js'); ?>"></script>
 <script>
@@ -755,6 +731,7 @@
             priceMax: <?= isset($product->PriceMax) && $product->PriceMax !== null && $product->PriceMax !== '' ? floatval($product->PriceMax) : 'null' ?>,
             category: <?= json_encode($product->Category ?? '') ?>,
             subcategory: <?= json_encode($product->Subcategory ?? '') ?>,
+            series: <?= json_encode($product->Series ?? '') ?>,
             material: <?= json_encode($product->Material ?? '') ?>,
             image: <?= json_encode($imageSrc) ?>,
             customizationFieldKey: <?= json_encode($customizationFieldKey ?? null) ?>,
@@ -792,7 +769,7 @@
                 window.selectedProduct = selectedProduct;
             }
 
-            // Wait a bit for 2d_customization.js to load
+            // Wait a bit for scripts to load and initialize
             setTimeout(async () => {
                 console.log("=== LOADING CUSTOMIZATION FIELDS ===");
                 
@@ -939,34 +916,15 @@
                     }
                 }
 
-                // Render standard sizes if available
-                console.log("=== RENDERING STANDARD SIZES ===");
-                console.log("Standard series to render:", selectedProduct.standardSeries);
-                console.log("Standard series count:", (selectedProduct.standardSeries || []).length);
-                
+                // Render standard sizes if available - DISABLED as per user request to remove standard tab
+                /*
                 if (selectedProduct.standardSeries && selectedProduct.standardSeries.length > 0) {
                     const standardContainer = document.getElementById('dynamic-standard-container');
-                    console.log("Standard container found:", !!standardContainer);
-                    console.log("renderStandardSizes function exists:", typeof renderStandardSizes === 'function');
-                    
                     if (standardContainer && typeof renderStandardSizes === 'function') {
-                        renderStandardSizes(
-                            selectedProduct.standardSeries,
-                            standardContainer
-                        );
-                        console.log('✅ Rendered standard sizes');
-                    } else {
-                        console.error('❌ Standard container or function not found');
-                        console.error('Container:', standardContainer);
-                        console.error('Function:', typeof renderStandardSizes);
-                    }
-                } else {
-                    console.warn('⚠️ No standard series to render');
-                    const standardContainer = document.getElementById('dynamic-standard-container');
-                    if (standardContainer) {
-                        standardContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No standard sizes available for this product.</p>';
+                        renderStandardSizes(selectedProduct.standardSeries, standardContainer);
                     }
                 }
+                */
                 
                 // =====================================================
                 // FINAL: Retry loading visual configs if they weren't loaded earlier
@@ -1011,22 +969,23 @@
             // These are comprehensive defaults that match the admin configuration
             const defaultFields = {
                 'Windows_Sliding': [
-                    { type: 'tags', label: 'Number of Panels', id: 'numberOfPanels', options: ['2 Panels', '4 Panels'], stepNumber: 1 },
-                    { type: 'tags', label: 'Transom Type (Top / Bottom Fixed Panel)', id: 'transomType', options: ['None', 'Fixed Transom Head (Fixed glass at top)', 'Fixed Transom Sill (Fixed glass at bottom)'], stepNumber: 1 },
-                    { type: 'tags', label: 'Track System (Sliding Rail Count)', id: 'trackSystem', options: ['2 Tracks', '3 Tracks'], stepNumber: 2 },
+                    { type: 'tags', label: 'Panel', id: 'numberOfPanels', options: ['2 Panels', '4 Panels'], stepNumber: 1 },
+                    { type: 'tags', label: 'Transom Type', id: 'transomType', options: ['None', 'Fixed Transom Head (fixed glass at top)', 'Fixed Transom Sill (fixed glass at bottom)'], stepNumber: 1 },
+                    { type: 'tags', label: 'Track System', id: 'trackSystem', options: ['2 Tracks', '3 Tracks'], stepNumber: 2 },
+                    { type: 'tags', label: 'Screen Option', id: 'screenOption', options: ['With Screen', 'Without Screen'], stepNumber: 2 },
                     { type: 'tags', label: 'Panel Configuration', id: 'panelConfiguration', options: ['S | S (Sliding | Sliding)', 'F | S (Fixed | Sliding)', 'S | S | S | S (All Sliding)', 'F | S | S | F (Fixed | Sliding | Sliding | Fixed)'], stepNumber: 2 },
                     { type: 'tags', label: 'Frame Color', id: 'frameColor', options: ['Hanalok', 'White', 'Black', 'Gray', 'Wood Finish'], stepNumber: 3 },
-                    { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Ultra Clear', 'Bronze', 'Light Green', 'Dark Gray', 'Copperfree Mirror', 'Euro Gray', 'Ford Blue', 'Reflective: Clear', 'Reflective: Gray', 'Reflective: Light Blue', 'Reflective: Dark Blue', 'Reflective: Light Green', 'Reflective: Dark Green', 'Reflective: Light Bronze', 'Tempered: Clear', 'Tempered: Bronze'], stepNumber: 3 },
+                    { type: 'tags', label: 'Glass Type (6mm thickness only)', id: 'glassType', options: ['Clear', 'Ultra Clear', 'Bronze', 'Light Green', 'Dark Gray', 'Euro Gray', 'Ford Blue', 'Reflective: Clear', 'Reflective: Gray', 'Reflective: Light Blue', 'Reflective: Dark Blue', 'Reflective: Light Green', 'Reflective: Dark Green', 'Reflective: Light Bronze', 'Tempered: Clear', 'Tempered: Bronze'], stepNumber: 3 },
                     { type: 'tags', label: 'Glass Thickness', id: 'glassThickness', options: ['6mm'], stepNumber: 3 },
-                    { type: 'tags', label: 'Lock Type', id: 'lockType', options: ['Center Lok 904 Big', 'Flushlok #12', 'Durable Flushlok', 'New Auto Flushlock'], stepNumber: 4 },
-                    { type: 'tags', label: 'Roller Type', id: 'rollerType', options: ['Single Panel Roller', 'Blue Single Roller', 'Blue Double Roller'], stepNumber: 4 },
+                    { type: 'tags', label: 'Lock Type', id: 'lockType', options: ['Enter Lock 908', 'Enter Lock 907', 'Flushlock #12', 'New Flushlock', 'Center Lok 904 Big', 'Flushlok #12', 'Durable Flushlok', 'New Auto Flushlock'], stepNumber: 4 },
+                    { type: 'tags', label: 'Roller Type', id: 'rollerType', options: ['Single Roller ORD', 'Single Roller with Bearing', 'Double Roller HD', 'Blue Single Roller', 'Blue Double Roller', 'Single Panel Roller', 'Blue Single Roller', 'Blue Double Roller'], stepNumber: 4 },
                     { type: 'tags', label: 'Screen', id: 'screen', options: ['With Screen', 'Without Screen'], stepNumber: 4 }
                 ],
                 'Windows_Sliding_stepNames': {
-                    '1': 'Window Type',
-                    '2': 'Sliding System & Size',
-                    '3': 'Frame & Glass',
-                    '4': 'Hardware & Accessories'
+                    '1': 'WINDOW TYPE',
+                    '2': 'SLIDING SYSTEM & SIZE',
+                    '3': 'FRAME & GLASS',
+                    '4': 'HARDWARE & ACCESSORIES'
                 },
                 'Doors_Sliding': [
                     { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Tinted', 'Frosted', 'Low-E', 'Tempered', 'Laminated', 'Laminated safety glass'], stepNumber: 1 },

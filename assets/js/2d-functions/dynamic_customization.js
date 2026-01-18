@@ -43,47 +43,50 @@ function renderDynamicCustomizationFields(fields, tagPrices, container, tagImage
   // Group fields by step property (from admin configuration)
   const stepContainers = {};
   const stepNumbers = new Set();
+  const renderedFieldIds = new Set(); // For global deduplication
 
-  // First pass: identify all unique steps
+  // First pass: identify all unique steps and force specific fields to Step 1
   fields.forEach((field) => {
+    // FORCE Step 1 for specific fields to avoid "Step 2" confusion
+    if (field.id === 'numberOfPanels' || field.id === 'transomType') {
+      field.stepNumber = 1;
+    }
+    
     // Check stepNumber first (admin config), then step (legacy), default to 1
     const stepNum = field.stepNumber || field.step || 1;
     stepNumbers.add(stepNum);
-    console.log(`Field "${field.label || field.id}" assigned to step ${stepNum} (stepNumber: ${field.stepNumber}, step: ${field.step})`);
   });
 
   // Create step containers
   const sortedSteps = Array.from(stepNumbers).sort((a, b) => a - b);
-  console.log('Creating step containers for steps:', sortedSteps);
   sortedSteps.forEach((stepNum) => {
-    const stepDiv = document.createElement('div');
-    stepDiv.id = `step-${stepNum}`;
-    stepDiv.className = stepNum === 1 ? '' : 'hidden-step';
+    let stepDiv = document.getElementById(`step-${stepNum}`);
+    if (!stepDiv) {
+      stepDiv = document.createElement('div');
+      stepDiv.id = `step-${stepNum}`;
+      stepDiv.className = 'step-container';
+      container.appendChild(stepDiv);
+    }
+    stepDiv.className = stepNum === 1 ? 'step-container' : 'step-container hidden-step';
     stepDiv.dataset.stepNumber = stepNum;
-    container.appendChild(stepDiv);
     stepContainers[stepNum] = stepDiv;
-    console.log(`Created step container: step-${stepNum}`);
   });
 
-  // Second pass: render fields into their assigned steps
+  // Second pass: render fields into their assigned steps with global deduplication
   fields.forEach((field) => {
-    // Check stepNumber first (admin config), then step (legacy), default to 1
+    if (renderedFieldIds.has(field.id)) {
+      console.log(`Skipping duplicate field rendering for "${field.id}"`);
+      return;
+    }
+    renderedFieldIds.add(field.id);
+
     const stepNum = field.stepNumber || field.step || 1;
     const stepContainer = stepContainers[stepNum];
     
-    if (!stepContainer) {
-      console.warn(`Step container for step ${stepNum} not found for field "${field.label || field.id}". Available steps:`, Object.keys(stepContainers));
-      if (stepContainers[1]) {
-        stepContainers[1].appendChild(createFieldElement(field, tagPrices, tagImages));
-      } else {
-        console.error('Step 1 container also not found!');
-      }
-      return;
-    }
+    if (!stepContainer) return;
 
     const fieldGroup = createFieldElement(field, tagPrices, tagImages);
     stepContainer.appendChild(fieldGroup);
-    console.log(`Rendered field "${field.label || field.id}" into step ${stepNum} container`);
   });
 
   // Third pass: Remove empty steps (steps where all fields are hidden)
@@ -241,44 +244,27 @@ function enforceSingleSelection() {
   fieldContainers.forEach(container => {
     const activeCards = container.querySelectorAll('.option-card.active');
     
-    // If more than one is active, keep only the first one
+    // If more than one is active, keep only the first one (or none if user prefers)
+    // Here we just ensure we don't have multiple
     if (activeCards.length > 1) {
-      // Remove active from all except the first
       for (let i = 1; i < activeCards.length; i++) {
         activeCards[i].classList.remove('active');
       }
     }
-    
-    // If none are active, make the first one active
-    if (activeCards.length === 0) {
-      const firstCard = container.querySelector('.option-card');
-      if (firstCard) {
-        firstCard.classList.add('active');
-      }
-    }
   });
   
-  // Also check grid containers (for fields that use grid-3-cols directly)
+  // Also check grid containers
   gridContainers.forEach(grid => {
     const activeCards = grid.querySelectorAll('.option-card.active');
     
-    // If more than one is active, keep only the first one
     if (activeCards.length > 1) {
       for (let i = 1; i < activeCards.length; i++) {
         activeCards[i].classList.remove('active');
       }
     }
-    
-    // If none are active, make the first one active
-    if (activeCards.length === 0) {
-      const firstCard = grid.querySelector('.option-card');
-      if (firstCard) {
-        firstCard.classList.add('active');
-      }
-    }
   });
   
-  // Also check field sections (type-section, thickness-section, etc.)
+  // Also check field sections
   const fieldSections = document.querySelectorAll('.type-section, .thickness-section, .edge-section, .frame-section, .field-section');
   fieldSections.forEach(section => {
     const activeCards = section.querySelectorAll('.option-card.active');
@@ -286,13 +272,6 @@ function enforceSingleSelection() {
     if (activeCards.length > 1) {
       for (let i = 1; i < activeCards.length; i++) {
         activeCards[i].classList.remove('active');
-      }
-    }
-    
-    if (activeCards.length === 0) {
-      const firstCard = section.querySelector('.option-card');
-      if (firstCard) {
-        firstCard.classList.add('active');
       }
     }
   });
@@ -333,7 +312,12 @@ function createFieldElement(field, tagPrices, tagImages = {}) {
   
   const label = document.createElement('label');
   label.className = 'section-label';
-  label.textContent = field.label;
+  // Simplified labels as per user request
+  let displayLabel = field.label;
+  if (field.id === 'numberOfPanels') displayLabel = 'Panel';
+  if (field.id === 'transomType') displayLabel = 'Transom Type';
+  
+  label.textContent = displayLabel;
   fieldGroup.appendChild(label);
 
   // Render field based on type
@@ -386,17 +370,30 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
     return;
   }
   
-  // Create grid wrapper for tags
-  const tagsGrid = document.createElement('div');
-  tagsGrid.className = 'grid-3-cols';
-  
+  // Move "None" to the end for transomType field
+  if (field.id === 'transomType') {
+    const noneIndex = options.indexOf('None');
+    if (noneIndex > -1) {
+      options.splice(noneIndex, 1);
+      options.push('None');
+    }
+  }
+
+  // Render options directly into tagContainer
   options.forEach((option, index) => {
     const tag = document.createElement('div');
     tag.className = 'option-card';
-    // CRITICAL: Only the first option should be active
-    if (index === 0) {
-      tag.classList.add('active');
+    
+    // User requested NO pre-selected options EXCEPT for Glass Thickness
+    if (field.id === 'glassThickness' || field.id === 'thickness') {
+      // Auto-select first thickness (usually 6mm as per previous request)
+      if (index === 0) {
+        tag.classList.add('active');
+        selectedCustomizationValues[field.id] = option;
+      }
     }
+    // Screen auto-selection is now handled exclusively by handleWindowsSlidingConditionals or user interaction
+    
     // DO NOT add active to any other option
     tag.dataset.value = option;
     tag.dataset.fieldId = field.id;
@@ -429,47 +426,27 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
       tag.appendChild(priceSpan);
     }
 
-    tag.addEventListener('click', function() {
-      // EXACT SAME LOGIC AS 2d_customization.js
-      // Find the section (fieldGroup) - matches pattern: this.closest('.type-section')
-      const section = this.closest('.type-section, .thickness-section, .edge-section, .frame-section, .field-section, div[class$="-section"]');
+    // Function to handle selection
+    const handleSelection = (isDeselect = false) => {
+      const section = tag.closest('.type-section, .thickness-section, .edge-section, .frame-section, .field-section, div[class$="-section"]');
       
       if (section) {
-        // Remove active from all siblings in this section (EXACT pattern from 2d_customization.js)
         section.querySelectorAll('.option-card').forEach(sib => sib.classList.remove('active'));
-        // Add active to clicked card
-        this.classList.add('active');
+        if (!isDeselect) {
+          tag.classList.add('active');
+          selectedCustomizationValues[field.id] = option;
+        } else {
+          delete selectedCustomizationValues[field.id];
+        }
       }
-      
-      // Update selected value in global object
-      selectedCustomizationValues[field.id] = option;
+
       if (typeof window !== 'undefined') {
         window.selectedCustomizationValues = selectedCustomizationValues;
       }
+
+      // Update price and visualization
+      updateKonvaFromField(field.id, isDeselect ? null : option, true);
       
-      // Update price if needed
-      if (tagPrices && tagPrices[field.id]) {
-        // Find previously active tag for price update
-        const fieldContainer = this.closest(`[data-field-id="${field.id}"]`);
-        if (fieldContainer) {
-          const previouslyActive = fieldContainer.querySelector('.option-card.active:not([data-value="' + option + '"])');
-          if (previouslyActive) {
-            const prevOption = previouslyActive.dataset.value;
-            if (prevOption && tagPrices[field.id][prevOption]) {
-              updatePriceFromTagSelection(field.id, prevOption, false);
-            }
-          }
-        }
-        // Add price for newly selected tag
-        if (tagPrices[field.id][option]) {
-          updatePriceFromTagSelection(field.id, option, true);
-        }
-      }
-      
-      // Update visualization
-      updateKonvaFromField(field.id, option, true);
-      
-      // If shape field changed, check corner radius visibility
       if (field.id === 'shape') {
         setTimeout(() => {
           const cornerRadiusContainers = document.querySelectorAll('[data-conditional-field="true"][data-depends-on="shape"]');
@@ -479,19 +456,26 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
         }, 50);
       }
       
-      // Handle Windows_Sliding conditional logic
-      handleWindowsSlidingConditionals(field.id, option);
+      handleWindowsSlidingConditionals(field.id, isDeselect ? null : option);
       
-      // Trigger price recalculation
       if (typeof window !== 'undefined' && typeof window.updateRealTimePriceDisplay === 'function') {
         window.updateRealTimePriceDisplay();
       }
+    };
+
+    tag.addEventListener('click', function() {
+      handleSelection(false);
     });
 
-    tagsGrid.appendChild(tag);
+    // Double click to deselect
+    tag.addEventListener('dblclick', function(e) {
+      e.preventDefault();
+      handleSelection(true);
+    });
+
+    tagContainer.appendChild(tag);
   });
 
-  tagContainer.appendChild(tagsGrid);
   container.appendChild(tagContainer);
   
   // For Screen field, check initial track system state after rendering
@@ -506,22 +490,9 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
     const allCards = tagContainer.querySelectorAll('.option-card');
     const activeCards = tagContainer.querySelectorAll('.option-card.active');
     
-    // If more than one is active, remove active from all and add to first only
+    // If more than one is active, remove active from all and keep none (per user request for no pre-selection)
     if (activeCards.length > 1) {
       allCards.forEach(card => card.classList.remove('active'));
-      if (allCards.length > 0) {
-        allCards[0].classList.add('active');
-      }
-    } else if (activeCards.length === 0 && allCards.length > 0) {
-      // If none are active, make the first one active
-      allCards[0].classList.add('active');
-    } else if (activeCards.length === 1) {
-      // Ensure only this one is active - remove from all others
-      allCards.forEach(card => {
-        if (card !== activeCards[0]) {
-          card.classList.remove('active');
-        }
-      });
     }
   }, 10);
 }
@@ -690,6 +661,23 @@ function handleWindowsSlidingConditionals(changedFieldId, selectedValue) {
   // Rule 2: Track System changes affect Screen availability
   if (changedFieldId === 'trackSystem') {
     updateScreenAvailability();
+    
+    // Also sync Step 2 Screen Option with Step 4 Screen
+    const screenOptionContainer = document.querySelector('[data-field-id="screenOption"]');
+    const screenContainer = document.querySelector('[data-field-id="screen"]');
+    
+    if (screenOptionContainer && screenContainer) {
+      const activeOption = screenOptionContainer.querySelector('.option-card.active');
+      if (activeOption) {
+        const value = activeOption.dataset.value || activeOption.textContent.trim();
+        syncScreenFields('screenOption', value);
+      }
+    }
+  }
+  
+  // Sync Step 2 Screen Option and Step 4 Screen
+  if (changedFieldId === 'screenOption' || changedFieldId === 'screen') {
+    syncScreenFields(changedFieldId, selectedValue);
   }
   
   // Rule 3: Panel Configuration depends on Number of Panels
@@ -702,47 +690,112 @@ function handleWindowsSlidingConditionals(changedFieldId, selectedValue) {
       
       configOptions.forEach(option => {
         const optionValue = option.dataset.value || option.textContent.trim();
-        // Check if it's a 2-panel option (S | S or F | S, but not S | S | S | S)
-        const isTwoPanelOption = (optionValue.includes('S | S') && !optionValue.includes('S | S | S | S')) || 
-                                  (optionValue.includes('F | S') && !optionValue.includes('F | S | S | F'));
-        // Check if it's a 4-panel option
+        
+        // Exact matches from user requirements
+        const isTwoPanelOption = optionValue.startsWith('S | S') && !optionValue.includes('S | S | S | S') || 
+                                 optionValue.startsWith('F | S') && !optionValue.includes('F | S | S | F');
         const isFourPanelOption = optionValue.includes('S | S | S | S') || optionValue.includes('F | S | S | F');
         
         if (isTwoPanels) {
-          // Show only 2-panel options, hide 4-panel options
-          if (isTwoPanelOption) {
-            option.style.display = '';
-          } else {
-            option.style.display = 'none';
-            if (option.classList.contains('active')) {
-              option.classList.remove('active');
-            }
-          }
+          option.style.display = isTwoPanelOption ? '' : 'none';
         } else if (isFourPanels) {
-          // Show only 4-panel options, hide 2-panel options
-          if (isFourPanelOption) {
-            option.style.display = '';
-          } else {
-            option.style.display = 'none';
-            if (option.classList.contains('active')) {
-              option.classList.remove('active');
-            }
-          }
+          option.style.display = isFourPanelOption ? '' : 'none';
+        }
+        
+        if (option.style.display === 'none' && option.classList.contains('active')) {
+          option.classList.remove('active');
         }
       });
       
-      // Auto-select first visible option if none selected
+      /* 
+      // Auto-select first visible option if none selected - REMOVED AS PER USER REQUEST
       setTimeout(() => {
         const activeConfig = panelConfigContainer.querySelector('.option-card.active');
         if (!activeConfig || activeConfig.style.display === 'none') {
           const visibleOptions = Array.from(panelConfigContainer.querySelectorAll('.option-card')).filter(opt => opt.style.display !== 'none');
           if (visibleOptions.length > 0) {
             visibleOptions[0].classList.add('active');
-            selectedCustomizationValues['panelConfiguration'] = visibleOptions[0].dataset.value || visibleOptions[0].textContent.trim();
+            const newValue = visibleOptions[0].dataset.value || visibleOptions[0].textContent.trim();
+            selectedCustomizationValues['panelConfiguration'] = newValue;
+            updateKonvaFromField('panelConfiguration', newValue, true);
           }
         }
       }, 50);
+      */
     }
+  }
+  
+  // Rule 4: Lock Type and Roller Type depend on Series
+  const product = getSelectedProduct();
+  if (product && product.series) {
+    const series = product.series;
+    
+    // Lock Type filtering
+    const lockTypeContainer = document.querySelector('[data-field-id="lockType"]');
+    if (lockTypeContainer) {
+      const lockOptions = lockTypeContainer.querySelectorAll('.option-card');
+      const allowedLocks = series.includes('798') 
+        ? ['Enter Lock 908', 'Enter Lock 907', 'Flushlock #12', 'New Flushlock']
+        : ['Center Lok 904 Big', 'Flushlok #12', 'Durable Flushlok', 'New Auto Flushlock'];
+        
+      lockOptions.forEach(option => {
+        const value = option.dataset.value || option.textContent.trim();
+        option.style.display = allowedLocks.includes(value) ? '' : 'none';
+        if (option.style.display === 'none' && option.classList.contains('active')) {
+          option.classList.remove('active');
+        }
+      });
+      
+      // Auto-select if none selected
+      if (!lockTypeContainer.querySelector('.option-card.active')) {
+        const firstVisible = Array.from(lockOptions).find(opt => opt.style.display !== 'none');
+        if (firstVisible) firstVisible.classList.add('active');
+      }
+    }
+    
+    // Roller Type filtering
+    const rollerTypeContainer = document.querySelector('[data-field-id="rollerType"]');
+    if (rollerTypeContainer) {
+      const rollerOptions = rollerTypeContainer.querySelectorAll('.option-card');
+      const allowedRollers = series.includes('798')
+        ? ['Single Roller ORD', 'Single Roller with Bearing', 'Double Roller HD', 'Blue Single Roller', 'Blue Double Roller']
+        : ['Single Panel Roller', 'Blue Single Roller', 'Blue Double Roller'];
+        
+      rollerOptions.forEach(option => {
+        const value = option.dataset.value || option.textContent.trim();
+        option.style.display = allowedRollers.includes(value) ? '' : 'none';
+        if (option.style.display === 'none' && option.classList.contains('active')) {
+          option.classList.remove('active');
+        }
+      });
+      
+      // Auto-select if none selected
+      if (!rollerTypeContainer.querySelector('.option-card.active')) {
+        const firstVisible = Array.from(rollerOptions).find(opt => opt.style.display !== 'none');
+        if (firstVisible) firstVisible.classList.add('active');
+      }
+    }
+  }
+}
+
+/**
+ * Sync Screen fields between Step 2 and Step 4
+ */
+function syncScreenFields(changedFieldId, value) {
+  const otherFieldId = changedFieldId === 'screenOption' ? 'screen' : 'screenOption';
+  const otherContainer = document.querySelector(`[data-field-id="${otherFieldId}"]`);
+  
+  if (otherContainer) {
+    const otherOptions = otherContainer.querySelectorAll('.option-card');
+    otherOptions.forEach(option => {
+      const optionValue = option.dataset.value || option.textContent.trim();
+      if (optionValue === value) {
+        option.classList.add('active');
+        selectedCustomizationValues[otherFieldId] = value;
+      } else {
+        option.classList.remove('active');
+      }
+    });
   }
 }
 
@@ -751,17 +804,20 @@ function handleWindowsSlidingConditionals(changedFieldId, selectedValue) {
  */
 function updateScreenAvailability() {
   const trackSystemContainer = document.querySelector('[data-field-id="trackSystem"]');
+  const screenOptionContainer = document.querySelector('[data-field-id="screenOption"]');
   const screenContainer = document.querySelector('[data-field-id="screen"]');
   
-  if (!trackSystemContainer || !screenContainer) return;
+  if (!trackSystemContainer) return;
   
   const activeTrackOption = trackSystemContainer.querySelector('.option-card.active');
   if (!activeTrackOption) return;
   
   const selectedTrack = activeTrackOption.dataset.value || activeTrackOption.textContent.trim();
-  const screenOptions = screenContainer.querySelectorAll('.option-card');
   
-  if (screenOptions.length > 0) {
+  [screenOptionContainer, screenContainer].forEach(container => {
+    if (!container) return;
+    
+    const screenOptions = container.querySelectorAll('.option-card');
     if (selectedTrack === '3 Tracks') {
       // Disable "With Screen" option for 3 Tracks
       screenOptions.forEach(option => {
@@ -779,19 +835,24 @@ function updateScreenAvailability() {
             });
             if (withoutScreenOption) {
               withoutScreenOption.classList.add('active');
-              selectedCustomizationValues['screen'] = 'Without Screen';
+              selectedCustomizationValues[container.dataset.fieldId] = 'Without Screen';
             }
           }
         } else {
-          // Enable "Without Screen" option
           option.style.opacity = '';
           option.style.pointerEvents = '';
           option.classList.remove('disabled');
+          
+          // AUTO-SELECT "Without Screen" for 3 Tracks if not selected
+          if (optionValue === 'Without Screen' && !container.querySelector('.option-card.active')) {
+            option.classList.add('active');
+            selectedCustomizationValues[container.dataset.fieldId] = 'Without Screen';
+          }
         }
       });
       
       // Show message
-      let messageEl = screenContainer.querySelector('.conditional-message');
+      let messageEl = container.querySelector('.conditional-message');
       if (!messageEl) {
         messageEl = document.createElement('div');
         messageEl.className = 'conditional-message';
@@ -799,7 +860,7 @@ function updateScreenAvailability() {
         messageEl.style.fontSize = '12px';
         messageEl.style.marginTop = '5px';
         messageEl.style.textAlign = 'center';
-        screenContainer.appendChild(messageEl);
+        container.appendChild(messageEl);
       }
       messageEl.textContent = 'Screen not available for 3 Tracks';
     } else {
@@ -809,12 +870,12 @@ function updateScreenAvailability() {
         option.style.pointerEvents = '';
         option.classList.remove('disabled');
       });
-      const messageEl = screenContainer.querySelector('.conditional-message');
+      const messageEl = container.querySelector('.conditional-message');
       if (messageEl) {
         messageEl.remove();
       }
     }
-  }
+  });
 }
 
 /**
@@ -1198,7 +1259,7 @@ function updateStepNavigation(totalSteps, stepNames = null) {
       const nextBtn = document.getElementById('next-btn');
       const nextNote = document.getElementById('next-note');
       if (nextBtn) {
-        nextBtn.innerHTML = `Finalize Order <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        nextBtn.innerHTML = `Finalize Design <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
       }
       if (nextNote) {
         nextNote.textContent = '';
@@ -1250,14 +1311,30 @@ function setupDirectToSummaryNavigation() {
   const freshNextBtn = document.getElementById('next-btn');
   
   // Update button text
-  freshNextBtn.innerHTML = `Finalize Order <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+  freshNextBtn.innerHTML = `Finalize Design <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
   
   // Direct-to-summary handler
   freshNextBtn.addEventListener('click', () => {
+    console.log('[Nav] Direct-to-summary clicked');
+    // VALIDATION: Check dimensions even if no customization steps
+    const dimContainer = document.querySelector('.dimensions-container');
+    if (dimContainer && !dimContainer.classList.contains('hidden-step')) {
+      const heightInput = document.getElementById('input-height');
+      const widthInput = document.getElementById('input-width');
+      
+      if (!heightInput?.value || !widthInput?.value || parseFloat(heightInput.value) <= 0 || parseFloat(widthInput.value) <= 0) {
+        alert('Please enter valid Dimensions (Height & Width) before proceeding.');
+        return;
+      }
+    }
+
+    console.log('[Nav] Calling showOrderSummary...');
     if (typeof window.showOrderSummary === 'function') {
       window.showOrderSummary();
+    } else if (typeof showOrderSummary === 'function') {
+      showOrderSummary();
     } else {
-      console.log('Finalizing Custom Order...');
+      console.error('[Nav] showOrderSummary function not found!');
     }
   });
   
@@ -1295,18 +1372,121 @@ function setupDynamicStepNavigation(totalSteps, stepNames = null) {
   
   // Dynamic next button handler
   freshNextBtn.addEventListener('click', () => {
-    const currentStep = window.currentStep || 1;
+    const currentStepNum = window.currentStep || 1;
     
-    if (currentStep < totalSteps) {
+    // VALIDATION: Check if all fields in the current step have a selection
+    const currentStepEl = document.getElementById(`step-${currentStepNum}`);
+    const warningEl = document.getElementById('validation-warning');
+    
+    if (currentStepEl) {
+      // Find all containers that should have a selection
+      const containers = currentStepEl.querySelectorAll('[data-field-id]');
+      let missingFields = [];
+      const addedToMissing = new Set();
+      
+      containers.forEach(container => {
+        // Skip if it's an option-card itself
+        if (container.classList.contains('option-card')) return;
+        
+        // Skip if hidden
+        if (container.style.display === 'none' || container.closest('.hidden-step')) return;
+        
+        const fieldId = container.dataset.fieldId;
+        if (!fieldId) return;
+
+        // Special case: check if this is a container that actually holds options
+        const hasOptions = container.querySelectorAll('.option-card').length > 0;
+        if (!hasOptions) return;
+
+        // Check for active selection
+        const activeCard = container.querySelector('.option-card.active');
+        if (!activeCard) {
+          let label = fieldId;
+          if (typeof window.getFieldDisplayName === 'function') {
+            label = window.getFieldDisplayName(fieldId);
+          } else {
+            // Local fallback for common field IDs
+            const fallbacks = {
+              'numberOfPanels': 'Panel',
+              'transomType': 'Transom Type',
+              'trackSystem': 'Track System',
+              'panelConfiguration': 'Panel Configuration',
+              'lockType': 'Lock Type',
+              'rollerType': 'Roller Type',
+              'screen': 'Screen',
+              'frameColor': 'Frame Color',
+              'glassType': 'Glass Type',
+              'glassThickness': 'Glass Thickness'
+            };
+            label = fallbacks[fieldId] || fieldId;
+          }
+            
+          if (!addedToMissing.has(label)) {
+            missingFields.push(label);
+            addedToMissing.add(label);
+          }
+        }
+      });
+
+      // Also check dimensions if they are visible in this step
+      const dimContainer = document.querySelector('.dimensions-container');
+      if (dimContainer && !dimContainer.classList.contains('hidden-step')) {
+        const heightInput = document.getElementById('input-height');
+        const widthInput = document.getElementById('input-width');
+        
+        if (!heightInput?.value || !widthInput?.value || parseFloat(heightInput.value) <= 0 || parseFloat(widthInput.value) <= 0) {
+          missingFields.push('Dimensions (Height & Width)');
+        }
+      }
+
+      if (missingFields.length > 0) {
+        if (warningEl) {
+          warningEl.innerHTML = '<div style="display: flex; align-items: center; gap: 10px;">' +
+                                '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>' +
+                                '<span>Please complete the following specifications: <strong>' + missingFields.join(', ') + '</strong></span>' +
+                                '</div>';
+          warningEl.style.display = 'block';
+          // Scroll to top to see the warning
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          alert('Please complete: ' + missingFields.join(', '));
+        }
+        return; // Prevent proceeding
+      } else {
+        if (warningEl) warningEl.style.display = 'none';
+      }
+    }
+    
+    const totalSteps = window.totalCustomizationSteps || 1;
+    console.log(`[Nav] Next clicked. Current step: ${currentStepNum}/${totalSteps}`);
+
+    if (currentStepNum < totalSteps) {
       // Move to next step
-      goToDynamicStep(currentStep + 1);
+      console.log(`[Nav] Moving to step ${currentStepNum + 1}`);
+      goToDynamicStep(currentStepNum + 1);
     } else {
       // Final step - show summary
-      if (typeof window.showOrderSummary === 'function') {
-        window.showOrderSummary();
-      } else {
-        console.log('Finalizing Custom Order...');
-      }
+      console.log(`[Nav] Final step reached. Showing order summary...`);
+      
+      // Ensure the button shows loading state
+      const originalHtml = freshNextBtn.innerHTML;
+      freshNextBtn.disabled = true;
+      freshNextBtn.innerHTML = 'Processing... <span class="spinner-border spinner-border-sm"></span>';
+      
+      setTimeout(() => {
+        if (typeof window.showOrderSummary === 'function') {
+          window.showOrderSummary();
+        } else if (typeof showOrderSummary === 'function') {
+          showOrderSummary();
+        } else {
+          console.error('[Nav] showOrderSummary function not found anywhere!');
+          alert('Could not show order summary. Please contact support.');
+        }
+        
+        // Restore button state (though it might be hidden now)
+        freshNextBtn.disabled = false;
+        freshNextBtn.innerHTML = originalHtml;
+      }, 300);
     }
   });
   
@@ -1343,13 +1523,24 @@ function goToDynamicStep(targetStep) {
     targetStepEl.classList.remove('hidden-step');
   }
   
-  // Hide/Show dimensions container (Height/Width) - only show on step 1
+  // Hide/Show dimensions container (Height/Width)
   const dimensionsContainer = document.querySelector('.dimensions-container');
   if (dimensionsContainer) {
-    if (targetStep === 1) {
+    const product = getSelectedProduct();
+    const isWindowsSliding = product && product.category === 'Windows' && product.subcategory === 'Sliding';
+    
+    // For Windows Sliding, show on step 2. For others, show on step 1.
+    // MODIFIED: Also check if targetStep matches where dimensions should be
+    const shouldShowDimensions = isWindowsSliding ? (targetStep === 2) : (targetStep === 1);
+    
+    if (shouldShowDimensions) {
       dimensionsContainer.classList.remove('hidden-step');
+      dimensionsContainer.style.display = '';
     } else {
+      // Don't hide it if we are on the summary page or if it's already shown
+      // Actually, we want it hidden on other steps to focus on the current step's options
       dimensionsContainer.classList.add('hidden-step');
+      dimensionsContainer.style.display = 'none';
     }
   }
   
@@ -1389,7 +1580,7 @@ function goToDynamicStep(targetStep) {
     }
   } else {
     if (nextBtn) {
-      nextBtn.innerHTML = `Finalize Order <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      nextBtn.innerHTML = `Finalize Design <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
     }
     if (nextNote) {
       nextNote.textContent = '';
@@ -1658,6 +1849,11 @@ function syncStateFromActiveSelections() {
       renderCustomState();
     } else if (typeof window.renderCustomState === 'function') {
       window.renderCustomState();
+    }
+    
+    // CRITICAL: Update real-time price display after syncing state
+    if (typeof window.updateRealTimePriceDisplay === 'function') {
+      window.updateRealTimePriceDisplay();
     }
   }, 50);
 }

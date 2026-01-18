@@ -241,7 +241,7 @@ $(document).on('click', '#buy-now-btn', function(e) {
                     console.log('Redirecting to:', paymentUrl);
                     window.location.href = paymentUrl;
                 } else {
-                    showToast('Error: ' + (res.message || 'Failed to save order details'), 'error');
+                    showToast((res.message || 'Failed to save order details'), 'error');
                 }
             } catch (e) {
                 console.error('Error parsing response:', e, response);

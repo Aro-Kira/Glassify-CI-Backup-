@@ -161,7 +161,7 @@ $(document).on('click', '#add-to-cart-btn', function () {
                         $('#cart-count').toggle(response.cart_count > 0);
                     }
                 } else {
-                    showCartNotification("Error: " + (response.message || 'Unknown error'), 'error');
+                    showCartNotification((response.message || 'Unknown error'), 'error');
                 }
             } catch (e) {
                 console.error('Parse error:', e);
@@ -267,7 +267,7 @@ $(document).on('click', '#buy-now-btn', function () {
                     // Redirect to checkout with the cart item selected
                     window.location.href = base_url + 'payment?selected=' + response.cart_id;
                 } else {
-                    showCartNotification("Error: " + (response.message || 'Unknown error'), 'error');
+                    showCartNotification((response.message || 'Unknown error'), 'error');
                     btn.prop('disabled', false).html(originalText);
                 }
             } catch (e) {
