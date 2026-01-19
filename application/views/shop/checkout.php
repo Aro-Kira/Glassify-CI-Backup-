@@ -497,7 +497,7 @@
                     <span style="width: 12px; height: 12px; border-radius: 50%; background: #0f2b46; display: inline-block;"></span> Selected
                 </div>
                 <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; border-radius: 50%; background: #eee; border: 1px solid #ddd; display: inline-block;"></span> N/A
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: #eee; border: 1px solid #ddd; display: inline-block;"></span> Unavailable
                 </div>
             </div>
         </div>
@@ -2020,8 +2020,12 @@ $(document).ready(function() {
 
     // === Place Order button - Show confirmation modal ===
     document.getElementById("placeOrderBtn").addEventListener("click", function () {
-        const ewallet = document.getElementById("ewallet-radio").checked;
-        const card = document.getElementById("card-radio").checked;
+        const ewalletEl = document.getElementById("ewallet-radio");
+        const cardEl = document.getElementById("card-radio");
+        const ewallet = ewalletEl ? ewalletEl.checked : false;
+        const card = cardEl ? cardEl.checked : false;
+
+        console.log('Place Order clicked - E-wallet element:', ewalletEl, 'checked:', ewallet, 'Card element:', cardEl, 'checked:', card);
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
         const preferredDateInput = document.getElementById('preferred_installation_date');
@@ -2072,7 +2076,14 @@ $(document).ready(function() {
         }
 
         // Validate payment method
-        if (!firstErrorElement && !ewallet && !card) {
+        const ewalletEl = document.getElementById("ewallet-radio");
+        const cardEl = document.getElementById("card-radio");
+        const currentEwallet = ewalletEl ? ewalletEl.checked : false;
+        const currentCard = cardEl ? cardEl.checked : false;
+
+        if (!firstErrorElement && !currentEwallet && !currentCard) {
+            console.log('Payment method validation failed - ewallet checked:', currentEwallet, 'card checked:', currentCard);
+            console.log('Radio elements exist:', !!ewalletEl, !!cardEl);
             const errorDiv = document.getElementById('payment-method-error');
             if (errorDiv) errorDiv.style.display = 'block';
             if (!firstErrorElement) {
@@ -2119,6 +2130,9 @@ $(document).ready(function() {
         const defaultConfirmLabel = 'Confirm & Place Order';
         const ewallet = document.getElementById("ewallet-radio").checked;
         const card = document.getElementById("card-radio").checked;
+
+        // Debug: Log payment method state
+        console.log('Payment method validation - E-wallet checked:', ewallet, 'Card checked:', card);
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
 
