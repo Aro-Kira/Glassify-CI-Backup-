@@ -394,11 +394,10 @@
                     <div style="text-align: center; color: #888; padding: 10px;">Loading items...</div>
                 </div>
 
-                <div class="summary-totals-box" style="border-top: 2px solid #0f2b46; padding-top: 15px;">
+                <div class="summary-totals-box" style="padding-top: 15px;">
                     <p><span>Subtotal:</span> <span id="summary-subtotal">₱0.00</span></p>
                     <p><span>Shipping Fee:</span> <span id="summary-shipping">₱0.00</span></p>
                     <p><span>Handling Fee:</span> <span id="summary-handling">₱0.00</span></p>
-                    <div class="summary-divider"></div>
                     <p class="total"><span>Total:</span> <span id="summary-total">₱0.00</span></p>
                 </div>
             </div>
@@ -617,9 +616,7 @@
 
     <div class="modal-footer confirm-footer">
       <button class="btn-cancel" id="cancelOrderBtn">Cancel</button>
-      <button class="btn-confirm-order" id="confirmOrderBtn">
-        <span class="btn-icon">✓</span> Confirm & Place Order
-      </button>
+      <button class="btn-confirm-order" id="confirmOrderBtn">Confirm & Place Order</button>
     </div>
   </div>
 </div>
@@ -941,17 +938,13 @@ $(document).ready(function() {
                             items.forEach(item => {
                                 const itemDiv = document.createElement('div');
                                 itemDiv.className = 'summary-item-row';
-                                itemDiv.style.cssText = 'display: flex; gap: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 10px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02); align-items: start; position: relative;';
+                                itemDiv.style.cssText = 'display: flex; gap: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 10px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02); align-items: center; position: relative;';
                                 
                                 itemDiv.innerHTML = `
                                     <img src="${item.image}" alt="${item.description}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; flex-shrink: 0;">
-                                    <div style="flex: 1; min-width: 0;">
-                                        <h4 style="margin: 0 0 5px 0; font-size: 15px; color: #0f2b46; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.description}</h4>
-                                        <p style="margin: 0 0 8px 0; font-size: 12px; color: #777; line-height: 1.4;">${item.customization}</p>
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="font-size: 13px; color: #888; font-weight: 500;">Qty: ${item.quantity}</span>
-                                            <span style="font-size: 15px; font-weight: 700; color: #0f2b46;">₱${(item.total).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                        </div>
+                                    <div class="summary-item-info">
+                                        <h4>${item.description}</h4>
+                                        <span class="summary-item-qty">Qty: ${item.quantity}</span>
                                     </div>
                                 `;
                                 itemsListEl.appendChild(itemDiv);
@@ -1719,42 +1712,67 @@ $(document).ready(function() {
                     const row = document.createElement('tr');
                     const customizationString = item.customization || 'Standard';
                     const productImage = item.image || BASE_URL + 'assets/images/default-product.png';
-                    
-                    // Format customization string into tags like Add to Cart page
-                    let customHtml = `
-                        <div class="confirm-custom-layout" style="display: flex; gap: 15px; align-items: flex-start;">
-                            <div class="confirm-image-box" style="text-align: center; width: 80px; flex-shrink: 0;">
-                                <div style="border: 1px solid #0f2b46; border-radius: 6px; padding: 5px; background: #fff; margin-bottom: 5px;">
-                                    <img src="${productImage}" alt="${item.description}" style="width: 100%; height: 60px; object-fit: contain;">
+
+                    // Format customization - show 2D preview if available, otherwise show tags
+                    let customHtml = '';
+
+                    if (item.has_design && item.design_ref) {
+                        // Show 2D preview
+                        customHtml = `
+                            <div class="custom-layout" style="display: flex; align-items: center; gap: 8px;">
+                                <div class="design-thumbnail-wrapper" style="flex-shrink: 0;">
+                                    <img src="${item.design_ref}"
+                                         alt="Custom Design"
+                                         class="design-thumbnail"
+                                         style="width: 50px; height: 50px; object-fit: contain; border: 2px solid #0d3d4d; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; background: #f8f8f8; padding: 2px;"
+                                         onclick="showDesignModal('${item.design_ref}')"
+                                         onerror="this.style.display='none'; this.parentElement.querySelector('.view-design-text').textContent='Image not found';">
+                                    <span class="view-design-text" style="display: block; font-size: 8px; color: #0d3d4d; margin-top: 2px; font-weight: 500; text-align: center;">Click to view</span>
                                 </div>
-                                <span style="font-size: 10px; color: #666; display: block;">Click to view</span>
-                            </div>
-                            <div class="confirm-tags-box" style="display: flex; flex-wrap: wrap; gap: 8px; flex: 1;">
-                    `;
+                                <div class="custom-details" style="display: flex; flex-wrap: wrap; gap: 4px; flex: 1;">
+                        `;
 
-                    if (customizationString !== 'Standard') {
-                        const parts = customizationString.split(' | ');
-                        parts.forEach(part => {
-                            customHtml += `<span class="confirm-custom-tag" style="display: inline-block; background: #e3f2fd; color: #0f2b46; padding: 4px 12px; border-radius: 6px; font-size: 12px; border: 1px solid #bbdefb; font-weight: 500;">${part}</span>`;
-                        });
+                        if (customizationString !== 'Standard') {
+                            const parts = customizationString.split(' | ');
+                            parts.forEach(part => {
+                                customHtml += `<span class="custom-tag" style="display: inline-block; background: #e8f4f8; color: #0c2c3a; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-family: 'DM Sans', sans-serif; border: 1px solid #b8d4e3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${part}</span>`;
+                            });
+                        }
+
+                        customHtml += `
+                                </div>
+                            </div>
+                        `;
                     } else {
-                        customHtml += '<span style="color: #888; font-size: 12px;">Standard</span>';
-                    }
+                        // Show tags only
+                        customHtml = `
+                            <div class="confirm-tags-box" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        `;
 
-                    customHtml += `
-                            </div>
-                        </div>
-                    `;
+                        if (customizationString !== 'Standard') {
+                            const parts = customizationString.split(' | ');
+                            parts.forEach(part => {
+                                customHtml += `<span class="confirm-custom-tag" style="display: inline-block; background: #e3f2fd; color: #0f2b46; padding: 4px 12px; border-radius: 6px; font-size: 12px; border: 1px solid #bbdefb; font-weight: 500;">${part}</span>`;
+                            });
+                        } else {
+                            customHtml += '<span style="color: #888; font-size: 12px;">Standard</span>';
+                        }
+
+                        customHtml += `</div>`;
+                    }
 
                     const itemTotal = Number(item.total) || 0;
                     
                     row.innerHTML = `
-                        <td class="product-cell" style="vertical-align: top;">
-                            <span class="product-name" style="font-weight: 700; color: #0f2b46;">${item.description}</span>
+                        <td class="product-cell">
+                            <div class="product-info">
+                                <img src="${productImage}" alt="${item.description}" class="product-thumb">
+                                <span class="product-name">${item.description}</span>
+                            </div>
                         </td>
                         <td class="customization-cell">${customHtml}</td>
-                        <td class="qty-cell" style="vertical-align: top;">${item.quantity}</td>
-                        <td class="price-cell" style="vertical-align: top;">₱${itemTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="qty-cell">${item.quantity}</td>
+                        <td class="price-cell">₱${itemTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     `;
                     itemsBody.appendChild(row);
                 });
@@ -2098,6 +2116,7 @@ $(document).ready(function() {
     // === Confirm Order button - Actually place the order ===
     confirmOrderBtn.addEventListener("click", function () {
         const btn = this;
+        const defaultConfirmLabel = 'Confirm & Place Order';
         const ewallet = document.getElementById("ewallet-radio").checked;
         const card = document.getElementById("card-radio").checked;
         const termsCheckbox = document.getElementById('accept-terms');
@@ -2162,7 +2181,7 @@ $(document).ready(function() {
                 preferredDateInput.focus();
                 preferredDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 btn.disabled = false;
-                btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
+                btn.textContent = defaultConfirmLabel;
                 closeConfirmModal();
                 return;
             }
@@ -2171,15 +2190,21 @@ $(document).ready(function() {
 
         // Disable button and show loading state
         btn.disabled = true;
-        btn.innerHTML = '<span class="btn-icon">⏳</span> Processing...';
+        btn.textContent = 'Processing...';
 
         // Store order summary in session before sending request
         // This ensures ewallet page has access to the summary
-        const summaryItems = document.getElementById('summary-items').textContent;
-        const summarySubtotal = document.getElementById('summary-subtotal').textContent;
-        const summaryShipping = document.getElementById('summary-shipping').textContent;
-        const summaryHandling = document.getElementById('summary-handling').textContent;
-        const summaryTotal = document.getElementById('summary-total').textContent;
+        const summaryItemsEl = document.getElementById('summary-items');
+        const summarySubtotalEl = document.getElementById('summary-subtotal');
+        const summaryShippingEl = document.getElementById('summary-shipping');
+        const summaryHandlingEl = document.getElementById('summary-handling');
+        const summaryTotalEl = document.getElementById('summary-total');
+
+        const summaryItems = summaryItemsEl ? summaryItemsEl.textContent : '0';
+        const summarySubtotal = summarySubtotalEl ? summarySubtotalEl.textContent : '₱0.00';
+        const summaryShipping = summaryShippingEl ? summaryShippingEl.textContent : '₱0.00';
+        const summaryHandling = summaryHandlingEl ? summaryHandlingEl.textContent : '₱0.00';
+        const summaryTotal = summaryTotalEl ? summaryTotalEl.textContent : '₱0.00';
         
         // Store summary in sessionStorage as backup
         sessionStorage.setItem('order_summary', JSON.stringify({
@@ -2192,9 +2217,13 @@ $(document).ready(function() {
         sessionStorage.setItem('selected_cart_ids', SELECTED_CART_IDS);
 
         // Send AJAX request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
         fetch(BASE_URL + 'shopcon/place_order', {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: controller.signal
         })
         .then(async response => {
             const contentType = response.headers.get('content-type');
@@ -2208,6 +2237,7 @@ $(document).ready(function() {
             }
         })
         .then(data => {
+            clearTimeout(timeoutId);
             // Log debug info to console
             console.log('=== Place Order Response ===');
             console.log('Status:', data.status);
@@ -2240,15 +2270,20 @@ $(document).ready(function() {
                     showToast('Check browser console (F12) for debug details.', 'info', 3000);
                 }
                 btn.disabled = false;
-                btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
+                btn.textContent = defaultConfirmLabel;
                 closeConfirmModal();
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showToast('An error occurred. Please try again. Check console for details.', 'error', 5000);
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                showToast('Request timed out. Please try again.', 'error', 5000);
+            } else {
+                console.error('Error:', error);
+                showToast('An error occurred. Please try again. Check console for details.', 'error', 5000);
+            }
             btn.disabled = false;
-            btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
+            btn.textContent = defaultConfirmLabel;
             closeConfirmModal();
         });
     });

@@ -25,14 +25,14 @@ main {
 
 /* Make title full width and separate from flex row */
 .info-title {
-  width: 65%;
-  margin: 3% 25% 0 10%;
+  width: calc(100% - 20%);
+  margin: 3% 10% 0 10%;
 }
 
 .title-divider{
   height: 1px;
   background-color: #333;
-  width: 123%;
+  width: 100%;
   margin-left: 0;
 }
 
@@ -111,12 +111,12 @@ main {
 /* Container that holds form and order summary */
 .info-container {
   display: flex;
-  justify-content: center;   
+  justify-content: space-between;
   align-items: flex-start;
-  gap: 30px;                
+  gap: 30px;
   margin: 40px 10% 40px 10%;
-  max-width: 1280px;         
-  width: auto;
+  max-width: 1280px;
+  width: calc(100% - 20%);
 }
 
 
@@ -401,6 +401,49 @@ input[type="checkbox"] {
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: 0.5px;
+}
+
+.summary-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+.summary-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-item-info h4 {
+  margin: 0;
+  font-size: 15px;
+  color: #0f2b46;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary-item-qty {
+  font-size: 13px;
+  color: #888;
+  font-weight: 500;
+}
+
+.summary-item-total {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f2b46;
+  white-space: nowrap;
 }
 
 .order-summary p {
@@ -1158,6 +1201,7 @@ input[type="checkbox"] {
   border: 1px solid #e9ecef;
   border-radius: 8px;
   overflow: hidden;
+  padding: 0 12px 12px;
 }
 
 .confirm-items-table {
@@ -1292,7 +1336,7 @@ input[type="checkbox"] {
 /* Modal Footer for Confirm Modal */
 .confirm-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
 }
 
