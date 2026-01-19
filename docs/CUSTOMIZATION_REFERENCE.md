@@ -141,22 +141,23 @@ This reference lists every main category, its supported subcategories, and the d
 ## Mirrors & Specialty Glass
 
 ### Mirrors
-**Step names:** Shape & Frame · Finish & Details · Size & Installation · Lighting & Features
+**Step names:** 
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Shape & Frame (1) | Shape | `tags` | Round \\| Oval \\| Square \\| Rectangle \\| Arched \\| Custom |
-| Shape & Frame (1) | Frame Type | `tags` | Frameless \\| Standard Frame \\| Thin Frame \\| Grid Frame |
-| Shape & Frame (1) | Frame Color | `tags` | Gold \\| Silver \\| Rose Gold \\| Bronze \\| Black \\| White \\| Wood \\| Custom Color |
-| Finish & Details (2) | Edge Finish | `tags` | Beveled \\| Flat Polish \\| Pencil Edge \\| Raw |
-| Finish & Details (2) | Tint | `tags` | Clear \\| Bronze \\| Grey (Smoked) \\| Black |
-| Finish & Details (2) | Orientation | `tags` | Vertical \\| Horizontal \\| Full-body |
-| Size & Installation (3) | Size | `tags` | Small \\| Medium \\| Large \\| Extra Large \\| Custom |
-| Size & Installation (3) | Corner Radius (in) | `number` | min 0 · step 0.1 |
-| Size & Installation (3) | Mounting Method | `tags` | Wall-mounted \\| Freestanding \\| Leaning \\| Adhesive \\| Hanging |
-| Lighting & Features (4) | Lighting | `tags` | None \\| LED Backlight \\| LED Front Light |
-| Lighting & Features (4) | LED Color | `tags` | Warm White \\| Cool White \\| Daylight \\| RGB |
-| Lighting & Features (4) | Smart Features | `tags` | Touch Dimmer \\| Defogger \\| Motion Sensor \\| Bluetooth Speaker |
+| Step 1 (1) | Shape | `tags` | Round \| Oval \| Square \| Rectangle \| Arched |
+| Step 1 (1) | Frame Type | `tags` | Frameless \| Standard Frame |
+| Step 1 (1) | Frame Color | `tags` | Gold \| Black \| White |
+| Step 2 (2) | Edge Finish | `tags` | Beveled \| Machine Polished |
+| Step 2 (2) | Mounting Method | `tags` | Wall-mounted \| Freestanding \| Leaning \| Adhesive \| Hanging |
+| Step 3 (3) | Lighting | `tags` | None \| LED Backlight \| LED Front Light |
+| Step 3 (3) | LED Color | `tags` | Warm White \| Cool White \| Daylight |
+| Step 3 (3) | Smart Features | `tags` | Touch Dimmer \| Defogger \| Motion Sensor |
+
+**Notes:**
+- Frame Color only appears when Frame Type = "Framed"
+- Edge Finish only appears when Frame Type = "Frameless"
+- Glass Type and Thickness are fixed values (Copper Free and Lead Free Mirror, 6mm)
 
 ### Top Glass
 **Step names:** Basic Options · Details & Installation

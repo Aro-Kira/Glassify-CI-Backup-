@@ -621,6 +621,32 @@ h1 {
     margin-bottom: 30px;
 }
 
+.thickness-section {
+    margin-bottom: 30px;
+    width: 100%;
+    max-width: 280px;
+}
+
+.thickness-section .input-wrapper {
+    width: 100%;
+}
+
+.thickness-section .dimension-input {
+    width: 100%;
+    border: 1px solid var(--border-grey);
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
+    background-color: #fff;
+}
+
+.thickness-section .dimension-input:focus {
+    outline: 2px solid var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
 /* Ensure only one option is active per field section */
 /* Field sections - ensure clear active/inactive states */
 .field-section .option-card:not(.active),
@@ -696,6 +722,10 @@ h1 {
 .dimension-lock-btn svg {
     width: 20px;
     height: 20px;
+}
+
+.input-group {
+    margin-bottom: 20px;
 }
 
 .input-group label {

@@ -47,7 +47,9 @@ let currentThickness = '5mm';
 let currentEdgeWork = 'flat-polish';
 let currentFrameType = 'vinyl';
 // Corner radius in inches (applies to rectangle/square only)
-let currentCornerRadius = 0;
+// Can be a single number (when linked) or an object with individual corners: {topLeft, topRight, bottomLeft, bottomRight}
+let currentCornerRadius = 0; // Default: single value (linked mode)
+let cornerRadiusLinked = true; // "Link All" state - when true, all corners use same value
 let currentDimensions = {
     height: { value: 45, unit: 'in' },
     width: { value: 35, unit: 'in' }
@@ -83,7 +85,31 @@ let glassStyles = {
     'double': { fill: '#B2DFDB', opacity: 0.9 },
     'low-e': { fill: '#Dcedc8', opacity: 0.85 },
     'frosted': { fill: '#FFFFFF', opacity: 0.95 },
-    'patterned': { fill: '#E8E8E8', opacity: 0.9 }
+    'patterned': { fill: '#E8E8E8', opacity: 0.9 },
+    // Windows-specific glass types from customization defaults
+    'ultra clear': { fill: 'rgba(255, 255, 255, 0.1)', opacity: 0.9 },
+    'bronze': { fill: 'rgba(205, 127, 50, 0.4)', opacity: 0.7 },
+    'light green': { fill: 'rgba(144, 238, 144, 0.4)', opacity: 0.7 },
+    'dark gray': { fill: 'rgba(105, 105, 105, 0.5)', opacity: 0.6 },
+    'copperfree mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9 },
+    'euro gray': { fill: 'rgba(169, 169, 169, 0.5)', opacity: 0.7 },
+    'ford blue': { fill: 'rgba(70, 130, 180, 0.5)', opacity: 0.7 },
+    'reflective: clear': { fill: 'rgba(255, 255, 255, 0.6)', opacity: 0.9 },
+    'reflective: gray': { fill: 'rgba(169, 169, 169, 0.6)', opacity: 0.8 },
+    'reflective: light blue': { fill: 'rgba(173, 216, 230, 0.6)', opacity: 0.8 },
+    'reflective: dark blue': { fill: 'rgba(0, 0, 139, 0.6)', opacity: 0.8 },
+    'reflective: light green': { fill: 'rgba(50, 205, 50, 0.6)', opacity: 0.8 },
+    'reflective: dark green': { fill: 'rgba(0, 100, 0, 0.6)', opacity: 0.8 },
+    'reflective: light bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.8 },
+    'tempered: clear': { fill: 'rgba(255, 255, 255, 0.2)', opacity: 0.9 },
+    'tempered: bronze': { fill: 'rgba(205, 127, 50, 0.3)', opacity: 0.8 },
+    // Mirror-specific tint options
+    'mirror-clear': { fill: 'rgba(224, 242, 241, 0.9)', opacity: 0.95 },
+    'mirror-bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.7 },
+    'mirror-grey': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6 },
+    'mirror-grey-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6 },
+    'mirror-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6 },
+    'mirror-black': { fill: 'rgba(38, 50, 56, 0.7)', opacity: 0.8 }
 };
 
 // DEFAULT frame styles - these are FALLBACKS only
@@ -104,7 +130,17 @@ let frameStyles = {
     'custom-color': { color: '#888888', width: 4, isDefault: true },
     // Legacy frame types (mapped from old system)
     'vinyl': { color: '#333333', width: 4, isDefault: true },
-    'frameless': { color: 'transparent', width: 0, isDefault: true }
+    'frameless': { color: 'transparent', width: 0, isDefault: true },
+    // Windows-specific frame colors from customization defaults
+    'hanalok': { color: '#F5F5DC', width: 4, isDefault: true },
+    'gray': { color: '#808080', width: 4, isDefault: true },
+    'grey': { color: '#808080', width: 4, isDefault: true },
+    'wood finish': { color: '#8B4513', width: 4, isDefault: true },
+    // Mirror-specific frame types
+    'standard-frame': { color: '#333333', width: 6, isDefault: true },
+    'thin-frame': { color: '#333333', width: 3, isDefault: true },
+    'grid-frame': { color: '#333333', width: 4, isDefault: true },
+    'custom-color': { color: '#888888', width: 4, isDefault: true }
 };
 
 /**
@@ -517,11 +553,32 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     const numberOfPanels = extractPanelCount(customizationValues.numberOfPanels || customizationValues.NumberOfPanels || '2-panel');
     const operation = (customizationValues.operation || customizationValues.Operation || 'sliding').toLowerCase();
     const configuration = (customizationValues.configuration || customizationValues.Configuration || '').toLowerCase();
-    
-    // Determine if panels are fixed or operable
-    const hasFixedPanels = configuration.includes('fixed') || operation.includes('fixed');
-    const isSliding = operation.includes('sliding');
-    const isSwing = operation.includes('swing');
+
+    // Get Windows-specific panel configuration
+    const panelConfig = customizationValues.panelConfiguration || customizationValues.PanelConfiguration || '';
+    let panelTypes = [];
+
+    // Parse Windows panel configuration (e.g., "S | S (Sliding | Sliding)" or "F | S | S | F (Fixed | Sliding | Sliding | Fixed)")
+    if (panelConfig) {
+        // Extract panel types from the configuration string
+        const parts = panelConfig.split('|').map(p => p.trim());
+        panelTypes = parts.map(part => {
+            if (part.includes('S') || part.toLowerCase().includes('sliding')) {
+                return 'sliding';
+            } else if (part.includes('F') || part.toLowerCase().includes('fixed')) {
+                return 'fixed';
+            }
+            return 'sliding'; // default
+        });
+    } else {
+        // Determine if panels are fixed or operable based on operation/configuration
+        const hasFixedPanels = configuration.includes('fixed') || operation.includes('fixed');
+        const isSliding = operation.includes('sliding');
+        const isSwing = operation.includes('swing');
+
+        // If no specific panel config, create default based on number of panels
+        panelTypes = new Array(numberOfPanels).fill(hasFixedPanels ? 'mixed' : 'sliding');
+    }
     
     // Calculate panel dimensions
     const actualRatio = widthIn / heightIn;
@@ -581,37 +638,32 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     // Calculate panel width (divide total width by number of panels)
     const panelWidth = totalWidth / numberOfPanels;
     const panelHeight = totalHeight;
-    
-    // Fixed section height (top portion of each panel - shown as darker section with "F")
-    // Show fixed section on all panels if configuration indicates fixed panels, or show on all by default for multi-panel
-    const showFixedSection = hasFixedPanels || numberOfPanels > 1; // Show on all panels for multi-panel products
-    const fixedSectionHeight = showFixedSection ? panelHeight * 0.15 : 0; // 15% of panel height
-    const operableSectionHeight = panelHeight - fixedSectionHeight;
-    
-    // Draw panels
+
+    // Draw panels based on panelTypes configuration
     for (let i = 0; i < numberOfPanels; i++) {
         const panelX = offsetX + (i * panelWidth);
         const panelY = offsetY;
-        
-        // Draw fixed section (top portion with "F" label) - show on all panels for multi-panel products
-        if (showFixedSection) {
+        const panelType = panelTypes[i] || 'sliding';
+
+        if (panelType === 'fixed') {
+            // Draw fixed panel (entire panel is fixed)
             const fixedRect = new Konva.Rect({
                 x: panelX,
                 y: panelY,
                 width: panelWidth,
-                height: fixedSectionHeight,
-                fill: '#4A90E2', // Darker blue for fixed section
+                height: panelHeight,
+                fill: '#4A90E2', // Darker blue for fixed panels
                 opacity: 0.8,
                 stroke: fStyle.color,
                 strokeWidth: fStyle.width,
                 listening: false,
             });
             layer.add(fixedRect);
-            
+
             // Add "F" label for Fixed
             const fixedLabel = new Konva.Text({
                 x: panelX + panelWidth / 2,
-                y: panelY + fixedSectionHeight / 2,
+                y: panelY + panelHeight / 2,
                 text: 'F',
                 fontSize: 16,
                 fontFamily: 'Montserrat, Arial',
@@ -623,36 +675,36 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 listening: false,
             });
             layer.add(fixedLabel);
+        } else {
+            // Draw sliding panel (operable glass)
+            const glassRect = new Konva.Rect({
+                x: panelX,
+                y: panelY,
+                width: panelWidth,
+                height: panelHeight,
+                fill: gStyle.fill,
+                opacity: gStyle.opacity,
+                stroke: fStyle.color,
+                strokeWidth: fStyle.width,
+                listening: false,
+            });
+            layer.add(glassRect);
+
+            // Add handle/opening indicator (circle "O") in center
+            const handleX = panelX + panelWidth / 2;
+            const handleY = panelY + panelHeight / 2;
+
+            const handleCircle = new Konva.Circle({
+                x: handleX,
+                y: handleY,
+                radius: 8,
+                fill: 'transparent',
+                stroke: '#FFFFFF',
+                strokeWidth: 2,
+                listening: false,
+            });
+            layer.add(handleCircle);
         }
-        
-        // Draw operable section (main glass panel)
-        const glassRect = new Konva.Rect({
-            x: panelX,
-            y: panelY + fixedSectionHeight,
-            width: panelWidth,
-            height: operableSectionHeight,
-            fill: gStyle.fill,
-            opacity: gStyle.opacity,
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width,
-            listening: false,
-        });
-        layer.add(glassRect);
-        
-        // Add handle/opening indicator (circle "O") in center of operable section
-        const handleX = panelX + panelWidth / 2;
-        const handleY = panelY + fixedSectionHeight + operableSectionHeight / 2;
-        
-        const handleCircle = new Konva.Circle({
-            x: handleX,
-            y: handleY,
-            radius: 8,
-            fill: 'transparent',
-            stroke: '#FFFFFF',
-            strokeWidth: 2,
-            listening: false,
-        });
-        layer.add(handleCircle);
         
         // Add panel divider (vertical line between panels)
         if (i < numberOfPanels - 1) {
@@ -845,9 +897,26 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
     const offsetY = (STAGE_SIZE - windowHeight) / 2;
 
     // Normalize values (handle preset values)
-    const normalizedGlassType = normalizeGlassType(glassType);
+    // Check for mirror tint in customization values
+    let effectiveGlassType = glassType;
+    if (customizationValues.tint || customizationValues.Tint) {
+        const tint = (customizationValues.tint || customizationValues.Tint).toLowerCase();
+        if (tint === 'clear') effectiveGlassType = 'mirror-clear';
+        else if (tint === 'bronze') effectiveGlassType = 'mirror-bronze';
+        else if (tint.includes('grey') || tint.includes('gray') || tint.includes('smoked')) effectiveGlassType = 'mirror-grey-smoked';
+        else if (tint === 'black') effectiveGlassType = 'mirror-black';
+    }
+    
+    const normalizedGlassType = normalizeGlassType(effectiveGlassType);
     const normalizedFrameType = normalizeFrameType(frameType);
     const normalizedShape = normalizeShape(shape);
+
+    // Check for separate frame color in customization values (for mirrors)
+    let frameColor = null;
+    if (customizationValues.frameColor || customizationValues.FrameColor) {
+        const colorValue = (customizationValues.frameColor || customizationValues.FrameColor).toLowerCase();
+        frameColor = normalizeFrameColor(colorValue);
+    }
 
     // Styles - with fallback color handling
     const gStyle = glassStyles[normalizedGlassType] || glassStyles['clear'];
@@ -889,6 +958,11 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
         // Add to frameStyles for future use
         frameStyles[normalizedFrameType] = fStyle;
     }
+    
+    // Override frame color if frameColor is specified separately (for mirrors)
+    if (frameColor && fStyle) {
+        fStyle = { ...fStyle, color: frameColor };
+    }
 
     // Draw glass shape based on preset shapes
     let glassShape;
@@ -897,11 +971,35 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
     const minRadius = Math.min(windowWidth, windowHeight) / 2;
 
     // Corner radius (inches -> pixels), used for rectangle/square only
-    const safeCornerRadiusIn = Math.max(0, parseFloat(cornerRadiusIn) || 0);
-    const pxPerInX = widthIn > 0 ? (windowWidth / widthIn) : 0;
-    const pxPerInY = heightIn > 0 ? (windowHeight / heightIn) : 0;
-    const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
-    const cornerRadiusPx = Math.min(minRadius, safeCornerRadiusIn * (pxPerIn || 0));
+    // Support individual corner radius values or single value (linked mode)
+    let cornerRadiusPx = 0;
+    let cornerRadiusArray = null;
+    
+    // Check if cornerRadiusIn is an object with individual corners
+    // Also check customizationValues for corner radius data
+    const cornerRadiusData = customizationValues?.cornerRadius || customizationValues?.CornerRadius || cornerRadiusIn;
+    
+    if (typeof cornerRadiusData === 'object' && cornerRadiusData !== null && !Array.isArray(cornerRadiusData)) {
+        // Individual corner radius values from object
+        const pxPerInX = widthIn > 0 ? (windowWidth / widthIn) : 0;
+        const pxPerInY = heightIn > 0 ? (windowHeight / heightIn) : 0;
+        const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
+        
+        const topLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topLeft || 0)) * (pxPerIn || 0));
+        const topRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topRight || 0)) * (pxPerIn || 0));
+        const bottomRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomRight || 0)) * (pxPerIn || 0));
+        const bottomLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomLeft || 0)) * (pxPerIn || 0));
+        
+        cornerRadiusArray = [topLeft, topRight, bottomRight, bottomLeft];
+    } else {
+        // Single value (linked mode) - convert to array format
+        const safeCornerRadiusIn = Math.max(0, parseFloat(cornerRadiusData) || 0);
+        const pxPerInX = widthIn > 0 ? (windowWidth / widthIn) : 0;
+        const pxPerInY = heightIn > 0 ? (windowHeight / heightIn) : 0;
+        const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
+        cornerRadiusPx = Math.min(minRadius, safeCornerRadiusIn * (pxPerIn || 0));
+        cornerRadiusArray = [cornerRadiusPx, cornerRadiusPx, cornerRadiusPx, cornerRadiusPx];
+    }
     
     if (normalizedShape === 'round' || normalizedShape === 'circle') {
         // Circle
@@ -1014,8 +1112,36 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
             closed: true,
             listening: false,
         });
+    } else if (normalizedShape === 'arched') {
+        // Arched shape - rectangle with arched top
+        const archHeight = windowHeight * 0.15; // Arch height is 15% of total height
+        const points = [];
+        const numPoints = 20; // Number of points for smooth arch
+        
+        // Bottom left
+        points.push(offsetX, offsetY + windowHeight);
+        // Bottom right
+        points.push(offsetX + windowWidth, offsetY + windowHeight);
+        // Arch top (right to left)
+        for (let i = 0; i <= numPoints; i++) {
+            const t = i / numPoints;
+            const x = offsetX + windowWidth - (windowWidth * t);
+            const y = offsetY + archHeight * Math.sin(Math.PI * t);
+            points.push(x, y);
+        }
+        
+        glassShape = new Konva.Line({
+            points: points,
+            fill: gStyle.fill,
+            opacity: gStyle.opacity,
+            stroke: fStyle.color,
+            strokeWidth: fStyle.width,
+            closed: true,
+            listening: false,
+        });
     } else {
-        // Rectangle (default)
+        // Rectangle (default) - supports individual corner radius
+        const hasCornerRadius = cornerRadiusArray && cornerRadiusArray.some(radius => radius > 0);
         glassShape = new Konva.Rect({
             x: offsetX,
             y: offsetY,
@@ -1025,11 +1151,25 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
             opacity: gStyle.opacity,
             stroke: fStyle.color,
             strokeWidth: fStyle.width,
-            cornerRadius: cornerRadiusPx > 0 ? cornerRadiusPx : 0,
+            cornerRadius: hasCornerRadius ? cornerRadiusArray : 0,
             listening: false,
         });
     }
     layer.add(glassShape);
+    
+    // Draw grid frame pattern if frame type is grid-frame
+    if (normalizedFrameType === 'grid-frame' && fStyle.width > 0) {
+        drawGridFrame(offsetX, offsetY, windowWidth, windowHeight, fStyle);
+    }
+    
+    // Apply lighting effects for mirrors (LED Backlight, LED Front Light)
+    applyLightingEffects(glassShape, customizationValues, offsetX, offsetY, windowWidth, windowHeight);
+    
+    // Apply orientation visualization (for mirrors)
+    applyOrientationVisualization(customizationValues, offsetX, offsetY, windowWidth, windowHeight);
+    
+    // Apply mounting method visualization (for mirrors)
+    applyMountingMethodVisualization(customizationValues, offsetX, offsetY, windowWidth, windowHeight);
 
     // Draw Dimensions (Reference style: extension lines with dashed dimension line and labels)
     const dimColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-dark').trim() || '#333';
@@ -1121,6 +1261,9 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
         listening: false,
     }));
 
+    // Draw corner radius annotations (if applicable)
+    drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, windowWidth, windowHeight, normalizedShape);
+    
     // Annotations - Reference format: "Thickness: 5mm" and "Edge: Polished"
     const formatEdge = edgeWork.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     const formatThickness = thickness.replace('mm', '') + 'mm'; // Ensure mm format
@@ -1144,6 +1287,519 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
 }
 
 /**
+ * Draw corner radius annotations on the Konva canvas
+ * Shows radius values and labels at each corner
+ */
+function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, windowWidth, windowHeight, shape) {
+    if (!customizationValues) return;
+    
+    // Only show for rectangle/square shapes
+    const rectangleShapes = ['rectangle', 'square'];
+    const normalizedShapeLower = shape.toLowerCase();
+    const isRectangleShape = rectangleShapes.includes(shape) || 
+                             normalizedShapeLower.includes('rectangle') || 
+                             normalizedShapeLower.includes('square');
+    if (!isRectangleShape) return;
+    
+    // Get corner radius data
+    const cornerRadiusData = customizationValues.cornerRadius || customizationValues.CornerRadius || customizationValues.cornerRadiusIn;
+    const cornerRadiusUnit = customizationValues.cornerRadius_unit || customizationValues.CornerRadius_unit || 'in';
+    
+    if (!cornerRadiusData) return;
+    
+    // Helper function to convert from inches to display unit
+    function convertFromInches(value, unit) {
+        switch(unit) {
+            case 'cm': return value * 2.54;
+            case 'mm': return value * 25.4;
+            default: return value; // inches
+        }
+    }
+    
+    // Get the actual values in the selected unit
+    let cornerValues = {};
+    let isLinked = true;
+    
+    if (typeof cornerRadiusData === 'object' && cornerRadiusData !== null && !Array.isArray(cornerRadiusData)) {
+        // Individual corner values (stored in inches, need to convert to display unit)
+        isLinked = false;
+        cornerValues = {
+            topLeft: convertFromInches(cornerRadiusData.topLeft || 0, cornerRadiusUnit),
+            topRight: convertFromInches(cornerRadiusData.topRight || 0, cornerRadiusUnit),
+            bottomRight: convertFromInches(cornerRadiusData.bottomRight || 0, cornerRadiusUnit),
+            bottomLeft: convertFromInches(cornerRadiusData.bottomLeft || 0, cornerRadiusUnit)
+        };
+    } else {
+        // Single value (linked mode, stored in inches)
+        const valueIn = parseFloat(cornerRadiusData) || 0;
+        const value = convertFromInches(valueIn, cornerRadiusUnit);
+        cornerValues = {
+            topLeft: value,
+            topRight: value,
+            bottomRight: value,
+            bottomLeft: value
+        };
+    }
+    
+    // Only draw if at least one corner has a radius > 0
+    const hasRadius = Object.values(cornerValues).some(v => v > 0);
+    if (!hasRadius) return;
+    
+    const radiusColor = '#666666';
+    const radiusLabelSize = 10;
+    const radiusOffset = 12; // Distance from corner
+    
+    // Draw corner radius indicators at each corner
+    const corners = [
+        { key: 'topLeft', x: offsetX, y: offsetY, labelX: offsetX + radiusOffset, labelY: offsetY + radiusOffset },
+        { key: 'topRight', x: offsetX + windowWidth, y: offsetY, labelX: offsetX + windowWidth - radiusOffset, labelY: offsetY + radiusOffset },
+        { key: 'bottomRight', x: offsetX + windowWidth, y: offsetY + windowHeight, labelX: offsetX + windowWidth - radiusOffset, labelY: offsetY + windowHeight - radiusOffset },
+        { key: 'bottomLeft', x: offsetX, y: offsetY + windowHeight, labelX: offsetX + radiusOffset, labelY: offsetY + windowHeight - radiusOffset }
+    ];
+    
+    corners.forEach(corner => {
+        const radiusValue = cornerValues[corner.key];
+        if (radiusValue > 0) {
+            // Calculate label position outside the shape
+            let labelX, labelY, arcX, arcY;
+            const outsideOffset = 26;
+            const labelNudge = 6;
+            
+            if (corner.key === 'topLeft') {
+                labelX = offsetX - outsideOffset - labelNudge;
+                labelY = offsetY - outsideOffset - labelNudge;
+                arcX = offsetX;
+                arcY = offsetY;
+            } else if (corner.key === 'topRight') {
+                labelX = offsetX + windowWidth + outsideOffset + labelNudge;
+                labelY = offsetY - outsideOffset - labelNudge;
+                arcX = offsetX + windowWidth;
+                arcY = offsetY;
+            } else if (corner.key === 'bottomRight') {
+                labelX = offsetX + windowWidth + outsideOffset + labelNudge;
+                labelY = offsetY + windowHeight + outsideOffset + labelNudge;
+                arcX = offsetX + windowWidth;
+                arcY = offsetY + windowHeight;
+            } else { // bottomLeft
+                labelX = offsetX - outsideOffset - labelNudge;
+                labelY = offsetY + windowHeight + outsideOffset + labelNudge;
+                arcX = offsetX;
+                arcY = offsetY + windowHeight;
+            }
+            
+            // Draw arc indicator at corner (visual representation of radius)
+            const arcSize = Math.min(20, Math.max(8, radiusValue * 1.5)); // Visual arc size
+            let arcRotation = 0;
+            if (corner.key === 'topLeft') arcRotation = 180;
+            else if (corner.key === 'topRight') arcRotation = 270;
+            else if (corner.key === 'bottomRight') arcRotation = 0;
+            else arcRotation = 90; // bottomLeft
+            
+            const arc = new Konva.Arc({
+                x: arcX,
+                y: arcY,
+                innerRadius: 0,
+                outerRadius: arcSize,
+                angle: 90,
+                rotation: arcRotation,
+                stroke: radiusColor,
+                strokeWidth: 1.5,
+                fill: 'transparent',
+                listening: false
+            });
+            layer.add(arc);
+            
+            // Draw dashed line from corner to label
+            layer.add(new Konva.Line({
+                points: [arcX, arcY, labelX, labelY],
+                stroke: radiusColor,
+                strokeWidth: 1,
+                dash: [4, 3],
+                listening: false
+            }));
+            
+            // Draw radius label with "R" prefix
+            const labelText = `R ${radiusValue.toFixed(1)}${cornerRadiusUnit}`;
+            const radiusLabel = new Konva.Text({
+                x: labelX,
+                y: labelY,
+                text: labelText,
+                fontSize: radiusLabelSize,
+                fontFamily: 'Montserrat, Arial',
+                fontStyle: 'normal',
+                fill: radiusColor,
+                align: 'left',
+                offsetX: corner.key.includes('Right') ? (labelText.length * 5) : 0,
+                offsetY: corner.key.includes('Bottom') ? -6 : 6,
+                listening: false
+            });
+            layer.add(radiusLabel);
+        }
+    });
+    
+    // If all corners have the same value (linked), also show a summary label in the center
+    if (isLinked && cornerValues.topLeft > 0) {
+        const allSame = cornerValues.topLeft === cornerValues.topRight && 
+                       cornerValues.topRight === cornerValues.bottomRight &&
+                       cornerValues.bottomRight === cornerValues.bottomLeft;
+        
+        if (allSame) {
+            const centerX = offsetX + windowWidth / 2;
+            const centerY = offsetY + windowHeight / 2;
+            const labelText = `Corner Radius: ${cornerValues.topLeft.toFixed(1)}${cornerRadiusUnit}`;
+            
+            layer.add(new Konva.Text({
+                x: centerX,
+                y: centerY,
+                text: labelText,
+                fontSize: 10,
+                fontFamily: 'Montserrat, Arial',
+                fontStyle: 'normal',
+                fill: '#888888',
+                align: 'center',
+                offsetX: (labelText.length * 5) / 2,
+                offsetY: 6,
+                listening: false
+            }));
+        }
+    }
+}
+
+/**
+ * Draw grid frame pattern inside the mirror
+ * @param {number} offsetX - X offset of the glass panel
+ * @param {number} offsetY - Y offset of the glass panel
+ * @param {number} windowWidth - Width of the glass panel
+ * @param {number} windowHeight - Height of the glass panel
+ * @param {Object} fStyle - Frame style object
+ */
+function drawGridFrame(offsetX, offsetY, windowWidth, windowHeight, fStyle) {
+    const gridSpacing = Math.min(windowWidth, windowHeight) / 4; // 4x4 grid
+    const gridColor = fStyle.color || '#333333';
+    const gridWidth = 1.5;
+    
+    // Draw vertical grid lines
+    for (let i = 1; i < 4; i++) {
+        const x = offsetX + (windowWidth / 4) * i;
+        layer.add(new Konva.Line({
+            points: [x, offsetY, x, offsetY + windowHeight],
+            stroke: gridColor,
+            strokeWidth: gridWidth,
+            listening: false
+        }));
+    }
+    
+    // Draw horizontal grid lines
+    for (let i = 1; i < 4; i++) {
+        const y = offsetY + (windowHeight / 4) * i;
+        layer.add(new Konva.Line({
+            points: [offsetX, y, offsetX + windowWidth, y],
+            stroke: gridColor,
+            strokeWidth: gridWidth,
+            listening: false
+        }));
+    }
+}
+
+/**
+ * Apply orientation visualization (for mirrors)
+ * Shows visual indicator for vertical, horizontal, or full-body orientation
+ * @param {Object} customizationValues - Customization values object
+ * @param {number} offsetX - X offset of the glass panel
+ * @param {number} offsetY - Y offset of the glass panel
+ * @param {number} windowWidth - Width of the glass panel
+ * @param {number} windowHeight - Height of the glass panel
+ */
+function applyOrientationVisualization(customizationValues, offsetX, offsetY, windowWidth, windowHeight) {
+    if (!customizationValues) return;
+    
+    const orientation = (customizationValues.orientation || customizationValues.Orientation || '').toLowerCase();
+    if (!orientation || orientation === 'full-body') return; // Full-body doesn't need indicator
+    
+    const centerX = offsetX + windowWidth / 2;
+    const centerY = offsetY + windowHeight / 2;
+    const indicatorColor = '#666666';
+    const indicatorSize = 8;
+    
+    if (orientation === 'vertical') {
+        // Draw vertical arrow indicator (pointing up/down)
+        const arrowY = offsetY + 15;
+        layer.add(new Konva.Arrow({
+            points: [centerX, arrowY, centerX, arrowY + 20],
+            pointerLength: 6,
+            pointerWidth: 6,
+            fill: indicatorColor,
+            stroke: indicatorColor,
+            strokeWidth: 2,
+            listening: false
+        }));
+        // Add label
+        layer.add(new Konva.Text({
+            x: centerX,
+            y: arrowY + 25,
+            text: 'Vertical',
+            fontSize: 9,
+            fontFamily: 'Montserrat, Arial',
+            fill: indicatorColor,
+            align: 'center',
+            offsetX: 20,
+            listening: false
+        }));
+    } else if (orientation === 'horizontal') {
+        // Draw horizontal arrow indicator (pointing left/right)
+        const arrowX = offsetX + 15;
+        layer.add(new Konva.Arrow({
+            points: [arrowX, centerY, arrowX + 20, centerY],
+            pointerLength: 6,
+            pointerWidth: 6,
+            fill: indicatorColor,
+            stroke: indicatorColor,
+            strokeWidth: 2,
+            listening: false
+        }));
+        // Add label
+        layer.add(new Konva.Text({
+            x: arrowX + 10,
+            y: centerY - 10,
+            text: 'Horizontal',
+            fontSize: 9,
+            fontFamily: 'Montserrat, Arial',
+            fill: indicatorColor,
+            align: 'center',
+            offsetX: 25,
+            rotation: -90,
+            listening: false
+        }));
+    }
+}
+
+/**
+ * Apply mounting method visualization (for mirrors)
+ * Shows visual indicator for mounting method
+ * @param {Object} customizationValues - Customization values object
+ * @param {number} offsetX - X offset of the glass panel
+ * @param {number} offsetY - Y offset of the glass panel
+ * @param {number} windowWidth - Width of the glass panel
+ * @param {number} windowHeight - Height of the glass panel
+ */
+function applyMountingMethodVisualization(customizationValues, offsetX, offsetY, windowWidth, windowHeight) {
+    if (!customizationValues) return;
+    
+    const mountingMethod = (customizationValues.mountingMethod || customizationValues.MountingMethod || '').toLowerCase();
+    if (!mountingMethod) return;
+    
+    const indicatorColor = '#888888';
+    const iconSize = 12;
+    
+    // Position indicator at bottom-right corner
+    const iconX = offsetX + windowWidth - 25;
+    const iconY = offsetY + windowHeight - 25;
+    
+    if (mountingMethod.includes('wall') || mountingMethod.includes('mounted')) {
+        // Wall-mounted: Draw wall bracket icon
+        layer.add(new Konva.Line({
+            points: [iconX, iconY, iconX + iconSize, iconY, iconX + iconSize, iconY + iconSize],
+            stroke: indicatorColor,
+            strokeWidth: 2,
+            listening: false
+        }));
+        layer.add(new Konva.Circle({
+            x: iconX + iconSize / 2,
+            y: iconY + iconSize / 2,
+            radius: 2,
+            fill: indicatorColor,
+            listening: false
+        }));
+    } else if (mountingMethod.includes('freestanding')) {
+        // Freestanding: Draw stand icon
+        layer.add(new Konva.Line({
+            points: [iconX + iconSize / 2, iconY, iconX + iconSize / 2, iconY + iconSize],
+            stroke: indicatorColor,
+            strokeWidth: 2,
+            listening: false
+        }));
+        layer.add(new Konva.Line({
+            points: [iconX, iconY + iconSize, iconX + iconSize, iconY + iconSize],
+            stroke: indicatorColor,
+            strokeWidth: 2,
+            listening: false
+        }));
+    } else if (mountingMethod.includes('leaning')) {
+        // Leaning: Draw leaning indicator
+        layer.add(new Konva.Line({
+            points: [iconX, iconY + iconSize, iconX + iconSize, iconY],
+            stroke: indicatorColor,
+            strokeWidth: 2,
+            listening: false
+        }));
+    } else if (mountingMethod.includes('hanging')) {
+        // Hanging: Draw hook icon
+        layer.add(new Konva.Line({
+            points: [iconX + iconSize / 2, iconY, iconX + iconSize / 2, iconY + iconSize / 2],
+            stroke: indicatorColor,
+            strokeWidth: 2,
+            listening: false
+        }));
+        layer.add(new Konva.Arc({
+            x: iconX + iconSize / 2,
+            y: iconY + iconSize / 2,
+            innerRadius: 0,
+            outerRadius: iconSize / 3,
+            angle: 180,
+            fill: 'transparent',
+            stroke: indicatorColor,
+            strokeWidth: 2,
+            listening: false
+        }));
+    } else if (mountingMethod.includes('adhesive')) {
+        // Adhesive: Draw adhesive dots
+        layer.add(new Konva.Circle({
+            x: iconX + iconSize / 3,
+            y: iconY + iconSize / 3,
+            radius: 2,
+            fill: indicatorColor,
+            listening: false
+        }));
+        layer.add(new Konva.Circle({
+            x: iconX + (iconSize * 2) / 3,
+            y: iconY + (iconSize * 2) / 3,
+            radius: 2,
+            fill: indicatorColor,
+            listening: false
+        }));
+    }
+}
+
+/**
+ * Apply lighting effects based on customization values (for mirrors)
+ * @param {Konva.Shape} glassShape - The glass shape to apply effects to
+ * @param {Object} customizationValues - Customization values object
+ * @param {number} offsetX - X offset of the glass panel
+ * @param {number} offsetY - Y offset of the glass panel
+ * @param {number} windowWidth - Width of the glass panel
+ * @param {number} windowHeight - Height of the glass panel
+ */
+function applyLightingEffects(glassShape, customizationValues, offsetX, offsetY, windowWidth, windowHeight) {
+    if (!customizationValues || !glassShape) return;
+    
+    const lighting = (customizationValues.lighting || customizationValues.Lighting || '').toLowerCase();
+    const ledColor = (customizationValues.ledColor || customizationValues.LEDColor || '').toLowerCase();
+    
+    // If no lighting, return early
+    if (!lighting || lighting === 'none') {
+        return;
+    }
+    
+    // Determine shadow color based on LED color
+    let shadowColor = '#FFFFFF'; // Default white
+    let shadowBlur = 20;
+    let shadowOpacity = 0.5;
+    
+    if (ledColor) {
+        switch (ledColor) {
+            case 'warm white':
+                shadowColor = '#FFF8E1';
+                shadowBlur = 25;
+                shadowOpacity = 0.6;
+                break;
+            case 'cool white':
+                shadowColor = '#E3F2FD';
+                shadowBlur = 25;
+                shadowOpacity = 0.6;
+                break;
+            case 'daylight':
+                shadowColor = '#E3F2FD';
+                shadowBlur = 30;
+                shadowOpacity = 0.7;
+                break;
+            case 'rgb':
+                shadowColor = '#E040FB';
+                shadowBlur = 25;
+                shadowOpacity = 0.6;
+                break;
+            default:
+                shadowColor = '#FFFFFF';
+        }
+    }
+    
+    // Apply different shadow effects based on lighting type
+    if (lighting.includes('backlight') || lighting === 'led backlight') {
+        // Backlight: glow from behind (stronger, larger blur)
+        glassShape.shadowColor(shadowColor);
+        glassShape.shadowBlur(shadowBlur + 10);
+        glassShape.shadowOpacity(shadowOpacity + 0.1);
+        glassShape.shadowOffsetX(0);
+        glassShape.shadowOffsetY(0);
+    } else if (lighting.includes('front') || lighting === 'led front light') {
+        // Front light: glow from front (moderate blur)
+        glassShape.shadowColor(shadowColor);
+        glassShape.shadowBlur(shadowBlur);
+        glassShape.shadowOpacity(shadowOpacity);
+        glassShape.shadowOffsetX(0);
+        glassShape.shadowOffsetY(0);
+    }
+    
+    // Add smart features badges if present
+    const smartFeatures = customizationValues.smartFeatures || customizationValues.SmartFeatures;
+    if (smartFeatures) {
+        const features = Array.isArray(smartFeatures) ? smartFeatures : [smartFeatures];
+        const centerX = offsetX + windowWidth / 2;
+        const centerY = offsetY + windowHeight / 2;
+        const badgeY = offsetY + 10; // Top of the panel
+        
+        features.forEach((feature, index) => {
+            if (!feature || feature.toLowerCase() === 'none') return;
+            
+            const featureLower = feature.toLowerCase();
+            let badgeText = '';
+            let badgeColor = '#4CAF50';
+            
+            if (featureLower.includes('dimmer') || featureLower.includes('touch')) {
+                badgeText = 'Dimmer';
+                badgeColor = '#FF9800';
+            } else if (featureLower.includes('defog')) {
+                badgeText = 'Defog';
+                badgeColor = '#2196F3';
+            } else if (featureLower.includes('motion')) {
+                badgeText = 'Motion';
+                badgeColor = '#4CAF50';
+            } else if (featureLower.includes('bluetooth') || featureLower.includes('speaker')) {
+                badgeText = 'BT';
+                badgeColor = '#9C27B0';
+            }
+            
+            if (badgeText) {
+                const badgeX = offsetX + 10 + (index * 60);
+                const badge = new Konva.Circle({
+                    x: badgeX,
+                    y: badgeY,
+                    radius: 12,
+                    fill: badgeColor,
+                    opacity: 0.9,
+                    listening: false
+                });
+                layer.add(badge);
+                
+                const badgeLabel = new Konva.Text({
+                    x: badgeX,
+                    y: badgeY,
+                    text: badgeText,
+                    fontSize: 8,
+                    fontFamily: 'Montserrat, Arial',
+                    fontStyle: 'bold',
+                    fill: '#FFFFFF',
+                    align: 'center',
+                    offsetX: badgeText.length * 3,
+                    offsetY: 4,
+                    listening: false
+                });
+                layer.add(badgeLabel);
+            }
+        });
+    }
+}
+
+/**
  * Normalize glass type values from presets
  * Maps preset values to internal keys
  */
@@ -1158,9 +1814,82 @@ function normalizeGlassType(glassType) {
         'double': 'double',
         'low-e': 'low-e',
         'frosted': 'frosted',
-        'patterned': 'patterned'
+        'patterned': 'patterned',
+        // Mirror tints
+        'mirror-clear': 'mirror-clear',
+        'mirror-bronze': 'mirror-bronze',
+        'mirror-grey': 'mirror-grey',
+        'mirror-grey-smoked': 'mirror-grey-smoked',
+        'mirror-smoked': 'mirror-smoked',
+        'mirror-black': 'mirror-black',
+        // Handle tint field for mirrors
+        'bronze': 'mirror-bronze',
+        'grey': 'mirror-grey',
+        'grey-smoked': 'mirror-grey-smoked',
+        'grey (smoked)': 'mirror-grey-smoked',
+        'smoked': 'mirror-smoked',
+        'black': 'mirror-black'
     };
+    
+    // Check if it's a mirror tint (from tint field)
+    if (normalized.includes('bronze') && !normalized.includes('mirror')) {
+        return 'mirror-bronze';
+    }
+    if ((normalized.includes('grey') || normalized.includes('gray')) && (normalized.includes('smoke') || normalized.includes('smoked'))) {
+        return 'mirror-grey-smoked';
+    }
+    if (normalized.includes('grey') || normalized.includes('gray')) {
+        return 'mirror-grey';
+    }
+    if (normalized.includes('black') && !normalized.includes('mirror')) {
+        return 'mirror-black';
+    }
+    
     return mapping[normalized] || 'clear';
+}
+
+/**
+ * Normalize frame color values from presets
+ * Returns hex color code for frame colors
+ * @param {string} frameColor - Frame color name
+ * @returns {string} Hex color code
+ */
+function normalizeFrameColor(frameColor) {
+    if (!frameColor) return null;
+    const normalized = frameColor.toLowerCase().replace(/\s+/g, '-');
+    
+    const colorMap = {
+        'gold': '#FFD700',
+        'silver': '#C0C0C0',
+        'rose-gold': '#B76E79',
+        'rosegold': '#B76E79',
+        'rose': '#B76E79',
+        'bronze': '#CD7F32',
+        'black': '#000000',
+        'white': '#FFFFFF',
+        'wood': '#795548',
+        'custom-color': '#888888',
+        'custom': '#888888'
+    };
+    
+    // Try exact match first
+    if (colorMap[normalized]) {
+        return colorMap[normalized];
+    }
+    
+    // Try partial match
+    for (const [key, color] of Object.entries(colorMap)) {
+        if (normalized.includes(key) || key.includes(normalized)) {
+            return color;
+        }
+    }
+    
+    // If frame color exists in frameStyles, use its color
+    if (typeof frameStyles !== 'undefined' && frameStyles[normalized] && frameStyles[normalized].color) {
+        return frameStyles[normalized].color;
+    }
+    
+    return null;
 }
 
 /**
@@ -1189,7 +1918,14 @@ function normalizeFrameType(frameType) {
         'custom': 'custom-color',
         'vinyl': 'vinyl',
         'frameless': 'frameless',
-        'none': 'frameless'
+        'none': 'frameless',
+        // Mirror-specific frame types
+        'standard-frame': 'standard-frame',
+        'standard': 'standard-frame',
+        'thin-frame': 'thin-frame',
+        'thin': 'thin-frame',
+        'grid-frame': 'grid-frame',
+        'grid': 'grid-frame'
     };
     
     // First try exact match
@@ -1222,6 +1958,8 @@ function normalizeShape(shape) {
     const mapping = {
         'rectangle': 'rectangle',
         'rectangular': 'rectangle',
+        'rectangle/square': 'rectangle',
+        'rectangle-square': 'rectangle',
         'round': 'round',
         'circle': 'round',
         'oval': 'oval',
@@ -1234,7 +1972,11 @@ function normalizeShape(shape) {
         'octagon': 'octagon',
         'star': 'star',
         'diamond': 'diamond',
-        'square': 'rectangle' // Square is just a rectangle with equal sides
+        'square': 'rectangle', // Square is just a rectangle with equal sides
+        // Mirror-specific shapes
+        'arched': 'arched',
+        'arch': 'arched',
+        'custom': 'rectangle' // Custom defaults to rectangle
     };
     return mapping[normalized] || 'rectangle';
 }
@@ -1277,6 +2019,11 @@ function renderCustomState() {
     
     // 1. Draw the visual representation
     // Pass original values and units for labels, but use converted inches for visual size
+    // Get corner radius from customizationValues if available, otherwise use currentCornerRadius
+    const cornerRadiusValue = (window.selectedCustomizationValues?.cornerRadius || 
+                                window.selectedCustomizationValues?.CornerRadius || 
+                                currentCornerRadius);
+    
     renderWindow(
         widthIn, // Converted to inches for visual size
         heightIn, // Converted to inches for visual size
@@ -1289,7 +2036,7 @@ function renderCustomState() {
         currentDimensions.width.value, // Original width value for label
         currentDimensions.height.value, // Original height value for label
         heightUnit, // Height unit for height label
-        currentCornerRadius // Corner radius in inches
+        cornerRadiusValue // Corner radius in inches (can be number or object)
     );
 
     // 2. NEW: Update the estimated price immediately
@@ -1319,6 +2066,7 @@ window.shouldUseMultiPanelRendering = shouldUseMultiPanelRendering;
 window.extractPanelCount = extractPanelCount;
 window.normalizeGlassType = normalizeGlassType;
 window.normalizeFrameType = normalizeFrameType;
+window.normalizeFrameColor = normalizeFrameColor;
 window.normalizeShape = normalizeShape;
 window.isRoundShape = isRoundShape;
 window.lockDimensionsForRoundShape = lockDimensionsForRoundShape;
@@ -1331,6 +2079,7 @@ window.currentThickness = currentThickness;
 window.currentEdgeWork = currentEdgeWork;
 window.currentFrameType = currentFrameType;
 window.currentCornerRadius = currentCornerRadius;
+window.cornerRadiusLinked = cornerRadiusLinked;
 window.dimensionsLocked = dimensionsLocked;
 
 // Initialize pricing database on load

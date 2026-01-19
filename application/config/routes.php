@@ -96,6 +96,11 @@ $route['2DModeling'] = 'ShopCon/product_2d';
 $route['customizationFields/get'] = 'CustomizationFieldsCon/get';
 $route['customizationFields/getAll'] = 'CustomizationFieldsCon/getAll';
 $route['customizationFields/save'] = 'CustomizationFieldsCon/save';
+
+// AJAX customization routes
+$route['customizationAjax/save'] = 'CustomizationAjaxCon/save';
+$route['customizationAjax/load'] = 'CustomizationAjaxCon/load';
+$route['customizationAjax/price'] = 'CustomizationAjaxCon/price';
 $route['addtocart'] = 'CartCon/cart_page';
 $route['cart-page'] = 'CartCon/cart_page';
 $route['payment'] = 'ShopCon/checkout';

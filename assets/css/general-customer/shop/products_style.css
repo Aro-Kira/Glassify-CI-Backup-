@@ -175,24 +175,26 @@ body {
 .product-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 35px 25px; /* row-gap then column-gap */
+  gap: 30px 25px; /* row-gap then column-gap */
   margin-top: 20px;
-  align-items: center;
+  align-items: stretch;
+  width: 100%;
 }
 
 .product {
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* spaces content vertically */
+  justify-content: flex-start; /* align content to top */
   align-items: center;
   text-align: center;
-  padding: 20px;
-  height: 100%;
+  padding: 0;
+  min-height: 100%;
   background-color: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: box-shadow 0.3s ease, transform 0.3s ease;
   border: 1px solid #f0f0f0;
+  overflow: hidden;
 }
 
 .product:hover {
@@ -205,9 +207,11 @@ body {
   position: relative;
   width: 100%;
   height: 270px;
+  min-height: 270px;
   overflow: hidden;
-  border-radius: 6px 6px 0 0;
-  margin-bottom: 10px;
+  border-radius: 0;
+  margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 .product-slide {
@@ -259,13 +263,29 @@ body {
   object-fit: cover;
 }
 
+/* Product Status Badge */
+.product-status-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  z-index: 5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .product-name,
 .product p {
-  margin: 15px 0 10px;
+  margin: 15px 20px 10px;
   font-weight: 500;
   font-size: 18px;
   min-height: 30px;
   color: #333;
+  width: calc(100% - 40px);
 }
 
 /* Product Order Type */
@@ -273,8 +293,9 @@ body {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin: 5px 0;
+  margin: 5px 20px;
   font-size: 14px;
+  width: calc(100% - 40px);
 }
 
 .order-type-label {
@@ -293,8 +314,9 @@ body {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin: 5px 0;
+  margin: 5px 20px;
   font-size: 14px;
+  width: calc(100% - 40px);
 }
 
 .series-label {
@@ -312,8 +334,9 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 10px 0;
+  margin: 10px 20px;
   justify-content: center;
+  width: calc(100% - 40px);
 }
 
 .product-tag {
@@ -336,10 +359,11 @@ body {
   display: flex;
   align-items: center;
   gap: 5px;
-  margin: 8px 0;
+  margin: 8px 20px;
   font-size: 16px;
   font-weight: 600;
   color: #004059;
+  width: calc(100% - 40px);
 }
 
 .price-label {
@@ -359,11 +383,12 @@ body {
   color: white;
   border: none;
   padding: 12px;
-  width: 100%;
+  width: calc(100% - 40px);
+  margin: 15px 20px 20px;
   cursor: pointer;
   font-size: 16px;
   font-weight: 500;
-  margin-top: 15px;
+  margin-top: auto; /* push button to bottom */
   border-radius: 6px;
   transition: background-color 0.3s ease, transform 0.2s ease;
 }

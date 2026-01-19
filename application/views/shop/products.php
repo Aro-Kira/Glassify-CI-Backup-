@@ -156,6 +156,10 @@
 
               <!-- Image Slideshow -->
               <div class="product-image-slideshow" data-product-id="<?= $p->Product_ID ?>">
+                <!-- Status Badge -->
+                <span class="product-status-badge <?= $status_class; ?>" style="position: absolute; top: 10px; right: 10px; display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; color: white; background-color: <?= $status_color; ?>; z-index: 5; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
+                  <?= htmlspecialchars($status); ?>
+                </span>
                 <?php if (!empty($imagePaths)): ?>
                   <?php foreach ($imagePaths as $index => $imagePath): ?>
                     <img src="<?= htmlspecialchars($imagePath) ?>" 
@@ -219,10 +223,6 @@
                   <span class="price-value">Contact for pricing</span>
                 <?php endif; ?>
               </div>
-              
-              <span class="product-status-badge <?= $status_class; ?>" style="display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; color: white; background-color: <?= $status_color; ?>; margin: 5px 0;">
-                <?= htmlspecialchars($status); ?>
-              </span>
 
               <button class="build-buy-btn" onclick="window.location.href='<?= base_url('2DModeling?id=' . $p->Product_ID) ?>'">
                 Build and Buy

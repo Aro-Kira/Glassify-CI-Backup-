@@ -224,6 +224,16 @@ function renderDynamicCustomizationFields(fields, tagPrices, container, tagImage
           handleWindowsSlidingConditionals('trackSystem', trackValue);
         }
       }
+      
+      // Initialize conditional logic for Mirrors fields
+      const frameTypeContainer = document.querySelector('[data-field-id="frameType"]');
+      if (frameTypeContainer) {
+        const activeFrameType = frameTypeContainer.querySelector('.option-card.active');
+        if (activeFrameType) {
+          const frameTypeValue = activeFrameType.dataset.value || activeFrameType.textContent.trim();
+          handleMirrorsConditionals('frameType', frameTypeValue);
+        }
+      }
     }, 350);
   }, 300);
 }
@@ -329,7 +339,18 @@ if (typeof document !== 'undefined') {
  */
 function createFieldElement(field, tagPrices, tagImages = {}) {
   const fieldGroup = document.createElement('div');
-  fieldGroup.className = getFieldGroupClass(field.type);
+  fieldGroup.className = getFieldGroupClass(field.type, field.id);
+  
+  // Handle conditional fields (for mirrors: Frame Color/Edge Finish)
+  if (field.conditional && field.dependsOn) {
+    fieldGroup.dataset.conditionalField = 'true';
+    fieldGroup.dataset.dependsOn = field.dependsOn;
+    fieldGroup.dataset.showWhen = field.showWhen || '';
+    // Initially hide conditional fields - they'll be shown by handleMirrorsConditionals
+    if (field.id === 'frameColor' || field.id === 'edgeFinish') {
+      fieldGroup.style.display = 'none';
+    }
+  }
   
   const label = document.createElement('label');
   label.className = 'section-label';
@@ -472,6 +493,13 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
       // If shape field changed, check corner radius visibility
       if (field.id === 'shape') {
         setTimeout(() => {
+          // Check for dynamically injected corner radius controls
+          const injectedCornerRadius = document.getElementById('injected-corner-radius-controls');
+          if (injectedCornerRadius) {
+            checkInjectedCornerRadiusVisibility(injectedCornerRadius, option);
+          }
+          
+          // Also check for regular corner radius containers (if they exist)
           const cornerRadiusContainers = document.querySelectorAll('[data-conditional-field="true"][data-depends-on="shape"]');
           cornerRadiusContainers.forEach(container => {
             checkCornerRadiusVisibility(container);
@@ -481,6 +509,9 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
       
       // Handle Windows_Sliding conditional logic
       handleWindowsSlidingConditionals(field.id, option);
+      
+      // Handle Mirrors conditional logic (Frame Color/Edge Finish based on Frame Type)
+      handleMirrorsConditionals(field.id, option);
       
       // Trigger price recalculation
       if (typeof window !== 'undefined' && typeof window.updateRealTimePriceDisplay === 'function') {
@@ -493,6 +524,23 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
 
   tagContainer.appendChild(tagsGrid);
   container.appendChild(tagContainer);
+  
+  // For shape field on specialty products, inject corner radius controls
+  if (field.id === 'shape') {
+    const product = getSelectedProduct();
+    const isSpecialtyProduct = product && (
+      product.subcategory === 'Mirrors' || 
+      product.subcategory === 'Top Glass' || 
+      product.subcategory === 'Glass Board'
+    );
+    
+    if (isSpecialtyProduct) {
+      // Inject corner radius controls after shape field
+      setTimeout(() => {
+        injectCornerRadiusControls(container);
+      }, 100);
+    }
+  }
   
   // For Screen field, check initial track system state after rendering
   if (field.id === 'screen') {
@@ -576,6 +624,24 @@ function renderCheckboxField(field, container) {
  * Renders a number field
  */
 function renderNumberField(field, container) {
+  // Check if this is a corner radius field for mirrors/top glass/glass board
+  // Handle both 'cornerRadius' and 'cornerRadiusIn' field IDs
+  const isCornerRadius = field.id === 'cornerRadius' || field.id === 'cornerRadiusIn' || field.id === 'radius';
+  const product = getSelectedProduct();
+  const isSpecialtyProduct = product && (
+    product.subcategory === 'Mirrors' || 
+    product.subcategory === 'Top Glass' || 
+    product.subcategory === 'Glass Board'
+  );
+  
+  // For corner radius on specialty products, hide the field since it's injected automatically
+  // The corner radius controls are injected dynamically when shape field is rendered
+  if (isCornerRadius && isSpecialtyProduct) {
+    container.style.display = 'none';
+    return;
+  }
+  
+  // Standard number field rendering
   const inputGroup = document.createElement('div');
   inputGroup.className = 'input-group';
   
@@ -589,7 +655,7 @@ function renderNumberField(field, container) {
   input.className = 'dimension-input';
   
   // For corner radius field, show/hide based on shape selection
-  if (field.id === 'cornerRadius' || field.id === 'radius') {
+  if (isCornerRadius) {
     container.style.display = 'none'; // Hide by default
     container.dataset.conditionalField = 'true';
     container.dataset.dependsOn = 'shape';
@@ -614,6 +680,568 @@ function renderNumberField(field, container) {
 }
 
 /**
+ * Renders individual corner radius controls (for mirrors, top glass, glass board)
+ * Supports both 'cornerRadius' and 'cornerRadiusIn' field IDs
+ */
+function renderIndividualCornerRadius(field, container) {
+  // Normalize field ID - use 'cornerRadius' internally for consistency
+  const fieldId = field.id === 'cornerRadiusIn' ? 'cornerRadius' : field.id;
+  // Hide by default until shape is selected
+  container.style.display = 'none';
+  container.dataset.conditionalField = 'true';
+  container.dataset.dependsOn = 'shape';
+  
+  // Create wrapper for corner radius controls
+  const cornerRadiusWrapper = document.createElement('div');
+  cornerRadiusWrapper.className = 'corner-radius-controls';
+  cornerRadiusWrapper.style.marginTop = '10px';
+  
+  // Label and Unit Selector Row
+  const headerRow = document.createElement('div');
+  headerRow.style.display = 'flex';
+  headerRow.style.justifyContent = 'space-between';
+  headerRow.style.alignItems = 'center';
+  headerRow.style.marginBottom = '15px';
+  
+  const label = document.createElement('label');
+  label.textContent = field.label || 'Corner Radius';
+  label.style.fontWeight = '500';
+  label.style.color = '#333';
+  label.style.fontSize = '16px';
+  headerRow.appendChild(label);
+  
+  // Unit selector
+  const unitSelectorWrapper = document.createElement('div');
+  unitSelectorWrapper.style.display = 'flex';
+  unitSelectorWrapper.style.alignItems = 'center';
+  unitSelectorWrapper.style.gap = '8px';
+  
+  const unitLabel = document.createElement('label');
+  unitLabel.textContent = 'Unit:';
+  unitLabel.style.fontSize = '13px';
+  unitLabel.style.color = '#666';
+  unitSelectorWrapper.appendChild(unitLabel);
+  
+  const unitSelect = document.createElement('select');
+  unitSelect.id = `${fieldId}_unit`;
+  unitSelect.style.padding = '4px 8px';
+  unitSelect.style.border = '1px solid #ddd';
+  unitSelect.style.borderRadius = '4px';
+  unitSelect.style.fontSize = '13px';
+  unitSelect.style.cursor = 'pointer';
+  unitSelect.value = 'in'; // Default to inches
+  
+  const unitOptions = [
+    { value: 'in', label: 'in' },
+    { value: 'cm', label: 'cm' },
+    { value: 'mm', label: 'mm' }
+  ];
+  
+  unitOptions.forEach(opt => {
+    const option = document.createElement('option');
+    option.value = opt.value;
+    option.textContent = opt.label;
+    unitSelect.appendChild(option);
+  });
+  
+  unitSelectorWrapper.appendChild(unitSelect);
+  headerRow.appendChild(unitSelectorWrapper);
+  cornerRadiusWrapper.appendChild(headerRow);
+  
+  // Link All checkbox
+  const linkWrapper = document.createElement('div');
+  linkWrapper.style.marginBottom = '15px';
+  linkWrapper.style.display = 'flex';
+  linkWrapper.style.alignItems = 'center';
+  linkWrapper.style.gap = '8px';
+  
+  const linkCheckbox = document.createElement('input');
+  linkCheckbox.type = 'checkbox';
+  linkCheckbox.id = `${fieldId}_linkAll`;
+  linkCheckbox.checked = true; // Default to linked
+  linkCheckbox.style.cursor = 'pointer';
+  
+  const linkLabel = document.createElement('label');
+  linkLabel.htmlFor = linkCheckbox.id;
+  linkLabel.textContent = 'Link All Corners';
+  linkLabel.style.cursor = 'pointer';
+  linkLabel.style.fontSize = '14px';
+  linkLabel.style.color = '#666';
+  
+  linkWrapper.appendChild(linkCheckbox);
+  linkWrapper.appendChild(linkLabel);
+  cornerRadiusWrapper.appendChild(linkWrapper);
+  
+  // Master slider (shown when linked)
+  const masterSliderWrapper = document.createElement('div');
+  masterSliderWrapper.id = `${fieldId}_masterWrapper`;
+  masterSliderWrapper.style.marginBottom = '15px';
+  
+  const masterLabel = document.createElement('label');
+  masterLabel.textContent = 'All Corners';
+  masterLabel.style.display = 'block';
+  masterLabel.style.marginBottom = '5px';
+  masterLabel.style.fontSize = '13px';
+  masterLabel.style.color = '#555';
+  
+  const masterInputGroup = document.createElement('div');
+  masterInputGroup.style.display = 'flex';
+  masterInputGroup.style.flexDirection = 'column';
+  masterInputGroup.style.gap = '8px';
+  
+  // Text input and slider row
+  const masterControlRow = document.createElement('div');
+  masterControlRow.style.display = 'flex';
+  masterControlRow.style.alignItems = 'center';
+  masterControlRow.style.gap = '10px';
+  
+  // Text input box
+  const masterTextInput = document.createElement('input');
+  masterTextInput.type = 'number';
+  masterTextInput.id = `${fieldId}_masterText`;
+  masterTextInput.min = 0;
+  masterTextInput.step = 0.1;
+  masterTextInput.value = 0;
+  masterTextInput.style.width = '80px';
+  masterTextInput.style.padding = '6px 8px';
+  masterTextInput.style.border = '1px solid #ddd';
+  masterTextInput.style.borderRadius = '4px';
+  masterTextInput.style.fontSize = '14px';
+  
+  // Unit display (will update based on unit selector)
+  const masterUnitDisplay = document.createElement('span');
+  masterUnitDisplay.id = `${fieldId}_masterUnitDisplay`;
+  masterUnitDisplay.textContent = 'in';
+  masterUnitDisplay.style.fontSize = '14px';
+  masterUnitDisplay.style.color = '#666';
+  masterUnitDisplay.style.minWidth = '25px';
+  
+  // Slider
+  const masterSlider = document.createElement('input');
+  masterSlider.type = 'range';
+  masterSlider.id = `${fieldId}_master`;
+  masterSlider.min = 0;
+  masterSlider.max = 20; // Max 20 inches (will be converted based on unit)
+  masterSlider.step = 0.1;
+  masterSlider.value = 0;
+  masterSlider.style.flex = '1';
+  masterSlider.style.cursor = 'pointer';
+  
+  masterControlRow.appendChild(masterTextInput);
+  masterControlRow.appendChild(masterUnitDisplay);
+  masterControlRow.appendChild(masterSlider);
+  
+  masterInputGroup.appendChild(masterControlRow);
+  
+  masterSliderWrapper.appendChild(masterLabel);
+  masterSliderWrapper.appendChild(masterInputGroup);
+  cornerRadiusWrapper.appendChild(masterSliderWrapper);
+  
+  // Individual corner controls (hidden when linked)
+  const individualWrapper = document.createElement('div');
+  individualWrapper.id = `${fieldId}_individualWrapper`;
+  individualWrapper.style.display = 'none';
+  individualWrapper.style.display = 'grid';
+  individualWrapper.style.gridTemplateColumns = '1fr 1fr';
+  individualWrapper.style.gap = '15px';
+  
+  const corners = [
+    { id: 'TL', label: 'Top Left', key: 'topLeft' },
+    { id: 'TR', label: 'Top Right', key: 'topRight' },
+    { id: 'BL', label: 'Bottom Left', key: 'bottomLeft' },
+    { id: 'BR', label: 'Bottom Right', key: 'bottomRight' }
+  ];
+  
+  corners.forEach(corner => {
+    const cornerGroup = document.createElement('div');
+    cornerGroup.style.display = 'flex';
+    cornerGroup.style.flexDirection = 'column';
+    cornerGroup.style.gap = '5px';
+    
+    const cornerLabel = document.createElement('label');
+    cornerLabel.textContent = corner.label;
+    cornerLabel.style.fontSize = '13px';
+    cornerLabel.style.color = '#555';
+    
+    const cornerInputGroup = document.createElement('div');
+    cornerInputGroup.style.display = 'flex';
+    cornerInputGroup.style.flexDirection = 'column';
+    cornerInputGroup.style.gap = '5px';
+    
+    // Text input and slider row
+    const cornerControlRow = document.createElement('div');
+    cornerControlRow.style.display = 'flex';
+    cornerControlRow.style.alignItems = 'center';
+    cornerControlRow.style.gap = '8px';
+    
+    // Text input box
+    const cornerTextInput = document.createElement('input');
+    cornerTextInput.type = 'number';
+    cornerTextInput.id = `${fieldId}_${corner.id}_text`;
+    cornerTextInput.dataset.cornerKey = corner.key;
+    cornerTextInput.min = 0;
+    cornerTextInput.step = 0.1;
+    cornerTextInput.value = 0;
+    cornerTextInput.style.width = '70px';
+    cornerTextInput.style.padding = '5px 6px';
+    cornerTextInput.style.border = '1px solid #ddd';
+    cornerTextInput.style.borderRadius = '4px';
+    cornerTextInput.style.fontSize = '13px';
+    
+    // Unit display
+    const cornerUnitDisplay = document.createElement('span');
+    cornerUnitDisplay.id = `${fieldId}_${corner.id}_unit`;
+    cornerUnitDisplay.textContent = 'in';
+    cornerUnitDisplay.style.fontSize = '13px';
+    cornerUnitDisplay.style.color = '#666';
+    cornerUnitDisplay.style.minWidth = '20px';
+    
+    // Slider
+    const cornerSlider = document.createElement('input');
+    cornerSlider.type = 'range';
+    cornerSlider.id = `${fieldId}_${corner.id}`;
+    cornerSlider.dataset.cornerKey = corner.key;
+    cornerSlider.min = 0;
+    cornerSlider.max = 20;
+    cornerSlider.step = 0.1;
+    cornerSlider.value = 0;
+    cornerSlider.style.flex = '1';
+    cornerSlider.style.cursor = 'pointer';
+    
+    cornerControlRow.appendChild(cornerTextInput);
+    cornerControlRow.appendChild(cornerUnitDisplay);
+    cornerControlRow.appendChild(cornerSlider);
+    
+    cornerInputGroup.appendChild(cornerControlRow);
+    
+    cornerGroup.appendChild(cornerLabel);
+    cornerGroup.appendChild(cornerInputGroup);
+    individualWrapper.appendChild(cornerGroup);
+    
+    // Update text input when slider changes
+    cornerSlider.addEventListener('input', () => {
+      const value = parseFloat(cornerSlider.value) || 0;
+      cornerTextInput.value = value.toFixed(1);
+      updateCornerRadiusValues(fieldId);
+    });
+    
+    // Update slider when text input changes
+    cornerTextInput.addEventListener('input', () => {
+      const value = parseFloat(cornerTextInput.value) || 0;
+      const maxValue = getMaxValueForUnit(fieldId);
+      const clampedValue = Math.min(Math.max(0, value), maxValue);
+      cornerSlider.value = clampedValue;
+      cornerTextInput.value = clampedValue.toFixed(1);
+      updateCornerRadiusValues(fieldId);
+    });
+  });
+  
+  cornerRadiusWrapper.appendChild(individualWrapper);
+  container.appendChild(cornerRadiusWrapper);
+  
+  // Unit conversion functions
+  function convertToInches(value, unit) {
+    switch(unit) {
+      case 'cm': return value / 2.54;
+      case 'mm': return value / 25.4;
+      default: return value; // inches
+    }
+  }
+  
+  function convertFromInches(value, unit) {
+    switch(unit) {
+      case 'cm': return value * 2.54;
+      case 'mm': return value * 25.4;
+      default: return value; // inches
+    }
+  }
+  
+  function getMaxValueForUnit(fieldId) {
+    const unit = document.getElementById(`${fieldId}_unit`)?.value || 'in';
+    switch(unit) {
+      case 'cm': return 50.8; // 20 inches = 50.8 cm
+      case 'mm': return 508; // 20 inches = 508 mm
+      default: return 20; // inches
+    }
+  }
+  
+  function updateUnitDisplay(fieldId, unit) {
+    // Update master unit display
+    const masterUnitDisplay = document.getElementById(`${fieldId}_masterUnitDisplay`);
+    if (masterUnitDisplay) masterUnitDisplay.textContent = unit;
+    
+    // Update individual corner unit displays
+    corners.forEach(corner => {
+      const cornerUnitDisplay = document.getElementById(`${fieldId}_${corner.id}_unit`);
+      if (cornerUnitDisplay) cornerUnitDisplay.textContent = unit;
+    });
+    
+    // Update slider max values
+    const maxValue = getMaxValueForUnit(fieldId);
+    masterSlider.max = maxValue;
+    corners.forEach(corner => {
+      const slider = document.getElementById(`${fieldId}_${corner.id}`);
+      if (slider) slider.max = maxValue;
+    });
+    
+    // Convert current values to new unit
+    const currentUnit = masterSlider.dataset.currentUnit || 'in';
+    if (currentUnit !== unit) {
+      // Get current value in inches
+      const currentValueIn = parseFloat(masterSlider.value) || 0;
+      const actualValueIn = convertToInches(currentValueIn, currentUnit);
+      
+      // Convert to new unit
+      const newValue = convertFromInches(actualValueIn, unit);
+      
+      // Update master controls
+      masterSlider.value = newValue;
+      masterTextInput.value = newValue.toFixed(1);
+      
+      // Update individual corners if unlinked
+      if (!linkCheckbox.checked) {
+        corners.forEach(corner => {
+          const slider = document.getElementById(`${fieldId}_${corner.id}`);
+          const textInput = document.getElementById(`${fieldId}_${corner.id}_text`);
+          if (slider && textInput) {
+            const cornerValueIn = convertToInches(parseFloat(slider.value) || 0, currentUnit);
+            const cornerNewValue = convertFromInches(cornerValueIn, unit);
+            slider.value = cornerNewValue;
+            textInput.value = cornerNewValue.toFixed(1);
+          }
+        });
+      }
+    }
+    
+    masterSlider.dataset.currentUnit = unit;
+  }
+  
+  // Unit selector change handler
+  unitSelect.addEventListener('change', () => {
+    const newUnit = unitSelect.value;
+    updateUnitDisplay(fieldId, newUnit);
+    updateCornerRadiusValues(fieldId);
+  });
+  
+  // Initialize unit
+  masterSlider.dataset.currentUnit = 'in';
+  
+  // Link checkbox toggle
+  linkCheckbox.addEventListener('change', () => {
+    const isLinked = linkCheckbox.checked;
+    masterSliderWrapper.style.display = isLinked ? 'block' : 'none';
+    individualWrapper.style.display = isLinked ? 'none' : 'grid';
+    
+    if (isLinked) {
+      // Sync all corners to master value
+      const masterVal = parseFloat(masterSlider.value) || 0;
+      corners.forEach(corner => {
+        const slider = document.getElementById(`${fieldId}_${corner.id}`);
+        const textInput = document.getElementById(`${fieldId}_${corner.id}_text`);
+        if (slider) slider.value = masterVal;
+        if (textInput) textInput.value = masterVal.toFixed(1);
+      });
+      updateCornerRadiusValues(fieldId);
+    }
+  });
+  
+  // Master slider handler
+  masterSlider.addEventListener('input', () => {
+    const value = parseFloat(masterSlider.value) || 0;
+    masterTextInput.value = value.toFixed(1);
+    
+    if (linkCheckbox.checked) {
+      // Update all corners
+      corners.forEach(corner => {
+        const slider = document.getElementById(`${fieldId}_${corner.id}`);
+        const textInput = document.getElementById(`${fieldId}_${corner.id}_text`);
+        if (slider) slider.value = value;
+        if (textInput) textInput.value = value.toFixed(1);
+      });
+      updateCornerRadiusValues(fieldId);
+    }
+  });
+  
+  // Master text input handler
+  masterTextInput.addEventListener('input', () => {
+    const value = parseFloat(masterTextInput.value) || 0;
+    const maxValue = getMaxValueForUnit(fieldId);
+    const clampedValue = Math.min(Math.max(0, value), maxValue);
+    masterSlider.value = clampedValue;
+    masterTextInput.value = clampedValue.toFixed(1);
+    
+    if (linkCheckbox.checked) {
+      // Update all corners
+      corners.forEach(corner => {
+        const slider = document.getElementById(`${fieldId}_${corner.id}`);
+        const textInput = document.getElementById(`${fieldId}_${corner.id}_text`);
+        if (slider) slider.value = clampedValue;
+        if (textInput) textInput.value = clampedValue.toFixed(1);
+      });
+      updateCornerRadiusValues(fieldId);
+    }
+  });
+  
+  // Check initial shape selection
+  checkCornerRadiusVisibility(container);
+  
+  // Listen for shape changes
+  document.addEventListener('customizationFieldChanged', (e) => {
+    if (e.detail.fieldId === 'shape') {
+      checkCornerRadiusVisibility(container);
+    }
+  });
+}
+
+/**
+ * Updates corner radius values in selectedCustomizationValues
+ * Converts values to inches for Konva (which expects inches)
+ */
+function updateCornerRadiusValues(fieldId) {
+  const linkCheckbox = document.getElementById(`${fieldId}_linkAll`);
+  const isLinked = linkCheckbox ? linkCheckbox.checked : true;
+  const unitSelect = document.getElementById(`${fieldId}_unit`);
+  const currentUnit = unitSelect?.value || 'in';
+  
+  // Conversion function to inches
+  function convertToInches(value, unit) {
+    switch(unit) {
+      case 'cm': return value / 2.54;
+      case 'mm': return value / 25.4;
+      default: return value; // inches
+    }
+  }
+  
+  if (isLinked) {
+    // Single value mode - get from master slider/text input
+    const masterSlider = document.getElementById(`${fieldId}_master`);
+    const masterTextInput = document.getElementById(`${fieldId}_masterText`);
+    const value = parseFloat(masterTextInput?.value || masterSlider?.value) || 0;
+    
+    // Convert to inches for storage (Konva expects inches)
+    const valueInInches = convertToInches(value, currentUnit);
+    selectedCustomizationValues[fieldId] = valueInInches;
+    selectedCustomizationValues[`${fieldId}_unit`] = currentUnit; // Store unit for reference
+    if (typeof window !== 'undefined') {
+      window.selectedCustomizationValues = selectedCustomizationValues;
+    }
+    updateKonvaFromField(fieldId, valueInInches, true);
+  } else {
+    // Individual corner mode
+    const corners = ['TL', 'TR', 'BL', 'BR'];
+    const cornerKeys = ['topLeft', 'topRight', 'bottomLeft', 'bottomRight'];
+    const cornerValues = {};
+    
+    corners.forEach((cornerId, index) => {
+      const textInput = document.getElementById(`${fieldId}_${cornerId}_text`);
+      const slider = document.getElementById(`${fieldId}_${cornerId}`);
+      const value = parseFloat(textInput?.value || slider?.value) || 0;
+      
+      // Convert to inches for storage
+      cornerValues[cornerKeys[index]] = convertToInches(value, currentUnit);
+    });
+    
+    selectedCustomizationValues[fieldId] = cornerValues;
+    selectedCustomizationValues[`${fieldId}_unit`] = currentUnit; // Store unit for reference
+    if (typeof window !== 'undefined') {
+      window.selectedCustomizationValues = selectedCustomizationValues;
+    }
+    updateKonvaFromField(fieldId, cornerValues, true);
+  }
+}
+
+/**
+ * Injects corner radius controls dynamically after shape field for specialty products
+ */
+function injectCornerRadiusControls(shapeContainer) {
+  // Check if already injected
+  if (document.getElementById('injected-corner-radius-controls')) {
+    return;
+  }
+  
+  // Create corner radius container
+  const cornerRadiusContainer = document.createElement('div');
+  cornerRadiusContainer.id = 'injected-corner-radius-controls';
+  cornerRadiusContainer.className = 'field-section';
+  cornerRadiusContainer.style.display = 'none'; // Hidden by default
+  cornerRadiusContainer.style.marginTop = '20px';
+  
+  // Create field group wrapper
+  const fieldGroup = document.createElement('div');
+  fieldGroup.className = 'field-group';
+  
+  // Create field label
+  const fieldLabel = document.createElement('h3');
+  fieldLabel.textContent = 'Corner Radius';
+  fieldLabel.style.marginBottom = '15px';
+  fieldLabel.style.fontSize = '16px';
+  fieldLabel.style.fontWeight = '600';
+  fieldLabel.style.color = '#333';
+  fieldGroup.appendChild(fieldLabel);
+  
+  // Create corner radius controls using the existing function
+  const field = {
+    id: 'cornerRadius',
+    label: 'Corner Radius (in)',
+    type: 'number',
+    min: 0,
+    step: 0.1
+  };
+  
+  renderIndividualCornerRadius(field, cornerRadiusContainer);
+  
+  // Insert after shape container
+  shapeContainer.parentNode.insertBefore(cornerRadiusContainer, shapeContainer.nextSibling);
+  
+  // Check initial visibility
+  setTimeout(() => {
+    const shapeField = document.querySelector('[data-field-id="shape"]');
+    if (shapeField) {
+      const activeShapeCard = shapeField.querySelector('.option-card.active');
+      if (activeShapeCard) {
+        const selectedShape = (activeShapeCard.dataset.value || activeShapeCard.textContent.trim()).toLowerCase();
+        checkInjectedCornerRadiusVisibility(cornerRadiusContainer, selectedShape);
+      }
+    }
+  }, 150);
+}
+
+/**
+ * Check if injected corner radius controls should be visible based on selected shape
+ */
+function checkInjectedCornerRadiusVisibility(container, selectedShape) {
+  if (!container) return;
+  
+  const shape = (selectedShape || '').toLowerCase();
+  // Show for rectangle, square, and any shape with "round" or "edge" in the name
+  const rectangleShapes = ['rectangle', 'rectangular', 'square', 'rectangle/square', 'rectangle-square'];
+  const hasRoundEdge = shape.includes('round') || shape.includes('edge') || shape.includes('rounded');
+  const isRectangleShape = rectangleShapes.includes(shape) || 
+                           shape.includes('rectangle') || 
+                           shape.includes('square');
+  
+  if (isRectangleShape || hasRoundEdge) {
+    container.style.display = '';
+  } else {
+    container.style.display = 'none';
+    // Reset values when hidden
+    const masterSlider = container.querySelector('[id$="_master"]');
+    const masterTextInput = container.querySelector('[id$="_masterText"]');
+    if (masterSlider) masterSlider.value = '0';
+    if (masterTextInput) masterTextInput.value = '0';
+    
+    const cornerSliders = container.querySelectorAll('[id$="_TL"], [id$="_TR"], [id$="_BL"], [id$="_BR"]');
+    cornerSliders.forEach(slider => {
+      slider.value = '0';
+      const textInputId = slider.id.replace('_TL', '_TL_text').replace('_TR', '_TR_text').replace('_BL', '_BL_text').replace('_BR', '_BR_text');
+      const textInput = document.getElementById(textInputId);
+      if (textInput) textInput.value = '0';
+    });
+    updateCornerRadiusValues('cornerRadius');
+  }
+}
+
+/**
  * Check if corner radius field should be visible based on selected shape
  */
 function checkCornerRadiusVisibility(container) {
@@ -631,10 +1259,14 @@ function checkCornerRadiusVisibility(container) {
   }
   
   const selectedShape = (activeShapeCard.dataset.value || activeShapeCard.textContent.trim()).toLowerCase();
-  const rectangleShapes = ['rectangle', 'rectangular', 'square'];
+  const rectangleShapes = ['rectangle', 'rectangular', 'square', 'rectangle/square', 'rectangle-square'];
   
   // Show only if rectangle or square is selected
-  if (rectangleShapes.includes(selectedShape)) {
+  const isRectangleShape = rectangleShapes.includes(selectedShape) || 
+                           selectedShape.includes('rectangle') || 
+                           selectedShape.includes('square');
+  
+  if (isRectangleShape) {
     container.style.display = '';
   } else {
     container.style.display = 'none';
@@ -643,6 +1275,70 @@ function checkCornerRadiusVisibility(container) {
     if (input) {
       input.value = '0';
       updateKonvaFromField('cornerRadius', 0, true);
+    }
+    // Also reset individual corner controls
+    const cornerControls = container.querySelector('.corner-radius-controls');
+    if (cornerControls) {
+      const masterSlider = container.querySelector('[id$="_master"]');
+      if (masterSlider) masterSlider.value = '0';
+      const cornerSliders = container.querySelectorAll('[id$="_TL"], [id$="_TR"], [id$="_BL"], [id$="_BR"]');
+      cornerSliders.forEach(slider => {
+        slider.value = '0';
+        const valueSpan = document.getElementById(slider.id + '_value');
+        if (valueSpan) valueSpan.textContent = '0';
+      });
+      updateCornerRadiusValues('cornerRadius');
+    }
+  }
+}
+
+/**
+ * Handle conditional logic for Mirrors fields
+ * Frame Color shows when Frame Type = "Framed"
+ * Edge Finish shows when Frame Type = "Frameless"
+ */
+function handleMirrorsConditionals(changedFieldId, selectedValue) {
+  if (changedFieldId === 'frameType') {
+    const frameColorContainer = document.querySelector('[data-field-id="frameColor"]');
+    const edgeFinishContainer = document.querySelector('[data-field-id="edgeFinish"]');
+    
+    const isFramed = selectedValue && selectedValue.toLowerCase() === 'framed';
+    const isFrameless = selectedValue && selectedValue.toLowerCase() === 'frameless';
+    
+    // Show/hide Frame Color based on Frame Type
+    if (frameColorContainer) {
+      const fieldSection = frameColorContainer.closest('.field-section, .type-section, .frame-section');
+      if (fieldSection) {
+        if (isFramed) {
+          fieldSection.style.display = '';
+        } else {
+          fieldSection.style.display = 'none';
+          // Clear selection when hidden
+          const activeCard = frameColorContainer.querySelector('.option-card.active');
+          if (activeCard) {
+            activeCard.classList.remove('active');
+            delete selectedCustomizationValues['frameColor'];
+          }
+        }
+      }
+    }
+    
+    // Show/hide Edge Finish based on Frame Type
+    if (edgeFinishContainer) {
+      const fieldSection = edgeFinishContainer.closest('.field-section, .edge-section');
+      if (fieldSection) {
+        if (isFrameless) {
+          fieldSection.style.display = '';
+        } else {
+          fieldSection.style.display = 'none';
+          // Clear selection when hidden
+          const activeCard = edgeFinishContainer.querySelector('.option-card.active');
+          if (activeCard) {
+            activeCard.classList.remove('active');
+            delete selectedCustomizationValues['edgeFinish'];
+          }
+        }
+      }
     }
   }
 }
@@ -841,14 +1537,22 @@ function renderColorField(field, container) {
 /**
  * Gets CSS class for field group based on type
  */
-function getFieldGroupClass(type) {
+function getFieldGroupClass(type, fieldId) {
   const classMap = {
     'tags': 'type-section',
     'checkbox': 'checkbox-section',
-    'number': 'dimensions-container',
+    'number': 'field-section',
     'color': 'color-section'
   };
-  return classMap[type] || 'field-section';
+
+  let baseClass = classMap[type] || 'field-section';
+
+  // Give thickness-related number fields a dedicated section class
+  if (fieldId === 'thickness' || fieldId === 'glassThickness') {
+    baseClass = `${baseClass} thickness-section`;
+  }
+
+  return baseClass.trim();
 }
 
 /**
@@ -894,7 +1598,20 @@ function updateKonvaFromField(fieldId, value, isActive) {
     'HingeSide': 'hingeSide',
     // Rounded corners for rectangle/square mirrors
     'cornerRadius': 'cornerRadius',
-    'radius': 'cornerRadius'
+    'radius': 'cornerRadius',
+    // Mirror-specific fields
+    'tint': 'glassType',
+    'Tint': 'glassType',
+    'orientation': 'orientation',
+    'Orientation': 'orientation',
+    'lighting': 'lighting',
+    'Lighting': 'lighting',
+    'ledColor': 'ledColor',
+    'LEDColor': 'ledColor',
+    'smartFeatures': 'smartFeatures',
+    'SmartFeatures': 'smartFeatures',
+    'frameType': 'frameType',
+    'FrameType': 'frameType'
   };
 
   const konvaParam = fieldMapping[fieldId];
@@ -1047,20 +1764,51 @@ function updateKonvaFromField(fieldId, value, isActive) {
     }
     else if (konvaParam === 'cornerRadius') {
       // Corner radius for rectangle/square (in inches)
-      const radiusIn = parseFloat(value) || 0;
-      if (window.currentCornerRadius !== undefined) {
-        window.currentCornerRadius = radiusIn;
-      }
-      try {
-        if (typeof currentCornerRadius !== 'undefined') {
-          currentCornerRadius = radiusIn;
+      // Can be a single number (linked mode) or an object with individual corners
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        // Individual corner values
+        if (window.currentCornerRadius !== undefined) {
+          window.currentCornerRadius = value;
         }
-      } catch (e) {}
+        if (window.cornerRadiusLinked !== undefined) {
+          window.cornerRadiusLinked = false;
+        }
+        try {
+          if (typeof currentCornerRadius !== 'undefined') {
+            currentCornerRadius = value;
+          }
+          if (typeof cornerRadiusLinked !== 'undefined') {
+            cornerRadiusLinked = false;
+          }
+        } catch (e) {}
+      } else {
+        // Single value (linked mode)
+        const radiusIn = parseFloat(value) || 0;
+        if (window.currentCornerRadius !== undefined) {
+          window.currentCornerRadius = radiusIn;
+        }
+        if (window.cornerRadiusLinked !== undefined) {
+          window.cornerRadiusLinked = true;
+        }
+        try {
+          if (typeof currentCornerRadius !== 'undefined') {
+            currentCornerRadius = radiusIn;
+          }
+          if (typeof cornerRadiusLinked !== 'undefined') {
+            cornerRadiusLinked = true;
+          }
+        } catch (e) {}
+      }
     } else if (konvaParam === 'numberOfPanels' || konvaParam === 'operation' || konvaParam === 'configuration') {
       // Multi-panel fields - store in selectedCustomizationValues for renderWindow to use
       // These will be automatically picked up by renderWindow when it checks shouldUseMultiPanelRendering
       // No need to update individual state variables, just ensure the value is stored
     }
+  }
+
+  // Ensure global reference is updated (for AJAX proxy detection)
+  if (typeof window !== 'undefined') {
+    window.selectedCustomizationValues = selectedCustomizationValues;
   }
 
   // Re-render Konva - try multiple ways to access the render function
@@ -1073,6 +1821,11 @@ function updateKonvaFromField(fieldId, value, isActive) {
       window.renderCustomState();
     } else if (window.renderCustomState) {
       window.renderCustomState();
+    }
+
+    // Trigger AJAX update if available (for price/auto-save)
+    if (typeof window.customizationAjax !== 'undefined' && typeof window.customizationAjax.updatePrice === 'function') {
+      window.customizationAjax.updatePrice();
     }
   }, 50);
 }

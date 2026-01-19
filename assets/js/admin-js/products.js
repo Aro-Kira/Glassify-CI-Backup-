@@ -358,11 +358,59 @@ function setupSearchFilter() {
   const searchInput = document.querySelector(".search-input");
   const searchButton = document.querySelector(".search-button");
   const categoryFilter = document.querySelector(".filter-category");
+  const activeFiltersTags = document.getElementById("activeFiltersTags");
+  const clearAllFilters = document.getElementById("clearAllFilters");
   
   if (!searchInput || !searchButton || !categoryFilter) {
     console.warn('Search/filter elements not found, retrying...');
     setTimeout(setupSearchFilter, 100);
     return;
+  }
+
+  // Update active filters display
+  function updateActiveFilters() {
+    if (!activeFiltersTags) return;
+    
+    const activeFilters = [];
+    const searchTerm = (searchInput?.value || "").trim();
+    const selectedCategory = (categoryFilter?.value || "").trim();
+    
+    if (searchTerm) {
+      activeFilters.push({ type: 'search', value: searchTerm, label: `Search: "${searchTerm}"` });
+    }
+    
+    if (selectedCategory) {
+      activeFilters.push({ type: 'category', value: selectedCategory, label: `Category: ${selectedCategory}` });
+    }
+    
+    // Clear existing tags
+    activeFiltersTags.innerHTML = '';
+    
+    // Add active filter tags
+    activeFilters.forEach(filter => {
+      const tag = document.createElement('span');
+      tag.className = 'active-filter-tag';
+      tag.innerHTML = `
+        ${filter.label}
+        <span class="remove-filter" data-type="${filter.type}">&times;</span>
+      `;
+      
+      tag.querySelector('.remove-filter').addEventListener('click', () => {
+        if (filter.type === 'search') {
+          searchInput.value = '';
+        } else if (filter.type === 'category') {
+          categoryFilter.value = '';
+        }
+        filterProducts();
+      });
+      
+      activeFiltersTags.appendChild(tag);
+    });
+    
+    // Show/hide clear all button
+    if (clearAllFilters) {
+      clearAllFilters.style.display = activeFilters.length > 0 ? 'block' : 'none';
+    }
   }
 
   function filterProducts() {
@@ -397,6 +445,9 @@ function setupSearchFilter() {
       if (show) visibleCount++;
     });
     
+    // Update active filters display
+    updateActiveFilters();
+    
     // Show message if no products match
     const productGrid = document.querySelector(".product-grid");
     let noResultsMsg = productGrid?.querySelector(".no-results-message");
@@ -412,6 +463,16 @@ function setupSearchFilter() {
     } else if (noResultsMsg) {
       noResultsMsg.style.display = "none";
     }
+  }
+  
+  // Clear all filters handler
+  if (clearAllFilters) {
+    clearAllFilters.addEventListener('click', (e) => {
+      e.preventDefault();
+      searchInput.value = '';
+      categoryFilter.value = '';
+      filterProducts();
+    });
   }
 
   // Attach event listeners
@@ -547,20 +608,18 @@ async function loadCustomizationFields() {
   if (saved) {
     try {
       const savedFields = JSON.parse(saved);
-      // Merge saved fields with defaults (defaults as fallback)
-      initializeDefaultCustomizationFields();
-      // Override with saved fields where they exist
+      // Load saved fields, but don't override database data
       for (const [key, value] of Object.entries(savedFields)) {
-        if (value && value.length > 0) {
+        if (!customizationFields[key] || customizationFields[key].length === 0) {
           customizationFields[key] = value;
         }
       }
-      return;
     } catch (e) {
       console.error('Error loading customization fields:', e);
     }
   }
-  // Use default fields if nothing saved
+
+  // Only load defaults for keys that still have no data
   initializeDefaultCustomizationFields();
 }
 
@@ -648,6 +707,10 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
         }
       }
       
+      // Get step names for this field key
+      const stepNamesKey = item.fieldKey + '_stepNames';
+      const stepNames = customizationFields[stepNamesKey];
+
       // Send as form data - CodeIgniter expects fields as array, so we'll send it as JSON string
       // and the controller should handle it (or we need to adjust controller, but for now this should work)
       const formData = new FormData();
@@ -655,17 +718,35 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
       formData.append('category', category);
       formData.append('subcategory', subcategory);
       formData.append('fields', JSON.stringify(item.fields));
+      if (stepNames) {
+        formData.append('stepNames', JSON.stringify(stepNames));
+      }
       
       const response = await fetch(base_url + 'customizationFields/save', {
         method: 'POST',
         body: formData
       });
       
+      // Check if response is OK
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`HTTP error saving ${item.fieldKey}:`, response.status, text);
+        return false;
+      }
+      
+      // Check content type before parsing JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error(`Non-JSON response when saving ${item.fieldKey}:`, text.substring(0, 200));
+        return false;
+      }
+      
       const result = await response.json();
       if (result.status === 'success') {
         console.log(`Saved field config for ${item.fieldKey}`);
       } else {
-        console.error(`Error saving ${item.fieldKey}:`, result.message);
+        console.error(`Error saving ${item.fieldKey}:`, result.message || 'Unknown error');
         return false; // Return false if any save fails
       }
     }
@@ -681,7 +762,23 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
 // Enhanced with comprehensive options from product catalog
 // Organized into steps with 3-4 fields per step for better UX
 function initializeDefaultCustomizationFields() {
-  customizationFields = {
+  // Initialize customizationFields if not already done
+  if (!customizationFields) {
+    customizationFields = {};
+  }
+
+  // Only set defaults for keys that don't already have data
+  const defaultFields = getDefaultCustomizationFields();
+  for (const [key, value] of Object.entries(defaultFields)) {
+    if (!customizationFields[key] || customizationFields[key].length === 0) {
+      customizationFields[key] = value;
+    }
+  }
+}
+
+function getDefaultCustomizationFields() {
+  return {
+
   // Windows subcategories - Enhanced with catalog options
   "Windows_Sliding": [
     // Step 1: Window Type
@@ -901,21 +998,18 @@ function initializeDefaultCustomizationFields() {
   // Mirrors & Specialty Glass subcategories - Organized and cleaned up
   "Specialty_Mirrors": [
     // Step 1: Shape & Frame
-    { type: "tags", label: "Shape", id: "shape", options: ["Round", "Oval", "Square", "Rectangle", "Arched", "Custom"], stepNumber: 1 },
-    { type: "tags", label: "Frame Type", id: "frameType", options: ["Frameless", "Standard Frame", "Thin Frame", "Grid Frame"], stepNumber: 1 },
-    { type: "tags", label: "Frame Color", id: "frameColor", options: ["Gold", "Silver", "Rose Gold", "Bronze", "Black", "White", "Wood", "Custom Color"], stepNumber: 1 },
+    { type: "tags", label: "Shape", id: "shape", options: ["Round", "Oval", "Square", "Rectangle", "Arched"], stepNumber: 1 },
+    { type: "tags", label: "Frame Type", id: "frameType", options: ["Frameless", "Standard Frame"], stepNumber: 1 },
+    { type: "tags", label: "Frame Color", id: "frameColor", options: ["Gold","Black", "White"], stepNumber: 1 },
     // Step 2: Finish & Details
-    { type: "tags", label: "Edge Finish", id: "edgeFinish", options: ["Beveled", "Flat Polish", "Pencil Edge", "Raw"], stepNumber: 2 },
+    { type: "tags", label: "Edge Finish", id: "edgeFinish", options: ["Beveled", "Machine Polished Edge"], stepNumber: 2 },
     { type: "tags", label: "Tint", id: "tintFinish", options: ["Clear", "Bronze", "Grey (Smoked)", "Black"], stepNumber: 2 },
-    { type: "tags", label: "Orientation", id: "orientation", options: ["Vertical", "Horizontal", "Full-body"], stepNumber: 2 },
     // Step 3: Size & Installation
-    { type: "tags", label: "Size", id: "size", options: ["Small", "Medium", "Large", "Extra Large", "Custom"], stepNumber: 3 },
-    { type: "number", label: "Corner Radius (in)", id: "cornerRadius", min: 0, step: 0.1, stepNumber: 3 },
     { type: "tags", label: "Mounting Method", id: "mountingMethod", options: ["Wall-mounted", "Freestanding", "Leaning", "Adhesive", "Hanging"], stepNumber: 3 },
     // Step 4: Lighting & Features
     { type: "tags", label: "Lighting", id: "lighting", options: ["None", "LED Backlight", "LED Front Light"], stepNumber: 4 },
-    { type: "tags", label: "LED Color", id: "ledColorTemperature", options: ["Warm White", "Cool White", "Daylight", "RGB"], stepNumber: 4 },
-    { type: "tags", label: "Smart Features", id: "smartFeatures", options: ["Touch Dimmer", "Defogger", "Motion Sensor", "Bluetooth Speaker"], stepNumber: 4 }
+    { type: "tags", label: "LED Color", id: "ledColorTemperature", options: ["Warm White", "Cool White", "Daylight"], stepNumber: 4 },
+    { type: "tags", label: "Smart Features", id: "smartFeatures", options: ["Touch Dimmer", "Defogger", "Motion Sensor"], stepNumber: 4 }
   ],
   "Specialty_Mirrors_stepNames": {
     "1": "Shape & Frame",
@@ -1083,13 +1177,8 @@ function showManageCustomizationFields(category, subcategory) {
     fieldKey = subcategory;
   }
   
-  // Get fields from saved data, or fall back to default presets
-  let fields = customizationFields[fieldKey];
-  if (!fields || fields.length === 0) {
-    // Fall back to default presets if no saved fields exist
-    initializeDefaultCustomizationFields();
-    fields = customizationFields[fieldKey] || [];
-  }
+  // Get fields from saved data
+  let fields = customizationFields[fieldKey] || [];
   
   // Get step names (stored separately)
   const stepNamesKey = `${fieldKey}_stepNames`;
@@ -1120,9 +1209,14 @@ function showManageCustomizationFields(category, subcategory) {
         ${fields.length === 0 ? '<p style="color: #999; text-align: center; padding: 20px;">No fields added yet. Click "Add Field" to start.</p>' : ''}
       </div>
       
-      <button type="button" class="add-series-btn" id="addCustomizationFieldBtn" style="margin-top: 15px;">
-        <i class="fas fa-plus"></i> Add Field
-      </button>
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button type="button" class="add-series-btn" id="addCustomizationFieldBtn">
+          <i class="fas fa-plus"></i> Add Field
+        </button>
+        <button type="button" class="add-series-btn" id="loadDefaultsBtn" style="background: #28a745; border-color: #28a745;">
+          <i class="fas fa-magic"></i> Load Defaults
+        </button>
+      </div>
       
       <div class="popup-actions" style="margin-top: 20px;">
         <button class="save-btn" id="saveCustomizationFieldsBtn">Save Changes</button>
@@ -1652,6 +1746,39 @@ function showManageCustomizationFields(category, subcategory) {
   // Initial render
   renderFieldsManager();
   
+  // Load defaults button
+  document.getElementById("loadDefaultsBtn").onclick = async () => {
+    if (workingFields.length > 0) {
+      if (!confirm('Loading defaults will replace all current fields. Continue?')) {
+        return;
+      }
+    }
+
+    try {
+      const response = await fetch(base_url + 'customizationFields/get?category=' + encodeURIComponent(category) + '&subcategory=' + encodeURIComponent(subcategory));
+      const data = await response.json();
+
+      if (data.status === 'success' && data.fields && data.fields.length > 0) {
+        workingFields = JSON.parse(JSON.stringify(data.fields));
+        window.currentWorkingFields = workingFields;
+
+        // Also load step names if available
+        const stepNamesKey = `${fieldKey}_stepNames`;
+        if (data.stepNames || customizationFields[stepNamesKey]) {
+          workingStepNames = JSON.parse(JSON.stringify(data.stepNames || customizationFields[stepNamesKey]));
+        }
+
+        renderFieldsManager();
+        showToast('Defaults loaded successfully!', 'success');
+      } else {
+        showToast('No defaults available for this category/subcategory.', 'info');
+      }
+    } catch (error) {
+      console.error('Error loading defaults:', error);
+      showToast('Error loading defaults. Please try again.', 'error');
+    }
+  };
+
   // Add field button
   document.getElementById("addCustomizationFieldBtn").onclick = () => {
     // Check which steps are available or need new fields
@@ -1962,15 +2089,15 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
 function generateCustomizationFields(subcategory, container, prefix = "", category = "") {
   // Clear existing fields
   container.innerHTML = "";
-  
+
   if (!subcategory) {
     return;
   }
-  
+
   // Determine which field set to use based on category and subcategory
   // Build composite key from category and subcategory to handle conflicts
   let fieldKey;
-  
+
   if (category === "Windows") {
     fieldKey = `Windows_${subcategory}`;
   } else if (category === "Doors") {
@@ -1984,10 +2111,15 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
   } else {
     fieldKey = subcategory; // Fallback to subcategory name
   }
-  
+
   const fields = customizationFields[fieldKey];
-  
+
   if (!fields) {
+    // Show loading message and retry after a short delay
+    container.innerHTML = '<p style="color: #666; font-style: italic;">Loading customization fields...</p>';
+    setTimeout(() => {
+      generateCustomizationFields(subcategory, container, prefix, category);
+    }, 500);
     return;
   }
   
@@ -5620,10 +5752,76 @@ function populateEditForm(product) {
     console.log("[Edit Product] No tagVisualConfigs found or invalid format, initialized as empty object");
   }
   
+  // IMPORTANT: Populate customization data BEFORE generating fields
+  // This ensures hidden inputs are set before renderTags reads them
+  const customizationDataToPopulate = {};
+  if (product.Customization) {
+    Object.keys(product.Customization).forEach(fieldId => {
+      customizationDataToPopulate[fieldId] = product.Customization[fieldId];
+    });
+  }
+  
   // NOW render customization fields (after all tag data is loaded)
   if (product.Subcategory && editCustomizationContainer) {
     console.log("[Edit Product] Generating customization fields with loaded tag data...");
     generateCustomizationFields(product.Subcategory, editCustomizationContainer, "edit", product.Category);
+    
+    // After fields are generated, populate the selected values
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      // Handle Customization field - it might be a JSON string or an object
+      let customizationData = product.Customization;
+      if (typeof customizationData === 'string') {
+        try {
+          customizationData = JSON.parse(customizationData);
+        } catch (e) {
+          console.error('[Edit Product] Failed to parse Customization JSON:', e);
+          customizationData = null;
+        }
+      }
+      
+      if (customizationData && typeof customizationData === 'object') {
+        console.log('[Edit Product] Populating customization fields with data:', customizationData);
+        
+        Object.keys(customizationData).forEach(fieldId => {
+          const value = customizationData[fieldId];
+          const fieldInput = document.getElementById(`edit${fieldId}`);
+          const fieldContainer = document.getElementById(`edit${fieldId}Container`);
+          
+          console.log(`[Edit Product] Processing field "${fieldId}":`, value, 'Input exists:', !!fieldInput, 'Container exists:', !!fieldContainer);
+          
+          if (fieldInput) {
+            if (Array.isArray(value)) {
+              // Tags field - set hidden input value and re-render tags to show selection
+              fieldInput.value = JSON.stringify(value);
+              console.log(`[Edit Product] Set tag field "${fieldId}" to:`, value);
+              
+              if (fieldContainer) {
+                // Get available options from container dataset (set during field generation)
+                const availableOptions = JSON.parse(fieldContainer.dataset.availableOptions || "[]");
+                console.log(`[Edit Product] Re-rendering tags for "${fieldId}" with selected values:`, value);
+                // Re-render tags with the selected values - this will read from hidden input
+                renderTags(fieldContainer, availableOptions, "edit", fieldId);
+              } else {
+                console.warn(`[Edit Product] Tag container not found for field "${fieldId}"`);
+              }
+            } else if (typeof value === 'boolean') {
+              // Checkbox field
+              fieldInput.checked = value;
+              console.log(`[Edit Product] Set checkbox field "${fieldId}" to:`, value);
+            } else {
+              // Number or other field
+              fieldInput.value = value;
+              console.log(`[Edit Product] Set field "${fieldId}" to:`, value);
+            }
+          } else {
+            console.warn(`[Edit Product] Field input not found for "${fieldId}"`);
+          }
+        });
+      } else {
+        console.log('[Edit Product] No customization data to populate');
+      }
+    }, 200); // Increased delay to ensure all DOM elements are ready
   }
   
   // Populate standard series
@@ -5672,35 +5870,6 @@ function populateEditForm(product) {
     editStandardTab.style.opacity = "1";
     editCustomizeTab.style.pointerEvents = "auto";
     editCustomizeTab.style.opacity = "1";
-  }
-  
-  // Populate customization data if exists
-  if (product.Customization && editCustomizationContainer) {
-    // Set values in customization fields based on saved data
-    Object.keys(product.Customization).forEach(fieldId => {
-      const value = product.Customization[fieldId];
-      const fieldInput = document.getElementById(`edit${fieldId}`);
-      const fieldContainer = document.getElementById(`edit${fieldId}Container`);
-      
-      if (fieldInput) {
-        if (Array.isArray(value)) {
-          // Tags field - select the tags
-          fieldInput.value = JSON.stringify(value);
-          if (fieldContainer) {
-            value.forEach(tagValue => {
-              const tag = fieldContainer.querySelector(`[data-value="${tagValue}"]`);
-              if (tag) tag.classList.add("selected");
-            });
-          }
-        } else if (typeof value === 'boolean') {
-          // Checkbox field
-          fieldInput.checked = value;
-        } else {
-          // Number or other field
-          fieldInput.value = value;
-        }
-      }
-    });
   }
 }
 
@@ -5921,7 +6090,7 @@ function setupEditPopupHandlers() {
   const editPopup = document.getElementById("editPopup");
   
   productGridEl.addEventListener("click", e => {
-    const editBtn = e.target.closest(".edit-btn");
+    const editBtn = e.target.closest(".edit-btn") || e.target.closest(".product-edit-btn");
     if (editBtn) {
       e.stopPropagation();
       window.productBeingEdited = editBtn.closest(".product-card");
@@ -5947,7 +6116,7 @@ function setupEditPopupHandlers() {
       return;
     }
 
-    const removeBtn = e.target.closest(".remove-btn");
+    const removeBtn = e.target.closest(".remove-btn") || e.target.closest(".product-remove-btn");
     if (removeBtn) {
       e.stopPropagation();
       const productCard = removeBtn.closest(".product-card");
@@ -6369,8 +6538,11 @@ function setupProductSorting() {
 // -------------------- INIT --------------------
 document.addEventListener("DOMContentLoaded", () => {
   console.log('Products page DOM loaded, initializing...');
-  
-  // Load customization fields first (async, but we don't need to wait)
+
+  // Initialize with default customization fields immediately for instant availability
+  initializeDefaultCustomizationFields();
+
+  // Then load customization fields from database (async, to update with latest data)
   loadCustomizationFields().catch(e => console.error('Error loading customization fields:', e));
   
   // Setup functions with retry logic
@@ -6390,4 +6562,71 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Small delay to ensure DOM is fully ready
   setTimeout(initializeAll, 50);
+  
+  // -------------------- PRODUCT IMAGE CAROUSEL --------------------
+  function initializeProductCarousels() {
+    const slideshows = document.querySelectorAll('.product-image-slideshow');
+    
+    slideshows.forEach(function(slideshow) {
+      const slides = slideshow.querySelectorAll('.product-slide');
+      const indicators = slideshow.querySelectorAll('.indicator-dot');
+      
+      if (slides.length <= 1) return; // No carousel needed for single image
+      
+      let currentSlide = 0;
+      const totalSlides = slides.length;
+      let carouselInterval;
+      
+      function showSlide(index) {
+        // Remove active class from all slides and indicators
+        slides.forEach(slide => slide.classList.remove('active'));
+        indicators.forEach(indicator => indicator.classList.remove('active'));
+        
+        // Add active class to current slide and indicator
+        if (slides[index]) {
+          slides[index].classList.add('active');
+        }
+        if (indicators[index]) {
+          indicators[index].classList.add('active');
+        }
+      }
+      
+      function nextSlide() {
+        currentSlide = (currentSlide + 1) % totalSlides;
+        showSlide(currentSlide);
+      }
+      
+      function startCarousel() {
+        if (carouselInterval) clearInterval(carouselInterval);
+        carouselInterval = setInterval(nextSlide, 3000);
+      }
+      
+      function stopCarousel() {
+        if (carouselInterval) clearInterval(carouselInterval);
+      }
+      
+      // Add click handlers to indicators
+      indicators.forEach(function(indicator, index) {
+        indicator.addEventListener('click', function() {
+          currentSlide = index;
+          showSlide(currentSlide);
+          startCarousel(); // Restart carousel after manual navigation
+        });
+      });
+      
+      // Pause on hover
+      slideshow.addEventListener('mouseenter', stopCarousel);
+      slideshow.addEventListener('mouseleave', startCarousel);
+      
+      // Start carousel
+      startCarousel();
+    });
+  }
+  
+  // Initialize carousels when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeProductCarousels);
+  } else {
+    initializeProductCarousels();
+  }
 });

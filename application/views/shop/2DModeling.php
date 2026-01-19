@@ -236,6 +236,25 @@
                 </div>
             </div>
 
+            <!-- AJAX Status Indicator -->
+            <div id="ajax-status-indicator" style="display: none; position: fixed; top: 20px; right: 20px; z-index: 10000; padding: 10px 15px; border-radius: 4px; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: all 0.3s ease;">
+                <span id="ajax-status-text">Saving...</span>
+            </div>
+
+            <style>
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; transform: translateY(0); }
+                    to { opacity: 0; transform: translateY(-10px); }
+                }
+                #ajax-status-indicator {
+                    animation: fadeIn 0.3s ease;
+                }
+            </style>
+
             <div id="custom-wrapper">
                 <!-- Default Size Fields (Height & Width) - Only visible on Step 1 -->
                 <div class="dimensions-container" id="dimensions-container">
@@ -628,6 +647,8 @@
 
 <script src="<?= base_url('assets/js/2d-functions/dynamic_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
+<script src="<?= base_url('assets/js/windows_visual_configs.js'); ?>"></script>
+<script src="<?= base_url('assets/js/2d-functions/customization_ajax.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtocustomization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtowishlist.js'); ?>"></script>
 <script>
@@ -877,9 +898,23 @@
                     console.log('Using default step names:', stepNamesFromAPI);
                 }
                 
-                // Store step names globally for navigation
+                        // Store step names globally for navigation
                 if (stepNamesFromAPI) {
                     window.customizationStepNames = stepNamesFromAPI;
+                }
+
+                // Load Windows-specific visual configurations if this is a Windows product
+                if (selectedProduct.category === 'Windows' && window.windowsVisualConfigs) {
+                    console.log('Loading Windows visual configurations for 2D preview');
+                    if (typeof window.loadDynamicVisualConfigs === 'function') {
+                        // Convert Windows visual configs to the format expected by loadDynamicVisualConfigs
+                        const tagVisualConfigs = {};
+                        Object.keys(window.windowsVisualConfigs).forEach(fieldId => {
+                            tagVisualConfigs[fieldId] = window.windowsVisualConfigs[fieldId];
+                        });
+                        window.loadDynamicVisualConfigs(tagVisualConfigs);
+                        console.log('✅ Windows visual configurations loaded');
+                    }
                 }
 
                 // =====================================================
@@ -988,8 +1023,21 @@
                         renderCustomState();
                     }
                     
-                    console.log('✅ 2D Preview sync complete - admin visual configs applied');
+                        console.log('✅ 2D Preview sync complete - admin visual configs applied');
                 }, 500);
+
+                // Initialize AJAX functionality for customizations after everything is loaded
+                if (typeof window.customizationAjax !== 'undefined' && typeof window.customizationAjax.init === 'function') {
+                    console.log('Initializing AJAX customization functionality...');
+                    window.customizationAjax.init();
+                } else {
+                    // Retry after a delay if not yet available
+                    setTimeout(() => {
+                        if (typeof window.customizationAjax !== 'undefined' && typeof window.customizationAjax.init === 'function') {
+                            window.customizationAjax.init();
+                        }
+                    }, 1000);
+                }
             }, 200);
         });
 

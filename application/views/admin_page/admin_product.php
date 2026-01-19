@@ -44,56 +44,139 @@
 
   </div>
 
+  <!-- Active Filters Section -->
+  <div class="active-filters-section">
+    <h4 class="active-filters-title">Active Filters:</h4>
+    <div class="active-filters-tags" id="activeFiltersTags">
+      <!-- Active filter tags will be added here dynamically -->
+    </div>
+    <a href="#" class="clear-filters" id="clearAllFilters" style="display: none;">Clear All</a>
+  </div>
+
   <!-- Products Table -->
   <div class="table-container">
     <div class="product-grid">
-      <?php foreach ($products as $product): ?>
+      <?php foreach ($products as $product): 
+        // Handle images - can be JSON array or single string
+        $images = [];
+        $imagePaths = [];
+        $placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+        
+        if (!empty($product->ImageUrl)) {
+          $decoded = json_decode($product->ImageUrl, true);
+          if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
+            $images = $decoded;
+          } else if (!empty($product->ImageUrl)) {
+            $images = [$product->ImageUrl];
+          }
+        }
+        
+        // Build proper image paths
+        if (!empty($images)) {
+          foreach ($images as $image) {
+            $image = trim($image);
+            if (empty($image) || strpos($image, 'broken-image-icon') !== false) {
+              $imagePaths[] = $placeholderSvg;
+              continue;
+            }
+            $image = ltrim($image, '/');
+            if (strpos($image, 'http://') === 0 || strpos($image, 'https://') === 0) {
+              $imagePaths[] = $image;
+            } else if (strpos($image, 'assets/') === 0) {
+              $imagePaths[] = base_url($image);
+            } else if (strpos($image, 'uploads/') === 0) {
+              $imagePaths[] = base_url($image);
+            } else {
+              $filename = basename($image);
+              $imagePaths[] = base_url('uploads/products/' . $filename);
+            }
+          }
+        }
+        
+        if (empty($imagePaths)) {
+          $imagePaths = [$placeholderSvg];
+        }
+        
+        // Get order type
+        $orderType = isset($product->OrderType) ? $product->OrderType : 'direct';
+        $orderTypeDisplay = ($orderType === 'site-assessed' || $orderType === 'Site-Assessed' || $orderType === 'site-assessment') ? 'Site Assessment' : 'Direct';
+        
+        // Get status
+        $status = isset($product->Status) ? $product->Status : 'Out of Stock';
+        $statusClass = '';
+        if ($status === 'In Stock') {
+          $statusClass = 'status-in-stock';
+        } elseif ($status === 'Low Stock') {
+          $statusClass = 'status-low-stock';
+        } else {
+          $statusClass = 'status-out-stock';
+        }
+        
+        // Get price range
+        $priceMin = isset($product->PriceMin) && $product->PriceMin > 0 ? floatval($product->PriceMin) : null;
+        $priceMax = isset($product->PriceMax) && $product->PriceMax > 0 ? floatval($product->PriceMax) : null;
+        $price = isset($product->Price) && $product->Price > 0 ? floatval($product->Price) : null;
+      ?>
         <div class="product-card" data-id="<?= $product->Product_ID; ?>" data-category="<?= $product->Category; ?>"
-          data-material="<?= $product->Material; ?>">
-          <div class="product-image">
-            <?php
-              // Handle both JSON array and single string formats
-              $imageUrl = $product->ImageUrl ?? '';
-              $firstImage = 'default.png';
-              $imagePath = '';
+          data-material="<?= $product->Material; ?>" data-status="<?= $status; ?>">
+          
+          <!-- Product Image with Carousel -->
+          <div class="product-image-container">
+            <div class="product-image-slideshow" data-product-id="<?= $product->Product_ID ?>">
+              <?php if (!empty($imagePaths)): ?>
+                <?php foreach ($imagePaths as $index => $imagePath): ?>
+                  <img src="<?= htmlspecialchars($imagePath) ?>" 
+                       alt="<?= htmlspecialchars($product->ProductName) ?>" 
+                       class="product-slide <?= $index === 0 ? 'active' : '' ?>"
+                       onerror="this.onerror=null; this.src='<?= $placeholderSvg ?>';">
+                <?php endforeach; ?>
+              <?php else: ?>
+                <div class="product-image-placeholder">No Image Available</div>
+              <?php endif; ?>
               
-              if (!empty($imageUrl)) {
-                // Check if it's a JSON array
-                $decoded = json_decode($imageUrl, true);
-                if (is_array($decoded) && !empty($decoded)) {
-                  $firstImage = $decoded[0];
-                } else {
-                  // Single image (backward compatibility)
-                  $firstImage = $imageUrl;
-                }
-                
-                // Check if image path already includes a full path or is just a filename
-                if (strpos($firstImage, 'broken-image-icon') !== false) {
-                  // Use placeholder SVG data URI for broken image icons
-                  $imagePath = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
-                } else if (strpos($firstImage, 'assets/') === 0 || strpos($firstImage, '/assets/') === 0) {
-                  // It's an assets path, use it as-is
-                  $imagePath = base_url($firstImage);
-                } else if (strpos($firstImage, 'http://') === 0 || strpos($firstImage, 'https://') === 0) {
-                  // It's a full URL, use it as-is
-                  $imagePath = $firstImage;
-                } else {
-                  // It's just a filename, prepend uploads/products/
-                  $imagePath = base_url('uploads/products/' . $firstImage);
-                }
-              } else {
-                $imagePath = base_url('uploads/products/default.png');
-              }
-            ?>
-            <img src="<?= $imagePath; ?>"
-              alt="<?= $product->ProductName; ?>"
-              onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';">
+              <!-- Carousel Dots -->
+              <?php if (count($imagePaths) > 1): ?>
+                <div class="slideshow-indicators">
+                  <?php for ($i = 0; $i < count($imagePaths); $i++): ?>
+                    <span class="indicator-dot <?= $i === 0 ? 'active' : '' ?>" data-slide="<?= $i ?>"></span>
+                  <?php endfor; ?>
+                </div>
+              <?php endif; ?>
+            </div>
           </div>
-          <p class="product-name"><?= $product->ProductName; ?></p>
-          <p class="product-price">₱<?= isset($product->Price) ? number_format($product->Price, 2) : '0.00'; ?></p>
-          <div class="product-actions">
-            <button class="edit-btn"><i class="fas fa-pen"></i> Edit</button>
-            <button class="remove-btn" type="button"><i class="fas fa-trash"></i> Remove</button>
+          
+          <!-- Product Details -->
+          <div class="product-details">
+            <p class="product-name"><?= htmlspecialchars($product->ProductName); ?></p>
+            
+            <!-- Order Type -->
+            <p class="product-type">Type: <span><?= htmlspecialchars($orderTypeDisplay); ?></span></p>
+            
+            <!-- Price Range -->
+            <p class="product-price">
+              <?php if ($priceMin !== null && $priceMax !== null): ?>
+                ₱<?= number_format($priceMin, 2) ?> - ₱<?= number_format($priceMax, 2) ?>
+              <?php elseif ($price !== null): ?>
+                ₱<?= number_format($price, 2) ?>
+              <?php else: ?>
+                Contact for pricing
+              <?php endif; ?>
+            </p>
+            
+            <!-- Stock Status -->
+            <div class="product-status-badge <?= $statusClass; ?>">
+              <?= htmlspecialchars($status); ?>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="product-actions">
+              <button class="product-edit-btn">
+                <i class="fas fa-pen"></i> Edit
+              </button>
+              <button class="product-remove-btn" type="button">
+                <i class="fas fa-trash"></i> Remove
+              </button>
+            </div>
           </div>
         </div>
       <?php endforeach; ?>
