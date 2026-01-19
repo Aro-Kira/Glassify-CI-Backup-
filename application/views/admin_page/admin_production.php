@@ -7,9 +7,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
   const getFabricationQueueUrl = "<?php echo base_url('AdminCon/get_fabrication_queue'); ?>";
 </script>
 
-<script src="<?php echo base_url('assets/js/admin-js/production.js'); ?>"></script>
-
-<!-- Production / Fabrication Queue Section -->
+<!-- Production / Fabrication Queue Section (production.js loaded via layout page_js) -->
 <section class="production-section">
   <div class="section-header">
     <h2>Production / Fabrication Queue <span class="found-text">Loading...</span></h2>

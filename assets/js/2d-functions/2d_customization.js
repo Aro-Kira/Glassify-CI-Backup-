@@ -3365,15 +3365,17 @@ function uploadFileToServer(file) {
     });
 
     xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
+        const text = xhr.responseText || '';
+        const looksLikeHtml = typeof text === 'string' && (text.trim().startsWith('<') || text.trim().startsWith('<!'));
+        if (xhr.status === 200 && !looksLikeHtml) {
             try {
-                const response = JSON.parse(xhr.responseText);
+                const response = JSON.parse(text);
                 if (response.status === 'success') {
                     file.progress = 100;
                     file.status = 'completed';
                     file.filePath = response.file_path || response.filePath || null;
                     updateFileItem(file);
-                    updateExternalFileDisplay(); // Update external display when file completes
+                    updateExternalFileDisplay();
                 } else {
                     file.status = 'error';
                     updateFileItem(file);
@@ -3382,12 +3384,16 @@ function uploadFileToServer(file) {
             } catch (e) {
                 file.status = 'error';
                 updateFileItem(file);
-                console.error('Error parsing response:', e);
+                console.error('Error parsing upload response:', e.message || e);
             }
         } else {
             file.status = 'error';
             updateFileItem(file);
-            console.error('Upload failed with status:', xhr.status);
+            if (looksLikeHtml || xhr.status >= 400) {
+                console.error('Upload failed: server returned ' + (looksLikeHtml ? 'HTML (likely 500 or error page)' : 'status ' + xhr.status));
+            } else {
+                console.error('Upload failed with status:', xhr.status);
+            }
         }
     });
 
@@ -3905,14 +3911,18 @@ function showOrderSummary() {
     }
 
     // 4. Update Summary Data with price breakdown
-    const shapeData = pricingDatabase.prices.shapes[currentShape];
-    const typeData = pricingDatabase.prices.glassTypes[currentGlassType];
-    const thickData = pricingDatabase.prices.thickness[currentThickness];
-    const frameData = pricingDatabase.prices.frames[currentFrameType];
-    const edgeData = pricingDatabase.prices.edges[currentEdgeWork];
+    // Guard: pricingDatabase.prices may be missing (e.g. dynamic/ tagPrices-only products)
+    const fallbackLabel = (val) => ({ label: (val || 'N/A').toString().replace(/-/g, ' '), desc: '-' });
+    const prices = pricingDatabase && pricingDatabase.prices ? pricingDatabase.prices : null;
+    const shapeData = (prices && prices.shapes && prices.shapes[currentShape]) ? prices.shapes[currentShape] : fallbackLabel(currentShape);
+    const typeData = (prices && prices.glassTypes && prices.glassTypes[currentGlassType]) ? prices.glassTypes[currentGlassType] : fallbackLabel(currentGlassType);
+    const thickData = (prices && prices.thickness && prices.thickness[currentThickness]) ? prices.thickness[currentThickness] : fallbackLabel(currentThickness);
+    const frameData = (prices && prices.frames && prices.frames[currentFrameType]) ? prices.frames[currentFrameType] : fallbackLabel(currentFrameType);
+    const edgeData = (prices && prices.edges && prices.edges[currentEdgeWork]) ? prices.edges[currentEdgeWork] : fallbackLabel(currentEdgeWork);
 
     // Shape
-    document.getElementById('sum-shape').textContent = shapeData.label;
+    const sumShapeEl = document.getElementById('sum-shape');
+    if (sumShapeEl) sumShapeEl.textContent = shapeData.label;
     const sumShapePrice = document.getElementById('sum-shape-price');
     if (sumShapePrice) {
         sumShapePrice.textContent = priceBreakdown.shapeAddon > 0 
@@ -3921,15 +3931,18 @@ function showOrderSummary() {
     }
 
     // Dimensions
-    document.getElementById('sum-dim').textContent =
-        `${currentDimensions.width.value}${currentDimensions.width.unit} × ${currentDimensions.height.value}${currentDimensions.height.unit}`;
+    const sumDimEl = document.getElementById('sum-dim');
+    if (sumDimEl && currentDimensions) {
+        sumDimEl.textContent = `${currentDimensions.width.value}${currentDimensions.width.unit} × ${currentDimensions.height.value}${currentDimensions.height.unit}`;
+    }
     const sumDimPrice = document.getElementById('sum-dim-price');
     if (sumDimPrice) {
         sumDimPrice.textContent = 'Base: ' + formatPrice(priceBreakdown.baseArea);
     }
 
     // Glass Type
-    document.getElementById('sum-type').textContent = typeData.label;
+    const sumTypeEl = document.getElementById('sum-type');
+    if (sumTypeEl) sumTypeEl.textContent = typeData.label;
     const sumTypePrice = document.getElementById('sum-type-price');
     if (sumTypePrice) {
         sumTypePrice.textContent = priceBreakdown.typeAddon > 0 
@@ -3938,7 +3951,8 @@ function showOrderSummary() {
     }
 
     // Thickness
-    document.getElementById('sum-thick').textContent = thickData.label;
+    const sumThickEl = document.getElementById('sum-thick');
+    if (sumThickEl) sumThickEl.textContent = thickData.label;
     const sumThickPrice = document.getElementById('sum-thick-price');
     if (sumThickPrice) {
         if (priceBreakdown.thicknessAddon !== 0) {
@@ -3949,7 +3963,8 @@ function showOrderSummary() {
     }
 
     // Edge Work
-    document.getElementById('sum-edge').textContent = edgeData.label;
+    const sumEdgeEl = document.getElementById('sum-edge');
+    if (sumEdgeEl) sumEdgeEl.textContent = edgeData.label;
     const sumEdgePrice = document.getElementById('sum-edge-price');
     if (sumEdgePrice) {
         sumEdgePrice.textContent = priceBreakdown.edgeAddon > 0 
@@ -3958,7 +3973,8 @@ function showOrderSummary() {
     }
 
     // Frame Type
-    document.getElementById('sum-frame').textContent = frameData.label;
+    const sumFrameEl = document.getElementById('sum-frame');
+    if (sumFrameEl) sumFrameEl.textContent = frameData.label;
     const sumFramePrice = document.getElementById('sum-frame-price');
     if (sumFramePrice) {
         sumFramePrice.textContent = priceBreakdown.frameAddon > 0 

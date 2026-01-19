@@ -1945,58 +1945,28 @@ function updateKonvaFromField(fieldId, value, isActive) {
       if (window.currentGlassType !== undefined) {
         window.currentGlassType = normalizedValue;
       }
-      // Also try direct assignment
-      try {
-        if (typeof currentGlassType !== 'undefined') {
-          currentGlassType = normalizedValue;
-        }
-      } catch(e) {}
     } else if (konvaParam === 'frameType') {
       // Map frame color/material to frame type (synced with presets)
-      // Preset values: White, Black, Silver, Bronze, Wood, Aluminum
       const normalizedValue = value.toLowerCase().replace(/\s+/g, '-');
-      // Use the preset value directly (no mapping needed - Konva now supports all preset colors)
       const mappedFrame = normalizedValue;
       if (window.currentFrameType !== undefined) {
         window.currentFrameType = mappedFrame;
       }
-      try {
-        if (typeof currentFrameType !== 'undefined') {
-          currentFrameType = mappedFrame;
-        }
-      } catch(e) {}
     } else if (konvaParam === 'thickness') {
       const thicknessValue = value + 'mm';
       if (window.currentThickness !== undefined) {
         window.currentThickness = thicknessValue;
       }
-      try {
-        if (typeof currentThickness !== 'undefined') {
-          currentThickness = thicknessValue;
-        }
-      } catch(e) {}
     } else if (konvaParam === 'edgeWork') {
-      // Edge finish from presets: Beveled, Polished, Raw
       const edgeValue = value.toLowerCase().replace(/\s+/g, '-');
       if (window.currentEdgeWork !== undefined) {
         window.currentEdgeWork = edgeValue;
       }
-      try {
-        if (typeof currentEdgeWork !== 'undefined') {
-          currentEdgeWork = edgeValue;
-        }
-      } catch(e) {}
     } else if (konvaParam === 'shape') {
-      // Shape from presets: Round, Rectangle, Oval
       const shapeValue = value.toLowerCase().replace(/\s+/g, '-');
       if (window.currentShape !== undefined) {
         window.currentShape = shapeValue;
       }
-      try {
-        if (typeof currentShape !== 'undefined') {
-          currentShape = shapeValue;
-        }
-      } catch(e) {}
       
       // Auto-lock dimensions for shapes that require equal dimensions
       setTimeout(() => {
@@ -2045,33 +2015,17 @@ function updateKonvaFromField(fieldId, value, isActive) {
       if (window.currentGlassType !== undefined) {
         window.currentGlassType = mappedGlassType;
       }
-      try {
-        if (typeof currentGlassType !== 'undefined') {
-          currentGlassType = mappedGlassType;
-        }
-      } catch(e) {}
     }
     else if (konvaParam === 'cornerRadius') {
       // Corner radius for rectangle/square (in inches)
-      // Can be a single number (linked mode) or an object with individual corners
       if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        // Individual corner values
         if (window.currentCornerRadius !== undefined) {
           window.currentCornerRadius = value;
         }
         if (window.cornerRadiusLinked !== undefined) {
           window.cornerRadiusLinked = false;
         }
-        try {
-          if (typeof currentCornerRadius !== 'undefined') {
-            currentCornerRadius = value;
-          }
-          if (typeof cornerRadiusLinked !== 'undefined') {
-            cornerRadiusLinked = false;
-          }
-        } catch (e) {}
       } else {
-        // Single value (linked mode)
         const radiusIn = parseFloat(value) || 0;
         if (window.currentCornerRadius !== undefined) {
           window.currentCornerRadius = radiusIn;
@@ -2079,14 +2033,6 @@ function updateKonvaFromField(fieldId, value, isActive) {
         if (window.cornerRadiusLinked !== undefined) {
           window.cornerRadiusLinked = true;
         }
-        try {
-          if (typeof currentCornerRadius !== 'undefined') {
-            currentCornerRadius = radiusIn;
-          }
-          if (typeof cornerRadiusLinked !== 'undefined') {
-            cornerRadiusLinked = true;
-          }
-        } catch (e) {}
       }
     } else if (konvaParam === 'numberOfPanels' || konvaParam === 'operation' || konvaParam === 'configuration') {
       // Multi-panel fields - store in selectedCustomizationValues for renderWindow to use

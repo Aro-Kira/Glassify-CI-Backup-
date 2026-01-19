@@ -147,14 +147,22 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Step 1 (1) | Shape | `tags` | Round \| Oval \| Square \| Rectangle \| Arched |
-| Step 1 (1) | Frame Type | `tags` | Frameless \| Standard Frame |
-| Step 1 (1) | Frame Color | `tags` | Gold \| Black \| White |
-| Step 2 (2) | Edge Finish | `tags` | Beveled \| Machine Polished |
-| Step 2 (2) | Mounting Method | `tags` | Wall-mounted \| Freestanding \| Leaning \| Adhesive \| Hanging |
-| Step 3 (3) | Lighting | `tags` | None \| LED Backlight \| LED Front Light |
-| Step 3 (3) | LED Color | `tags` | Warm White \| Cool White \| Daylight |
-| Step 3 (3) | Smart Features | `tags` | Touch Dimmer \| Defogger \| Motion Sensor |
+| Step 1 (1) | Shape | `tags` | Round \| Rectangle \| Oval \| Circle \| Square \| Rectangular with rounded edges \| Rectangular with arched top \| Custom shapes |
+| Step 1 (1) | Corner Radius (in) | `number` | min 0 · step 0.1 |
+| Step 1 (1) | Frame Type | `tags` | Frameless \| Framed \| Gold frame \| Black frame \| White frame \| Framed (thin, metallic) \| Framed (dark, possibly black, grid frame) \| Framed (gold frame shown) \| Framed (thin matching frame possible) |
+| Step 1 (1) | Frame Material/Color | `tags` | Gold frame \| Silver \| Rose Gold \| Other metallic finishes \| Wood \| Colored frames \| Black frame \| Other metallic or matte colors \| White frame \| Other colors \| Metal \| Silver/Metallic \| Other options \| Dark/Black \| Other frame colors available |
+| Step 2 (2) | Edge Finish | `tags` | Beveled \| Polished \| Raw \| Beveled edge \| Flat polished edge \| Pencil edge \| Standard polished edge \| Standard (behind frame) \| Rounded edges |
+| Step 2 (2) | Tint/Finish | `tags` | Bronze tint/color \| Grey tint (smoked) \| Colored glass |
+| Step 2 (2) | Orientation | `tags` | Vertical \| Horizontal \| Vertical/Full-body |
+| Step 2 (2) | Style | `tags` | French Type (grid/paneled design) |
+| Step 4 (4) | Lighting | `tags` | Integrated LED lighting \| Backlighting \| Front lighting \| Integrated LED options |
+| Step 4 (4) | LED Color/Temperature | `tags` | Warm white \| Cool white \| Tunable white \| RGB |
+| Step 4 (4) | Grid Pattern | `tags` | French window style grid |
+| Step 4 (4) | Quantity | `tags` | Available in sets (3 sets, or individually) |
+| Step 3 (3) | Mounting Method | `tags` | Wall-mounted \| Stand \| Adhesive \| Leaning \| Wall-mounted (often fixed above vanity) \| Fixed wall mount \| Integrated hanger \| Rope hanger \| Chain |
+| Step 3 (3) | Control | `tags` | Touch sensor button \| Dimmer \| Defogger |
+| Step 3 (3) | Additional Features | `tags` | Defogger \| Dimmer |
+| Step 3 (3) | Arrangement | `tags` | Can be displayed as triptych \| Individually |
 
 **Notes:**
 - Frame Color only appears when Frame Type = "Framed"

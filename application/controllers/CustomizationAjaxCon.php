@@ -21,9 +21,10 @@ class CustomizationAjaxCon extends CI_Controller {
      */
     public function save() {
         try {
-            // Handle JSON input
-            $json_input = json_decode(file_get_contents('php://input'), true);
-            if ($json_input) {
+            // Handle JSON input (php://input can only be read once)
+            $raw = file_get_contents('php://input');
+            $json_input = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+            if (is_array($json_input)) {
                 $product_id = $json_input['product_id'] ?? null;
                 $selections = $json_input['selections'] ?? null;
                 $timestamp = $json_input['timestamp'] ?? null;
@@ -45,9 +46,18 @@ class CustomizationAjaxCon extends CI_Controller {
 
             // If customer is logged in, save to database
             if ($customer_id) {
-                // Check if table exists
-                if (!$this->db->table_exists('customer_customizations')) {
-                    $this->create_customizations_table();
+                // Check if table exists and create if needed
+                try {
+                    if (!$this->db->table_exists('customer_customizations')) {
+                        $this->create_customizations_table();
+                    }
+                } catch (Throwable $e) {
+                    log_message('error', 'Customization table check/create: ' . $e->getMessage());
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Database configuration error. Customization saved locally only.'
+                    ]);
+                    return;
                 }
 
                 // Save or update customization
@@ -55,20 +65,28 @@ class CustomizationAjaxCon extends CI_Controller {
                     'customer_id' => $customer_id,
                     'product_id' => $product_id,
                     'selections' => json_encode($selections),
-                    'timestamp' => $timestamp ? date('Y-m-d H:i:s', $timestamp / 1000) : date('Y-m-d H:i:s'),
+                    'timestamp' => $timestamp ? date('Y-m-d H:i:s', (int)($timestamp / 1000)) : date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
 
-                // Check if customization already exists
-                $this->db->where('customer_id', $customer_id);
-                $this->db->where('product_id', $product_id);
-                $existing = $this->db->get('customer_customizations')->row();
+                try {
+                    $this->db->where('customer_id', $customer_id);
+                    $this->db->where('product_id', $product_id);
+                    $existing = $this->db->get('customer_customizations')->row();
 
-                if ($existing) {
-                    $this->db->where('id', $existing->id);
-                    $this->db->update('customer_customizations', $data);
-                } else {
-                    $this->db->insert('customer_customizations', $data);
+                    if ($existing) {
+                        $this->db->where('id', $existing->id);
+                        $this->db->update('customer_customizations', $data);
+                    } else {
+                        $this->db->insert('customer_customizations', $data);
+                    }
+                } catch (Throwable $e) {
+                    log_message('error', 'Customization DB save: ' . $e->getMessage());
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Failed to save to database. Customization saved locally only.'
+                    ]);
+                    return;
                 }
 
                 echo json_encode([
@@ -77,18 +95,20 @@ class CustomizationAjaxCon extends CI_Controller {
                 ]);
             } else {
                 // Not logged in - still return success but don't save to DB
-                // Frontend can handle localStorage for non-logged-in users
                 echo json_encode([
                     'success' => true,
                     'message' => 'Customization saved locally (not logged in)'
                 ]);
             }
 
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             log_message('error', 'Customization save error: ' . $e->getMessage());
+            if (!headers_sent()) {
+                header('Content-Type: application/json');
+            }
             echo json_encode([
                 'success' => false,
-                'message' => 'Failed to save customization: ' . $e->getMessage()
+                'message' => 'Failed to save customization. Using local storage.'
             ]);
         }
     }
@@ -287,27 +307,27 @@ class CustomizationAjaxCon extends CI_Controller {
     }
 
     /**
-     * Create customer customizations table if it doesn't exist
+     * Create customer customizations table if it doesn't exist.
+     * Uses indexes only (no FK) to avoid failures when customer/product table or column names differ.
      */
     private function create_customizations_table() {
-        $sql = "
-            CREATE TABLE IF NOT EXISTS `customer_customizations` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `customer_id` int(11) NOT NULL,
-                `product_id` int(11) NOT NULL,
-                `selections` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-                `timestamp` timestamp NOT NULL DEFAULT current_timestamp(),
-                `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-                PRIMARY KEY (`id`),
-                KEY `idx_customer_product` (`customer_id`, `product_id`),
-                KEY `idx_customer_id` (`customer_id`),
-                KEY `idx_product_id` (`product_id`),
-                CONSTRAINT `fk_customization_customer` FOREIGN KEY (`customer_id`) REFERENCES `customer` (`Customer_ID`) ON DELETE CASCADE,
-                CONSTRAINT `fk_customization_product` FOREIGN KEY (`product_id`) REFERENCES `product` (`Product_ID`) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-        ";
-
-        $this->db->query($sql);
+        $sql = "CREATE TABLE IF NOT EXISTS `customer_customizations` (
+            `id` int(11) NOT NULL AUTO_INCREMENT,
+            `customer_id` int(11) NOT NULL,
+            `product_id` int(11) NOT NULL,
+            `selections` longtext NOT NULL,
+            `timestamp` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `idx_customer_product` (`customer_id`,`product_id`),
+            KEY `idx_customer_id` (`customer_id`),
+            KEY `idx_product_id` (`product_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        if ($this->db->query($sql) === false) {
+            $err = $this->db->error();
+            log_message('error', 'create_customizations_table: ' . (isset($err['message']) ? $err['message'] : 'unknown'));
+            throw new \RuntimeException('Could not create customer_customizations table');
+        }
     }
 }
 ?>

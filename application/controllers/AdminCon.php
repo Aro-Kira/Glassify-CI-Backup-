@@ -4347,101 +4347,105 @@ class AdminCon extends CI_Controller
     public function get_quotations_ajax()
     {
         header('Content-Type: application/json');
-        
-        $status_filter = $this->input->get('status');
-        $date_start = $this->input->get('date_start');
-        $date_end = $this->input->get('date_end');
-        $client_search = $this->input->get('client_search');
-        $sales_rep = $this->input->get('sales_rep');
-        $amount_min = $this->input->get('amount_min');
-        $amount_max = $this->input->get('amount_max');
-        $page = $this->input->get('page') ?: 1;
-        $limit = $this->input->get('limit') ?: 10;
-        $offset = ($page - 1) * $limit;
-        
-        // Build query - Note: Adjust table/column names based on your actual database schema
-        $this->db->select('q.*, o.OrderID, o.OrderNumber, o.Customer_ID, o.TotalAmount, o.CreatedDate, 
-                          CONCAT(u.First_Name, " ", u.Last_Name) as customer_name,
-                          u.Email as customer_email, u.Phone as customer_phone,
-                          CONCAT(sr.First_Name, " ", sr.Last_Name) as sales_rep_name,
-                          p.ProductName as product_name');
-        $this->db->from('quotation q');
-        $this->db->join('`order` o', 'q.OrderID = o.OrderID', 'left');
-        $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
-        $this->db->join('user u', 'c.UserID = u.UserID', 'left');
-        $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
-        $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
-        $this->db->join('employee e', 'o.SalesRep_ID = e.EmployeeID', 'left');
-        $this->db->join('user sr', 'e.UserID = sr.UserID', 'left');
-        $this->db->group_by('q.QuotationID');
-        
-        // Apply filters
-        if ($status_filter && $status_filter !== 'all') {
-            // Assuming Status column exists in quotation table, adjust if needed
-            if ($this->db->field_exists('Status', 'quotation')) {
-                $this->db->where('q.Status', $status_filter);
+        try {
+            if (!$this->db->table_exists('quotation')) {
+                echo json_encode(['success' => false, 'message' => 'Quotation table not found.', 'quotations' => [], 'total' => 0, 'total_pages' => 0, 'current_page' => 1]);
+                return;
             }
+            if (!$this->db->table_exists('employee')) {
+                echo json_encode(['success' => false, 'message' => 'Employee table not found. Quotations require the employee table.', 'quotations' => [], 'total' => 0, 'total_pages' => 0, 'current_page' => 1]);
+                return;
+            }
+            $status_filter = $this->input->get('status');
+            $date_start = $this->input->get('date_start');
+            $date_end = $this->input->get('date_end');
+            $client_search = $this->input->get('client_search');
+            $sales_rep = $this->input->get('sales_rep');
+            $amount_min = $this->input->get('amount_min');
+            $amount_max = $this->input->get('amount_max');
+            $page = $this->input->get('page') ?: 1;
+            $limit = $this->input->get('limit') ?: 10;
+            $offset = ($page - 1) * $limit;
+            
+            // Build query - Note: Adjust table/column names based on your actual database schema
+            $this->db->select('q.*, o.OrderID, o.OrderNumber, o.Customer_ID, o.TotalAmount, o.CreatedDate, 
+                              CONCAT(u.First_Name, " ", u.Last_Name) as customer_name,
+                              u.Email as customer_email, COALESCE(u.PhoneNum, u.Phone) as customer_phone,
+                              CONCAT(sr.First_Name, " ", sr.Last_Name) as sales_rep_name,
+                              p.ProductName as product_name');
+            $this->db->from('quotation q');
+            $this->db->join('`order` o', 'q.OrderID = o.OrderID', 'left');
+            $this->db->join('customer c', 'o.Customer_ID = c.Customer_ID', 'left');
+            $this->db->join('user u', 'c.UserID = u.UserID', 'left');
+            $this->db->join('order_items oi', 'oi.OrderID = o.OrderID', 'left');
+            $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+            $this->db->join('employee e', 'o.SalesRep_ID = e.EmployeeID', 'left');
+            $this->db->join('user sr', 'e.UserID = sr.UserID', 'left');
+            $this->db->group_by('q.QuotationID');
+            
+            // Apply filters
+            if ($status_filter && $status_filter !== 'all') {
+                if ($this->db->field_exists('Status', 'quotation')) {
+                    $this->db->where('q.Status', $status_filter);
+                }
+            }
+            if ($date_start) {
+                $this->db->where('DATE(q.Created_date) >=', $date_start);
+            }
+            if ($date_end) {
+                $this->db->where('DATE(q.Created_date) <=', $date_end);
+            }
+            if ($client_search) {
+                $this->db->group_start();
+                $this->db->like('u.First_Name', $client_search);
+                $this->db->or_like('u.Last_Name', $client_search);
+                $this->db->or_like('u.Email', $client_search);
+                $this->db->or_like('u.PhoneNum', $client_search);
+                $this->db->group_end();
+            }
+            if ($sales_rep && $sales_rep !== 'all') {
+                $this->db->where('e.EmployeeID', $sales_rep);
+            }
+            if ($amount_min) {
+                $this->db->where('q.Total_amount >=', $amount_min);
+            }
+            if ($amount_max) {
+                $this->db->where('q.Total_amount <=', $amount_max);
+            }
+            
+            // Get total count
+            $total_query = $this->db->get_compiled_select('', false);
+            $total = $this->db->query("SELECT COUNT(*) as total FROM ($total_query) as count_query")->row()->total;
+            
+            // Apply pagination and get results
+            $this->db->limit($limit, $offset);
+            $quotations = $this->db->get()->result();
+            
+            $formatted_quotations = [];
+            foreach ($quotations as $q) {
+                $formatted_quotations[] = [
+                    'quotation_id' => $q->QuotationID,
+                    'quotation_number' => $q->Quotation_num,
+                    'client_name' => $q->customer_name,
+                    'sales_rep_name' => $q->sales_rep_name,
+                    'product_name' => $q->product_name,
+                    'total_amount' => $q->Total_amount,
+                    'created_date' => $q->Created_date ? date('m/d/Y', strtotime($q->Created_date)) : 'N/A',
+                    'status' => isset($q->Status) ? $q->Status : 'Pending'
+                ];
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'quotations' => $formatted_quotations,
+                'total' => (int) $total,
+                'total_pages' => (int) ceil($total / $limit),
+                'current_page' => (int) $page
+            ]);
+        } catch (Throwable $e) {
+            log_message('error', 'get_quotations_ajax: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Failed to load quotations. Check that the quotation table and related tables exist.', 'quotations' => [], 'total' => 0, 'total_pages' => 0, 'current_page' => 1]);
         }
-        
-        if ($date_start) {
-            $this->db->where('DATE(q.Created_date) >=', $date_start);
-        }
-        if ($date_end) {
-            $this->db->where('DATE(q.Created_date) <=', $date_end);
-        }
-        
-        if ($client_search) {
-            $this->db->group_start();
-            $this->db->like('u.First_Name', $client_search);
-            $this->db->or_like('u.Last_Name', $client_search);
-            $this->db->or_like('u.Email', $client_search);
-            $this->db->or_like('u.Phone', $client_search);
-            $this->db->group_end();
-        }
-        
-        if ($sales_rep && $sales_rep !== 'all') {
-            $this->db->where('e.EmployeeID', $sales_rep);
-        }
-        
-        if ($amount_min) {
-            $this->db->where('q.Total_amount >=', $amount_min);
-        }
-        if ($amount_max) {
-            $this->db->where('q.Total_amount <=', $amount_max);
-        }
-        
-        // Get total count
-        $total_query = $this->db->get_compiled_select('', false);
-        $total = $this->db->query("SELECT COUNT(*) as total FROM ($total_query) as count_query")->row()->total;
-        
-        // Apply pagination
-        $this->db->limit($limit, $offset);
-        
-        // Get results
-        $quotations = $this->db->get()->result();
-        
-        // Format results
-        $formatted_quotations = [];
-        foreach ($quotations as $q) {
-            $formatted_quotations[] = [
-                'quotation_id' => $q->QuotationID,
-                'quotation_number' => $q->Quotation_num,
-                'client_name' => $q->customer_name,
-                'sales_rep_name' => $q->sales_rep_name,
-                'product_name' => $q->product_name,
-                'total_amount' => $q->Total_amount,
-                'created_date' => $q->Created_date ? date('m/d/Y', strtotime($q->Created_date)) : 'N/A',
-                'status' => isset($q->Status) ? $q->Status : 'Pending'
-            ];
-        }
-        
-        echo json_encode([
-            'success' => true,
-            'quotations' => $formatted_quotations,
-            'total' => $total,
-            'total_pages' => ceil($total / $limit),
-            'current_page' => $page
-        ]);
     }
     
     public function get_quotation_details_ajax()
@@ -4522,17 +4526,25 @@ class AdminCon extends CI_Controller
     public function get_sales_reps_ajax()
     {
         header('Content-Type: application/json');
-        
-        $this->db->select('e.EmployeeID as user_id, CONCAT(u.First_Name, " ", u.Last_Name) as name, u.First_Name as first_name, u.Last_Name as last_name');
-        $this->db->from('employee e');
-        $this->db->join('user u', 'e.UserID = u.UserID', 'left');
-        $this->db->where('e.Role', 'Sales Representative');
-        $sales_reps = $this->db->get()->result();
-        
-        echo json_encode([
-            'success' => true,
-            'sales_reps' => $sales_reps
-        ]);
+        try {
+            if (!$this->db->table_exists('employee')) {
+                echo json_encode(['success' => false, 'message' => 'Employee table not found.', 'sales_reps' => []]);
+                return;
+            }
+            $this->db->select('e.EmployeeID as user_id, CONCAT(u.First_Name, " ", u.Last_Name) as name, u.First_Name as first_name, u.Last_Name as last_name');
+            $this->db->from('employee e');
+            $this->db->join('user u', 'e.UserID = u.UserID', 'left');
+            $this->db->where('e.Role', 'Sales Representative');
+            $sales_reps = $this->db->get()->result();
+            
+            echo json_encode([
+                'success' => true,
+                'sales_reps' => $sales_reps
+            ]);
+        } catch (Throwable $e) {
+            log_message('error', 'get_sales_reps_ajax: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Failed to load sales reps. Check that the employee table and Role column exist.', 'sales_reps' => []]);
+        }
     }
     
     public function approve_quotation()

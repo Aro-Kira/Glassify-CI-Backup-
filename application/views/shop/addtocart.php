@@ -1,6 +1,7 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/addtocart_style.css'); ?>">
 <script>
   const BASE_URL = "<?= base_url(); ?>";
+  const PAYMENT_URL = "<?= rtrim(base_url(), '/') . '/payment'; ?>";
 </script>
 
 
@@ -91,7 +92,8 @@
                   }
                   ?>
                   <img src="<?= $product_img ?>" alt="<?= $item->ProductName ?>"
-                    class="cart-product-img">
+                    class="cart-product-img"
+                    onerror="this.onerror=null;this.alt='Image unavailable';this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect fill=%22%23eee%22 width=%2280%22 height=%2280%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2210%22%3EN/A%3C/text%3E%3C/svg%3E';">
                 </td>
                 <td><?= $item->ProductName ?></td>
                 <td class="customization-info">
@@ -102,7 +104,8 @@
                           <img src="<?= base_url($item->DesignRef) ?>" 
                                alt="Custom Design" 
                                class="design-thumbnail"
-                               onclick="showDesignModal('<?= base_url($item->DesignRef) ?>')">
+                               onclick="showDesignModal('<?= base_url($item->DesignRef) ?>')"
+                               onerror="this.onerror=null;this.alt='Image unavailable';this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect fill=%22%23eee%22 width=%2280%22 height=%2280%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2210%22%3EN/A%3C/text%3E%3C/svg%3E';">
                           <span class="view-design-text">Click to view</span>
                         </div>
                       <?php endif; ?>

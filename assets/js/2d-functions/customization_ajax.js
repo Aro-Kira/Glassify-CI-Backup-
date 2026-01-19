@@ -7,9 +7,9 @@
 const AJAX_CONFIG = {
     baseUrl: typeof base_url !== 'undefined' ? base_url : '',
     endpoints: {
-        saveCustomization: 'customization/save',
-        loadCustomization: 'customization/load',
-        getPriceUpdate: 'customization/price'
+        saveCustomization: 'customizationAjax/save',
+        loadCustomization: 'customizationAjax/load',
+        getPriceUpdate: 'customizationAjax/price'
     },
     debounceDelay: 1000, // Delay for auto-save in milliseconds
     retryAttempts: 3,
@@ -320,6 +320,8 @@ function applySavedSelections(selections) {
  */
 function escapeCSSSelector(str) {
     if (!str) return '';
+    // Convert to string if not already
+    str = String(str);
     // Escape special CSS characters: |, (, ), [, ], {, }, :, ;, ', ", \, /, @, !, etc.
     return str.replace(/([|()[\]{}:;'"\\/@!])/g, '\\$1');
 }
@@ -441,7 +443,7 @@ function updatePriceDisplay(totalPrice, breakdown = null) {
         priceElement.textContent = formatPrice(totalPrice);
     }
 
-    if (breakdown) {
+    if (breakdown != null && typeof breakdown === 'object') {
         updatePriceBreakdown(breakdown);
     }
 }
@@ -450,9 +452,10 @@ function updatePriceDisplay(totalPrice, breakdown = null) {
  * Update price breakdown display
  */
 function updatePriceBreakdown(breakdown) {
-    // Safety check: ensure breakdown is an object
-    if (!breakdown || typeof breakdown !== 'object') {
-        console.warn('[Price Breakdown] Invalid breakdown data:', breakdown);
+    // Safety check: ensure breakdown is an object (skip null/undefined quietly; warn only for wrong type)
+    if (breakdown == null) return;
+    if (typeof breakdown !== 'object' || Array.isArray(breakdown)) {
+        console.warn('[Price Breakdown] Invalid breakdown data: expected object, got', typeof breakdown);
         return;
     }
     
@@ -526,6 +529,7 @@ function showSaveIndicator(status) {
 
 /**
  * Make AJAX request with retry logic
+ * Handles HTML error pages (500) by parsing as text first and throwing a clear error.
  */
 async function makeAjaxRequest(method, endpoint, data = null) {
     const url = AJAX_CONFIG.baseUrl + endpoint;
@@ -549,7 +553,19 @@ async function makeAjaxRequest(method, endpoint, data = null) {
             }
 
             const response = await fetch(url, config);
-            const result = await response.json();
+            const text = await response.text();
+
+            // If server returned HTML (e.g. 500 error page), avoid JSON.parse and throw clearly
+            if (typeof text === 'string' && (text.trim().startsWith('<!') || text.trim().startsWith('<html'))) {
+                throw new Error('Server returned an error page (HTML) instead of JSON. The request may have failed (500).');
+            }
+
+            let result;
+            try {
+                result = text ? JSON.parse(text) : {};
+            } catch (parseErr) {
+                throw new Error('Server returned invalid JSON. Response may be an error page.');
+            }
 
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${result.message || 'Request failed'}`);
@@ -563,7 +579,7 @@ async function makeAjaxRequest(method, endpoint, data = null) {
                 throw error;
             }
 
-            console.warn(`AJAX attempt ${attempts} failed, retrying in ${AJAX_CONFIG.retryDelay}ms:`, error);
+            console.warn(`AJAX attempt ${attempts} failed, retrying in ${AJAX_CONFIG.retryDelay}ms:`, error.message || error);
             await new Promise(resolve => setTimeout(resolve, AJAX_CONFIG.retryDelay));
         }
     }

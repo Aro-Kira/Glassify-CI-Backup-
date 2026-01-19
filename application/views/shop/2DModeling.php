@@ -683,6 +683,7 @@
     window.productBasePrice = <?= $productPrice ?>;
     const productBasePrice = window.productBasePrice;
     var base_url = '<?= base_url(); ?>';
+    var PAYMENT_URL = '<?= rtrim(base_url(), "/") . "/payment"; ?>';
     
     // Product images for gallery navigation
     <?php if (isset($product) && $product && isset($totalImages) && $totalImages > 1): ?>

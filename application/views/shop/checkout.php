@@ -1,5 +1,4 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/checkout_style.css'); ?>">
-
 <script>
     const BASE_URL = "<?= base_url(); ?>";
     
@@ -621,120 +620,6 @@
   </div>
 </div>
 
-
-<!-- Simple Modern Quotation Modal -->
-<div id="quotationModal" class="modal">
-  <div class="modal-overlay"></div>
-  <div class="modal-content">
-    <button class="modal-close" id="closeModal">&times;</button>
-
-    <div class="modal-header">
-      <h2>Quotation</h2>
-      <span class="quotation-date" id="quotation-date"></span>
-    </div>
-
-    <div class="modal-body">
-      <!-- Customer Info - Inline Style -->
-      <div class="customer-info-bar">
-        <div class="customer-detail">
-          <span class="label">Customer</span>
-          <span class="value" id="quote-customer-name"><?php 
-            if (isset($user)) {
-              $name = trim(($user->First_Name ?? '') . ' ' . ($user->Middle_Name ?? '') . ' ' . ($user->Last_Name ?? ''));
-              echo htmlspecialchars($name ?: 'N/A');
-            } else {
-              echo 'N/A';
-            }
-          ?></span>
-        </div>
-        <div class="customer-detail">
-          <span class="label">Email</span>
-          <span class="value" id="quote-customer-email"><?= isset($user->Email) ? $user->Email : 'N/A' ?></span>
-        </div>
-        <div class="customer-detail">
-          <span class="label">Phone</span>
-          <span class="value" id="quote-customer-phone"><?= isset($user->PhoneNum) ? $user->PhoneNum : 'N/A' ?></span>
-        </div>
-        <div class="customer-detail full-width">
-          <span class="label">Shipping Address</span>
-          <span class="value" id="quote-customer-address"><?php 
-            if (isset($addresses['Shipping'])) {
-              $addr = $addresses['Shipping'];
-              $addressParts = array_filter([
-                $addr->UnitHouseNumber ?? '',
-                $addr->Street ?? '',
-                $addr->Subdivision ?? '',
-                $addr->Barangay ?? '',
-                $addr->City ?? '',
-                $addr->Province ?? '',
-                $addr->Region ?? '',
-                $addr->Country ?? 'Philippines',
-                $addr->ZipCode ?? ''
-              ]);
-              $full_address = !empty($addressParts) ? implode(', ', $addressParts) : ($addr->AddressLine ?? 'N/A');
-              echo htmlspecialchars($full_address);
-            } else {
-              echo 'N/A';
-            }
-          ?></span>
-        </div>
-      </div>
-
-      <!-- Items Table -->
-      <div class="table-wrapper">
-        <table class="quotation-table">
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Customization</th>
-              <th>Qty</th>
-              <th>Unit Price</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody id="quotation-items">
-            <!-- Rows will be dynamically generated -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Custom Design Layouts Section -->
-      <div class="designs-section" id="designs-section" style="display: none;">
-        <h4 class="section-title">Custom Design Layouts</h4>
-        <p class="designs-note">Included designs for reference</p>
-        <div class="designs-grid" id="quotation-designs">
-          <!-- Design images will be dynamically generated -->
-        </div>
-      </div>
-
-      <!-- Totals -->
-      <div class="totals-box">
-        <div class="total-line">
-          <span>Subtotal</span>
-          <span id="quote-subtotal">₱0.00</span>
-        </div>
-        <div class="total-line">
-          <span>Shipping Fee</span>
-          <span id="quote-shipping">₱0.00</span>
-        </div>
-        <div class="total-line">
-          <span>Handling Fee</span>
-          <span id="quote-handling">₱0.00</span>
-        </div>
-        <div class="total-line grand">
-          <span>Grand Total</span>
-          <span id="quote-grandtotal">₱0.00</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal-footer">
-      <button class="btn-close" id="closeModalBtn">Close</button>
-      <button class="btn-print" id="printQuotation">Print Quotation</button>
-    </div>
-  </div>
-</div>
-
 <script>
 // =============================
 // TOAST NOTIFICATION SYSTEM
@@ -1001,107 +886,6 @@ $(document).ready(function() {
     } else {
         loadSelectedSummary();
     }
-
-    // =============================
-    // QUOTATION MODAL FOR SELECTED ITEMS (REMOVED - Generate Quotation button removed)
-    // =============================
-    // Modal code removed as Generate Quotation button is no longer available on customer side
-    /*
-    function openModal() {
-        $('#quotationModal').addClass('show');
-        $('body').css('overflow', 'hidden');
-    }
-
-    function closeModal() {
-        $('#quotationModal').removeClass('show');
-        $('body').css('overflow', '');
-    }
-
-    $('#openModal').click(function() {
-        $.getJSON(BASE_URL + "CartCon/get_selected_cart_ajax?selected=" + SELECTED_CART_IDS, function(res) {
-            if (res.status === 'success') {
-                const tbody = $('#quotation-items');
-                const designsContainer = $('#quotation-designs');
-                const designsSection = $('#designs-section');
-                
-                tbody.empty();
-                designsContainer.empty();
-
-                let subtotal = 0;
-                let hasDesigns = false;
-                let designIndex = 1;
-
-                res.items.forEach((item, index) => {
-                    const unit_price = Number(item.unit_price) || 0;
-                    const total = Number(item.total) || 0;
-                    const customization = item.customization || 'Standard';
-
-                    const row = `<tr style="animation-delay: ${index * 0.05}s">
-                        <td>${item.description}</td>
-                        <td class="customization-cell">${customization}</td>
-                        <td>${item.quantity}</td>
-                        <td>₱${unit_price.toFixed(2)}</td>
-                        <td>₱${total.toFixed(2)}</td>
-                    </tr>`;
-                    tbody.append(row);
-                    subtotal += total;
-
-                    // Add design image if available
-                    if (item.has_design && item.design_ref) {
-                        hasDesigns = true;
-                        const designCard = `
-                            <div class="design-card">
-                                <div class="design-card-header">
-                                    <span class="design-number">Design #${designIndex}</span>
-                                    <span class="design-product">${item.description}</span>
-                                </div>
-                                <div class="design-card-image">
-                                    <img src="${item.design_ref}" alt="Custom Design ${designIndex}">
-                                </div>
-                                <div class="design-card-specs">
-                                    ${customization}
-                                </div>
-                            </div>
-                        `;
-                        designsContainer.append(designCard);
-                        designIndex++;
-                    }
-                });
-
-                // Show/hide designs section
-                if (hasDesigns) {
-                    designsSection.show();
-                } else {
-                    designsSection.hide();
-                }
-
-                const summary = res.summary;
-                const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                const formattedDate = new Date().toLocaleDateString('en-US', options);
-                
-                $('#quotation-date').text(formattedDate);
-                $('#quote-subtotal').text(`₱${summary.subtotal.toFixed(2)}`);
-                $('#quote-shipping').text(`₱${summary.shipping.toFixed(2)}`);
-                $('#quote-handling').text(`₱${summary.handling.toFixed(2)}`);
-                $('#quote-grandtotal').text(`₱${summary.total.toFixed(2)}`);
-
-                openModal();
-            }
-        });
-    });
-    */
-
-    // Close modal handlers - Commented out as Generate Quotation button removed
-    // $('#closeModal, #closeModalBtn').click(closeModal);
-    // $(document).on('click', '.modal-overlay', closeModal);
-    // $(document).keydown(function(e) {
-    //     if (e.key === 'Escape') closeModal();
-    // });
-
-    // Print quotation - Commented out as Generate Quotation button removed
-    // $('#printQuotation').click(function() {
-    //     window.print();
-    // });
 
     // === Saved Address Selector ===
     const savedAddressDropdown = document.getElementById('saved-address-dropdown');
@@ -2075,14 +1859,9 @@ $(document).ready(function() {
             }
         }
 
-        // Validate payment method
-        const ewalletEl = document.getElementById("ewallet-radio");
-        const cardEl = document.getElementById("card-radio");
-        const currentEwallet = ewalletEl ? ewalletEl.checked : false;
-        const currentCard = cardEl ? cardEl.checked : false;
-
-        if (!firstErrorElement && !currentEwallet && !currentCard) {
-            console.log('Payment method validation failed - ewallet checked:', currentEwallet, 'card checked:', currentCard);
+        // Validate payment method (reuse ewalletEl, cardEl, ewallet, card from above)
+        if (!firstErrorElement && !ewallet && !card) {
+            console.log('Payment method validation failed - ewallet checked:', ewallet, 'card checked:', card);
             console.log('Radio elements exist:', !!ewalletEl, !!cardEl);
             const errorDiv = document.getElementById('payment-method-error');
             if (errorDiv) errorDiv.style.display = 'block';

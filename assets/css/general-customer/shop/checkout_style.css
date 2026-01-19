@@ -651,19 +651,18 @@ input[type="checkbox"] {
 
 /* ===================== QUOTATION MODAL STYLES ===================== */
 
-/* Modal Overlay */
+/* Modal Overlay - hidden by default; only .modal.show makes it visible */
 .modal {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 9999;
-  display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .modal.show {
-  display: block;
+  display: flex;
   animation: fadeIn 0.2s ease;
 }
 

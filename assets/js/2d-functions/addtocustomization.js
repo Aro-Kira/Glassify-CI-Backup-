@@ -271,8 +271,9 @@ $(document).on('click', '#buy-now-btn', function () {
                 let response = typeof res === 'string' ? JSON.parse(res) : res;
 
                 if (response.status === 'success') {
-                    // Redirect to checkout with the cart item selected
-                    window.location.href = base_url + 'payment?selected=' + response.cart_id;
+                    // Redirect to payment page (shipping, order summary, payment method) with the cart item selected
+                    const payUrl = (typeof PAYMENT_URL === 'string' && PAYMENT_URL) ? PAYMENT_URL : ((typeof base_url === 'string' && base_url) ? base_url.replace(/\/?$/, '') + '/payment' : '/payment');
+                    window.location.href = payUrl + (payUrl.indexOf('?') >= 0 ? '&' : '?') + 'selected=' + response.cart_id;
                 } else {
                     showCartNotification((response.message || 'Unknown error'), 'error');
                     btn.prop('disabled', false).html(originalText);
