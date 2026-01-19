@@ -125,7 +125,7 @@ function showToast(message, type = 'info', duration = 3000) {
     return toast;
 }
 
-// Buy Now Handler - Saves complete order details to customization table
+// Book Now Handler - Saves complete order details to customization table
 $(document).on('click', '#buy-now-btn', function(e) {
     e.preventDefault();
     
@@ -156,44 +156,38 @@ $(document).on('click', '#buy-now-btn', function(e) {
     const edgeWork = $('.option-card[data-edge-work].active').data('edge-work');
     const frameType = $('.option-card[data-frame-type].active').data('frame-type');
     const engraving = $('#step-3 input[type="text"]').val() || 'None';
-    const totalQuotation = $('#sum-total').text().replace(/[₱,]/g, '') || '0.00';
+    const totalQuotation = $('#sum-total').text().replace(/[₱,]/g, '') || $('#sum-total-breakdown').text().replace(/[₱,]/g, '') || '0.00';
+    
+    // Get current quantity
+    const quantity = parseInt($('#summary-qty-input').val()) || 1;
+
+    // Get dynamic customization
+    const customizationValues = window.selectedCustomizationValues || {};
     
     // Get product name from selectedProduct (set in 2DModeling.php)
     const productName = selectedProduct ? selectedProduct.name : 'N/A';
     
-    // Get file attachment if any (from upload modal)
-    // Check if uploadedFiles array exists (from 2d_customization.js)
-    let fileAttached = 'N/A';
-    let filePaths = [];
+    // ...
     
-    if (typeof uploadedFiles !== 'undefined' && uploadedFiles.length > 0) {
-        // Get all completed files with their paths
-        const completedFiles = uploadedFiles.filter(f => f.status === 'completed' && f.filePath);
-        if (completedFiles.length > 0) {
-            filePaths = completedFiles.map(f => f.filePath);
-            // For backward compatibility, use first file path or name
-            fileAttached = completedFiles[0].filePath || completedFiles[0].name || 'N/A';
-        } else if (uploadedFiles.length > 0) {
-            // Fallback to filename if filePath not available
-            fileAttached = uploadedFiles[0].name || uploadedFiles[0].file?.name || 'N/A';
-        }
-    } else {
-        // Fallback: check DOM for uploaded files
-        const uploadedFilesList = document.querySelectorAll('#uploaded-files-container .uploaded-file');
-        if (uploadedFilesList.length > 0) {
-            const firstFile = uploadedFilesList[0];
-            const fileName = firstFile.querySelector('.file-name');
-            if (fileName) {
-                fileAttached = fileName.textContent.trim();
-            }
-        }
-    }
+    const totalQuValue = $('#sum-total').text().replace(/[₱,]/g, '') || $('#sum-total-breakdown').text().replace(/[₱,]/g, '') || $('#final-price').val() || '0.00';
+    const pbDataObj = JSON.parse($('#final-specs').val() || '{}').priceBreakdown || {};
+    
+    // Get current quantity
+    const quantityVal = parseInt($('#summary-qty-input').val()) || 1;
+
+    // Get dynamic customization
+    const customValues = window.selectedCustomizationValues || {};
+    
+    // Get product name from selectedProduct (set in 2DModeling.php)
+    const pName = selectedProduct ? selectedProduct.name : 'N/A';
+    
+    // ...
     
     // Prepare data to save
     const orderData = {
         customer_id: customerId,
         product_id: productId,
-        product_name: productName,
+        product_name: pName,
         dimensions: dimensionsJson,
         dimensions_display: dimensions, // Height x Width format
         shape: shape,
@@ -204,7 +198,10 @@ $(document).on('click', '#buy-now-btn', function(e) {
         engraving: engraving,
         file_attached: fileAttached,
         file_paths: filePaths.length > 0 ? JSON.stringify(filePaths) : null,
-        total_quotation: totalQuotation
+        total_quotation: totalQuValue,
+        quantity: quantityVal,
+        customization: JSON.stringify(customValues),
+        price_breakdown: JSON.stringify(pbDataObj)
     };
     
     // Save to customization table (will clear old data and create new record)
@@ -241,7 +238,7 @@ $(document).on('click', '#buy-now-btn', function(e) {
                     console.log('Redirecting to:', paymentUrl);
                     window.location.href = paymentUrl;
                 } else {
-                    showToast('Error: ' + (res.message || 'Failed to save order details'), 'error');
+                    showToast((res.message || 'Failed to save order details'), 'error');
                 }
             } catch (e) {
                 console.error('Error parsing response:', e, response);

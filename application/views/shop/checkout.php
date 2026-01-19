@@ -219,16 +219,21 @@
                 <div class="form-row">
                     <div class="form-group full-width">
                         <label>Preferred Ocular Visit Date <span style="color: red;">*</span></label>
-                        <input type="date" name="preferred_installation_date" id="preferred_installation_date" 
-                            min="<?= date('Y-m-d', strtotime('+7 days')) ?>" 
-                            placeholder="Select your preferred ocular visit date" required>
-                        <small style="color: #666; font-size: 0.9em; display: block; margin-top: 5px;">
-                            Please select a date at least 7 days from today. We'll do our best to accommodate your preference.
-                        </small>
-                        <!-- Inline error message for installation date -->
-                        <div id="installation-date-error" class="inline-error" style="display: none; margin-top: 5px; padding: 8px 12px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px;">
-                            <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a Preferred Ocular Visit Date. This field is required.</span>
+                        <div class="calendar-trigger-wrapper">
+                            <button type="button" id="open-calendar-btn" style="width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border: 1px solid #ccc; border-radius: 6px; background: white; cursor: pointer; color: #0f2b46; font-weight: 500; transition: all 0.2s;">
+                                <span id="selected-date-text">Select your preferred ocular visit date</span>
+                                <i class="fas fa-calendar-alt" style="color: #0f2b46; font-size: 1.1rem;"></i>
+                            </button>
+                            <input type="hidden" name="preferred_installation_date" id="preferred_installation_date" required>
+                            
+                            <div id="installation-date-error" class="inline-error" style="display: none; margin-top: 5px; padding: 8px 12px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px;">
+                                <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a Preferred Ocular Visit Date. This field is required.</span>
+                            </div>
                         </div>
+                        <small style="color: #666; font-size: 0.9em; display: block; margin-top: 8px; line-height: 1.4;">
+                            <i class="fas fa-info-circle" style="color: #0f2b46;"></i> 
+                            Please select a date at least <b>4 days from today</b>.
+                        </small>
                     </div>
                 </div>
 
@@ -257,19 +262,19 @@
                         <div class="form-group">
                             <label>First Name <span style="color: red;">*</span></label>
                             <input type="text" name="billing_firstname" id="billing_firstname"
-                                value="<?= htmlspecialchars($user->First_Name ?? '') ?>"
+                                value=""
                                 placeholder="Enter your first name" required>
                         </div>
                         <div class="form-group">
                             <label>Middle Name</label>
                             <input type="text" name="billing_middlename" id="billing_middlename"
-                                value="<?= htmlspecialchars($user->Middle_Name ?? '') ?>"
+                                value=""
                                 placeholder="Enter your middle name (optional)">
                         </div>
                         <div class="form-group">
                             <label>Last Name <span style="color: red;">*</span></label>
                             <input type="text" name="billing_lastname" id="billing_lastname"
-                                value="<?= htmlspecialchars($user->Last_Name ?? '') ?>"
+                                value=""
                                 placeholder="Enter your last name" required>
                         </div>
                     </div>
@@ -278,13 +283,13 @@
                         <div class="form-group">
                             <label>Email address <span style="color: red;">*</span></label>
                             <input type="email" name="billing_email" id="billing_email"
-                                value="<?= htmlspecialchars($user->Email) ?>"
+                                value=""
                                 placeholder="Enter your email address" required>
                         </div>
                         <div class="form-group">
                             <label>Phone number <span style="color: red;">*</span></label>
                             <input type="tel" name="billing_phone" id="billing_phone"
-                                value="<?= htmlspecialchars($user->PhoneNum) ?>" maxlength="11"
+                                value="" maxlength="11"
                                 placeholder="Enter your phone number" required>
                         </div>
                     </div>
@@ -329,8 +334,8 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Barangay <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_barangay"
-                                value="<?= htmlspecialchars($addresses['Billing']->Barangay ?? '') ?>"
+                            <input type="text" name="billing_barangay" id="billing_barangay"
+                                value=""
                                 placeholder="Enter Barangay" required>
                         </div>
                     </div>
@@ -338,8 +343,8 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Subdivision/Building</label>
-                            <input type="text" name="billing_subdivision"
-                                value="<?= htmlspecialchars($addresses['Billing']->Subdivision ?? '') ?>"
+                            <input type="text" name="billing_subdivision" id="billing_subdivision"
+                                value=""
                                 placeholder="Subdivision/Building (optional)">
                         </div>
                     </div>
@@ -347,8 +352,8 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Street</label>
-                            <input type="text" name="billing_street"
-                                value="<?= htmlspecialchars($addresses['Billing']->Street ?? '') ?>"
+                            <input type="text" name="billing_street" id="billing_street"
+                                value=""
                                 placeholder="Street (optional)">
                         </div>
                     </div>
@@ -356,8 +361,8 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Unit/House Number <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_unit_house_number"
-                                value="<?= htmlspecialchars($addresses['Billing']->UnitHouseNumber ?? '') ?>"
+                            <input type="text" name="billing_unit_house_number" id="billing_unit_house_number"
+                                value=""
                                 placeholder="Unit/House Number" required>
                         </div>
                     </div>
@@ -365,8 +370,8 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Zip Code <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_zipcode"
-                                value="<?= htmlspecialchars($addresses['Billing']->ZipCode ?? '') ?>"
+                            <input type="text" name="billing_zipcode" id="billing_zipcode"
+                                value=""
                                 placeholder="Enter Zip Code" required>
                         </div>
                     </div>
@@ -382,13 +387,19 @@
         <section class="order-summary">
             <div class="order-summary-content">
                 <h3>Order Summary</h3>
-                <p><span>Items:</span> <span id="summary-items">0</span></p>
-                <p><span>Subtotal:</span> <span id="summary-subtotal">₱0.00</span></p>
-                <p><span>Shipping Fee:</span> <span id="summary-shipping">₱0.00</span></p>
-                <p><span>Handling Fee:</span> <span id="summary-handling">₱0.00</span></p>
-                <div class="summary-divider"></div>
-                <p class="total"><span>Total:</span> <span id="summary-total">₱0.00</span></p>
+                
+                <!-- Itemized List -->
+                <div id="summary-items-list" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px; padding-bottom: 10px;">
+                    <!-- Items will be dynamically populated -->
+                    <div style="text-align: center; color: #888; padding: 10px;">Loading items...</div>
+                </div>
 
+                <div class="summary-totals-box" style="padding-top: 15px;">
+                    <p><span>Subtotal:</span> <span id="summary-subtotal">₱0.00</span></p>
+                    <p><span>Shipping Fee:</span> <span id="summary-shipping">₱0.00</span></p>
+                    <p><span>Handling Fee:</span> <span id="summary-handling">₱0.00</span></p>
+                    <p class="total"><span>Total:</span> <span id="summary-total">₱0.00</span></p>
+                </div>
             </div>
             <div class="payment-section">
                 <div class="payment-method-content">
@@ -425,9 +436,78 @@
         </section>
     </div>
 
+    <script>
+        // Reset scroll position on page load
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+        window.scrollTo(0, 0);
+
+        // Reset scroll on any navigation links or buttons that might change content/steps
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('a, button, .step, .nav-btn');
+            if (target) {
+                // Small delay to ensure any dynamic content/page change has started
+                setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+            }
+        });
+    </script>
 </main>
 
 
+
+
+<!-- Calendar Modal -->
+<div id="calendarModal" class="modal">
+  <div class="modal-overlay" onclick="closeCalendarModal()"></div>
+  <div class="modal-content" style="max-width: 400px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+    <button class="modal-close" onclick="closeCalendarModal()" style="top: 10px; right: 10px; color: white;">&times;</button>
+    <div class="modal-header" style="background: #0f2b46; color: white; padding: 20px; border-bottom: none; display: flex; flex-direction: column; align-items: flex-start;">
+      <h3 style="margin: 0; font-size: 1.25rem;">📅 Ocular Visit Schedule</h3>
+      <p style="margin: 8px 0 0 0; font-size: 0.85rem; opacity: 0.9; color: white;">Select your preferred visit date</p>
+    </div>
+    <div class="modal-body" style="padding: 0;">
+        <div id="custom-checkout-calendar" style="border: none; border-radius: 0; background: white; width: 100%;">
+            <div class="calendar-header" style="background: #1a3a5a; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+                <button type="button" id="cal-prev-month" style="background: rgba(255,255,255,0.1); border: none; color: white; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">&lt;</button>
+                <h4 id="cal-month-year" style="margin: 0; font-size: 1.1rem; font-weight: 600;">Month Year</h4>
+                <button type="button" id="cal-next-month" style="background: rgba(255,255,255,0.1); border: none; color: white; cursor: pointer; width: 35px; height: 35px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">&gt;</button>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; text-align: center; table-layout: fixed;">
+                <thead>
+                    <tr style="background: #f8f9fa;">
+                        <th style="padding: 12px 0; color: #888; font-size: 0.7rem; text-transform: uppercase; font-weight: 700;">Su</th>
+                        <th style="padding: 12px 0; color: #888; font-size: 0.7rem; text-transform: uppercase; font-weight: 700;">Mo</th>
+                        <th style="padding: 12px 0; color: #888; font-size: 0.7rem; text-transform: uppercase; font-weight: 700;">Tu</th>
+                        <th style="padding: 12px 0; color: #888; font-size: 0.7rem; text-transform: uppercase; font-weight: 700;">We</th>
+                        <th style="padding: 12px 0; color: #888; font-size: 0.7rem; text-transform: uppercase; font-weight: 700;">Th</th>
+                        <th style="padding: 12px 0; color: #888; font-size: 0.7rem; text-transform: uppercase; font-weight: 700;">Fr</th>
+                        <th style="padding: 12px 0; color: #888; font-size: 0.7rem; text-transform: uppercase; font-weight: 700;">Sa</th>
+                    </tr>
+                </thead>
+                <tbody id="cal-body">
+                    <!-- Days populated by JS -->
+                </tbody>
+            </table>
+            <div class="calendar-legend" style="padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: space-around; font-size: 0.7rem; color: #666; background: #fafafa;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: #d9534f; display: inline-block;"></span> Today
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: #0f2b46; display: inline-block;"></span> Selected
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width: 12px; height: 12px; border-radius: 50%; background: #eee; border: 1px solid #ddd; display: inline-block;"></span> Unavailable
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer" style="padding: 15px 20px; background: #f8f9fa; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px;">
+      <button type="button" class="secondary-btn" onclick="closeCalendarModal()" style="padding: 8px 20px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer;">Cancel</button>
+      <button type="button" class="primary-btn" id="confirm-date-btn" style="padding: 8px 25px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; cursor: pointer; background: #0f2b46; color: white; border: none; transition: background 0.2s;" disabled>Save Selection</button>
+    </div>
+  </div>
+</div>
 
 
 <!-- Order Confirmation Modal -->
@@ -501,7 +581,7 @@
             <thead>
               <tr>
                 <th>Product</th>
-                <th>Details</th>
+                <th>Customization</th>
                 <th>Qty</th>
                 <th>Price</th>
               </tr>
@@ -536,9 +616,7 @@
 
     <div class="modal-footer confirm-footer">
       <button class="btn-cancel" id="cancelOrderBtn">Cancel</button>
-      <button class="btn-confirm-order" id="confirmOrderBtn">
-        <span class="btn-icon">✓</span> Confirm & Place Order
-      </button>
+      <button class="btn-confirm-order" id="confirmOrderBtn">Confirm & Place Order</button>
     </div>
   </div>
 </div>
@@ -837,6 +915,7 @@ $(document).ready(function() {
             success: function(res) {
                 if (res.status === 'success') {
                     const summary = res.summary;
+                    const items = res.items;
 
                     // Update order summary - ensure elements exist
                     const itemsEl = document.getElementById('summary-items');
@@ -844,12 +923,36 @@ $(document).ready(function() {
                     const shippingEl = document.getElementById('summary-shipping');
                     const handlingEl = document.getElementById('summary-handling');
                     const totalEl = document.getElementById('summary-total');
+                    const itemsListEl = document.getElementById('summary-items-list');
                     
                     if (itemsEl) itemsEl.textContent = summary.items || 0;
-                    if (subtotalEl) subtotalEl.textContent = '₱' + (summary.subtotal || 0).toFixed(2);
-                    if (shippingEl) shippingEl.textContent = '₱' + (summary.shipping || 0).toFixed(2);
-                    if (handlingEl) handlingEl.textContent = '₱' + (summary.handling || 0).toFixed(2);
-                    if (totalEl) totalEl.textContent = '₱' + (summary.total || 0).toFixed(2);
+                    if (subtotalEl) subtotalEl.textContent = '₱' + (summary.subtotal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    if (shippingEl) shippingEl.textContent = '₱' + (summary.shipping || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    if (handlingEl) handlingEl.textContent = '₱' + (summary.handling || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    if (totalEl) totalEl.textContent = '₱' + (summary.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+                    // Populate itemized list
+                    if (itemsListEl) {
+                        itemsListEl.innerHTML = '';
+                        if (items && items.length > 0) {
+                            items.forEach(item => {
+                                const itemDiv = document.createElement('div');
+                                itemDiv.className = 'summary-item-row';
+                                itemDiv.style.cssText = 'display: flex; gap: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 10px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02); align-items: center; position: relative;';
+                                
+                                itemDiv.innerHTML = `
+                                    <img src="${item.image}" alt="${item.description}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; flex-shrink: 0;">
+                                    <div class="summary-item-info">
+                                        <h4>${item.description}</h4>
+                                        <span class="summary-item-qty">Qty: ${item.quantity}</span>
+                                    </div>
+                                `;
+                                itemsListEl.appendChild(itemDiv);
+                            });
+                        } else {
+                            itemsListEl.innerHTML = '<div style="text-align: center; color: #888; padding: 10px;">No items found.</div>';
+                        }
+                    }
 
                     // Check if cart is empty
                     if (res.items.length === 0) {
@@ -1130,14 +1233,14 @@ $(document).ready(function() {
     }
     
     // === Same Billing Address Checkbox Handler ===
-    const sameBillingCheckbox = document.getElementById('same-billing');
-    const billingAddressFields = document.getElementById('billing-address-fields');
+    const sBillingCheckbox = document.getElementById('same-billing');
+    const bAddressFields = document.getElementById('billing-address-fields');
     
-    if (sameBillingCheckbox && billingAddressFields) {
-        sameBillingCheckbox.addEventListener('change', function() {
+    if (sBillingCheckbox && bAddressFields) {
+        sBillingCheckbox.addEventListener('change', function() {
             if (this.checked) {
                 // Hide billing address fields
-                billingAddressFields.style.display = 'none';
+                bAddressFields.style.display = 'none';
                 
                 // Copy shipping address data to billing fields
                 const form = document.getElementById('profileForm');
@@ -1198,16 +1301,16 @@ $(document).ready(function() {
                 }
             } else {
                 // Show billing address fields (dropdowns are already enabled, no disabled attribute in HTML)
-                billingAddressFields.style.display = 'block';
+                bAddressFields.style.display = 'block';
             }
         });
         
         // Initialize on page load
-        if (sameBillingCheckbox.checked) {
-            billingAddressFields.style.display = 'none';
+        if (sBillingCheckbox.checked) {
+            bAddressFields.style.display = 'none';
         }
     }
-    
+
     // === PHILIPPINE REGIONS AND CITIES DATA ===
     const metroManilaCities = [
         'Caloocan', 'Las Piñas', 'Makati', 'Malabon', 'Mandaluyong',
@@ -1541,12 +1644,12 @@ $(document).ready(function() {
         const unitHouseNumber = form.querySelector("input[name='unit_house_number']")?.value || '';
         const street = form.querySelector("input[name='street']")?.value || '';
         const subdivision = form.querySelector("input[name='subdivision']")?.value || '';
-        const barangay = form.querySelector("input[name='barangay']").value;
-        const city = form.querySelector("input[name='city']").value;
-        const province = form.querySelector("input[name='province']").value;
+        const barangay = form.querySelector("input[name='barangay']")?.value || '';
+        const city = form.querySelector("input[name='city']")?.value || '';
+        const province = form.querySelector("input[name='province']")?.value || '';
         const region = form.querySelector("input[name='region']")?.value || '';
-        const zipcode = form.querySelector("input[name='zipcode']").value;
-        const country = form.querySelector("input[name='country']").value;
+        const zipcode = form.querySelector("input[name='zipcode']")?.value || '';
+        const country = form.querySelector("input[name='country']")?.value || 'Philippines';
         const preferredInstallationDate = form.querySelector("input[name='preferred_installation_date']")?.value || '';
 
         // Build complete address
@@ -1607,10 +1710,58 @@ $(document).ready(function() {
                 
                 res.items.forEach(item => {
                     const row = document.createElement('tr');
-                    const customDetails = item.customization || 'Standard';
-                    const unitPrice = Number(item.unit_price) || 0;
-                    const itemTotal = Number(item.total) || 0;
+                    const customizationString = item.customization || 'Standard';
                     const productImage = item.image || BASE_URL + 'assets/images/default-product.png';
+
+                    // Format customization - show 2D preview if available, otherwise show tags
+                    let customHtml = '';
+
+                    if (item.has_design && item.design_ref) {
+                        // Show 2D preview
+                        customHtml = `
+                            <div class="custom-layout" style="display: flex; align-items: center; gap: 8px;">
+                                <div class="design-thumbnail-wrapper" style="flex-shrink: 0;">
+                                    <img src="${item.design_ref}"
+                                         alt="Custom Design"
+                                         class="design-thumbnail"
+                                         style="width: 50px; height: 50px; object-fit: contain; border: 2px solid #0d3d4d; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; background: #f8f8f8; padding: 2px;"
+                                         onclick="showDesignModal('${item.design_ref}')"
+                                         onerror="this.style.display='none'; this.parentElement.querySelector('.view-design-text').textContent='Image not found';">
+                                    <span class="view-design-text" style="display: block; font-size: 8px; color: #0d3d4d; margin-top: 2px; font-weight: 500; text-align: center;">Click to view</span>
+                                </div>
+                                <div class="custom-details" style="display: flex; flex-wrap: wrap; gap: 4px; flex: 1;">
+                        `;
+
+                        if (customizationString !== 'Standard') {
+                            const parts = customizationString.split(' | ');
+                            parts.forEach(part => {
+                                customHtml += `<span class="custom-tag" style="display: inline-block; background: #e8f4f8; color: #0c2c3a; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-family: 'DM Sans', sans-serif; border: 1px solid #b8d4e3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${part}</span>`;
+                            });
+                        }
+
+                        customHtml += `
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Show tags only
+                        customHtml = `
+                            <div class="confirm-tags-box" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        `;
+
+                        if (customizationString !== 'Standard') {
+                            const parts = customizationString.split(' | ');
+                            parts.forEach(part => {
+                                customHtml += `<span class="confirm-custom-tag" style="display: inline-block; background: #e3f2fd; color: #0f2b46; padding: 4px 12px; border-radius: 6px; font-size: 12px; border: 1px solid #bbdefb; font-weight: 500;">${part}</span>`;
+                            });
+                        } else {
+                            customHtml += '<span style="color: #888; font-size: 12px;">Standard</span>';
+                        }
+
+                        customHtml += `</div>`;
+                    }
+
+                    const itemTotal = Number(item.total) || 0;
                     
                     row.innerHTML = `
                         <td class="product-cell">
@@ -1619,26 +1770,26 @@ $(document).ready(function() {
                                 <span class="product-name">${item.description}</span>
                             </div>
                         </td>
-                        <td class="details-cell">${customDetails}</td>
+                        <td class="customization-cell">${customHtml}</td>
                         <td class="qty-cell">${item.quantity}</td>
-                        <td class="price-cell">₱${itemTotal.toFixed(2)}</td>
+                        <td class="price-cell">₱${itemTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                     `;
                     itemsBody.appendChild(row);
                 });
 
                 // Update totals from server response
                 const summary = res.summary;
-                document.getElementById('confirm-subtotal').textContent = `₱${summary.subtotal.toFixed(2)}`;
-                document.getElementById('confirm-shipping').textContent = `₱${summary.shipping.toFixed(2)}`;
-                document.getElementById('confirm-handling').textContent = `₱${summary.handling.toFixed(2)}`;
-                document.getElementById('confirm-total').textContent = `₱${summary.total.toFixed(2)}`;
+                document.getElementById('confirm-subtotal').textContent = '₱' + (summary.subtotal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('confirm-shipping').textContent = '₱' + (summary.shipping || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('confirm-handling').textContent = '₱' + (summary.handling || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                document.getElementById('confirm-total').textContent = '₱' + (summary.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
             } else {
                 // Fallback: Get totals from page summary (already includes peso sign)
                 const subtotal = document.getElementById('summary-subtotal').textContent;
                 const shipping = document.getElementById('summary-shipping').textContent;
                 const handling = document.getElementById('summary-handling').textContent;
                 const total = document.getElementById('summary-total').textContent;
-                const itemCount = document.getElementById('summary-items').textContent;
+                const itemCount = document.querySelectorAll('.summary-item-row').length;
 
                 document.getElementById('confirm-subtotal').textContent = subtotal;
                 document.getElementById('confirm-shipping').textContent = shipping;
@@ -1653,7 +1804,7 @@ $(document).ready(function() {
             const shipping = document.getElementById('summary-shipping').textContent;
             const handling = document.getElementById('summary-handling').textContent;
             const total = document.getElementById('summary-total').textContent;
-            const itemCount = document.getElementById('summary-items').textContent;
+            const itemCount = document.querySelectorAll('.summary-item-row').length;
 
             document.getElementById('confirm-subtotal').textContent = subtotal;
             document.getElementById('confirm-shipping').textContent = shipping;
@@ -1664,52 +1815,307 @@ $(document).ready(function() {
         });
     }
 
+    // === Custom Calendar Logic ===
+    let calCurrentDate = new Date();
+    let selectedDate = null;
+    let bookedDates = [];
+
+    window.openCalendarModal = function() {
+        document.getElementById('calendarModal').classList.add('show');
+        renderCheckoutCalendar();
+    };
+
+    window.closeCalendarModal = function() {
+        document.getElementById('calendarModal').classList.remove('show');
+    };
+
+    function renderCheckoutCalendar() {
+        const year = calCurrentDate.getFullYear();
+        const month = calCurrentDate.getMonth();
+        
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        const monthYearEl = document.getElementById('cal-month-year');
+        if (monthYearEl) monthYearEl.textContent = `${monthNames[month]} ${year}`;
+        
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const minSelectableDate = new Date(today);
+        minSelectableDate.setDate(today.getDate() + 4);
+        
+        const calBody = document.getElementById('cal-body');
+        if (!calBody) return;
+        calBody.innerHTML = '';
+        
+        let date = 1;
+        for (let i = 0; i < 6; i++) {
+            const row = document.createElement('tr');
+            
+            for (let j = 0; j < 7; j++) {
+                const cell = document.createElement('td');
+                cell.style.padding = '8px 0';
+                cell.style.position = 'relative';
+                
+                if (i === 0 && j < firstDay) {
+                    // Empty cell
+                } else if (date > daysInMonth) {
+                    // Empty cell
+                } else {
+                    const cellDate = new Date(year, month, date);
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+                    
+                    const dayNum = document.createElement('div');
+                    dayNum.textContent = date;
+                    dayNum.style.cssText = 'width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; margin: 0 auto; border-radius: 50%; cursor: pointer; transition: all 0.2s; font-size: 0.9rem;';
+                    
+                    // Highlight Today
+                    if (cellDate.getTime() === today.getTime()) {
+                        dayNum.style.backgroundColor = '#d9534f';
+                        dayNum.style.color = 'white';
+                        dayNum.style.fontWeight = 'bold';
+                        dayNum.title = 'Today';
+                    }
+                    
+                    // Check if selectable
+                    const isPast = cellDate < today;
+                    const isTooSoon = cellDate < minSelectableDate;
+                    const isBooked = bookedDates.includes(dateStr);
+                    
+                    if (isPast || isTooSoon || isBooked) {
+                        dayNum.style.color = '#ccc';
+                        dayNum.style.cursor = 'not-allowed';
+                        if (isBooked) {
+                            dayNum.style.backgroundColor = '#f5f5f5';
+                            dayNum.title = 'Fully Booked';
+                        } else if (isTooSoon && !isPast) {
+                            dayNum.title = 'Select a date at least 4 days from today';
+                        }
+                    } else {
+                        // Selectable
+                        dayNum.addEventListener('mouseover', function() {
+                            if (selectedDate !== dateStr) this.style.backgroundColor = '#eaf3f7';
+                        });
+                        dayNum.addEventListener('mouseout', function() {
+                            if (selectedDate !== dateStr) this.style.backgroundColor = 'transparent';
+                        });
+                        dayNum.addEventListener('click', function() {
+                            selectDate(dateStr);
+                        });
+                        
+                        // Highlight Selected
+                        if (selectedDate === dateStr) {
+                            dayNum.style.backgroundColor = '#0f2b46';
+                            dayNum.style.color = 'white';
+                            dayNum.style.fontWeight = 'bold';
+                        }
+                    }
+                    
+                    cell.appendChild(dayNum);
+                    date++;
+                }
+                row.appendChild(cell);
+            }
+            calBody.appendChild(row);
+            if (date > daysInMonth) break;
+        }
+    }
+
+    function selectDate(dateStr) {
+        selectedDate = dateStr;
+        document.getElementById('preferred_installation_date').value = dateStr;
+        
+        const formattedDate = new Date(dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+        document.getElementById('selected-date-text').textContent = formattedDate;
+        document.getElementById('open-calendar-btn').style.borderColor = '#0f2b46';
+        document.getElementById('open-calendar-btn').style.background = '#f0f7ff';
+        
+        renderCheckoutCalendar();
+        document.getElementById('confirm-date-btn').disabled = false;
+        clearFieldError('preferred_installation_date', 'installation-date-error');
+    }
+
+    document.getElementById('confirm-date-btn')?.addEventListener('click', () => {
+        closeCalendarModal();
+        validatePlaceOrderButton();
+    });
+
+    document.getElementById('open-calendar-btn')?.addEventListener('click', openCalendarModal);
+
+    document.getElementById('cal-prev-month')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        calCurrentDate.setMonth(calCurrentDate.getMonth() - 1);
+        renderCheckoutCalendar();
+    });
+
+    document.getElementById('cal-next-month')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        calCurrentDate.setMonth(calCurrentDate.getMonth() + 1);
+        renderCheckoutCalendar();
+    });
+
+    // Fetch booked dates and initial render
+    $.getJSON(BASE_URL + "get_booked_dates", function(res) {
+        if (res.status === 'success') {
+            bookedDates = res.booked_dates || [];
+        }
+        renderCheckoutCalendar();
+    });
+
+    const pOrderBtn = document.getElementById('placeOrderBtn');
+    const sBillCheckbox = document.getElementById('same-billing');
+    const bFormContainer = document.getElementById('billingForm');
+    const bReqInputs = bFormContainer ? bFormContainer.querySelectorAll('input[required], select[required]') : [];
+
+    function validatePlaceOrderButton() {
+        if (!pOrderBtn) return;
+        
+        let isValid = true;
+        
+        // If "Same as shipping" is NOT checked, validate billing fields
+        if (sBillCheckbox && !sBillCheckbox.checked) {
+            bReqInputs.forEach(input => {
+                if (!input.value.trim()) isValid = false;
+            });
+        }
+        
+        // Ensure a payment method is selected
+        const ewallet = document.getElementById("ewallet-radio")?.checked;
+        const card = document.getElementById("card-radio")?.checked;
+        if (!ewallet && !card) isValid = false;
+
+        // Ensure terms are accepted
+        const terms = document.getElementById('accept-terms')?.checked;
+        if (!terms) isValid = false;
+
+        // Ensure date is selected
+        const visitDate = document.getElementById('preferred_installation_date')?.value;
+        if (!visitDate) isValid = false;
+
+        // Button is always clickable as per request, but we track validity
+        pOrderBtn.style.opacity = '1';
+        pOrderBtn.style.cursor = 'pointer';
+        return isValid;
+    }
+
+    // Attach listeners
+    if (sBillCheckbox) sBillCheckbox.addEventListener('change', validatePlaceOrderButton);
+    
+    bReqInputs.forEach(input => {
+        input.addEventListener('input', validatePlaceOrderButton);
+        input.addEventListener('change', validatePlaceOrderButton);
+    });
+
+    ['ewallet-radio', 'card-radio', 'accept-terms', 'preferred_installation_date'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', validatePlaceOrderButton);
+        document.getElementById(id)?.addEventListener('input', validatePlaceOrderButton);
+    });
+
+    // Initialize button state
+    validatePlaceOrderButton();
+
     // === Place Order button - Show confirmation modal ===
     document.getElementById("placeOrderBtn").addEventListener("click", function () {
-        const ewallet = document.getElementById("ewallet-radio").checked;
-        const card = document.getElementById("card-radio").checked;
+        const ewalletEl = document.getElementById("ewallet-radio");
+        const cardEl = document.getElementById("card-radio");
+        const ewallet = ewalletEl ? ewalletEl.checked : false;
+        const card = cardEl ? cardEl.checked : false;
+
+        console.log('Place Order clicked - E-wallet element:', ewalletEl, 'checked:', ewallet, 'Card element:', cardEl, 'checked:', card);
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
-        const preferredDateInput = document.querySelector("input[name='preferred_installation_date']");
+        const preferredDateInput = document.getElementById('preferred_installation_date');
         const preferredDate = preferredDateInput ? preferredDateInput.value : '';
+        
+        let firstErrorElement = null;
+        let errorMessage = "Please complete all required fields.";
 
-        // Validate payment method
-        if (!ewallet && !card) {
-            const paymentSection = document.querySelector('.payment-section');
-            const errorDiv = document.getElementById('payment-method-error');
-            if (errorDiv) {
-                errorDiv.style.display = 'block';
+        // Reset errors
+        document.querySelectorAll('.form-group input, .form-group select').forEach(el => el.style.borderColor = '#ccc');
+        document.querySelectorAll('.inline-error').forEach(el => el.style.display = 'none');
+
+        // Validate shipping info
+        const shippingInputs = document.querySelectorAll('#profileForm input[required], #profileForm select[required]');
+        for (const input of shippingInputs) {
+            // Check if field is visible or not part of hidden address fields
+            const isHiddenAddressField = input.closest('#shipping-address-fields')?.style.display === 'none';
+            if (isHiddenAddressField) continue;
+
+            if (!input.value.trim()) {
+                input.style.borderColor = 'red';
+                if (!firstErrorElement) {
+                    firstErrorElement = input;
+                    const label = input.closest('.form-group')?.querySelector('label')?.textContent.replace('*', '').trim() || "required field";
+                    errorMessage = `Please complete the ${label} field.`;
+                }
+                break;
             }
-            showToast('Please select a payment method before placing order.', 'warning');
-            paymentSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return;
         }
 
-        // Validate terms acceptance
-        if (!termsAccepted) {
-            const termsContainer = document.querySelector('.terms');
-            const errorDiv = document.getElementById('terms-error');
-            if (errorDiv) {
-                errorDiv.style.display = 'block';
+        // Validate billing info if not same
+        if (!firstErrorElement && sBillCheckbox && !sBillCheckbox.checked) {
+            for (const input of bReqInputs) {
+                // Check if billing fields container is visible
+                const isHiddenBilling = document.getElementById('billing-address-fields')?.style.display === 'none';
+                if (isHiddenBilling) continue;
+
+                if (!input.value.trim()) {
+                    input.style.borderColor = 'red';
+                    if (!firstErrorElement) {
+                        firstErrorElement = input;
+                        const label = input.closest('.form-group')?.querySelector('label')?.textContent.replace('*', '').trim() || "required billing field";
+                        errorMessage = `Please complete the billing ${label} field.`;
+                    }
+                    break;
+                }
             }
-            showToast('Please accept the Terms and Conditions to proceed.', 'warning');
-            termsCheckbox.focus();
-            termsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return;
+        }
+
+        // Validate payment method
+        const ewalletEl = document.getElementById("ewallet-radio");
+        const cardEl = document.getElementById("card-radio");
+        const currentEwallet = ewalletEl ? ewalletEl.checked : false;
+        const currentCard = cardEl ? cardEl.checked : false;
+
+        if (!firstErrorElement && !currentEwallet && !currentCard) {
+            console.log('Payment method validation failed - ewallet checked:', currentEwallet, 'card checked:', currentCard);
+            console.log('Radio elements exist:', !!ewalletEl, !!cardEl);
+            const errorDiv = document.getElementById('payment-method-error');
+            if (errorDiv) errorDiv.style.display = 'block';
+            if (!firstErrorElement) {
+                firstErrorElement = document.querySelector('.payment-section');
+                errorMessage = "Please select a payment method.";
+            }
         }
 
         // Validate Preferred Ocular Visit Date
-        if (!preferredDate) {
+        if (!firstErrorElement && !preferredDate) {
             const errorDiv = document.getElementById('installation-date-error');
-            if (errorDiv) {
-                errorDiv.style.display = 'block';
+            if (errorDiv) errorDiv.style.display = 'block';
+            document.getElementById('open-calendar-btn').style.borderColor = 'red';
+            if (!firstErrorElement) {
+                firstErrorElement = document.getElementById('open-calendar-btn');
+                errorMessage = "Please select your preferred ocular visit date.";
             }
-            highlightField('preferred_installation_date', 'installation-date-error', 'Please select a Preferred Ocular Visit Date.');
-            showToast('Please select a Preferred Ocular Visit Date. This field is required.', 'warning');
-            if (preferredDateInput) {
-                preferredDateInput.focus();
-                preferredDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // Validate terms acceptance
+        if (!firstErrorElement && !termsAccepted) {
+            const errorDiv = document.getElementById('terms-error');
+            if (errorDiv) errorDiv.style.display = 'block';
+            if (!firstErrorElement) {
+                firstErrorElement = document.querySelector('.terms');
+                errorMessage = "Please accept the Terms and Conditions.";
             }
+        }
+
+        if (firstErrorElement) {
+            showToast(errorMessage, 'warning');
+            firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
@@ -1721,8 +2127,12 @@ $(document).ready(function() {
     // === Confirm Order button - Actually place the order ===
     confirmOrderBtn.addEventListener("click", function () {
         const btn = this;
+        const defaultConfirmLabel = 'Confirm & Place Order';
         const ewallet = document.getElementById("ewallet-radio").checked;
         const card = document.getElementById("card-radio").checked;
+
+        // Debug: Log payment method state
+        console.log('Payment method validation - E-wallet checked:', ewallet, 'Card checked:', card);
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
 
@@ -1730,100 +2140,47 @@ $(document).ready(function() {
         const form = document.getElementById('profileForm');
         const formData = new FormData(form);
 
-        // Add payment method, terms, and SELECTED CART IDS
-        let paymentMethod = 'E-Wallet'; // default
-        if (card) {
-            paymentMethod = 'Credit or Debit Card';
-        } else if (ewallet) {
-            paymentMethod = 'E-Wallet';
-        }
-        formData.append('payment_method', paymentMethod);
-        formData.append('PaymentMethod', paymentMethod); // Also add as PaymentMethod for consistency
-        formData.append('terms_accepted', termsAccepted ? 'true' : 'false');
-        formData.append('selected_cart_ids', SELECTED_CART_IDS);
+        // If using a saved address, overwrite address fields with saved data
+        const savedAddressDropdown = document.getElementById('saved-address-dropdown');
+        const useDifferentAddress = document.getElementById('use-different-shipping-address')?.checked || false;
         
-        // Check if billing address is same as shipping
-        const sameBilling = document.getElementById('same-billing')?.checked || false;
-        
-        // Ensure all required shipping address fields are included
-        const shippingAddressFields = [
-            'unit_house_number', 'street', 'subdivision', 'barangay',
-            'city', 'province', 'region', 'country', 'zipcode', 'note'
-        ];
-        
-        shippingAddressFields.forEach(fieldName => {
-            const input = form.querySelector(`input[name='${fieldName}'], textarea[name='${fieldName}']`);
-            if (input && !formData.has(fieldName)) {
-                formData.append(fieldName, input.value || '');
+        if (savedAddressDropdown && savedAddressDropdown.value && !useDifferentAddress) {
+            const selectedOption = savedAddressDropdown.options[savedAddressDropdown.selectedIndex];
+            const addressData = JSON.parse(selectedOption.getAttribute('data-address') || '{}');
+            
+            formData.set('unit_house_number', addressData.UnitHouseNumber || '');
+            formData.set('street', addressData.Street || '');
+            formData.set('subdivision', addressData.Subdivision || '');
+            formData.set('barangay', addressData.Barangay || '');
+            formData.set('city', addressData.City || '');
+            formData.set('province', addressData.Province || '');
+            formData.set('region', addressData.Region || '');
+            formData.set('zipcode', addressData.ZipCode || '');
+            formData.set('country', addressData.Country || 'Philippines');
+            
+            // Rebuild address/AddressLine for backward compatibility
+            const addressParts = [
+                addressData.UnitHouseNumber,
+                addressData.Street,
+                addressData.Subdivision
+            ].filter(Boolean);
+            if (addressParts.length > 0) {
+                formData.set('address', addressParts.join(', '));
+                formData.set('AddressLine', addressParts.join(', '));
             }
-        });
-        
-        // Handle billing address - either copy from shipping or use separate fields
-        const billingForm = document.getElementById('billingForm');
-        
-        if (sameBilling) {
-            // Copy shipping address and contact info to billing fields
-            const firstname = form.querySelector("input[name='firstname']")?.value || '';
-            const middlename = form.querySelector("input[name='middlename']")?.value || '';
-            const lastname = form.querySelector("input[name='lastname']")?.value || '';
-            const email = form.querySelector("input[name='email']")?.value || '';
-            const phone = form.querySelector("input[name='phone']")?.value || '';
+        } else {
+            // Build AddressLine from components for backward compatibility
             const unitHouse = form.querySelector("input[name='unit_house_number']")?.value || '';
             const street = form.querySelector("input[name='street']")?.value || '';
             const subdivision = form.querySelector("input[name='subdivision']")?.value || '';
-            const barangay = form.querySelector("input[name='barangay']")?.value || '';
-            const city = form.querySelector("input[name='city']")?.value || '';
-            const province = form.querySelector("input[name='province']")?.value || '';
-            const region = form.querySelector("input[name='region']")?.value || '';
-            const country = form.querySelector("input[name='country']")?.value || 'Philippines';
-            const zipcode = form.querySelector("input[name='zipcode']")?.value || '';
-            
-            // Contact info
-            formData.append('billing_firstname', firstname);
-            formData.append('billing_middlename', middlename);
-            formData.append('billing_lastname', lastname);
-            formData.append('billing_email', email);
-            formData.append('billing_phone', phone);
-            
-            // Address fields
-            formData.append('billing_unit_house_number', unitHouse);
-            formData.append('billing_street', street);
-            formData.append('billing_subdivision', subdivision);
-            formData.append('billing_barangay', barangay);
-            formData.append('billing_city', city);
-            formData.append('billing_province', province);
-            formData.append('billing_region', region);
-            formData.append('billing_country', country);
-            formData.append('billing_zipcode', zipcode);
-        } else {
-            // Use separate billing address fields
-            if (billingForm) {
-                const billingFields = [
-                    'billing_firstname', 'billing_middlename', 'billing_lastname',
-                    'billing_email', 'billing_phone',
-                    'billing_unit_house_number', 'billing_street', 'billing_subdivision', 
-                    'billing_barangay', 'billing_city', 'billing_province', 
-                    'billing_region', 'billing_country', 'billing_zipcode'
-                ];
-                
-                billingFields.forEach(fieldName => {
-                    const input = billingForm.querySelector(`input[name='${fieldName}']`);
-                    if (input && !formData.has(fieldName)) {
-                        formData.append(fieldName, input.value || '');
-                    }
-                });
+            const addressParts = [unitHouse, street, subdivision].filter(Boolean);
+            if (addressParts.length > 0) {
+                formData.set('address', addressParts.join(', '));
+                formData.set('AddressLine', addressParts.join(', '));
             }
         }
-        
-        // Build AddressLine from components for backward compatibility
-        const unitHouse = form.querySelector("input[name='unit_house_number']")?.value || '';
-        const street = form.querySelector("input[name='street']")?.value || '';
-        const subdivision = form.querySelector("input[name='subdivision']")?.value || '';
-        const addressParts = [unitHouse, street, subdivision].filter(Boolean);
-        if (addressParts.length > 0) {
-            formData.append('address', addressParts.join(', '));
-            formData.append('AddressLine', addressParts.join(', '));
-        }
+
+        // Add payment method, terms, and SELECTED CART IDS
         
         // Add preferred ocular visit date (required)
         const preferredDateInput = form.querySelector("input[name='preferred_installation_date']");
@@ -1838,7 +2195,7 @@ $(document).ready(function() {
                 preferredDateInput.focus();
                 preferredDateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 btn.disabled = false;
-                btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
+                btn.textContent = defaultConfirmLabel;
                 closeConfirmModal();
                 return;
             }
@@ -1847,15 +2204,21 @@ $(document).ready(function() {
 
         // Disable button and show loading state
         btn.disabled = true;
-        btn.innerHTML = '<span class="btn-icon">⏳</span> Processing...';
+        btn.textContent = 'Processing...';
 
         // Store order summary in session before sending request
         // This ensures ewallet page has access to the summary
-        const summaryItems = document.getElementById('summary-items').textContent;
-        const summarySubtotal = document.getElementById('summary-subtotal').textContent;
-        const summaryShipping = document.getElementById('summary-shipping').textContent;
-        const summaryHandling = document.getElementById('summary-handling').textContent;
-        const summaryTotal = document.getElementById('summary-total').textContent;
+        const summaryItemsEl = document.getElementById('summary-items');
+        const summarySubtotalEl = document.getElementById('summary-subtotal');
+        const summaryShippingEl = document.getElementById('summary-shipping');
+        const summaryHandlingEl = document.getElementById('summary-handling');
+        const summaryTotalEl = document.getElementById('summary-total');
+
+        const summaryItems = summaryItemsEl ? summaryItemsEl.textContent : '0';
+        const summarySubtotal = summarySubtotalEl ? summarySubtotalEl.textContent : '₱0.00';
+        const summaryShipping = summaryShippingEl ? summaryShippingEl.textContent : '₱0.00';
+        const summaryHandling = summaryHandlingEl ? summaryHandlingEl.textContent : '₱0.00';
+        const summaryTotal = summaryTotalEl ? summaryTotalEl.textContent : '₱0.00';
         
         // Store summary in sessionStorage as backup
         sessionStorage.setItem('order_summary', JSON.stringify({
@@ -1868,9 +2231,13 @@ $(document).ready(function() {
         sessionStorage.setItem('selected_cart_ids', SELECTED_CART_IDS);
 
         // Send AJAX request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 20000);
+
         fetch(BASE_URL + 'shopcon/place_order', {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: controller.signal
         })
         .then(async response => {
             const contentType = response.headers.get('content-type');
@@ -1884,6 +2251,7 @@ $(document).ready(function() {
             }
         })
         .then(data => {
+            clearTimeout(timeoutId);
             // Log debug info to console
             console.log('=== Place Order Response ===');
             console.log('Status:', data.status);
@@ -1916,15 +2284,20 @@ $(document).ready(function() {
                     showToast('Check browser console (F12) for debug details.', 'info', 3000);
                 }
                 btn.disabled = false;
-                btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
+                btn.textContent = defaultConfirmLabel;
                 closeConfirmModal();
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showToast('An error occurred. Please try again. Check console for details.', 'error', 5000);
+            clearTimeout(timeoutId);
+            if (error.name === 'AbortError') {
+                showToast('Request timed out. Please try again.', 'error', 5000);
+            } else {
+                console.error('Error:', error);
+                showToast('An error occurred. Please try again. Check console for details.', 'error', 5000);
+            }
             btn.disabled = false;
-            btn.innerHTML = '<span class="btn-icon">✓</span> Confirm & Place Order';
+            btn.textContent = defaultConfirmLabel;
             closeConfirmModal();
         });
     });

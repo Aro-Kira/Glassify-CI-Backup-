@@ -59,7 +59,32 @@ JAVASCRIPT FILES:
                                     <button class="remove-btn" data-id="<?= $item->Wishlist_ID ?>">X</button>
                                 </td>
                                 <td>
-                                    <img src="<?= base_url('uploads/products/' . $item->ImageUrl) ?>" alt="<?= $item->ProductName ?>" class="wishlist-product-img">
+                                    <?php 
+                                $image_raw = $item->ImageUrl ?? '';
+                                $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                                $product_img = $placeholder_svg;
+                                
+                                if (!empty($image_raw)) {
+                                    $decoded = json_decode($image_raw, true);
+                                    $first_image = '';
+                                    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
+                                        $first_image = $decoded[0];
+                                    } else {
+                                        $first_image = $image_raw;
+                                    }
+                                    
+                                    if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
+                                        if (strpos($first_image, 'http') === 0) {
+                                            $product_img = $first_image;
+                                        } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
+                                            $product_img = base_url($first_image);
+                                        } else {
+                                            $product_img = base_url('uploads/products/' . basename($first_image));
+                                        }
+                                    }
+                                }
+                                ?>
+                                <img src="<?= $product_img ?>" alt="<?= $item->ProductName ?>" class="wishlist-product-img">
                                 </td>
                                 <td class="product-name"><?= $item->ProductName ?></td>
                                 <td class="customization-info">

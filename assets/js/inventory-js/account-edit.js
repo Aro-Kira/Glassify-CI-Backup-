@@ -421,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         // Display error message from server
         const errorMsg = data.message || "Failed to update account";
-        showToast("Error: " + errorMsg, 'error');
+        showToast(errorMsg, 'error');
         saveBtn.textContent = originalText;
         saveBtn.disabled = false;
       }

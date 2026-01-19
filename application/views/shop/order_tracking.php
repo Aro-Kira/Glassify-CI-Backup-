@@ -3,12 +3,63 @@
 
 <div class="order-status-page">
     <?php if ($order): ?>
+        <?php 
+        $status_lower = strtolower(trim($order->Status));
+        $is_cancelled = ($status_lower === 'cancelled' || $status_lower === 'returned');
+        $is_completed = ($status_lower === 'completed' || $status_lower === 'delivered');
+        $is_ongoing = !$is_cancelled && !$is_completed;
+        ?>
         <!-- Title -->
         <section class="order-header">
             <h2>Order Status</h2>
             <p>Order ID: <span><?= htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) ?></span></p>
             <div class="divider"></div>
         </section>
+
+        <!-- Status Message Section -->
+        <div class="status-message-container" style="margin-bottom: 30px;">
+            <?php if ($is_cancelled): ?>
+                <div class="status-card cancelled" style="background: #fff5f5; border-left: 5px solid #d9534f; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h3 style="color: #d9534f; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-times-circle"></i> Order Cancelled
+                    </h3>
+                    <div style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #fed7d7;">
+                        <p style="margin: 0 0 5px 0; font-weight: 600; color: #4a5568;">Reason for Cancellation:</p>
+                        <p style="margin: 0; color: #2d3748; line-height: 1.5;"><?= htmlspecialchars($order->DisapprovedReason ?: 'No reason provided by the administrator.') ?></p>
+                    </div>
+                    <p style="margin: 15px 0 0 0; color: #718096; font-size: 0.9em;">If you believe this is an error, please contact our support team at glassify@support.com</p>
+                </div>
+            <?php elseif ($is_completed): ?>
+                <div class="status-card completed" style="background: #f0fff4; border-left: 5px solid #38a169; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h3 style="color: #38a169; margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-check-circle"></i> Order Successfully Completed
+                    </h3>
+                    <p style="color: #2d3748; margin: 0 0 15px 0;">Your order has been fully processed, delivered, and installed. We hope you are satisfied with our service!</p>
+                    <div style="display: flex; gap: 20px; font-size: 0.9em; color: #4a5568;">
+                        <span><strong>Completed On:</strong> <?= date('F j, Y', strtotime($order->Updated_Date ?? $order->OrderDate)) ?></span>
+                        <span><strong>Payment Status:</strong> <span style="color: #38a169; font-weight: 600;">Paid</span></span>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div class="status-card ongoing" style="background: #ebf8ff; border-left: 5px solid #3182ce; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                    <h3 style="color: #3182ce; margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-sync fa-spin"></i> Your Order is In Progress
+                    </h3>
+                    <p style="color: #2d3748; margin: 0 0 15px 0;">We are working on your order. You can view the real-time status updates in the timeline below.</p>
+                    <div style="background: rgba(255,255,255,0.5); padding: 12px 15px; border-radius: 6px; border: 1px dashed #bee3f8;">
+                        <span style="color: #2b6cb0;"><strong>Current Step:</strong> 
+                            <?php
+                            if ($progress['completed'] === 'in_progress') echo "Final Delivery & Completion";
+                            elseif ($progress['installed'] === 'in_progress') echo "Installation in progress";
+                            elseif ($progress['in_fabrication'] === 'in_progress') echo "Fabricating your custom products";
+                            elseif ($progress['ocular_visit'] === 'in_progress') echo "Preparing for ocular visit";
+                            else echo "Order validation & payment verification";
+                            ?>
+                        </span>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </div>
 
         <!-- Order Info -->
         <section class="order-info">
@@ -38,6 +89,7 @@
         </section>
 
         <!-- Order Progress -->
+        <?php if (!$is_cancelled): ?>
         <?php
         // Calculate progress percentage (include in-progress steps so line connects)
         // The line should extend to the highest completed or in-progress step
@@ -90,10 +142,12 @@
         }
         
         // Helper function to get step status class
-        function get_step_class($status) {
-            if ($status === 'completed') return 'completed';
-            if ($status === 'in_progress') return 'in-progress';
-            return 'pending';
+        if (!function_exists('get_step_class')) {
+            function get_step_class($status) {
+                if ($status === 'completed') return 'completed';
+                if ($status === 'in_progress') return 'in-progress';
+                return 'pending';
+            }
         }
         ?>
         <section class="order-progress <?= $has_in_progress ? 'has-in-progress' : '' ?>" style="--progress-width: <?= $progress_percent ?>%;">
@@ -168,6 +222,7 @@
                 <?php endif; ?>
             </div>
         </section>
+        <?php endif; ?>
 
         <!-- Products Table -->
         <section class="order-products">
@@ -186,7 +241,32 @@
                         <?php foreach ($order_items as $item): ?>
                             <tr>
                                 <td>
-                                    <img src="<?= base_url('uploads/products/' . ($item->ImageUrl ?? 'default.jpg')) ?>" alt="<?= htmlspecialchars($item->ProductName ?? 'Product') ?>" class="cart-product-img">
+                                    <?php 
+                                    $image_raw = $item->ImageUrl ?? '';
+                                    $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                                    $product_img = $placeholder_svg;
+                                    
+                                    if (!empty($image_raw)) {
+                                        $decoded = json_decode($image_raw, true);
+                                        $first_image = '';
+                                        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
+                                            $first_image = $decoded[0];
+                                        } else {
+                                            $first_image = $image_raw;
+                                        }
+                                        
+                                        if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
+                                            if (strpos($first_image, 'http') === 0) {
+                                                $product_img = $first_image;
+                                            } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
+                                                $product_img = base_url($first_image);
+                                            } else {
+                                                $product_img = base_url('uploads/products/' . basename($first_image));
+                                            }
+                                        }
+                                    }
+                                    ?>
+                                    <img src="<?= $product_img ?>" alt="<?= htmlspecialchars($item->ProductName ?? 'Product') ?>" class="cart-product-img">
                                 </td>
                                 <td><?= htmlspecialchars($item->ProductName ?? 'Unknown Product') ?></td>
                                 <td class="customization-info">
