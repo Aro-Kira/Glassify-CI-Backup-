@@ -4962,6 +4962,7 @@ function setupProductPopups() {
   const addImageInput = document.getElementById("productImageInput");
   const addImagePreview = addPopup?.querySelector(".image-preview img");
   const addNameInput = document.getElementById("productName");
+  const addDescriptionInput = document.getElementById("productDescription");
   const addPriceMinInput = document.getElementById("productPriceMin");
   const addPriceMaxInput = document.getElementById("productPriceMax");
   const addCategorySelect = document.getElementById("productCategory");
@@ -5305,6 +5306,7 @@ function setupProductPopups() {
     }
 
     let name = addNameInput.value.trim();
+    let description = addDescriptionInput ? addDescriptionInput.value.trim() : '';
     let categoryEl = document.getElementById("productCategory");
     let subcategoryEl = document.getElementById("productSubcategory");
     let orderTypeEl = document.getElementById("productOrderType");
@@ -5362,6 +5364,7 @@ function setupProductPopups() {
 
     let formData = new FormData();
     formData.append("name", name);
+    formData.append("description", description);
     formData.append("category", category);
     if (subcategory) formData.append("subcategory", subcategory);
     formData.append("orderType", orderType);
@@ -5459,6 +5462,7 @@ function populateEditForm(product) {
   
   // Populate basic fields
   const editNameInput = document.getElementById("editProductName");
+  const editDescriptionInput = document.getElementById("editProductDescription");
   const editPriceMinInput = document.getElementById("editProductPriceMin");
   const editPriceMaxInput = document.getElementById("editProductPriceMax");
   const editCategoryEl = document.getElementById("editProductCategory");
@@ -5475,6 +5479,7 @@ function populateEditForm(product) {
   const editManageCustomizationGroup = document.getElementById("editManageCustomizationGroup");
   
   if (editNameInput) editNameInput.value = product.ProductName || '';
+  if (editDescriptionInput) editDescriptionInput.value = product.Description || '';
   
   // Populate price range
   if (editPriceMinInput) editPriceMinInput.value = product.PriceMin || '';
@@ -6293,6 +6298,7 @@ function setupEditPopupHandlers() {
 
     const id = window.productBeingEdited.dataset.id;
     const editNameInput = document.getElementById("editProductName");
+    const editDescriptionInput = document.getElementById("editProductDescription");
     const editPriceMinInput = document.getElementById("editProductPriceMin");
     const editPriceMaxInput = document.getElementById("editProductPriceMax");
     const editCategoryEl = document.getElementById("editProductCategory");
@@ -6300,6 +6306,7 @@ function setupEditPopupHandlers() {
     const editOrderTypeInput = document.getElementById("editProductOrderType");
 
     let name = editNameInput ? editNameInput.value.trim() : '';
+    let description = editDescriptionInput ? editDescriptionInput.value.trim() : '';
     let category = editCategoryEl ? editCategoryEl.value : '';
     let subcategory = editSubcategoryEl ? editSubcategoryEl.value : '';
     let orderType = editOrderTypeInput ? editOrderTypeInput.value : 'direct';
@@ -6375,6 +6382,7 @@ function setupEditPopupHandlers() {
 
     let formData = new FormData();
     formData.append("name", name);
+    formData.append("description", description);
     // Category and subcategory are read-only - don't send them (they won't be updated)
     // formData.append("category", category);
     // if (subcategory) formData.append("subcategory", subcategory);

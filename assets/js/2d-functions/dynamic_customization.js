@@ -197,7 +197,9 @@ function renderDynamicCustomizationFields(fields, tagPrices, container, tagImage
     // Initialize conditional logic for Windows_Sliding fields after fields are rendered
     setTimeout(() => {
       // Check initial state of fields that affect conditionals
-      const transomTypeContainer = document.querySelector('[data-field-id="transomType"]');
+      // Check for transom type field (try both possible field IDs)
+      const transomTypeContainer = document.querySelector('[data-field-id="transomType"]') || 
+                                    document.querySelector('[data-field-id="transomTypeTopBottomFixedPanel"]');
       const numberOfPanelsContainer = document.querySelector('[data-field-id="numberOfPanels"]');
       const trackSystemContainer = document.querySelector('[data-field-id="trackSystem"]');
       
@@ -205,8 +207,15 @@ function renderDynamicCustomizationFields(fields, tagPrices, container, tagImage
         const activeTransom = transomTypeContainer.querySelector('.option-card.active');
         if (activeTransom) {
           const transomValue = activeTransom.dataset.value || activeTransom.textContent.trim();
-          handleWindowsSlidingConditionals('transomType', transomValue);
+          // Get the actual field ID from the container
+          const fieldId = transomTypeContainer.getAttribute('data-field-id');
+          handleWindowsSlidingConditionals(fieldId, transomValue);
+          // Also toggle h1 input visibility on initial load
+          toggleH1InputVisibility(transomValue);
         }
+      } else {
+        // If no transom container found, make sure h1 is hidden
+        toggleH1InputVisibility('None');
       }
       
       if (numberOfPanelsContainer) {
@@ -1424,9 +1433,208 @@ function handleMirrorsConditionals(changedFieldId, selectedValue) {
 /**
  * Handle conditional logic for Windows_Sliding fields
  */
+/**
+ * Toggle visibility of h1 (inner height) input field based on transom selection
+ * @param {string} transomValue - The selected transom type value
+ */
+function toggleH1InputVisibility(transomValue) {
+  const h1InputGroup = document.getElementById('input-group-h1');
+  const h1Input = document.getElementById('input-h1');
+  const btnUnitH1 = document.getElementById('btn-unit-h1');
+  const h2InputGroup = document.getElementById('input-group-h2');
+  const h2Input = document.getElementById('input-h2');
+  const btnUnitH2 = document.getElementById('btn-unit-h2');
+  
+  if (!h1InputGroup || !h1Input || !h2InputGroup || !h2Input) {
+    console.warn('[Transom Inputs] Elements not found:', { 
+      h1InputGroup: !!h1InputGroup, 
+      h1Input: !!h1Input,
+      h2InputGroup: !!h2InputGroup,
+      h2Input: !!h2Input
+    });
+    return;
+  }
+  
+  const hasTransom = transomValue && transomValue.toLowerCase() !== 'none';
+  console.log('[Transom Inputs] Toggling visibility:', { transomValue, hasTransom });
+  
+  if (hasTransom) {
+    // Show both h1 and h2 inputs
+    h1InputGroup.classList.remove('hidden-step');
+    h1InputGroup.style.display = '';
+    h2InputGroup.classList.remove('hidden-step');
+    h2InputGroup.style.display = '';
+    
+    // Get total height
+    const inputHeight = document.getElementById('input-height');
+    const btnUnitHeight = document.getElementById('btn-unit-height');
+    const heightUnit = btnUnitHeight ? btnUnitHeight.getAttribute('data-current-unit') || 'in' : 'in';
+    const totalHeight = inputHeight ? parseFloat(inputHeight.value) || 45 : 45;
+    
+    // Calculate default values if inputs are empty
+    if (!h1Input.value || h1Input.value === '') {
+      const h1Value = totalHeight * 0.7; // 70% of total height (sliding section)
+      h1Input.value = h1Value.toFixed(1);
+    }
+    
+    if (!h2Input.value || h2Input.value === '') {
+      const h2Value = totalHeight * 0.3; // 30% of total height (fixed transom)
+      h2Input.value = h2Value.toFixed(1);
+    }
+    
+    // Sync units with height unit and use full unit names
+    const unitMapLocal = {
+      'in': 'Inches',
+      'cm': 'Centimeters',
+      'mm': 'Millimeters'
+    };
+    const unitName = unitMapLocal[heightUnit] || 'Inches';
+    
+    if (btnUnitH1) {
+      btnUnitH1.setAttribute('data-current-unit', heightUnit);
+      btnUnitH1.innerHTML = `${unitName} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>`;
+    }
+    
+    if (btnUnitH2) {
+      btnUnitH2.setAttribute('data-current-unit', heightUnit);
+      btnUnitH2.innerHTML = `${unitName} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>`;
+    }
+    
+    // Auto-adjust h2 based on h1 and total height
+    adjustTransomHeights();
+    
+    console.log('[Transom Inputs] ✅ Shown with values:', { h1: h1Input.value, h2: h2Input.value });
+  } else {
+    // Hide both inputs
+    h1InputGroup.classList.add('hidden-step');
+    h1InputGroup.style.display = 'none';
+    h1Input.value = '';
+    h2InputGroup.classList.add('hidden-step');
+    h2InputGroup.style.display = 'none';
+    h2Input.value = '';
+    console.log('[Transom Inputs] ❌ Hidden');
+  }
+}
+
+/**
+ * Auto-adjust transom heights: h1 + h2 = totalHeight
+ * When one changes, adjust the other to maintain total height
+ */
+function adjustTransomHeights() {
+  const inputHeight = document.getElementById('input-height');
+  const btnUnitHeight = document.getElementById('btn-unit-height');
+  const h1Input = document.getElementById('input-h1');
+  const btnUnitH1 = document.getElementById('btn-unit-h1');
+  const h2Input = document.getElementById('input-h2');
+  const btnUnitH2 = document.getElementById('btn-unit-h2');
+  
+  if (!inputHeight || !h1Input || !h2Input) return;
+  
+  const totalHeight = parseFloat(inputHeight.value) || 0;
+  if (totalHeight <= 0) return; // Don't adjust if total height is invalid
+  
+  const heightUnit = btnUnitHeight ? btnUnitHeight.getAttribute('data-current-unit') || 'in' : 'in';
+  const h1Value = parseFloat(h1Input.value) || 0;
+  const h2Value = parseFloat(h2Input.value) || 0;
+  const h1Unit = btnUnitH1 ? btnUnitH1.getAttribute('data-current-unit') || heightUnit : heightUnit;
+  const h2Unit = btnUnitH2 ? btnUnitH2.getAttribute('data-current-unit') || heightUnit : heightUnit;
+  
+  // Helper function to convert to mm (if not available globally)
+  const convertToMmLocal = (value, unit) => {
+    const unitMapLocal = {
+      'in': { toMm: 25.4 },
+      'cm': { toMm: 10 },
+      'mm': { toMm: 1 }
+    };
+    const unitInfo = unitMapLocal[unit?.toLowerCase()] || unitMapLocal['in'];
+    return value * unitInfo.toMm;
+  };
+  
+  // Convert all to same unit (mm) for calculation
+  const convertToMmFn = typeof convertToMm === 'function' ? convertToMm : convertToMmLocal;
+  const totalHeightMm = convertToMmFn(totalHeight, heightUnit);
+  const h1Mm = h1Value > 0 ? convertToMmFn(h1Value, h1Unit) : 0;
+  const h2Mm = h2Value > 0 ? convertToMmFn(h2Value, h2Unit) : 0;
+  
+  // Unit map for conversion back
+  const unitMapLocal = {
+    'in': { toMm: 25.4 },
+    'cm': { toMm: 10 },
+    'mm': { toMm: 1 }
+  };
+  const getUnitToMm = (unit) => unitMapLocal[unit?.toLowerCase()]?.toMm || 25.4;
+  
+  // Calculate sum and difference
+  const currentSum = h1Mm + h2Mm;
+  const difference = totalHeightMm - currentSum;
+  
+  // Determine which input was last changed
+  const h1LastModified = parseFloat(h1Input.dataset.lastModified) || 0;
+  const h2LastModified = parseFloat(h2Input.dataset.lastModified) || 0;
+  const heightLastModified = parseFloat(inputHeight.dataset.lastModified) || 0;
+  
+  // If total height was changed, maintain the ratio of h1 and h2
+  if (heightLastModified > Math.max(h1LastModified, h2LastModified)) {
+    // Total height changed - maintain ratio
+    if (h1Mm > 0 && h2Mm > 0) {
+      // Both have values, maintain ratio
+      const h1Ratio = h1Mm / currentSum;
+      const h2Ratio = h2Mm / currentSum;
+      const newH1Mm = totalHeightMm * h1Ratio;
+      const newH2Mm = totalHeightMm * h2Ratio;
+      h1Input.value = Math.max(0.1, (newH1Mm / getUnitToMm(h1Unit)).toFixed(1));
+      h2Input.value = Math.max(0.1, (newH2Mm / getUnitToMm(h2Unit)).toFixed(1));
+    } else if (h1Mm > 0) {
+      // Only h1 has value, calculate h2
+      const newH2Mm = totalHeightMm - h1Mm;
+      h2Input.value = Math.max(0.1, (newH2Mm / getUnitToMm(h2Unit)).toFixed(1));
+    } else if (h2Mm > 0) {
+      // Only h2 has value, calculate h1
+      const newH1Mm = totalHeightMm - h2Mm;
+      h1Input.value = Math.max(0.1, (newH1Mm / getUnitToMm(h1Unit)).toFixed(1));
+    } else {
+      // Neither has value, use default ratios
+      const newH1Mm = totalHeightMm * 0.7;
+      const newH2Mm = totalHeightMm * 0.3;
+      h1Input.value = Math.max(0.1, (newH1Mm / getUnitToMm(h1Unit)).toFixed(1));
+      h2Input.value = Math.max(0.1, (newH2Mm / getUnitToMm(h2Unit)).toFixed(1));
+    }
+  } else if (Math.abs(difference) > 1) {
+    // One of h1 or h2 was changed, adjust the other
+    if (h1LastModified > h2LastModified && h1Mm > 0) {
+      // h1 was changed, adjust h2
+      const newH2Mm = totalHeightMm - h1Mm;
+      if (newH2Mm > 0) {
+        h2Input.value = (newH2Mm / getUnitToMm(h2Unit)).toFixed(1);
+      }
+    } else if (h2LastModified > h1LastModified && h2Mm > 0) {
+      // h2 was changed, adjust h1
+      const newH1Mm = totalHeightMm - h2Mm;
+      if (newH1Mm > 0) {
+        h1Input.value = (newH1Mm / getUnitToMm(h1Unit)).toFixed(1);
+      }
+    } else if (h1Mm > 0 && h2Mm === 0) {
+      // Only h1 has value, calculate h2
+      const newH2Mm = totalHeightMm - h1Mm;
+      if (newH2Mm > 0) {
+        h2Input.value = (newH2Mm / getUnitToMm(h2Unit)).toFixed(1);
+      }
+    } else if (h2Mm > 0 && h1Mm === 0) {
+      // Only h2 has value, calculate h1
+      const newH1Mm = totalHeightMm - h2Mm;
+      if (newH1Mm > 0) {
+        h1Input.value = (newH1Mm / getUnitToMm(h1Unit)).toFixed(1);
+      }
+    }
+  }
+}
+
 function handleWindowsSlidingConditionals(changedFieldId, selectedValue) {
   // Rule 1: Track System depends on Transom Type
-  if (changedFieldId === 'transomType') {
+  // Handle both field ID variations: 'transomType' and 'transomTypeTopBottomFixedPanel'
+  const isTransomField = changedFieldId === 'transomType' || changedFieldId === 'transomTypeTopBottomFixedPanel';
+  
+  if (isTransomField) {
     const trackSystemContainer = document.querySelector('[data-field-id="trackSystem"]');
     if (trackSystemContainer) {
       const trackOptions = trackSystemContainer.querySelectorAll('.option-card');
@@ -1459,6 +1667,9 @@ function handleWindowsSlidingConditionals(changedFieldId, selectedValue) {
       // Update Screen checkbox based on track system
       updateScreenAvailability();
     }
+    
+    // Show/hide h1 input field based on transom selection
+    toggleH1InputVisibility(selectedValue);
   }
   
   // Rule 2: Track System changes affect Screen availability
@@ -2520,6 +2731,8 @@ window.enforceSingleSelection = enforceSingleSelection;
 window.updateDynamicBreadcrumbs = updateDynamicBreadcrumbs;
 window.setupDirectToSummaryNavigation = setupDirectToSummaryNavigation;
 window.syncStateFromActiveSelections = syncStateFromActiveSelections;
+window.adjustTransomHeights = adjustTransomHeights;
+window.toggleH1InputVisibility = toggleH1InputVisibility;
 
 // MutationObserver disabled to avoid interfering with user clicks
 // The click handler itself ensures only one option is active

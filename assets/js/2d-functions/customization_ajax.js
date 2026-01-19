@@ -316,22 +316,44 @@ function applySavedSelections(selections) {
 }
 
 /**
+ * Escape special characters for CSS selectors
+ */
+function escapeCSSSelector(str) {
+    if (!str) return '';
+    // Escape special CSS characters: |, (, ), [, ], {, }, :, ;, ', ", \, /, @, !, etc.
+    return str.replace(/([|()[\]{}:;'"\\/@!])/g, '\\$1');
+}
+
+/**
  * Find form element for a field
  */
 function findFormElement(fieldId, value) {
+    // Escape values for safe selector usage
+    const escapedFieldId = escapeCSSSelector(fieldId);
+    const escapedValue = escapeCSSSelector(value);
+    
     // Try different selectors to find the element
     const selectors = [
         `[data-field-id="${fieldId}"][value="${value}"]`,
         `[data-field-id="${fieldId}"] [value="${value}"]`,
-        `#${fieldId}_${value}`,
+        `#${escapedFieldId}_${escapedValue}`,
         `input[name="${fieldId}"][value="${value}"]`,
-        `select[name="${fieldId}"] option[value="${value}"]`
+        `select[name="${fieldId}"] option[value="${value}"]`,
+        // Also try finding by data-value attribute (used in option cards)
+        `[data-field-id="${fieldId}"] [data-value="${value}"]`,
+        `[data-field-id="${fieldId}"] .option-card[data-value="${value}"]`
     ];
 
     for (const selector of selectors) {
-        const element = document.querySelector(selector);
-        if (element) {
-            return element;
+        try {
+            const element = document.querySelector(selector);
+            if (element) {
+                return element;
+            }
+        } catch (e) {
+            // Skip invalid selectors (e.g., containing special characters)
+            // Continue to next selector
+            continue;
         }
     }
 
@@ -428,6 +450,12 @@ function updatePriceDisplay(totalPrice, breakdown = null) {
  * Update price breakdown display
  */
 function updatePriceBreakdown(breakdown) {
+    // Safety check: ensure breakdown is an object
+    if (!breakdown || typeof breakdown !== 'object') {
+        console.warn('[Price Breakdown] Invalid breakdown data:', breakdown);
+        return;
+    }
+    
     // Update individual breakdown items
     Object.keys(breakdown).forEach(key => {
         const element = document.getElementById(`cost-${key}`);

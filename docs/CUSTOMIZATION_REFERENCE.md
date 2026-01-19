@@ -2,6 +2,8 @@
 
 This reference lists every main category, its supported subcategories, and the default customization fields (with their control type and allowed values) that are used when the admin configures products.
 
+> **📌 For Developers:** If you're implementing or modifying customization fields, see [`DEVELOPER_HANDOFF_WINDOWS_SLIDING_CHANGES.md`](./DEVELOPER_HANDOFF_WINDOWS_SLIDING_CHANGES.md) for implementation details, database setup, and troubleshooting guide.
+
 ## Windows
 
 ### Sliding
@@ -9,16 +11,16 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Window Type (1) | Number of Panels | `tags` | 2 Panels \\| 4 Panels |
-| Window Type (1) | Transom Type (Top / Bottom Fixed Panel) | `tags` | None \\| Fixed Transom Head (Fixed glass at top) \\| Fixed Transom Sill (Fixed glass at bottom) |
-| Sliding System & Size (2) | Track System (Sliding Rail Count) | `tags` | 2 Tracks \\| 3 Tracks |
-| Sliding System & Size (2) | Panel Configuration | `tags` | S \\| S (Sliding \\| Sliding) \\| F \\| S (Fixed \\| Sliding) \\| S \\| S \\| S \\| S (All Sliding) \\| F \\| S \\| S \\| F (Fixed \\| Sliding \\| Sliding \\| Fixed) |
-| Frame & Glass (3) | Frame Color | `tags` | Hanalok \\| White \\| Black \\| Gray \\| Wood Finish |
-| Frame & Glass (3) | Glass Type | `tags` | Clear \\| Ultra Clear \\| Bronze \\| Light Green \\| Dark Gray \\| Copperfree Mirror \\| Euro Gray \\| Ford Blue \\| Reflective: Clear \\| Reflective: Gray \\| Reflective: Light Blue \\| Reflective: Dark Blue \\| Reflective: Light Green \\| Reflective: Dark Green \\| Reflective: Light Bronze \\| Tempered: Clear \\| Tempered: Bronze |
-| Frame & Glass (3) | Glass Thickness | `tags` | 6mm |
-| Hardware & Accessories (4) | Lock Type | `tags` | Center Lok 904 Big \\| Flushlok #12 \\| Durable Flushlok \\| New Auto Flushlock |
-| Hardware & Accessories (4) | Roller Type | `tags` | Single Panel Roller \\| Blue Single Roller \\| Blue Double Roller |
-| Hardware & Accessories (4) | Screen | `tags` | With Screen \\| Without Screen |
+| Step 1 (1) | Number of Panels | `tags` | 2 Panels \| 4 Panels |
+| Step 1 (1) | Transom Type (Top / Bottom Fixed Panel) | `tags` | None \| Fixed Transom Head (Fixed glass at top) \| Fixed Transom Sill (Fixed glass at bottom) |
+| Step 2 (2) | Track System (Sliding Rail Count) | `tags` | 2 Tracks \| 3 Tracks |
+| Step 2 (2) | Panel Configuration | `tags` | S | S (Sliding | Sliding) \| F | S (Fixed | Sliding) \| S | S | S | S (All Sliding) \| F | S | S | F (Fixed | Sliding | Sliding | Fixed) |
+| Step 3 (3) | Frame Color | `tags` | Hanalok \| White \| Black \| Gray \| Wood Finish |
+| Step 3 (3) | Glass Type | `tags` | Clear \| Ultra Clear \| Bronze \| Light Green \| Dark Gray \| Copperfree Mirror \| Euro Gray \| Ford Blue \| Reflective: Clear \| Reflective: Gray \| Reflective: Light Blue \| Reflective: Dark Blue \| Reflective: Light Green \| Reflective: Dark Green \| Reflective: Light Bronze \| Tempered: Clear \| Tempered: Bronze |
+| Step 3 (3) | Glass Thickness | `tags` | 6mm \| 8mm \| 10mm \| 12mm |
+| Step 4 (4) | Lock Type | `tags` | Center Lok 904 Big \| Flushlok #12 \| Durable Flushlok \| New Auto Flushlock |
+| Step 4 (4) | Roller Type | `tags` | Single Panel Roller \| Blue Single Roller \| Blue Double Roller |
+| Step 4 (4) | Screen | `tags` | With Screen \| Without Screen |
 
 ### Awning
 **Step names:** Basic Options · Configuration & Details

@@ -1340,6 +1340,52 @@ h1 {
     font-family: 'DM Sans', sans-serif;
 }
 
+.section-title {
+    color: #333;
+    font-size: 1.8rem;
+    margin-bottom: 30px;
+    font-weight: 600;
+    font-family: 'DM Sans', sans-serif;
+}
+
+/* Product Description Section */
+.product-description-section {
+    background-color: white;
+    color: #333;
+    padding: 60px 0;
+}
+
+.product-description-content {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    line-height: 1.8;
+    font-size: 1rem;
+    color: #333;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.product-description-content p {
+    margin-bottom: 15px;
+}
+
+.product-description-content strong {
+    font-weight: 600;
+    color: #02455F;
+}
+
+.product-description-content ul,
+.product-description-content ol {
+    margin-left: 20px;
+    margin-bottom: 15px;
+}
+
+.product-description-content li {
+    margin-bottom: 8px;
+}
+
 /* Related Products Grid */
 .products-grid {
     display: grid;

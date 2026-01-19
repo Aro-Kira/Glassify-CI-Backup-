@@ -40,23 +40,10 @@ const generatedCustomizationDefaults = {
             "id": "panelConfiguration",
             "stepNumber": 2,
             "options": [
-                "S",
-                "S (Sliding",
-                "Sliding)",
-                "F",
-                "S (Fixed",
-                "Sliding)",
-                "S",
-                "S",
-                "S",
-                "S (All Sliding)",
-                "F",
-                "S",
-                "S",
-                "F (Fixed",
-                "Sliding",
-                "Sliding",
-                "Fixed)"
+                "S | S (Sliding | Sliding)",
+                "F | S (Fixed | Sliding)",
+                "S | S | S | S (All Sliding)",
+                "F | S | S | F (Fixed | Sliding | Sliding | Fixed)"
             ]
         },
         {

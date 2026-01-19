@@ -431,7 +431,7 @@ function updateAdminPreview() {
     }));
     
     // Draw type and thickness label (Reference format: "Thickness: 5mm")
-    const formatThickness = thickness.replace('mm', '') + 'mm'; // Ensure mm format
+    const formatThickness = thickness.replace(/mm+$/g, '') + 'mm'; // Ensure mm format
     const formatEdge = edgeWork ? edgeWork.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ') : '';
     const typeLabel = new Konva.Text({
         x: startX + drawWidth / 2,

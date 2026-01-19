@@ -109,6 +109,7 @@ class ProductCon extends CI_Controller
     $orderType = $this->input->post('orderType', true);
     $subcategory = $this->input->post('subcategory', true);
     $productName = $this->input->post('name', true);
+    $description = $this->input->post('description', true);
     
     // Check for duplicate product name
     if ($this->Product_model->product_name_exists($productName)) {
@@ -118,6 +119,7 @@ class ProductCon extends CI_Controller
     
     $data = [
         'ProductName' => $productName,
+        'Description' => $description ? $description : null,
         'Category'    => $this->input->post('category', true),
         'Subcategory'  => $subcategory ? $subcategory : null, // Store subcategory
         'OrderType'   => $orderType ? $orderType : 'direct', // Store order type (direct or site-assessment)
@@ -370,7 +372,7 @@ public function update_product($id)
             $avgPrice = $existing_product->Price;
         }
         
-        // Admin can update name, order type, price range (category and subcategory are read-only)
+        // Admin can update name, description, order type, price range (category and subcategory are read-only)
         if ($this->input->post('name')) {
             $newProductName = $this->input->post('name', true);
             // Check for duplicate product name (excluding current product)
@@ -379,6 +381,9 @@ public function update_product($id)
                 return;
             }
             $data['ProductName'] = $newProductName;
+        }
+        if ($this->input->post('description') !== null) {
+            $data['Description'] = $this->input->post('description', true) ?: null;
         }
         // Category and subcategory are read-only - don't update them
         // if ($this->input->post('category')) {

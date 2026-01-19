@@ -52,7 +52,7 @@ const FIELD_VISUAL_CATEGORIES = {
   
   // Configuration fields - affects panel layout
   configuration: {
-    fieldIds: ['numberOfPanels', 'panelCount', 'panelConfiguration', 'configuration', 'sizeConfiguration', 'layoutConfiguration', 'fixedPanels'],
+    fieldIds: ['numberOfPanels', 'panelCount', 'panelConfiguration', 'configuration', 'sizeConfiguration', 'layoutConfiguration', 'fixedPanels', 'transomType', 'transomTypeTopBottomFixedPanel'],
     konvaProperties: ['panelCount', 'panelLayout'],
     description: 'Affects panel count and layout'
   },

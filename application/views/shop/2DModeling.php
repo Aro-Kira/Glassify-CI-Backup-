@@ -307,6 +307,44 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Inner Height (h1) - Sliding section - Only visible when transom is selected -->
+                    <div class="input-group hidden-step" id="input-group-h1">
+                        <label class="section-label">Inner Height (h1) - Sliding <span style="color: #0066CC; font-weight: bold;">●</span></label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-h1" name="h1" value="" min="0" step="0.1" placeholder="0.0">
+                            </div>
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-h1" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-h1">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Fixed Transom Height (h2) - Fixed section - Only visible when transom is selected -->
+                    <div class="input-group hidden-step" id="input-group-h2">
+                        <label class="section-label">Fixed Transom Height (h2) <span style="color: #00AA00; font-weight: bold;">●</span></label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-h2" name="h2" value="" min="0" step="0.1" placeholder="0.0">
+                            </div>
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-h2" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-h2">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Dynamic customization fields will be rendered here -->
@@ -483,6 +521,17 @@
             </div>
         </section>
     </main>
+
+    <?php if (isset($product) && !empty($product->Description)): ?>
+    <section id="product-description-section" class="full-width-section product-description-section">
+        <div class="inner-content">
+            <h2 class="section-title">Product Descriptions</h2>
+            <div class="product-description-content">
+                <?= nl2br(htmlspecialchars($product->Description)) ?>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
 
     <section id="related-products-section" class="full-width-section dark-bg">
         <div class="inner-content">

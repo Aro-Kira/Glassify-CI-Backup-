@@ -19,6 +19,12 @@ const inputHeight = document.getElementById('input-height');
 const btnUnitHeight = document.getElementById('btn-unit-height');
 const inputWidth = document.getElementById('input-width');
 const btnUnitWidth = document.getElementById('btn-unit-width');
+const inputH1 = document.getElementById('input-h1');
+const btnUnitH1 = document.getElementById('btn-unit-h1');
+const inputGroupH1 = document.getElementById('input-group-h1');
+const inputH2 = document.getElementById('input-h2');
+const btnUnitH2 = document.getElementById('btn-unit-h2');
+const inputGroupH2 = document.getElementById('input-group-h2');
 const shapeCards = document.querySelectorAll('.option-card[data-shape]');
 
 // Modal elements
@@ -60,6 +66,17 @@ const unitMap = {
     'cm': { name: 'Centimeters', toMm: 10 },
     'mm': { name: 'Millimeters', toMm: 1 }
 };
+
+/**
+ * Convert a value from any unit to millimeters
+ * @param {number} value - The value to convert
+ * @param {string} unit - The unit ('in', 'cm', 'mm')
+ * @returns {number} Value in millimeters
+ */
+function convertToMm(value, unit) {
+    const unitInfo = unitMap[unit.toLowerCase()] || unitMap['in'];
+    return value * unitInfo.toMm;
+}
 
 
 // --- KONVA.JS VISUALIZATION LOGIC ---
@@ -103,6 +120,10 @@ let glassStyles = {
     'reflective: light bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.8 },
     'tempered: clear': { fill: 'rgba(255, 255, 255, 0.2)', opacity: 0.9 },
     'tempered: bronze': { fill: 'rgba(205, 127, 50, 0.3)', opacity: 0.8 },
+    // Updated Windows glass options (Frame & Glass step)
+    'frosted/smoked': { fill: 'rgba(220, 220, 220, 0.7)', opacity: 0.8 },
+    'ordinary': { fill: '#E0F2F1', opacity: 0.9 },
+    'reflective': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85 },
     // Mirror-specific tint options
     'mirror-clear': { fill: 'rgba(224, 242, 241, 0.9)', opacity: 0.95 },
     'mirror-bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.7 },
@@ -136,6 +157,11 @@ let frameStyles = {
     'gray': { color: '#808080', width: 4, isDefault: true },
     'grey': { color: '#808080', width: 4, isDefault: true },
     'wood finish': { color: '#8B4513', width: 4, isDefault: true },
+    // Updated Windows frame colors (Frame & Glass step)
+    'powder coated white': { color: '#F8F8F8', width: 4, isDefault: true },
+    'analok': { color: '#F5F5DC', width: 4, isDefault: true },
+    'matte gray': { color: '#6B6B6B', width: 4, isDefault: true },
+    'matte black': { color: '#1A1A1A', width: 4, isDefault: true },
     // Mirror-specific frame types
     'standard-frame': { color: '#333333', width: 6, isDefault: true },
     'thin-frame': { color: '#333333', width: 3, isDefault: true },
@@ -554,22 +580,98 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     const operation = (customizationValues.operation || customizationValues.Operation || 'sliding').toLowerCase();
     const configuration = (customizationValues.configuration || customizationValues.Configuration || '').toLowerCase();
 
+    // Get transom type (Top / Bottom Fixed Panel)
+    const transomType = customizationValues.transomType || 
+                        customizationValues.TransomType || 
+                        customizationValues.transomTypeTopBottomFixedPanel ||
+                        customizationValues.TransomTypeTopBottomFixedPanel || 
+                        'None';
+    const hasTransom = transomType && transomType.toLowerCase() !== 'none';
+    const isFixedTransomHead = hasTransom && transomType.toLowerCase().includes('head');
+    const isFixedTransomSill = hasTransom && transomType.toLowerCase().includes('sill');
+    
+    // Get h1 (sliding section height) and h2 (fixed transom height) values from inputs if available
+    let h1Value = null;
+    let h1Unit = heightUnit;
+    let h2Value = null;
+    let h2Unit = heightUnit;
+    
+    // Check if h1 input exists and is visible
+    const h1InputGroup = inputGroupH1 || document.getElementById('input-group-h1');
+    const h1Input = inputH1 || document.getElementById('input-h1');
+    const h1UnitBtn = btnUnitH1 || document.getElementById('btn-unit-h1');
+    
+    // Check if h2 input exists and is visible
+    const h2InputGroup = inputGroupH2 || document.getElementById('input-group-h2');
+    const h2Input = inputH2 || document.getElementById('input-h2');
+    const h2UnitBtn = btnUnitH2 || document.getElementById('btn-unit-h2');
+    
+    if (h1Input && h1Input.value && h1InputGroup && !h1InputGroup.classList.contains('hidden-step') && h1InputGroup.style.display !== 'none') {
+        const h1InputValue = parseFloat(h1Input.value);
+        if (!isNaN(h1InputValue) && h1InputValue > 0) {
+            h1Value = h1InputValue;
+            if (h1UnitBtn) {
+                h1Unit = h1UnitBtn.getAttribute('data-current-unit') || heightUnit;
+            }
+        }
+    }
+    
+    if (h2Input && h2Input.value && h2InputGroup && !h2InputGroup.classList.contains('hidden-step') && h2InputGroup.style.display !== 'none') {
+        const h2InputValue = parseFloat(h2Input.value);
+        if (!isNaN(h2InputValue) && h2InputValue > 0) {
+            h2Value = h2InputValue;
+            if (h2UnitBtn) {
+                h2Unit = h2UnitBtn.getAttribute('data-current-unit') || heightUnit;
+            }
+        }
+    }
+    
+    console.log('[Konva] Transom heights:', { h1: h1Value, h1Unit, h2: h2Value, h2Unit, totalHeight: originalHeight, heightUnit });
+
     // Get Windows-specific panel configuration
     const panelConfig = customizationValues.panelConfiguration || customizationValues.PanelConfiguration || '';
     let panelTypes = [];
 
     // Parse Windows panel configuration (e.g., "S | S (Sliding | Sliding)" or "F | S | S | F (Fixed | Sliding | Sliding | Fixed)")
     if (panelConfig) {
-        // Extract panel types from the configuration string
-        const parts = panelConfig.split('|').map(p => p.trim());
+        console.log('[Konva] Parsing panel configuration:', panelConfig);
+        
+        // Remove the descriptive text in parentheses if present (e.g., "(Sliding | Sliding)")
+        let configString = panelConfig.replace(/\([^)]*\)/g, '').trim();
+        
+        // Split by pipe character and extract panel types
+        const parts = configString.split('|').map(p => p.trim()).filter(p => p.length > 0);
+        
         panelTypes = parts.map(part => {
-            if (part.includes('S') || part.toLowerCase().includes('sliding')) {
+            // Check for 'S' or 'Sliding' (case insensitive)
+            if (part.toUpperCase().includes('S') && !part.toUpperCase().includes('F')) {
                 return 'sliding';
-            } else if (part.includes('F') || part.toLowerCase().includes('fixed')) {
+            } 
+            // Check for 'F' or 'Fixed' (case insensitive)
+            else if (part.toUpperCase().includes('F')) {
                 return 'fixed';
             }
-            return 'sliding'; // default
+            // Default to sliding if unclear
+            return 'sliding';
         });
+        
+        // Ensure we have the correct number of panels
+        if (panelTypes.length !== numberOfPanels) {
+            console.warn(`[Konva] Panel configuration has ${panelTypes.length} panels but numberOfPanels is ${numberOfPanels}. Adjusting...`);
+            // If we have fewer types than panels, repeat the pattern
+            if (panelTypes.length < numberOfPanels) {
+                const pattern = [...panelTypes];
+                while (panelTypes.length < numberOfPanels) {
+                    panelTypes.push(...pattern);
+                }
+                panelTypes = panelTypes.slice(0, numberOfPanels);
+            } else {
+                // If we have more types than panels, truncate
+                panelTypes = panelTypes.slice(0, numberOfPanels);
+            }
+        }
+        
+        console.log('[Konva] Parsed panel types:', panelTypes);
     } else {
         // Determine if panels are fixed or operable based on operation/configuration
         const hasFixedPanels = configuration.includes('fixed') || operation.includes('fixed');
@@ -577,7 +679,9 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         const isSwing = operation.includes('swing');
 
         // If no specific panel config, create default based on number of panels
-        panelTypes = new Array(numberOfPanels).fill(hasFixedPanels ? 'mixed' : 'sliding');
+        // Default: all sliding unless explicitly fixed
+        panelTypes = new Array(numberOfPanels).fill(hasFixedPanels ? 'fixed' : 'sliding');
+        console.log('[Konva] No panel configuration found, using defaults:', panelTypes);
     }
     
     // Calculate panel dimensions
@@ -637,21 +741,96 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     
     // Calculate panel width (divide total width by number of panels)
     const panelWidth = totalWidth / numberOfPanels;
-    const panelHeight = totalHeight;
+    
+    // Handle transom: split window into upper and lower sections
+    let upperSectionHeight = 0;
+    let lowerSectionHeight = totalHeight;
+    let transomDividerY = 0;
+    let actualInnerHeight = null; // Store the actual inner height for dimension display
+    
+    if (hasTransom) {
+        const totalHeightInMm = convertToMm(originalHeight, heightUnit);
+        let transomHeightMm = null;
+        let slidingHeightMm = null;
+        
+        // Convert h1 and h2 to millimeters for calculation
+        if (h1Value !== null && h1Value > 0) {
+            slidingHeightMm = convertToMm(h1Value, h1Unit);
+        }
+        if (h2Value !== null && h2Value > 0) {
+            transomHeightMm = convertToMm(h2Value, h2Unit);
+        }
+        
+        // Auto-adjust: if one is missing, calculate from the other
+        if (transomHeightMm !== null && slidingHeightMm === null) {
+            // h2 provided, calculate h1
+            slidingHeightMm = Math.max(0.1, totalHeightInMm - transomHeightMm);
+        } else if (slidingHeightMm !== null && transomHeightMm === null) {
+            // h1 provided, calculate h2
+            transomHeightMm = Math.max(0.1, totalHeightInMm - slidingHeightMm);
+        } else if (transomHeightMm === null && slidingHeightMm === null) {
+            // Neither provided, use default ratios
+            transomHeightMm = totalHeightInMm * 0.3; // 30% for transom
+            slidingHeightMm = totalHeightInMm * 0.7; // 70% for sliding
+        }
+        
+        // Ensure they don't exceed total height
+        const sum = transomHeightMm + slidingHeightMm;
+        if (sum > totalHeightInMm) {
+            // Scale both proportionally to fit
+            const scale = totalHeightInMm / sum;
+            transomHeightMm *= scale;
+            slidingHeightMm *= scale;
+        }
+        
+        // Convert back to ratios for rendering
+        const transomRatio = transomHeightMm / totalHeightInMm;
+        const slidingRatio = slidingHeightMm / totalHeightInMm;
+        
+        // Clamp ratios to valid range
+        const clampedTransomRatio = Math.max(0.1, Math.min(0.9, transomRatio));
+        const clampedSlidingRatio = Math.max(0.1, Math.min(0.9, slidingRatio));
+        
+        if (isFixedTransomHead) {
+            // Fixed transom at top, sliding section at bottom
+            upperSectionHeight = totalHeight * clampedTransomRatio;
+            lowerSectionHeight = totalHeight * clampedSlidingRatio;
+            transomDividerY = offsetY + upperSectionHeight;
+            actualInnerHeight = h1Value || (slidingHeightMm / (unitMap[h1Unit]?.toMm || 1)); // Store for dimension display
+        } else if (isFixedTransomSill) {
+            // Fixed transom at bottom, sliding section at top
+            upperSectionHeight = totalHeight * clampedSlidingRatio;
+            lowerSectionHeight = totalHeight * clampedTransomRatio;
+            transomDividerY = offsetY + upperSectionHeight;
+            actualInnerHeight = h1Value || (slidingHeightMm / (unitMap[h1Unit]?.toMm || 1)); // Store for dimension display
+        }
+        
+        console.log('[Konva] Transom rendering:', {
+            transomRatio: clampedTransomRatio,
+            slidingRatio: clampedSlidingRatio,
+            upperSectionHeight,
+            lowerSectionHeight,
+            isFixedTransomHead
+        });
+    }
 
-    // Draw panels based on panelTypes configuration
-    for (let i = 0; i < numberOfPanels; i++) {
-        const panelX = offsetX + (i * panelWidth);
-        const panelY = offsetY;
-        const panelType = panelTypes[i] || 'sliding';
-
-        if (panelType === 'fixed') {
-            // Draw fixed panel (entire panel is fixed)
+    // Draw panels based on transom configuration or panelTypes
+    if (hasTransom) {
+        // Draw transom section (fixed panels at top or bottom)
+        // Note: Transom section is always fixed glass, regardless of panel configuration
+        const transomSectionY = isFixedTransomHead ? offsetY : offsetY + upperSectionHeight;
+        const transomSectionHeight = isFixedTransomHead ? upperSectionHeight : lowerSectionHeight;
+        
+        // Draw fixed panels in transom section (transom is always fixed)
+        for (let i = 0; i < numberOfPanels; i++) {
+            const panelX = offsetX + (i * panelWidth);
+            
+            // Draw fixed transom panel (transom section is always fixed)
             const fixedRect = new Konva.Rect({
                 x: panelX,
-                y: panelY,
+                y: transomSectionY,
                 width: panelWidth,
-                height: panelHeight,
+                height: transomSectionHeight,
                 fill: '#4A90E2', // Darker blue for fixed panels
                 opacity: 0.8,
                 stroke: fStyle.color,
@@ -663,9 +842,9 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             // Add "F" label for Fixed
             const fixedLabel = new Konva.Text({
                 x: panelX + panelWidth / 2,
-                y: panelY + panelHeight / 2,
+                y: transomSectionY + transomSectionHeight / 2,
                 text: 'F',
-                fontSize: 16,
+                fontSize: Math.max(12, Math.min(16, transomSectionHeight / 3)),
                 fontFamily: 'Montserrat, Arial',
                 fontStyle: 'bold',
                 fill: '#FFFFFF',
@@ -675,46 +854,205 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 listening: false,
             });
             layer.add(fixedLabel);
-        } else {
-            // Draw sliding panel (operable glass)
-            const glassRect = new Konva.Rect({
-                x: panelX,
-                y: panelY,
-                width: panelWidth,
-                height: panelHeight,
-                fill: gStyle.fill,
-                opacity: gStyle.opacity,
-                stroke: fStyle.color,
-                strokeWidth: fStyle.width,
-                listening: false,
-            });
-            layer.add(glassRect);
-
-            // Add handle/opening indicator (circle "O") in center
-            const handleX = panelX + panelWidth / 2;
-            const handleY = panelY + panelHeight / 2;
-
-            const handleCircle = new Konva.Circle({
-                x: handleX,
-                y: handleY,
-                radius: 8,
-                fill: 'transparent',
-                stroke: '#FFFFFF',
-                strokeWidth: 2,
-                listening: false,
-            });
-            layer.add(handleCircle);
+            
+            // Add panel divider (vertical line between panels)
+            if (i < numberOfPanels - 1) {
+                const divider = new Konva.Line({
+                    points: [panelX + panelWidth, transomSectionY, panelX + panelWidth, transomSectionY + transomSectionHeight],
+                    stroke: fStyle.color,
+                    strokeWidth: fStyle.width * 1.5,
+                    listening: false,
+                });
+                layer.add(divider);
+            }
         }
         
-        // Add panel divider (vertical line between panels)
-        if (i < numberOfPanels - 1) {
-            const divider = new Konva.Line({
-                points: [panelX + panelWidth, panelY, panelX + panelWidth, panelY + panelHeight],
+        // Draw main section (sliding panels)
+        const mainSectionY = isFixedTransomHead ? offsetY + upperSectionHeight : offsetY;
+        const mainSectionHeight = isFixedTransomHead ? lowerSectionHeight : upperSectionHeight;
+        
+        for (let i = 0; i < numberOfPanels; i++) {
+            const panelX = offsetX + (i * panelWidth);
+            const panelType = panelTypes[i] || 'sliding'; // Default to sliding in main section
+            
+            if (panelType === 'sliding') {
+                // Draw sliding panel (operable glass)
+                const glassRect = new Konva.Rect({
+                    x: panelX,
+                    y: mainSectionY,
+                    width: panelWidth,
+                    height: mainSectionHeight,
+                    fill: gStyle.fill,
+                    opacity: gStyle.opacity,
+                    stroke: fStyle.color,
+                    strokeWidth: fStyle.width,
+                    listening: false,
+                });
+                layer.add(glassRect);
+
+                // Add handle/opening indicator (circle "O") in center
+                const handleX = panelX + panelWidth / 2;
+                const handleY = mainSectionY + mainSectionHeight / 2;
+
+                const handleCircle = new Konva.Circle({
+                    x: handleX,
+                    y: handleY,
+                    radius: 8,
+                    fill: 'transparent',
+                    stroke: '#FFFFFF',
+                    strokeWidth: 2,
+                    listening: false,
+                });
+                layer.add(handleCircle);
+                
+                // Add "S" label for Sliding
+                const slidingLabel = new Konva.Text({
+                    x: panelX + panelWidth / 2,
+                    y: handleY,
+                    text: 'S',
+                    fontSize: Math.max(12, Math.min(16, mainSectionHeight / 3)),
+                    fontFamily: 'Montserrat, Arial',
+                    fontStyle: 'bold',
+                    fill: '#FFFFFF',
+                    align: 'center',
+                    offsetX: 8,
+                    offsetY: 8,
+                    listening: false,
+                });
+                layer.add(slidingLabel);
+            } else {
+                // Draw fixed panel in main section (if configuration specifies)
+                const fixedRect = new Konva.Rect({
+                    x: panelX,
+                    y: mainSectionY,
+                    width: panelWidth,
+                    height: mainSectionHeight,
+                    fill: '#4A90E2', // Darker blue for fixed panels
+                    opacity: 0.8,
+                    stroke: fStyle.color,
+                    strokeWidth: fStyle.width,
+                    listening: false,
+                });
+                layer.add(fixedRect);
+
+                // Add "F" label for Fixed
+                const fixedLabel = new Konva.Text({
+                    x: panelX + panelWidth / 2,
+                    y: mainSectionY + mainSectionHeight / 2,
+                    text: 'F',
+                    fontSize: Math.max(12, Math.min(16, mainSectionHeight / 3)),
+                    fontFamily: 'Montserrat, Arial',
+                    fontStyle: 'bold',
+                    fill: '#FFFFFF',
+                    align: 'center',
+                    offsetX: 8,
+                    offsetY: 8,
+                    listening: false,
+                });
+                layer.add(fixedLabel);
+            }
+            
+            // Add panel divider (vertical line between panels)
+            if (i < numberOfPanels - 1) {
+                const divider = new Konva.Line({
+                    points: [panelX + panelWidth, mainSectionY, panelX + panelWidth, mainSectionY + mainSectionHeight],
+                    stroke: fStyle.color,
+                    strokeWidth: fStyle.width * 1.5,
+                    listening: false,
+                });
+                layer.add(divider);
+            }
+        }
+        
+        // Draw horizontal divider between transom and main sections
+        if (transomDividerY > 0) {
+            const transomDivider = new Konva.Line({
+                points: [offsetX, transomDividerY, offsetX + totalWidth, transomDividerY],
                 stroke: fStyle.color,
                 strokeWidth: fStyle.width * 1.5,
                 listening: false,
             });
-            layer.add(divider);
+            layer.add(transomDivider);
+        }
+    } else {
+        // No transom - draw panels normally based on panelTypes configuration
+        const panelHeight = totalHeight;
+        for (let i = 0; i < numberOfPanels; i++) {
+            const panelX = offsetX + (i * panelWidth);
+            const panelY = offsetY;
+            const panelType = panelTypes[i] || 'sliding';
+
+            if (panelType === 'fixed') {
+                // Draw fixed panel (entire panel is fixed)
+                const fixedRect = new Konva.Rect({
+                    x: panelX,
+                    y: panelY,
+                    width: panelWidth,
+                    height: panelHeight,
+                    fill: '#4A90E2', // Darker blue for fixed panels
+                    opacity: 0.8,
+                    stroke: fStyle.color,
+                    strokeWidth: fStyle.width,
+                    listening: false,
+                });
+                layer.add(fixedRect);
+
+                // Add "F" label for Fixed
+                const fixedLabel = new Konva.Text({
+                    x: panelX + panelWidth / 2,
+                    y: panelY + panelHeight / 2,
+                    text: 'F',
+                    fontSize: 16,
+                    fontFamily: 'Montserrat, Arial',
+                    fontStyle: 'bold',
+                    fill: '#FFFFFF',
+                    align: 'center',
+                    offsetX: 8,
+                    offsetY: 8,
+                    listening: false,
+                });
+                layer.add(fixedLabel);
+            } else {
+                // Draw sliding panel (operable glass)
+                const glassRect = new Konva.Rect({
+                    x: panelX,
+                    y: panelY,
+                    width: panelWidth,
+                    height: panelHeight,
+                    fill: gStyle.fill,
+                    opacity: gStyle.opacity,
+                    stroke: fStyle.color,
+                    strokeWidth: fStyle.width,
+                    listening: false,
+                });
+                layer.add(glassRect);
+
+                // Add handle/opening indicator (circle "O") in center
+                const handleX = panelX + panelWidth / 2;
+                const handleY = panelY + panelHeight / 2;
+
+                const handleCircle = new Konva.Circle({
+                    x: handleX,
+                    y: handleY,
+                    radius: 8,
+                    fill: 'transparent',
+                    stroke: '#FFFFFF',
+                    strokeWidth: 2,
+                    listening: false,
+                });
+                layer.add(handleCircle);
+            }
+            
+            // Add panel divider (vertical line between panels)
+            if (i < numberOfPanels - 1) {
+                const divider = new Konva.Line({
+                    points: [panelX + panelWidth, panelY, panelX + panelWidth, panelY + panelHeight],
+                    stroke: fStyle.color,
+                    strokeWidth: fStyle.width * 1.5,
+                    listening: false,
+                });
+                layer.add(divider);
+            }
         }
     }
     
@@ -805,9 +1143,144 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         listening: false,
     }));
     
+    // Inner height dimension (h1) - shows height of sliding section when transom is present
+    if (hasTransom) {
+        // Use h1 input value if provided, otherwise calculate from ratio
+        let innerHeightValue;
+        let innerHeightUnit = heightUnit;
+        
+        if (actualInnerHeight !== null) {
+            // Use the h1 input value
+            innerHeightValue = actualInnerHeight;
+            innerHeightUnit = h1Unit;
+        } else {
+            // Calculate the actual inner height based on the transom ratio
+            const transomHeightRatio = 0.3;
+            const innerHeightRatio = 1 - transomHeightRatio;
+            innerHeightValue = originalHeight * innerHeightRatio;
+        }
+        
+        // Determine the start and end Y positions for the inner height dimension
+        const innerHeightStartY = isFixedTransomHead ? offsetY + upperSectionHeight : offsetY;
+        const innerHeightEndY = isFixedTransomHead ? offsetY + totalHeight : offsetY + upperSectionHeight;
+        
+        // Use blue color for inner height dimension (h1) as shown in the image
+        const innerHeightColor = '#0066CC'; // Blue color for h1 dimension
+        
+        // Draw inner height dimension on the left side
+        const INNER_DIM_OFFSET = 25; // Offset from left edge
+        layer.add(new Konva.Line({ 
+            points: [offsetX, innerHeightStartY, offsetX - INNER_DIM_OFFSET - DIM_EXTENSION, innerHeightStartY], 
+            stroke: innerHeightColor, 
+            strokeWidth: 1.5,
+            listening: false
+        }));
+        layer.add(new Konva.Line({ 
+            points: [offsetX, innerHeightEndY, offsetX - INNER_DIM_OFFSET - DIM_EXTENSION, innerHeightEndY], 
+            stroke: innerHeightColor, 
+            strokeWidth: 1.5,
+            listening: false
+        }));
+        layer.add(new Konva.Line({ 
+            points: [offsetX - INNER_DIM_OFFSET, innerHeightStartY, offsetX - INNER_DIM_OFFSET, innerHeightEndY], 
+            stroke: innerHeightColor, 
+            strokeWidth: 1.5, 
+            dash: [5, 3],
+            listening: false
+        }));
+        
+        // Format inner height value (round to 1 decimal place)
+        const formattedInnerHeight = innerHeightValue.toFixed(1);
+        const innerHeightText = `${formattedInnerHeight}${innerHeightUnit}`;
+        layer.add(new Konva.Text({
+            x: offsetX - INNER_DIM_OFFSET - 18,
+            y: innerHeightStartY + (innerHeightEndY - innerHeightStartY) / 2,
+            text: innerHeightText,
+            fontSize: 11,
+            fontFamily: 'Montserrat, Arial',
+            fontStyle: 'normal',
+            fill: innerHeightColor,
+            align: 'center',
+            rotation: 90,
+            offsetX: (innerHeightText.length * 6) / 2,
+            listening: false,
+        }));
+        
+        // Add h2 (fixed transom height) dimension display
+        let transomHeightValue;
+        let transomHeightUnit = heightUnit;
+        
+        // Get h2 value from input if available
+        const h2InputGroup = inputGroupH2 || document.getElementById('input-group-h2');
+        const h2Input = inputH2 || document.getElementById('input-h2');
+        const h2UnitBtn = btnUnitH2 || document.getElementById('btn-unit-h2');
+        
+        if (h2Value !== null && h2Value > 0) {
+            transomHeightValue = h2Value;
+            transomHeightUnit = h2Unit;
+        } else if (h2Input && h2Input.value && h2InputGroup && !h2InputGroup.classList.contains('hidden-step') && h2InputGroup.style.display !== 'none') {
+            const h2InputValue = parseFloat(h2Input.value);
+            if (!isNaN(h2InputValue) && h2InputValue > 0) {
+                transomHeightValue = h2InputValue;
+                if (h2UnitBtn) {
+                    transomHeightUnit = h2UnitBtn.getAttribute('data-current-unit') || heightUnit;
+                }
+            }
+        }
+        
+        // If h2 value is available, display it
+        if (transomHeightValue !== undefined && transomHeightValue > 0) {
+            // Determine positions for transom height dimension
+            const transomHeightStartY = isFixedTransomHead ? offsetY : offsetY + upperSectionHeight;
+            const transomHeightEndY = isFixedTransomHead ? offsetY + upperSectionHeight : offsetY + totalHeight;
+            
+            // Use a different color for h2 (e.g., green) to distinguish from h1
+            const transomHeightColor = '#00AA00'; // Green color for h2 dimension
+            
+            // Draw transom height dimension on the left side (offset further left than h1)
+            const H2_DIM_OFFSET = 50; // Further left than h1
+            layer.add(new Konva.Line({ 
+                points: [offsetX, transomHeightStartY, offsetX - H2_DIM_OFFSET - DIM_EXTENSION, transomHeightStartY], 
+                stroke: transomHeightColor, 
+                strokeWidth: 1.5,
+                listening: false
+            }));
+            layer.add(new Konva.Line({ 
+                points: [offsetX, transomHeightEndY, offsetX - H2_DIM_OFFSET - DIM_EXTENSION, transomHeightEndY], 
+                stroke: transomHeightColor, 
+                strokeWidth: 1.5,
+                listening: false
+            }));
+            layer.add(new Konva.Line({ 
+                points: [offsetX - H2_DIM_OFFSET, transomHeightStartY, offsetX - H2_DIM_OFFSET, transomHeightEndY], 
+                stroke: transomHeightColor, 
+                strokeWidth: 1.5, 
+                dash: [5, 3],
+                listening: false
+            }));
+            
+            // Format transom height value (remove "h2:" prefix, just show value)
+            const formattedTransomHeight = transomHeightValue.toFixed(1);
+            const transomHeightText = `${formattedTransomHeight}${transomHeightUnit}`;
+            layer.add(new Konva.Text({
+                x: offsetX - H2_DIM_OFFSET - 18,
+                y: transomHeightStartY + (transomHeightEndY - transomHeightStartY) / 2,
+                text: transomHeightText,
+                fontSize: 11,
+                fontFamily: 'Montserrat, Arial',
+                fontStyle: 'normal',
+                fill: transomHeightColor,
+                align: 'center',
+                rotation: 90,
+                offsetX: (transomHeightText.length * 6) / 2,
+                listening: false,
+            }));
+        }
+    }
+    
     // Annotations
     const formatEdge = edgeWork.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    const formatThickness = thickness.replace('mm', '') + 'mm';
+    const formatThickness = thickness.replace(/mm+$/g, '') + 'mm';
     const annotationText = `Thickness: ${formatThickness}  |  Edge: ${formatEdge}`;
     
     layer.add(new Konva.Text({
@@ -1262,7 +1735,7 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
     
     // Annotations - Reference format: "Thickness: 5mm" and "Edge: Polished"
     const formatEdge = edgeWork.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-    const formatThickness = thickness.replace('mm', '') + 'mm'; // Ensure mm format
+    const formatThickness = thickness.replace(/mm+$/g, '') + 'mm'; // Ensure mm format
     
     // Display thickness and edge info below the glass panel
     const annotationText = `Thickness: ${formatThickness}  |  Edge: ${formatEdge}`;
@@ -2302,9 +2775,87 @@ function updateDimensions(type, value, unit) {
 }
 
 // Input Listeners (only if elements exist - they may be dynamically generated)
+// Add event listener for h1 input (sliding section)
+if (inputH1) {
+    inputH1.addEventListener('input', (e) => {
+        const h1Value = parseFloat(inputH1.value) || 0;
+        if (h1Value > 0) {
+            // Mark h1 as last modified for auto-adjustment
+            inputH1.dataset.lastModified = Date.now();
+            // Auto-adjust h2
+            if (typeof adjustTransomHeights === 'function') {
+                adjustTransomHeights();
+            }
+            // Trigger window visualization update
+            if (typeof renderCustomState === 'function') {
+                renderCustomState();
+            } else if (typeof updateWindowVisualization === 'function') {
+                updateWindowVisualization();
+            }
+        }
+    });
+    
+    // Also listen for blur to update when user finishes editing
+    inputH1.addEventListener('blur', (e) => {
+        const h1Value = parseFloat(inputH1.value) || 0;
+        if (h1Value > 0) {
+            if (typeof adjustTransomHeights === 'function') {
+                adjustTransomHeights();
+            }
+            if (typeof renderCustomState === 'function') {
+                renderCustomState();
+            } else if (typeof updateWindowVisualization === 'function') {
+                updateWindowVisualization();
+            }
+        }
+    });
+}
+
+// Add event listener for h2 input (fixed transom section)
+if (inputH2) {
+    inputH2.addEventListener('input', (e) => {
+        const h2Value = parseFloat(inputH2.value) || 0;
+        if (h2Value > 0) {
+            // Mark h2 as last modified for auto-adjustment
+            inputH2.dataset.lastModified = Date.now();
+            // Auto-adjust h1
+            if (typeof adjustTransomHeights === 'function') {
+                adjustTransomHeights();
+            }
+            // Trigger window visualization update
+            if (typeof renderCustomState === 'function') {
+                renderCustomState();
+            } else if (typeof updateWindowVisualization === 'function') {
+                updateWindowVisualization();
+            }
+        }
+    });
+    
+    // Also listen for blur to update when user finishes editing
+    inputH2.addEventListener('blur', (e) => {
+        const h2Value = parseFloat(inputH2.value) || 0;
+        if (h2Value > 0) {
+            if (typeof adjustTransomHeights === 'function') {
+                adjustTransomHeights();
+            }
+            if (typeof renderCustomState === 'function') {
+                renderCustomState();
+            } else if (typeof updateWindowVisualization === 'function') {
+                updateWindowVisualization();
+            }
+        }
+    });
+}
+
 if (inputHeight && btnUnitHeight) {
     inputHeight.addEventListener('input', (e) => {
+        // Mark height as last modified for auto-adjustment
+        inputHeight.dataset.lastModified = Date.now();
         updateDimensions('height', e.target.value, btnUnitHeight.dataset.currentUnit);
+        // Auto-adjust transom heights when total height changes
+        if (typeof adjustTransomHeights === 'function') {
+            setTimeout(() => adjustTransomHeights(), 100);
+        }
     });
 }
 if (inputWidth && btnUnitWidth) {
@@ -2574,24 +3125,29 @@ function setupUnitDropdown(btnId, dropdownId, inputId, dimensionType) {
     const btn = document.getElementById(btnId);
     const dropdown = document.getElementById(dropdownId);
     const input = document.getElementById(inputId);
+    if (!btn || !dropdown || !input) return;
+    
     btn.addEventListener('click', (e) => { e.stopPropagation(); document.querySelectorAll('.unit-dropdown').forEach(d => d !== dropdown && d.classList.add('hidden-step')); dropdown.classList.toggle('hidden-step'); });
     dropdown.querySelectorAll('.unit-option').forEach(opt => {
         opt.addEventListener('click', (e) => {
             e.stopPropagation();
             const targetUnit = opt.dataset.value;
             const currentUnit = btn.dataset.currentUnit;
-            btn.innerHTML = `${unitMap[targetUnit].name} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>`;
+            // Use full unit name from unitMap
+            const unitName = unitMap[targetUnit]?.name || targetUnit.charAt(0).toUpperCase() + targetUnit.slice(1);
+            btn.innerHTML = `${unitName} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>`;
             const val = parseFloat(input.value);
             if (!isNaN(val)) { input.value = Math.round((val * unitMap[currentUnit].toMm / unitMap[targetUnit].toMm) * 100) / 100; }
             btn.dataset.currentUnit = targetUnit;
             const otherType = dimensionType === 'height' ? 'width' : 'height';
             const otherBtn = document.getElementById(`btn-unit-${otherType}`);
             const otherInput = document.getElementById(`input-${otherType}`);
-            if (otherBtn.dataset.currentUnit !== targetUnit) {
+            if (otherBtn && otherBtn.dataset.currentUnit !== targetUnit) {
                 const otherVal = parseFloat(otherInput.value);
                 if (!isNaN(otherVal)) { otherInput.value = Math.round((otherVal * unitMap[otherBtn.dataset.currentUnit].toMm / unitMap[targetUnit].toMm) * 100) / 100; }
                 otherBtn.dataset.currentUnit = targetUnit;
-                otherBtn.innerHTML = `${unitMap[targetUnit].name} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>`;
+                const otherUnitName = unitMap[targetUnit]?.name || targetUnit.charAt(0).toUpperCase() + targetUnit.slice(1);
+                otherBtn.innerHTML = `${otherUnitName} <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>`;
             }
             // Update both dimensions since units are synced
             updateDimensions(dimensionType, input.value, targetUnit);
@@ -2602,6 +3158,52 @@ function setupUnitDropdown(btnId, dropdownId, inputId, dimensionType) {
 }
 setupUnitDropdown('btn-unit-height', 'dropdown-height', 'input-height', 'height');
 setupUnitDropdown('btn-unit-width', 'dropdown-width', 'input-width', 'width');
+if (btnUnitH1) {
+    setupUnitDropdown('btn-unit-h1', 'dropdown-h1', 'input-h1', 'height');
+    
+    // Add listener for h1 unit changes to trigger re-render
+    const dropdownH1 = document.getElementById('dropdown-h1');
+    if (dropdownH1) {
+        dropdownH1.querySelectorAll('.unit-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                // After unit change, auto-adjust and trigger re-render
+                setTimeout(() => {
+                    if (typeof adjustTransomHeights === 'function') {
+                        adjustTransomHeights();
+                    }
+                    if (typeof renderCustomState === 'function') {
+                        renderCustomState();
+                    } else if (typeof updateWindowVisualization === 'function') {
+                        updateWindowVisualization();
+                    }
+                }, 100);
+            });
+        });
+    }
+}
+if (btnUnitH2) {
+    setupUnitDropdown('btn-unit-h2', 'dropdown-h2', 'input-h2', 'height');
+    
+    // Add listener for h2 unit changes to trigger re-render
+    const dropdownH2 = document.getElementById('dropdown-h2');
+    if (dropdownH2) {
+        dropdownH2.querySelectorAll('.unit-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                // After unit change, auto-adjust and trigger re-render
+                setTimeout(() => {
+                    if (typeof adjustTransomHeights === 'function') {
+                        adjustTransomHeights();
+                    }
+                    if (typeof renderCustomState === 'function') {
+                        renderCustomState();
+                    } else if (typeof updateWindowVisualization === 'function') {
+                        updateWindowVisualization();
+                    }
+                }, 100);
+            });
+        });
+    }
+}
 
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.unit-control')) document.querySelectorAll('.unit-dropdown').forEach(d => d.classList.add('hidden-step'));

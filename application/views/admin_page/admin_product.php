@@ -243,6 +243,13 @@
           <input type="text" id="productName" class="text-input" placeholder="Enter product name">
         </div>
 
+        <!-- Description -->
+        <div class="form-group">
+          <label for="productDescription">Description</label>
+          <textarea id="productDescription" class="text-input" rows="4" placeholder="Enter product specifications and description"></textarea>
+          <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Add product specifications, features, and details</small>
+        </div>
+
         <!-- Price Range (Min - Max) -->
         <div class="form-group">
           <label>Price Range (₱)</label>
@@ -381,6 +388,13 @@
         <div class="form-group">
           <label for="editProductName">Product Name</label>
           <input type="text" id="editProductName" class="text-input" placeholder="Enter product name">
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+          <label for="editProductDescription">Description</label>
+          <textarea id="editProductDescription" class="text-input" rows="4" placeholder="Enter product specifications and description"></textarea>
+          <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Add product specifications, features, and details</small>
         </div>
 
         <!-- Price Range (Min - Max) -->
