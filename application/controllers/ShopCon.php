@@ -365,9 +365,10 @@ public function checkout()
                         $product = $this->Product_model->get_product($product_id);
                         
                         if ($product) {
-                            // Calculate summary for buy now (quantity is typically 1)
-                            $quantity = 1;
-                            $subtotal = floatval($customization->EstimatePrice ?? $customization->TotalQuotation ?? $product->Price ?? 0);
+                            // Calculate summary for buy now (use quantity from session if available)
+                            $quantity = $this->session->userdata('buy_now_quantity') ?: 1;
+                            $unit_price = floatval($customization->EstimatePrice ?? $customization->TotalQuotation ?? $product->Price ?? 0);
+                            $subtotal = $unit_price * $quantity;
                             $items_count = $quantity;
                             $shipping = $items_count * 25;
                             $handling = $items_count * 10;
@@ -815,7 +816,9 @@ public function checkout()
                 }
                 
                 if ($custom) {
-                    $total_amount = floatval($custom->TotalQuotation ?? $custom->EstimatePrice ?? 0);
+                    $quantity = $this->session->userdata('buy_now_quantity') ?: 1;
+                    $unit_price = floatval($custom->TotalQuotation ?? $custom->EstimatePrice ?? 0);
+                    $total_amount = $unit_price * $quantity;
                 }
             }
             
@@ -997,8 +1000,27 @@ public function checkout()
         $this->load->model('Order_model');
         $this->load->model('User_model');
 
+        // Get selected cart IDs from POST
+        $selected_ids_str = $this->input->post('selected_cart_ids');
+        
         // Get cart items
-        $cart_items = $this->Cart_model->get_cart_items($customer_id);
+        $all_cart_items = $this->Cart_model->get_cart_items_with_details($customer_id);
+        $cart_items = [];
+        
+        if (!empty($selected_ids_str)) {
+            $selected_ids = array_map('intval', explode(',', $selected_ids_str));
+            $selected_ids = array_filter($selected_ids);
+            
+            foreach ($all_cart_items as $item) {
+                if (in_array($item->Cart_ID, $selected_ids)) {
+                    $cart_items[] = $item;
+                }
+            }
+        } else {
+            // Default to all items if none specified (fallback)
+            $cart_items = $all_cart_items;
+        }
+
         if (empty($cart_items)) {
             echo json_encode([
                 'status' => 'error',
@@ -1147,6 +1169,35 @@ public function checkout()
         $this->load->view('includes/header', $data);
         $this->load->view('shop/list_product', $data);
         $this->load->view('includes/footer');
+    }
+
+    // ===================== GET BOOKED DATES =====================
+    public function get_booked_dates()
+    {
+        header('Content-Type: application/json');
+        
+        $this->db->select('SpecialInstructions');
+        $this->db->where('Status !=', 'Cancelled');
+        $orders = $this->db->get('`order`')->result();
+        
+        $booked_dates = [];
+        foreach ($orders as $order) {
+            if (empty($order->SpecialInstructions)) continue;
+            
+            // Look for "Preferred Installation Date: [date]" pattern
+            if (preg_match('/Preferred Installation Date:\s*([^|]+)/i', $order->SpecialInstructions, $matches)) {
+                $date_str = trim($matches[1]);
+                $parsed_date = date_parse($date_str);
+                if ($parsed_date && $parsed_date['error_count'] == 0) {
+                    $year = $parsed_date['year'];
+                    $month = str_pad($parsed_date['month'], 2, '0', STR_PAD_LEFT);
+                    $day = str_pad($parsed_date['day'], 2, '0', STR_PAD_LEFT);
+                    $booked_dates[] = $year . '-' . $month . '-' . $day;
+                }
+            }
+        }
+        
+        echo json_encode(['status' => 'success', 'booked_dates' => array_unique($booked_dates)]);
     }
     
 }

@@ -178,9 +178,7 @@ class Cart_model extends CI_Model
             'DoorOperation' => !empty($data['DoorOperation']) ? $data['DoorOperation'] : null,
             'Configuration' => !empty($data['Configuration']) ? $data['Configuration'] : null,
             'EstimatePrice' => isset($data['EstimatePrice']) ? floatval($data['EstimatePrice']) : 0.00,
-            'PriceBreakdown' => isset($data['PriceBreakdown']) ? (is_string($data['PriceBreakdown']) ? $data['PriceBreakdown'] : json_encode($data['PriceBreakdown'])) : null,
-            // Store all dynamic customization fields as JSON (synced with admin side)
-            'Customization' => isset($data['Customization']) ? (is_string($data['Customization']) ? $data['Customization'] : json_encode($data['Customization'])) : null
+            'PriceBreakdown' => isset($data['PriceBreakdown']) ? (is_string($data['PriceBreakdown']) ? $data['PriceBreakdown'] : json_encode($data['PriceBreakdown'])) : null
         ];
     }
 

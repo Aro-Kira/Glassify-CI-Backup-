@@ -287,6 +287,82 @@ class CustomizationFieldsCon extends CI_Controller
     }
 
     /**
+     * Seed or update database with correct field configurations
+     * This ensures admin and customer pages are always in sync
+     * Access via: /customizationFields/seed
+     */
+    public function seed()
+    {
+        $fields = [
+            "Windows_Sliding" => [
+                ["type" => "tags", "label" => "Panel", "id" => "numberOfPanels", "options" => ["2 Panels", "4 Panels"], "stepNumber" => 1],
+                ["type" => "tags", "label" => "Transom Type", "id" => "transomType", "options" => ["Fixed Transom Head (fixed glass at top)", "Fixed Transom Sill (fixed glass at bottom)", "None"], "stepNumber" => 1],
+                ["type" => "tags", "label" => "Track System (Sliding Rail Count)", "id" => "trackSystem", "options" => ["2 Tracks", "3 Tracks"], "stepNumber" => 2],
+                ["type" => "tags", "label" => "Screen Option", "id" => "screenOption", "options" => ["With Screen", "Without Screen"], "stepNumber" => 2],
+                ["type" => "tags", "label" => "Panel Configuration", "id" => "panelConfiguration", "options" => ["S | S (Sliding | Sliding)", "F | S (Fixed | Sliding)", "S | S | S | S (All Sliding)", "F | S | S | F (Fixed | Sliding | Sliding | Fixed)"], "stepNumber" => 2],
+                ["type" => "tags", "label" => "Frame Color", "id" => "frameColor", "options" => ["Hanalok", "White", "Black", "Gray", "Wood Finish"], "stepNumber" => 3],
+                ["type" => "tags", "label" => "Glass Type (6mm thickness only)", "id" => "glassType", "options" => ["Clear", "Ultra Clear", "Bronze", "Light Green", "Dark Gray", "Euro Gray", "Ford Blue", "Copperfree Mirror", "Reflective: Clear", "Reflective: Gray", "Reflective: Light Blue", "Reflective: Dark Blue", "Reflective: Light Green", "Reflective: Dark Green", "Reflective: Light Bronze", "Tempered: Clear", "Tempered: Bronze"], "stepNumber" => 3],
+                ["type" => "tags", "label" => "Glass Thickness", "id" => "glassThickness", "options" => ["6mm"], "stepNumber" => 3],
+                ["type" => "tags", "label" => "Lock Type", "id" => "lockType", "options" => ["Enter Lock 908", "Enter Lock 907", "Flushlock #12", "New Flushlock", "Center Lok 904 Big", "Flushlok #12", "Durable Flushlok", "New Auto Flushlock"], "stepNumber" => 4],
+                ["type" => "tags", "label" => "Roller Type", "id" => "rollerType", "options" => ["Single Roller ORD", "Single Roller with Bearing", "Double Roller HD", "Blue Single Roller", "Blue Double Roller", "Single Panel Roller", "Blue Single Roller", "Blue Double Roller"], "stepNumber" => 4],
+                ["type" => "tags", "label" => "Screen", "id" => "screen", "options" => ["With Screen", "Without Screen"], "stepNumber" => 4]
+            ]
+        ];
+
+        $stepNames = [
+            "Windows_Sliding_stepNames" => [
+                "1" => "WINDOW TYPE",
+                "2" => "SLIDING SYSTEM & SIZE",
+                "3" => "FRAME & GLASS",
+                "4" => "HARDWARE & ACCESSORIES"
+            ]
+        ];
+
+        $count = 0;
+        foreach ($fields as $fieldKey => $config) {
+            $parts = explode('_', $fieldKey);
+            $category = $parts[0];
+            $subcategory = isset($parts[1]) ? $parts[1] : '';
+            
+            $prefixMap = [
+                'Windows' => 'Windows',
+                'Doors' => 'Doors',
+                'Partitions' => 'Glass Partitions & Enclosures',
+                'Specialty' => 'Mirrors & Specialty Glass',
+                'Cabinets' => 'Cabinets & Furniture',
+                'Commercial' => 'Commercial & Exterior'
+            ];
+            $category = $prefixMap[$category] ?? $category;
+
+            $dataToSave = $config;
+            if (isset($stepNames[$fieldKey . "_stepNames"])) {
+                $dataToSave['stepNames'] = $stepNames[$fieldKey . "_stepNames"];
+            }
+
+            $this->db->where('FieldKey', $fieldKey);
+            $existing = $this->db->get('customization_field_configs')->row();
+
+            $saveData = [
+                'FieldKey' => $fieldKey,
+                'Category' => $category,
+                'Subcategory' => $subcategory,
+                'FieldConfig' => json_encode($dataToSave),
+                'LastUpdated' => date('Y-m-d H:i:s')
+            ];
+
+            if ($existing) {
+                $this->db->where('FieldKey', $fieldKey);
+                $this->db->update('customization_field_configs', $saveData);
+            } else {
+                $this->db->insert('customization_field_configs', $saveData);
+            }
+            $count++;
+        }
+
+        echo json_encode(['status' => 'success', 'message' => "Seeded $count field configurations"]);
+    }
+
+    /**
      * Get default field configurations
      */
     private function getDefaultFields($fieldKey)

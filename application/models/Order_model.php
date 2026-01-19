@@ -794,7 +794,7 @@ class Order_model extends CI_Model
      * Get orders for dashboard display with product names
      * Limits to recent orders for performance
      */
-    public function get_customer_orders_with_products($customer_id, $limit = 10)
+    public function get_customer_orders_with_products($customer_id, $limit = 50)
     {
         $this->db->select('
             o.OrderID,
@@ -803,7 +803,10 @@ class Order_model extends CI_Model
             o.Updated_Date,
             o.Status,
             o.PaymentStatus,
+            o.TotalAmount,
             oi.Product_ID,
+            oi.Quantity,
+            oi.EstimatePrice as ItemPrice,
             p.ProductName,
             p.ImageUrl
         ');

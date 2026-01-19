@@ -136,7 +136,7 @@
             
             // Get order type
             $orderType = isset($p->OrderType) ? $p->OrderType : 'direct';
-            $orderTypeDisplay = ($orderType === 'site-assessed' || $orderType === 'Site-Assessed') ? 'Site-Assessed' : 'Direct';
+            $orderTypeDisplay = (strtolower($orderType) === 'site-assessment' || strtolower($orderType) === 'site-assessed') ? 'Site Assessment' : 'Direct';
             
             // Get series (if exists)
             $series = isset($p->series) && !empty($p->series) ? $p->series : [];
