@@ -55,7 +55,7 @@
         <div class="breadcrumbs" id="breadcrumbs-container">
             <span>Products</span>
             <span class="chevron-right"></span>
-            <span class="active" id="crumb-main">Step 1</span>
+            <span class="active" id="crumb-main">Glass Shape</span>
         </div>
     </div>
 
@@ -174,10 +174,8 @@
             <div class="title-row">
                 <div>
                     <?php if (isset($product) && $product): ?>
-                        <div class="product-title-container" style="display: flex; flex-direction: column; align-items: flex-start;">
+                        <div class="product-info">
                             <h2><?= htmlspecialchars($product->ProductName) ?></h2>
-                            <!-- Validation warning message container -->
-                            <div id="validation-warning" class="validation-warning" style="display: none; width: 100%; background: #fff5f5; color: #d9534f; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #d9534f; margin-top: 10px; font-weight: 600; font-size: 0.9rem; line-height: 1.4; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"></div>
                         </div>
                     <?php endif; ?>
 
@@ -191,8 +189,12 @@
                 </button>
             </div>
 
-            <!-- Removed Customize Build button as per user request -->
-            
+            <div class="build-toggle">
+                <button class="toggle-btn active" id="btn-customize">Customize Build</button>
+                <div class="divider-v"></div>
+                <button class="toggle-btn inactive" id="btn-standard">Standard</button>
+            </div>
+
             <div class="price-box" id="price-box">
                 <div class="price-main">
                     <span class="price-label">Estimated Price</span>
@@ -254,46 +256,56 @@
             </style>
 
             <div id="custom-wrapper">
-                <!-- Default Size Fields (Width & Height) - Width comes first -->
+                <!-- Default Size Fields (Height & Width) - Only visible on Step 1 -->
                 <div class="dimensions-container" id="dimensions-container">
-                    <div class="dimension-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div class="input-group">
-                            <label class="section-label">Width</label>
-                            <div class="unit-wrapper">
-                                <div class="input-wrapper">
-                                    <input type="number" id="input-width" name="width" value="" min="0" step="0.1" placeholder="0.00">
-                                </div>
+                    <div class="input-group">
+                        <label class="section-label">Height</label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-height" name="height" value="45" min="0" step="0.1" placeholder="45">
                             </div>
-                        </div>
-                        <div class="input-group">
-                            <label class="section-label">Height</label>
-                            <div class="unit-wrapper">
-                                <div class="input-wrapper">
-                                    <input type="number" id="input-height" name="height" value="" min="0" step="0.1" placeholder="0.00">
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-height" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-height">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="perimeter-container" style="margin-top: 15px;">
-                        <label class="section-label" style="font-size: 0.85rem; color: #666;">Perimeter</label>
-                        <div class="unit-control-horizontal" style="display: flex; gap: 10px;">
-                            <label class="unit-radio">
-                                <input type="radio" name="dimension-unit" value="cm" checked>
-                                <span>cm</span>
-                            </label>
-                            <label class="unit-radio">
-                                <input type="radio" name="dimension-unit" value="mm">
-                                <span>mm</span>
-                            </label>
-                            <label class="unit-radio">
-                                <input type="radio" name="dimension-unit" value="in">
-                                <span>inch</span>
-                            </label>
+                    <!-- Lock/Unlock Button -->
+                    <div class="dimension-lock-container">
+                        <button type="button" id="dimension-lock-btn" class="dimension-lock-btn" title="Lock dimensions to keep height and width equal">
+                            <svg id="lock-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <svg id="unlock-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="input-group">
+                        <label class="section-label">Width</label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-width" name="width" value="35" min="0" step="0.1" placeholder="35">
+                            </div>
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-width" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-width">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
+                                </div>
+                            </div>
                         </div>
-                        <!-- Hidden legacy buttons for JS compatibility -->
-                        <button type="button" id="btn-unit-width" data-current-unit="cm" style="display: none;"></button>
-                        <button type="button" id="btn-unit-height" data-current-unit="cm" style="display: none;"></button>
                     </div>
                 </div>
 
@@ -324,7 +336,29 @@
                 </div>
             </div>
 
-            <!-- Standard wrapper removed as per user request to remove standard tab -->
+            <div id="standard-wrapper" class="hidden-step">
+                <!-- Dynamic standard sizes will be rendered here -->
+                <div id="dynamic-standard-container">
+                    <!-- Standard series and sizes will be dynamically generated based on product configuration -->
+                </div>
+
+                <div class="engraving-section" style="margin-top: 30px; margin-bottom: 60px;">
+                    <label class="section-label">Engraving (Optional)</label>
+                    <div class="input-wrapper">
+                        <input type="text" placeholder=""
+                            style="border: none; width: 100%; padding: 12px; font-family: inherit; background: #f8f9fa;">
+                    </div>
+                </div>
+
+                <div class="action-area" style="justify-content: center;">
+                    <button class="nav-btn next-btn">
+                        Finalize Order
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
 
             <div id="summary-wrapper" class="hidden-step">
                 <h2 class="summary-title">Review your order</h2>
@@ -346,19 +380,59 @@
 
                 <div class="summary-table-container">
                     <div class="summary-header">
-                        Order Summary
+                        Price Breakdown
                     </div>
                     <div class="summary-content">
-                        <!-- Content will be dynamically generated by JS -->
-                    </div>
-                    
-                    <!-- Quantity Selector in Summary -->
-                    <div class="summary-quantity-container" style="padding: 20px; border-top: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; background: #f9f9f9;">
-                        <span style="font-weight: 600; color: #0f2b46;">Quantity:</span>
-                        <div class="summary-qty-controls" style="display: flex; align-items: center; gap: 15px; background: white; padding: 5px 15px; border-radius: 25px; border: 1px solid #ddd;">
-                            <button type="button" id="summary-qty-minus" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #0f2b46; font-weight: bold; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">−</button>
-                            <input type="number" id="summary-qty-input" value="1" min="1" style="width: 40px; text-align: center; border: none; font-weight: bold; font-size: 16px; -moz-appearance: textfield; pointer-events: none;">
-                            <button type="button" id="summary-qty-plus" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #0f2b46; font-weight: bold; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">+</button>
+                        <div class="summary-row">
+                            <span class="spec-label">Shape:</span>
+                            <span class="spec-value">
+                                <span id="sum-shape">Rectangle</span>
+                                <span class="price-addon" id="sum-shape-price"></span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Dimension:</span>
+                            <span class="spec-value">
+                                <span id="sum-dim">45" x 35"</span>
+                                <span class="price-addon" id="sum-dim-price"></span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Type:</span>
+                            <span class="spec-value">
+                                <span id="sum-type">Tempered</span>
+                                <span class="price-addon" id="sum-type-price"></span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Thickness:</span>
+                            <span class="spec-value">
+                                <span id="sum-thick">5mm</span>
+                                <span class="price-addon" id="sum-thick-price"></span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Edge Work:</span>
+                            <span class="spec-value">
+                                <span id="sum-edge">Flat Polish</span>
+                                <span class="price-addon" id="sum-edge-price"></span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Frame Type:</span>
+                            <span class="spec-value">
+                                <span id="sum-frame">Vinyl</span>
+                                <span class="price-addon" id="sum-frame-price"></span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Engraving:</span>
+                            <span class="spec-value" id="sum-engrave">None</span>
+                        </div>
+
+                        <div class="summary-row total-row">
+                            <span class="spec-label">Total</span>
+                            <span class="spec-value price-final" id="sum-total">₱0.00</span>
                         </div>
                     </div>
                 </div>
@@ -375,7 +449,7 @@
                     </button>
 
                     <button class="buy-btn" id="buy-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
-                        Book Now
+                        Buy Now
                     </button>
 
                     <button class="edit-order-btn" id="edit-order-btn">
@@ -485,25 +559,62 @@
             </div>
         </div>
     </section>
-    <script>
-        // Reset scroll position on page load
-        if ('scrollRestoration' in history) {
-            history.scrollRestoration = 'manual';
-        }
-        window.scrollTo(0, 0);
 
-        // Reset scroll on navigation or step changes
-        document.addEventListener('click', function(e) {
-            const target = e.target.closest('a, button, .nav-btn, .breakdown-toggle');
-            if (target) {
-                // Exclude quantity buttons and other minor UI toggles from scroll reset
-                if (target.id === 'qty-minus' || target.id === 'qty-plus' || target.classList.contains('qty-btn') || target.closest('.qty-control') || target.closest('.unit-radio')) {
-                    return;
-                }
-                setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
-            }
-        });
-    </script>
+  <!-- Testimonials -->
+  <section id="testimonials-section" class="testimonials">
+    <h2>Customer Testimonials</h2>
+    <div class="testimonial-content">
+      <button class="testimonial-arrow left">
+        <img src="<?php echo base_url(''); ?>assets/images/img-page/testimonials-arrow.png" alt="Previous">
+      </button>
+
+      <div class="testimonial-wrapper">
+        <div class="testimonial-text active">
+          <p>Highly recommending this shop! Very smooth and fast transaction. Despite unfortunate events, they were
+            still able to deliver. Owner and staff are committed at great service. Exceeds expectations. Will definitely
+            be our go-to-shop for glass and aluminum.</p>
+          <div class="stars">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+          </div>
+          <h3 class="author">Kris-Ann Munda-Rebullana</h3>
+        </div>
+
+        <div class="testimonial-text">
+          <p>Highly recommended ⭐⭐⭐⭐⭐ Very accommodating staff. Responded immediately to queries and concerns. Quality
+            materials and great workmanship. We'll ask them DEFINITELY to do collab again in our next project 👍👍</p>
+          <div class="stars">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+          </div>
+          <h3 class="author">Anne Cruz</h3>
+        </div>
+
+        <div class="testimonial-text">
+          <p>Highly recommended! GlassWorth Builders service was excellent, and the quality of materials was top-notch.
+            Their installers were kind and demonstrated good workmanship. I'm thoroughly impressed!</p>
+          <div class="stars">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+            <img src="<?php echo base_url('assets/images/img-page/mdi--star-circle-outline.svg'); ?>" alt="ratings">
+          </div>
+          <h3 class="author">Jandoc Jun</h3>
+        </div>
+      </div>
+
+      <button class="testimonial-arrow right">
+        <img src="<?php echo base_url('assets/images/img-page/testimonials-arrow.png'); ?>" alt="Next">
+      </button>
+    </div>
+  </section>
 </body>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -534,8 +645,8 @@
     <?php endif; ?>
 </script>
 
-<script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/dynamic_customization.js'); ?>"></script>
+<script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/windows_visual_configs.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/customization_ajax.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtocustomization.js'); ?>"></script>
@@ -665,7 +776,6 @@
             priceMax: <?= isset($product->PriceMax) && $product->PriceMax !== null && $product->PriceMax !== '' ? floatval($product->PriceMax) : 'null' ?>,
             category: <?= json_encode($product->Category ?? '') ?>,
             subcategory: <?= json_encode($product->Subcategory ?? '') ?>,
-            series: <?= json_encode($product->Series ?? '') ?>,
             material: <?= json_encode($product->Material ?? '') ?>,
             image: <?= json_encode($imageSrc) ?>,
             customizationFieldKey: <?= json_encode($customizationFieldKey ?? null) ?>,
@@ -703,39 +813,7 @@
                 window.selectedProduct = selectedProduct;
             }
 
-            // Check if we are editing an existing cart item
-            const urlParams = new URLSearchParams(window.location.search);
-            const editCartId = urlParams.get('cart_id');
-            if (editCartId) {
-                console.log(`[Edit] Detected Edit Mode for Cart ID: ${editCartId}`);
-                try {
-                    const editResponse = await fetch(base_url + 'CartCon/get_item_customization_ajax?cart_id=' + editCartId);
-                    const editResult = await editResponse.json();
-                    if (editResult.status === 'success' && editResult.customization) {
-                        console.log('[Edit] Preloading customization:', editResult.customization);
-                        window.preloadedCustomization = editResult.customization;
-                        
-                        // Set dimensions if available
-                        if (editResult.customization.Dimensions) {
-                            const dims = editResult.customization.Dimensions.toLowerCase().split('x');
-                            if (dims.length === 2) {
-                                const wMatch = dims[0].match(/(\d+\.?\d*)(in|cm|mm)/);
-                                const hMatch = dims[1].match(/(\d+\.?\d*)(in|cm|mm)/);
-                                if (wMatch && hMatch) {
-                                    window.preloadedDimensions = {
-                                        width: { value: wMatch[1], unit: wMatch[2] },
-                                        height: { value: hMatch[1], unit: hMatch[2] }
-                                    };
-                                }
-                            }
-                        }
-                    }
-                } catch(e) {
-                    console.error('[Edit] Error loading item customization:', e);
-                }
-            }
-
-            // Wait a bit for scripts to load and initialize
+            // Wait a bit for 2d_customization.js to load
             setTimeout(async () => {
                 console.log("=== LOADING CUSTOMIZATION FIELDS ===");
                 
@@ -896,15 +974,34 @@
                     }
                 }
 
-                // Render standard sizes if available - DISABLED as per user request to remove standard tab
-                /*
+                // Render standard sizes if available
+                console.log("=== RENDERING STANDARD SIZES ===");
+                console.log("Standard series to render:", selectedProduct.standardSeries);
+                console.log("Standard series count:", (selectedProduct.standardSeries || []).length);
+                
                 if (selectedProduct.standardSeries && selectedProduct.standardSeries.length > 0) {
                     const standardContainer = document.getElementById('dynamic-standard-container');
+                    console.log("Standard container found:", !!standardContainer);
+                    console.log("renderStandardSizes function exists:", typeof renderStandardSizes === 'function');
+                    
                     if (standardContainer && typeof renderStandardSizes === 'function') {
-                        renderStandardSizes(selectedProduct.standardSeries, standardContainer);
+                        renderStandardSizes(
+                            selectedProduct.standardSeries,
+                            standardContainer
+                        );
+                        console.log('✅ Rendered standard sizes');
+                    } else {
+                        console.error('❌ Standard container or function not found');
+                        console.error('Container:', standardContainer);
+                        console.error('Function:', typeof renderStandardSizes);
+                    }
+                } else {
+                    console.warn('⚠️ No standard series to render');
+                    const standardContainer = document.getElementById('dynamic-standard-container');
+                    if (standardContainer) {
+                        standardContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No standard sizes available for this product.</p>';
                     }
                 }
-                */
                 
                 // =====================================================
                 // FINAL: Retry loading visual configs if they weren't loaded earlier
@@ -962,23 +1059,22 @@
             // These are comprehensive defaults that match the admin configuration
             const defaultFields = {
                 'Windows_Sliding': [
-                    { type: 'tags', label: 'Panel', id: 'numberOfPanels', options: ['2 Panels', '4 Panels'], stepNumber: 1 },
-                    { type: 'tags', label: 'Transom Type', id: 'transomType', options: ['None', 'Fixed Transom Head (fixed glass at top)', 'Fixed Transom Sill (fixed glass at bottom)'], stepNumber: 1 },
-                    { type: 'tags', label: 'Track System', id: 'trackSystem', options: ['2 Tracks', '3 Tracks'], stepNumber: 2 },
-                    { type: 'tags', label: 'Screen Option', id: 'screenOption', options: ['With Screen', 'Without Screen'], stepNumber: 2 },
+                    { type: 'tags', label: 'Number of Panels', id: 'numberOfPanels', options: ['2 Panels', '4 Panels'], stepNumber: 1 },
+                    { type: 'tags', label: 'Transom Type (Top / Bottom Fixed Panel)', id: 'transomType', options: ['None', 'Fixed Transom Head (Fixed glass at top)', 'Fixed Transom Sill (Fixed glass at bottom)'], stepNumber: 1 },
+                    { type: 'tags', label: 'Track System (Sliding Rail Count)', id: 'trackSystem', options: ['2 Tracks', '3 Tracks'], stepNumber: 2 },
                     { type: 'tags', label: 'Panel Configuration', id: 'panelConfiguration', options: ['S | S (Sliding | Sliding)', 'F | S (Fixed | Sliding)', 'S | S | S | S (All Sliding)', 'F | S | S | F (Fixed | Sliding | Sliding | Fixed)'], stepNumber: 2 },
                     { type: 'tags', label: 'Frame Color', id: 'frameColor', options: ['Hanalok', 'White', 'Black', 'Gray', 'Wood Finish'], stepNumber: 3 },
-                    { type: 'tags', label: 'Glass Type (6mm thickness only)', id: 'glassType', options: ['Clear', 'Ultra Clear', 'Bronze', 'Light Green', 'Dark Gray', 'Euro Gray', 'Ford Blue', 'Reflective: Clear', 'Reflective: Gray', 'Reflective: Light Blue', 'Reflective: Dark Blue', 'Reflective: Light Green', 'Reflective: Dark Green', 'Reflective: Light Bronze', 'Tempered: Clear', 'Tempered: Bronze'], stepNumber: 3 },
+                    { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Ultra Clear', 'Bronze', 'Light Green', 'Dark Gray', 'Copperfree Mirror', 'Euro Gray', 'Ford Blue', 'Reflective: Clear', 'Reflective: Gray', 'Reflective: Light Blue', 'Reflective: Dark Blue', 'Reflective: Light Green', 'Reflective: Dark Green', 'Reflective: Light Bronze', 'Tempered: Clear', 'Tempered: Bronze'], stepNumber: 3 },
                     { type: 'tags', label: 'Glass Thickness', id: 'glassThickness', options: ['6mm'], stepNumber: 3 },
-                    { type: 'tags', label: 'Lock Type', id: 'lockType', options: ['Enter Lock 908', 'Enter Lock 907', 'Flushlock #12', 'New Flushlock', 'Center Lok 904 Big', 'Flushlok #12', 'Durable Flushlok', 'New Auto Flushlock'], stepNumber: 4 },
-                    { type: 'tags', label: 'Roller Type', id: 'rollerType', options: ['Single Roller ORD', 'Single Roller with Bearing', 'Double Roller HD', 'Blue Single Roller', 'Blue Double Roller', 'Single Panel Roller', 'Blue Single Roller', 'Blue Double Roller'], stepNumber: 4 },
+                    { type: 'tags', label: 'Lock Type', id: 'lockType', options: ['Center Lok 904 Big', 'Flushlok #12', 'Durable Flushlok', 'New Auto Flushlock'], stepNumber: 4 },
+                    { type: 'tags', label: 'Roller Type', id: 'rollerType', options: ['Single Panel Roller', 'Blue Single Roller', 'Blue Double Roller'], stepNumber: 4 },
                     { type: 'tags', label: 'Screen', id: 'screen', options: ['With Screen', 'Without Screen'], stepNumber: 4 }
                 ],
                 'Windows_Sliding_stepNames': {
-                    '1': 'WINDOW TYPE',
-                    '2': 'SLIDING SYSTEM & SIZE',
-                    '3': 'FRAME & GLASS',
-                    '4': 'HARDWARE & ACCESSORIES'
+                    '1': 'Window Type',
+                    '2': 'Sliding System & Size',
+                    '3': 'Frame & Glass',
+                    '4': 'Hardware & Accessories'
                 },
                 'Doors_Sliding': [
                     { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Tinted', 'Frosted', 'Low-E', 'Tempered', 'Laminated', 'Laminated safety glass'], stepNumber: 1 },
