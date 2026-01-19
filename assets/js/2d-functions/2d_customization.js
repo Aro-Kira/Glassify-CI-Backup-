@@ -1113,30 +1113,26 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
             listening: false,
         });
     } else if (normalizedShape === 'arched') {
-        // Arched shape - rectangle with arched top
-        const archHeight = windowHeight * 0.15; // Arch height is 15% of total height
-        const points = [];
-        const numPoints = 20; // Number of points for smooth arch
+        // Arched shape - rectangle with rounded top corners (top-left and top-right)
+        // Uses corner radius as the radius for top corners (max radius = half width)
+        // Shape has: flat bottom, straight vertical sides, rounded top corners
+        // The top corners use the corner radius value (or max possible if larger)
+        const maxTopRadius = windowWidth / 2; // Maximum radius is half the width
+        const topRadius = cornerRadiusPx > 0 ? Math.min(cornerRadiusPx, maxTopRadius) : maxTopRadius;
+        const numPoints = 20; // Number of points for smooth corner arc
         
-        // Bottom left
-        points.push(offsetX, offsetY + windowHeight);
-        // Bottom right
-        points.push(offsetX + windowWidth, offsetY + windowHeight);
-        // Arch top (right to left)
-        for (let i = 0; i <= numPoints; i++) {
-            const t = i / numPoints;
-            const x = offsetX + windowWidth - (windowWidth * t);
-            const y = offsetY + archHeight * Math.sin(Math.PI * t);
-            points.push(x, y);
-        }
-        
-        glassShape = new Konva.Line({
-            points: points,
+        // Use Konva.Rect with individual corner radius
+        // Top-left and top-right corners get the radius, bottom corners are 0
+        glassShape = new Konva.Rect({
+            x: offsetX,
+            y: offsetY,
+            width: windowWidth,
+            height: windowHeight,
             fill: gStyle.fill,
             opacity: gStyle.opacity,
             stroke: fStyle.color,
             strokeWidth: fStyle.width,
-            closed: true,
+            cornerRadius: [topRadius, topRadius, 0, 0], // [topLeft, topRight, bottomRight, bottomLeft]
             listening: false,
         });
     } else {

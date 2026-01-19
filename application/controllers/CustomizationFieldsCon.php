@@ -439,9 +439,9 @@ class CustomizationFieldsCon extends CI_Controller
                 ['type' => 'tags', 'label' => 'Mounting Method', 'id' => 'mountingMethod', 'options' => ['Wall-mounted', 'Stand', 'Adhesive']]
             ],
             'Specialty_Top Glass' => [
-                ['type' => 'tags', 'label' => 'Shape', 'id' => 'shape', 'options' => ['Round', 'Rectangle', 'Oval']],
-                ['type' => 'tags', 'label' => 'Edge Finish', 'id' => 'edgeFinish', 'options' => ['Beveled', 'Polished', 'Raw']],
-                ['type' => 'tags', 'label' => 'Mounting Method', 'id' => 'mountingMethod', 'options' => ['Wall-mounted', 'Stand', 'Adhesive']]
+                ['type' => 'tags', 'label' => 'Shape', 'id' => 'shape', 'options' => ['Round', 'Rectangle', 'Oval', 'Square', 'Custom shapes'], 'stepNumber' => 1],
+                ['type' => 'tags', 'label' => 'Edge Finish', 'id' => 'edgeFinish', 'options' => ['Beveled', 'Polished', 'Raw', 'Beveled edge', 'Flat polished edge', 'Pencil edge'], 'stepNumber' => 1],
+                ['type' => 'tags', 'label' => 'Mounting Method', 'id' => 'mountingMethod', 'options' => ['Wall-mounted', 'Stand', 'Adhesive'], 'stepNumber' => 2]
             ],
             'Specialty_Glass Board' => [
                 ['type' => 'tags', 'label' => 'Shape', 'id' => 'shape', 'options' => ['Round', 'Rectangle', 'Oval']],

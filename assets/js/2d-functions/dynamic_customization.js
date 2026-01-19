@@ -490,21 +490,20 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
       // Update visualization
       updateKonvaFromField(field.id, option, true);
       
-      // If shape field changed, check corner radius visibility
+      // If shape field changed, check corner radius visibility immediately
       if (field.id === 'shape') {
-        setTimeout(() => {
-          // Check for dynamically injected corner radius controls
-          const injectedCornerRadius = document.getElementById('injected-corner-radius-controls');
-          if (injectedCornerRadius) {
-            checkInjectedCornerRadiusVisibility(injectedCornerRadius, option);
-          }
-          
-          // Also check for regular corner radius containers (if they exist)
-          const cornerRadiusContainers = document.querySelectorAll('[data-conditional-field="true"][data-depends-on="shape"]');
-          cornerRadiusContainers.forEach(container => {
-            checkCornerRadiusVisibility(container);
-          });
-        }, 50);
+        // Check immediately (no delay) for instant visibility update
+        // Check for dynamically injected corner radius controls
+        const injectedCornerRadius = document.getElementById('injected-corner-radius-controls');
+        if (injectedCornerRadius) {
+          checkInjectedCornerRadiusVisibility(injectedCornerRadius, option);
+        }
+        
+        // Also check for regular corner radius containers (if they exist)
+        const cornerRadiusContainers = document.querySelectorAll('[data-conditional-field="true"][data-depends-on="shape"]');
+        cornerRadiusContainers.forEach(container => {
+          checkCornerRadiusVisibility(container);
+        });
       }
       
       // Handle Windows_Sliding conditional logic
@@ -538,6 +537,16 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
       // Inject corner radius controls after shape field
       setTimeout(() => {
         injectCornerRadiusControls(container);
+        
+        // Immediately check visibility for initially selected shape
+        const injectedCornerRadius = document.getElementById('injected-corner-radius-controls');
+        if (injectedCornerRadius) {
+          const activeShapeCard = tagContainer.querySelector('.option-card.active');
+          if (activeShapeCard) {
+            const selectedShape = (activeShapeCard.dataset.value || activeShapeCard.textContent.trim()).toLowerCase();
+            checkInjectedCornerRadiusVisibility(injectedCornerRadius, selectedShape);
+          }
+        }
       }, 100);
     }
   }
@@ -570,6 +579,48 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
           card.classList.remove('active');
         }
       });
+    }
+    
+    // CRITICAL FIX: Trigger Konva update for initially active option
+    // This ensures the first selected button appears in Konva on initial page load
+    const finalActiveCard = tagContainer.querySelector('.option-card.active');
+    if (finalActiveCard) {
+      const activeOption = finalActiveCard.dataset.value || finalActiveCard.textContent.trim();
+      // Update selected value in global object
+      selectedCustomizationValues[field.id] = activeOption;
+      if (typeof window !== 'undefined') {
+        window.selectedCustomizationValues = selectedCustomizationValues;
+      }
+      
+      // If this is the shape field, check corner radius visibility immediately
+      if (field.id === 'shape') {
+        // Check for dynamically injected corner radius controls
+        setTimeout(() => {
+          const injectedCornerRadius = document.getElementById('injected-corner-radius-controls');
+          if (injectedCornerRadius) {
+            checkInjectedCornerRadiusVisibility(injectedCornerRadius, activeOption);
+          }
+          
+          // Also check for regular corner radius containers
+          const cornerRadiusContainers = document.querySelectorAll('[data-conditional-field="true"][data-depends-on="shape"]');
+          cornerRadiusContainers.forEach(container => {
+            checkCornerRadiusVisibility(container);
+          });
+        }, 150); // Slightly longer delay to ensure controls are injected
+      }
+      
+      // If this is the frameType field, check mirrors conditionals immediately
+      if (field.id === 'frameType') {
+        setTimeout(() => {
+          handleMirrorsConditionals('frameType', activeOption);
+        }, 50);
+      }
+      
+      // Trigger Konva update for the initially active option
+      // Use a small delay to ensure Konva stage is initialized
+      setTimeout(() => {
+        updateKonvaFromField(field.id, activeOption, true);
+      }, 100);
     }
   }, 10);
 }
@@ -840,8 +891,8 @@ function renderIndividualCornerRadius(field, container) {
   // Individual corner controls (hidden when linked)
   const individualWrapper = document.createElement('div');
   individualWrapper.id = `${fieldId}_individualWrapper`;
+  // Hide by default since "Link All Corners" is checked by default
   individualWrapper.style.display = 'none';
-  individualWrapper.style.display = 'grid';
   individualWrapper.style.gridTemplateColumns = '1fr 1fr';
   individualWrapper.style.gap = '15px';
   
@@ -1213,14 +1264,14 @@ function checkInjectedCornerRadiusVisibility(container, selectedShape) {
   if (!container) return;
   
   const shape = (selectedShape || '').toLowerCase();
-  // Show for rectangle, square, and any shape with "round" or "edge" in the name
+  // Show for rectangle and square only (per CUSTOMIZATION_REFERENCE.md)
+  // Note: Arched shape does NOT show corner radius controls
   const rectangleShapes = ['rectangle', 'rectangular', 'square', 'rectangle/square', 'rectangle-square'];
-  const hasRoundEdge = shape.includes('round') || shape.includes('edge') || shape.includes('rounded');
   const isRectangleShape = rectangleShapes.includes(shape) || 
                            shape.includes('rectangle') || 
                            shape.includes('square');
   
-  if (isRectangleShape || hasRoundEdge) {
+  if (isRectangleShape) {
     container.style.display = '';
   } else {
     container.style.display = 'none';
@@ -1261,7 +1312,8 @@ function checkCornerRadiusVisibility(container) {
   const selectedShape = (activeShapeCard.dataset.value || activeShapeCard.textContent.trim()).toLowerCase();
   const rectangleShapes = ['rectangle', 'rectangular', 'square', 'rectangle/square', 'rectangle-square'];
   
-  // Show only if rectangle or square is selected
+  // Show only if rectangle or square is selected (per CUSTOMIZATION_REFERENCE.md)
+  // Note: Arched shape does NOT show corner radius controls
   const isRectangleShape = rectangleShapes.includes(selectedShape) || 
                            selectedShape.includes('rectangle') || 
                            selectedShape.includes('square');
@@ -1302,14 +1354,27 @@ function handleMirrorsConditionals(changedFieldId, selectedValue) {
     const frameColorContainer = document.querySelector('[data-field-id="frameColor"]');
     const edgeFinishContainer = document.querySelector('[data-field-id="edgeFinish"]');
     
-    const isFramed = selectedValue && selectedValue.toLowerCase() === 'framed';
-    const isFrameless = selectedValue && selectedValue.toLowerCase() === 'frameless';
+    // Check for "Standard Frame" (the actual option value) - per CUSTOMIZATION_REFERENCE.md
+    // Frame Color only appears when Frame Type = "Standard Frame" (not "Frameless")
+    const normalizedValue = (selectedValue || '').toLowerCase().trim();
+    const isStandardFrame = normalizedValue === 'standard frame' || 
+                           normalizedValue === 'standard-frame' || 
+                           normalizedValue === 'framed' ||
+                           (selectedValue && selectedValue.toLowerCase().includes('standard') && selectedValue.toLowerCase().includes('frame'));
+    const isFrameless = normalizedValue === 'frameless';
     
     // Show/hide Frame Color based on Frame Type
+    // Frame Color only appears when Frame Type = "Standard Frame"
     if (frameColorContainer) {
-      const fieldSection = frameColorContainer.closest('.field-section, .type-section, .frame-section');
+      // Try multiple selectors to find the parent section
+      let fieldSection = frameColorContainer.closest('.field-section, .type-section, .frame-section');
+      if (!fieldSection) {
+        // If not found, try parent element
+        fieldSection = frameColorContainer.parentElement;
+      }
+      
       if (fieldSection) {
-        if (isFramed) {
+        if (isStandardFrame) {
           fieldSection.style.display = '';
         } else {
           fieldSection.style.display = 'none';
@@ -1320,12 +1385,22 @@ function handleMirrorsConditionals(changedFieldId, selectedValue) {
             delete selectedCustomizationValues['frameColor'];
           }
         }
+      } else {
+        // Fallback: hide the container directly
+        frameColorContainer.style.display = isStandardFrame ? '' : 'none';
       }
     }
     
     // Show/hide Edge Finish based on Frame Type
+    // Edge Finish only appears when Frame Type = "Frameless"
     if (edgeFinishContainer) {
-      const fieldSection = edgeFinishContainer.closest('.field-section, .edge-section');
+      // Try multiple selectors to find the parent section
+      let fieldSection = edgeFinishContainer.closest('.field-section, .edge-section');
+      if (!fieldSection) {
+        // If not found, try parent element
+        fieldSection = edgeFinishContainer.parentElement;
+      }
+      
       if (fieldSection) {
         if (isFrameless) {
           fieldSection.style.display = '';
@@ -1338,6 +1413,9 @@ function handleMirrorsConditionals(changedFieldId, selectedValue) {
             delete selectedCustomizationValues['edgeFinish'];
           }
         }
+      } else {
+        // Fallback: hide the container directly
+        edgeFinishContainer.style.display = isFrameless ? '' : 'none';
       }
     }
   }
@@ -2405,6 +2483,23 @@ function syncStateFromActiveSelections() {
     edgeWork: window.currentEdgeWork
   });
   
+  // Trigger updateKonvaFromField for all active options to ensure Konva reflects initial state
+  // This fixes the bug where first selected button doesn't appear in Konva on initial load
+  const allFieldContainers = document.querySelectorAll('[data-field-id]');
+  allFieldContainers.forEach(fieldContainer => {
+    const fieldId = fieldContainer.dataset.fieldId;
+    const activeCard = fieldContainer.querySelector('.option-card.active');
+    if (activeCard && fieldId) {
+      const activeValue = activeCard.dataset.value || activeCard.textContent.trim();
+      // Update selectedCustomizationValues
+      selectedCustomizationValues[fieldId] = activeValue;
+      // Trigger Konva update for this field
+      setTimeout(() => {
+        updateKonvaFromField(fieldId, activeValue, true);
+      }, 10);
+    }
+  });
+  
   // Re-render Konva with synced state
   setTimeout(() => {
     if (typeof renderCustomState === 'function') {
@@ -2412,7 +2507,7 @@ function syncStateFromActiveSelections() {
     } else if (typeof window.renderCustomState === 'function') {
       window.renderCustomState();
     }
-  }, 50);
+  }, 100);
 }
 
 // Export functions for use in other scripts

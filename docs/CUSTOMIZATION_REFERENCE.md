@@ -158,6 +158,7 @@ This reference lists every main category, its supported subcategories, and the d
 - Frame Color only appears when Frame Type = "Framed"
 - Edge Finish only appears when Frame Type = "Frameless"
 - Glass Type and Thickness are fixed values (Copper Free and Lead Free Mirror, 6mm)
+- Corner radius only appears when Shape = Square, Rectangle
 
 ### Top Glass
 **Step names:** Basic Options · Details & Installation
@@ -166,8 +167,9 @@ This reference lists every main category, its supported subcategories, and the d
 | --- | --- | --- | --- |
 | Basic Options (1) | Shape | `tags` | Round \\| Rectangle \\| Oval \\| Square \\| Custom shapes |
 | Basic Options (1) | Edge Finish | `tags` | Beveled \\| Polished \\| Raw \\| Beveled edge \\| Flat polished edge \\| Pencil edge |
-| Details & Installation (2) | Corner Radius (in) | `number` | min 0 · step 0.1 |
 | Details & Installation (2) | Mounting Method | `tags` | Wall-mounted \\| Stand \\| Adhesive |
+**Notes:**
+- Corner radius only appears when Shape = Square, Rectangle
 
 ### Glass Board
 **Step names:** Basic Options · Details & Installation
@@ -178,7 +180,8 @@ This reference lists every main category, its supported subcategories, and the d
 | Basic Options (1) | Edge Finish | `tags` | Beveled \\| Polished \\| Raw \\| Beveled edge \\| Flat polished edge \\| Pencil edge |
 | Details & Installation (2) | Corner Radius (in) | `number` | min 0 · step 0.1 |
 | Details & Installation (2) | Mounting Method | `tags` | Wall-mounted \\| Stand \\| Adhesive |
-
+**Notes:**
+- Corner radius only appears when Shape = Square, Rectangle
 ## Commercial & Exterior
 
 ### Storefront
