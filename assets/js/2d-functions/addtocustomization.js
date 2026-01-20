@@ -313,3 +313,108 @@ $(document).on('click', '#buy-now-btn', function () {
         }
     });
 });
+
+// Book Now button handler (for Site Assessment Orders)
+$(document).on('click', '#book-now-btn', function () {
+    const btn = $(this);
+    const originalText = btn.html();
+    
+    btn.prop('disabled', true).html('Processing...');
+
+    let product_id = btn.data('product-id');
+    
+    // Get the design image from Konva
+    let designImageData = '';
+    if (typeof window.getDesignImageData === 'function') {
+        designImageData = window.getDesignImageData();
+    }
+
+    // Clean price string
+    let priceText = $('#sum-total').text().replace('₱', '').replace(/,/g, '').trim();
+
+    // Collect all customization values dynamically from selectedCustomizationValues
+    const customizationValues = window.selectedCustomizationValues || {};
+    
+    // Get dimensions with units
+    const heightValue = $('#input-height').val() || '';
+    const widthValue = $('#input-width').val() || '';
+    const heightUnit = $('#btn-unit-height').data('current-unit') || 'in';
+    const widthUnit = $('#btn-unit-width').data('current-unit') || 'in';
+    const dimensions = `${heightValue}${heightUnit} x ${widthValue}${widthUnit}`;
+    
+    // Get legacy field values (for backward compatibility)
+    const legacyShape = $('.option-card[data-shape].active').data('shape') || customizationValues.shape || '';
+    const legacyType = $('.option-card[data-glass-type].active').data('glass-type') || customizationValues.glassType || '';
+    const legacyThickness = $('.option-card[data-thickness].active').data('thickness') || customizationValues.thickness || '';
+    const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customizationValues.edgeFinish || '';
+    const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customizationValues.frameColor || '';
+    
+    let data = {
+        product_id: product_id,
+        dimensions: dimensions,
+        // Legacy fields (for backward compatibility)
+        shape: legacyShape,
+        type: legacyType,
+        thickness: legacyThickness,
+        edge: legacyEdge,
+        frame: legacyFrame,
+        engraving: $('#step-3 input').val() || customizationValues.engraving || 'None',
+        price: priceText,
+        quantity: 1,
+        design_image: designImageData,
+        book_now: true, // Flag for booking instead of buying
+        // Include all dynamic customization values (synced with admin side)
+        customization: JSON.stringify(customizationValues)
+    };
+
+    $.ajax({
+        url: base_url + "CartCon/add_customized_ajax",
+        type: "POST",
+        data: data,
+        success: function (res) {
+            try {
+                let response = typeof res === 'string' ? JSON.parse(res) : res;
+
+                if (response.status === 'success') {
+                    // Redirect to booking page (shipping, preferred visit date, order summary) with the cart item selected
+                    const bookUrl = (typeof BASE_URL === 'string' && BASE_URL) ? BASE_URL.replace(/\/?$/, '') + '/booking' : '/booking';
+                    window.location.href = bookUrl + (bookUrl.indexOf('?') >= 0 ? '&' : '?') + 'selected=' + response.cart_id;
+                } else {
+                    showCartNotification((response.message || 'Unknown error'), 'error');
+                    btn.prop('disabled', false).html(originalText);
+                }
+            } catch (e) {
+                console.error('Parse error:', e);
+                showCartNotification("Error processing response. Please try again.", 'error');
+                btn.prop('disabled', false).html(originalText);
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error('AJAX Error:', error);
+            console.error('Status:', status);
+            console.error('Response:', xhr.responseText);
+            
+            let errorMessage = "Server error. Please try again.";
+            
+            // Try to parse error response if it's JSON
+            try {
+                if (xhr.responseText) {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    if (errorResponse.message) {
+                        errorMessage = errorResponse.message;
+                    }
+                }
+            } catch (e) {
+                // If not JSON, show the raw response or status
+                if (xhr.status === 500) {
+                    errorMessage = "Internal server error. Please check the console for details.";
+                } else if (xhr.status === 404) {
+                    errorMessage = "Page not found. Please refresh and try again.";
+                }
+            }
+            
+            showCartNotification(errorMessage, 'error');
+            btn.prop('disabled', false).html(originalText);
+        }
+    });
+});

@@ -486,9 +486,23 @@
                         Add to Cart
                     </button>
 
-                    <button class="buy-btn" id="buy-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
-                        Buy Now
-                    </button>
+                    <?php
+                    // Determine order type
+                    $orderType = isset($product->OrderType) ? strtolower($product->OrderType) : 'direct';
+                    $isSiteAssessment = ($orderType === 'site-assessment' || $orderType === 'site-assessed');
+                    ?>
+                    
+                    <?php if ($isSiteAssessment): ?>
+                        <!-- Site Assessment Order: Show Book Now button -->
+                        <button class="buy-btn" id="book-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
+                            Book Now
+                        </button>
+                    <?php else: ?>
+                        <!-- Direct Order: Show Buy Now button -->
+                        <button class="buy-btn" id="buy-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
+                            Buy Now
+                        </button>
+                    <?php endif; ?>
 
                     <button class="edit-order-btn" id="edit-order-btn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -683,6 +697,7 @@
     window.productBasePrice = <?= $productPrice ?>;
     const productBasePrice = window.productBasePrice;
     var base_url = '<?= base_url(); ?>';
+    var BASE_URL = '<?= base_url(); ?>';
     var PAYMENT_URL = '<?= rtrim(base_url(), "/") . "/payment"; ?>';
     
     // Product images for gallery navigation

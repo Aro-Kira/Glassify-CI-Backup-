@@ -24,7 +24,7 @@
     <div class="progress-nav">
         <div class="step completed">Cart</div>
         <div class="divider"></div>
-        <div class="step active">Payment</div>
+        <div class="step active">Booking</div>
         <div class="divider"></div>
         <div class="step">Complete</div>
     </div>
@@ -213,149 +213,29 @@
                         <textarea name="note" rows="3" placeholder="Add special instructions or notes for delivery (optional)"><?= htmlspecialchars($addresses['Shipping']->Note ?? '') ?></textarea>
                     </div>
                 </div>
-
-            </form>
-            
-            <!-- Billing Address Section (Separate Box, but inside same section) -->
-            <form id="billingForm" style="margin-top: 30px; border-top: 2px solid #e0e0e0; padding-top: 30px;">
-                <!-- Billing Address Title -->
-                <div class="shipping-address-title">
-                    <h3>Billing Address</h3>
-                </div>
                 
-                <!-- Billing Form Container -->
-                <div id="billingFormContainer">
-                
-                <!-- Same as Shipping Checkbox -->
-                <div class="terms" style="margin-bottom: 20px;">
-                    <input type="checkbox" id="same-billing"> 
-                    <label for="same-billing">Make billing address same as shipping</label>
-                </div>
-                
-                <!-- Billing Address Form Fields -->
-                <div id="billing-address-fields">
-                    <!-- Billing Contact Information -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>First Name <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_firstname" id="billing_firstname"
-                                value=""
-                                placeholder="Enter your first name" required>
+                <!-- Preferred Ocular Visit Date -->
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label>Preferred Ocular Visit Date <span style="color: red;">*</span></label>
+                        <div class="calendar-trigger-wrapper">
+                            <button type="button" id="open-calendar-btn" style="width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 15px; border: 1px solid #ccc; border-radius: 6px; background: white; cursor: pointer; color: #0f2b46; font-weight: 500; transition: all 0.2s;">
+                                <span id="selected-date-text">Select your preferred ocular visit date</span>
+                                <i class="fas fa-calendar-alt" style="color: #0f2b46; font-size: 1.1rem;"></i>
+                            </button>
+                            <input type="hidden" name="preferred_installation_date" id="preferred_installation_date" required>
+                            
+                            <div id="installation-date-error" class="inline-error" style="display: none; margin-top: 5px; padding: 8px 12px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px;">
+                                <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a Preferred Ocular Visit Date. This field is required.</span>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label>Middle Name</label>
-                            <input type="text" name="billing_middlename" id="billing_middlename"
-                                value=""
-                                placeholder="Enter your middle name (optional)">
-                        </div>
-                        <div class="form-group">
-                            <label>Last Name <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_lastname" id="billing_lastname"
-                                value=""
-                                placeholder="Enter your last name" required>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Email address <span style="color: red;">*</span></label>
-                            <input type="email" name="billing_email" id="billing_email"
-                                value=""
-                                placeholder="Enter your email address" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Phone number <span style="color: red;">*</span></label>
-                            <input type="tel" name="billing_phone" id="billing_phone"
-                                value="" maxlength="11"
-                                placeholder="Enter your phone number" required>
-                        </div>
-                    </div>
-
-                    <!-- Billing Address Fields -->
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Country <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_country" id="billing-country"
-                                value="Philippines"
-                                placeholder="Country" required readonly>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Region <span style="color: red;">*</span></label>
-                            <select name="billing_region" id="billing-region" required>
-                                <option value="" <?= (!isset($addresses['Billing']->Region) || empty($addresses['Billing']->Region)) ? 'selected' : '' ?>>Select Region</option>
-                                <option value="NCR" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'NCR') ? 'selected' : '' ?>>NCR (National Capital Region)</option>
-                                <option value="Region III" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'Region III') ? 'selected' : '' ?>>Region III (Central Luzon)</option>
-                                <option value="Region IV-A" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'Region IV-A') ? 'selected' : '' ?>>Region IV-A (CALABARZON)</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Province <span style="color: red;">*</span></label>
-                            <select name="billing_province" id="billing-province" required>
-                                <option value="">Select Province</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>City/Municipality <span style="color: red;">*</span></label>
-                            <select name="billing_city" id="billing-city" required>
-                                <option value="">Select City/Municipality</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Barangay <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_barangay" id="billing_barangay"
-                                value=""
-                                placeholder="Enter Barangay" required>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Subdivision/Building</label>
-                            <input type="text" name="billing_subdivision" id="billing_subdivision"
-                                value=""
-                                placeholder="Subdivision/Building (optional)">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Street</label>
-                            <input type="text" name="billing_street" id="billing_street"
-                                value=""
-                                placeholder="Street (optional)">
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Unit/House Number <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_unit_house_number" id="billing_unit_house_number"
-                                value=""
-                                placeholder="Unit/House Number" required>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Zip Code <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_zipcode" id="billing_zipcode"
-                                value=""
-                                placeholder="Enter Zip Code" required>
-                        </div>
+                        <small style="color: #666; font-size: 0.9em; display: block; margin-top: 8px; line-height: 1.4;">
+                            <i class="fas fa-info-circle" style="color: #0f2b46;"></i> 
+                            Please select a date at least <b>4 days from today</b>.
+                        </small>
                     </div>
                 </div>
-                <!-- End Billing Address Form Fields -->
-                </div>
-                <!-- End Billing Form Container -->
+
             </form>
         </section>
 
@@ -372,35 +252,19 @@
                 </div>
 
                 <div class="summary-totals-box" style="padding-top: 15px;">
-                    <p><span>Subtotal:</span> <span id="summary-subtotal">₱0.00</span></p>
-                    <p><span>Shipping Fee:</span> <span id="summary-shipping">₱0.00</span></p>
-                    <p><span>Handling Fee:</span> <span id="summary-handling">₱0.00</span></p>
-                    <p class="total"><span>Total:</span> <span id="summary-total">₱0.00</span></p>
+                    <p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">
+                        <strong>Note:</strong> For Site Assessment Orders, final pricing will be confirmed after the ocular visit.
+                    </p>
+                    <p><span>Price Range:</span> <span id="summary-price-range" style="font-weight: 600; color: #0f2b46;">Contact for pricing</span></p>
+                    <p style="font-size: 0.85em; color: #888; font-style: italic; margin-top: 10px;">
+                        Estimated price shown above. Final quotation provided after site assessment.
+                    </p>
                 </div>
             </div>
             <div class="payment-section">
-                <div class="payment-method-content">
-                    <h3>Payment Methods</h3>
-                    <p>
-                        <img src="<?php echo base_url('assets/images/img-page/dollar.png'); ?>" alt="dollaricon">
-                        <label for="ewallet-radio">E-Wallet</label>
-                        <input type="radio" id="ewallet-radio" name="payment-method"
-                            title="Select E-Wallet as payment method">
-                    </p>
-                    <p>
-                        <img src="<?php echo base_url('assets/images/img-page/atm-card.png'); ?>" alt="card-icon">
-                        <label for="card-radio">Credit or Debit Card</label>
-                        <input type="radio" id="card-radio" name="payment-method" title="Select Credit or Debit Card as payment method">
-                    </p>
-                </div>
-
-                <!-- Inline error message for payment method -->
-                <div id="payment-method-error" class="inline-error" style="display: none; margin-top: 10px; padding: 8px 12px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px;">
-                    <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a payment method before placing order.</span>
-                </div>
-
-                <!-- Removed <a> and kept only button -->
-                <button class="placeOrder-btn" id="placeOrderBtn">Place Order</button>
+                <!-- Payment methods removed - Site Assessment Orders do not require payment at booking -->
+                <!-- Static price range displayed in order summary above -->
+                <button class="placeOrder-btn" id="confirmBookingBtn">Confirm Booking</button>
             </div>
 
             <div class="terms">
@@ -524,14 +388,18 @@
         </div>
       </div>
 
-      <!-- Payment Method -->
-      <div class="confirm-section">
+      <!-- Payment Method removed - Site Assessment Orders do not require payment at booking -->
+      
+      <!-- Preferred Ocular Visit Date -->
+      <div class="confirm-section" id="confirm-installation-date-section" style="display: none;">
         <h4 class="confirm-section-title">
-          <span class="icon">💳</span> Payment Method
+          <span class="icon">📅</span> Preferred Ocular Visit Date
         </h4>
-        <div class="payment-badge" id="confirm-payment-method">
-          <span class="payment-icon"></span>
-          <span class="payment-text"></span>
+        <div class="confirm-info-grid">
+          <div class="confirm-info-item full-width">
+            <span class="info-label">Date</span>
+            <span class="info-value" id="confirm-installation-date"></span>
+          </div>
         </div>
       </div>
 
@@ -770,17 +638,21 @@ $(document).ready(function() {
 
                     // Update order summary - ensure elements exist
                     const itemsEl = document.getElementById('summary-items');
-                    const subtotalEl = document.getElementById('summary-subtotal');
-                    const shippingEl = document.getElementById('summary-shipping');
-                    const handlingEl = document.getElementById('summary-handling');
-                    const totalEl = document.getElementById('summary-total');
+                    const priceRangeEl = document.getElementById('summary-price-range');
                     const itemsListEl = document.getElementById('summary-items-list');
                     
                     if (itemsEl) itemsEl.textContent = summary.items || 0;
-                    if (subtotalEl) subtotalEl.textContent = '₱' + (summary.subtotal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    if (shippingEl) shippingEl.textContent = '₱' + (summary.shipping || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    if (handlingEl) handlingEl.textContent = '₱' + (summary.handling || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                    if (totalEl) totalEl.textContent = '₱' + (summary.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    
+                    // Display price range for Site Assessment Orders
+                    if (priceRangeEl && summary.price_range_min !== undefined && summary.price_range_max !== undefined) {
+                        const priceMin = parseFloat(summary.price_range_min) || 0;
+                        const priceMax = parseFloat(summary.price_range_max) || 0;
+                        if (priceMin > 0 && priceMax > 0) {
+                            priceRangeEl.textContent = `₱${priceMin.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} - ₱${priceMax.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                        } else {
+                            priceRangeEl.textContent = 'Contact for pricing';
+                        }
+                    }
 
                     // Populate itemized list
                     if (itemsListEl) {
@@ -816,32 +688,20 @@ $(document).ready(function() {
                     console.error('Failed to load summary:', res.message || 'Unknown error');
                     // Set default values if API fails
                     const itemsEl = document.getElementById('summary-items');
-                    const subtotalEl = document.getElementById('summary-subtotal');
-                    const shippingEl = document.getElementById('summary-shipping');
-                    const handlingEl = document.getElementById('summary-handling');
-                    const totalEl = document.getElementById('summary-total');
+                    const priceRangeEl = document.getElementById('summary-price-range');
                     
                     if (itemsEl) itemsEl.textContent = '0';
-                    if (subtotalEl) subtotalEl.textContent = '₱0.00';
-                    if (shippingEl) shippingEl.textContent = '₱0.00';
-                    if (handlingEl) handlingEl.textContent = '₱0.00';
-                    if (totalEl) totalEl.textContent = '₱0.00';
+                    if (priceRangeEl) priceRangeEl.textContent = 'Contact for pricing';
                 }
             },
             error: function(xhr, status, error) {
                 console.error('Failed to load cart summary:', error);
                 // Set default values on error
                 const itemsEl = document.getElementById('summary-items');
-                const subtotalEl = document.getElementById('summary-subtotal');
-                const shippingEl = document.getElementById('summary-shipping');
-                const handlingEl = document.getElementById('summary-handling');
-                const totalEl = document.getElementById('summary-total');
+                const priceRangeEl = document.getElementById('summary-price-range');
                 
                 if (itemsEl) itemsEl.textContent = '0';
-                if (subtotalEl) subtotalEl.textContent = '0.00';
-                if (shippingEl) shippingEl.textContent = '0.00';
-                if (handlingEl) handlingEl.textContent = '0.00';
-                if (totalEl) totalEl.textContent = '0.00';
+                if (priceRangeEl) priceRangeEl.textContent = 'Contact for pricing';
             }
         });
     }
@@ -1421,22 +1281,31 @@ $(document).ready(function() {
         document.getElementById('confirm-phone').textContent = phone;
         document.getElementById('confirm-address').textContent = fullAddress;
 
-        // Payment method
-        const ewallet = document.getElementById("ewallet-radio").checked;
-        const card = document.getElementById("card-radio").checked;
-        const paymentBadge = document.getElementById('confirm-payment-method');
-        if (ewallet) {
-            paymentBadge.innerHTML = '<span class="payment-icon">💰</span><span class="payment-text">E-Wallet</span>';
-            paymentBadge.className = 'payment-badge ewallet';
-        } else if (card) {
-            paymentBadge.innerHTML = '<span class="payment-icon">💳</span><span class="payment-text">Credit or Debit Card</span>';
-            paymentBadge.className = 'payment-badge card';
+        // Payment method not needed for Site Assessment Orders
+        const paymentSection = document.getElementById('confirm-payment-section');
+        if (paymentSection) {
+            paymentSection.style.display = 'none';
         }
 
-        // Preferred Ocular Visit Date removed - only for booking page
+        // Preferred Ocular Visit Date (for booking page)
         const installationDateSection = document.getElementById('confirm-installation-date-section');
-        if (installationDateSection) {
-            installationDateSection.style.display = 'none';
+        const installationDateValue = document.getElementById('confirm-installation-date');
+        if (preferredInstallationDate) {
+            const formattedDate = new Date(preferredInstallationDate).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+            if (installationDateValue) {
+                installationDateValue.textContent = formattedDate;
+            }
+            if (installationDateSection) {
+                installationDateSection.style.display = 'block';
+            }
+        } else {
+            if (installationDateSection) {
+                installationDateSection.style.display = 'none';
+            }
         }
 
         // Fetch SELECTED cart items from server via AJAX
@@ -1680,7 +1549,6 @@ $(document).ready(function() {
 
     document.getElementById('confirm-date-btn')?.addEventListener('click', () => {
         closeCalendarModal();
-        validatePlaceOrderButton();
     });
 
     document.getElementById('open-calendar-btn')?.addEventListener('click', openCalendarModal);
@@ -1705,70 +1573,29 @@ $(document).ready(function() {
         renderCheckoutCalendar();
     });
 
-    const pOrderBtn = document.getElementById('placeOrderBtn');
-    const sBillCheckbox = document.getElementById('same-billing');
-    const bFormContainer = document.getElementById('billingForm');
-    const bReqInputs = bFormContainer ? bFormContainer.querySelectorAll('input[required], select[required]') : [];
+    const confirmBookingBtn = document.getElementById('confirmBookingBtn');
 
-    function validatePlaceOrderButton() {
-        if (!pOrderBtn) return;
-        
-        let isValid = true;
-        
-        // If "Same as shipping" is NOT checked, validate billing fields
-        if (sBillCheckbox && !sBillCheckbox.checked) {
-            bReqInputs.forEach(input => {
-                if (!input.value.trim()) isValid = false;
-            });
-        }
-        
-        // Ensure a payment method is selected
-        const ewallet = document.getElementById("ewallet-radio")?.checked;
-        const card = document.getElementById("card-radio")?.checked;
-        if (!ewallet && !card) isValid = false;
+    // Removed real-time validation - warning will only show on button click
 
-        // Ensure terms are accepted
-        const terms = document.getElementById('accept-terms')?.checked;
-        if (!terms) isValid = false;
-
-        // Button is always clickable as per request, but we track validity
-        pOrderBtn.style.opacity = '1';
-        pOrderBtn.style.cursor = 'pointer';
-        return isValid;
-    }
-
-    // Attach listeners
-    if (sBillCheckbox) sBillCheckbox.addEventListener('change', validatePlaceOrderButton);
-    
-    bReqInputs.forEach(input => {
-        input.addEventListener('input', validatePlaceOrderButton);
-        input.addEventListener('change', validatePlaceOrderButton);
-    });
-
-    ['ewallet-radio', 'card-radio', 'accept-terms'].forEach(id => {
-        document.getElementById(id)?.addEventListener('change', validatePlaceOrderButton);
-        document.getElementById(id)?.addEventListener('input', validatePlaceOrderButton);
-    });
-
-    // Initialize button state
-    validatePlaceOrderButton();
-
-    // === Place Order button - Show confirmation modal ===
-    document.getElementById("placeOrderBtn").addEventListener("click", function () {
-        const ewalletEl = document.getElementById("ewallet-radio");
-        const cardEl = document.getElementById("card-radio");
-        const ewallet = ewalletEl ? ewalletEl.checked : false;
-        const card = cardEl ? cardEl.checked : false;
-
-        console.log('Place Order clicked - E-wallet element:', ewalletEl, 'checked:', ewallet, 'Card element:', cardEl, 'checked:', card);
+    // === Confirm Booking button - Show confirmation modal ===
+    document.getElementById("confirmBookingBtn").addEventListener("click", function () {
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
+        const preferredDateInput = document.getElementById('preferred_installation_date');
+        const preferredDate = preferredDateInput ? preferredDateInput.value : '';
+        
         let firstErrorElement = null;
         let errorMessage = "Please complete all required fields.";
 
-        // Reset errors
+        // Reset errors and warnings
         document.querySelectorAll('.form-group input, .form-group select').forEach(el => el.style.borderColor = '#ccc');
         document.querySelectorAll('.inline-error').forEach(el => el.style.display = 'none');
+        
+        // Get or create validation notice element (declare once at function level)
+        let validationNotice = document.getElementById('booking-validation-notice');
+        if (validationNotice) {
+            validationNotice.style.display = 'none';
+        }
 
         // Validate shipping info
         const shippingInputs = document.querySelectorAll('#profileForm input[required], #profileForm select[required]');
@@ -1788,34 +1615,14 @@ $(document).ready(function() {
             }
         }
 
-        // Validate billing info if not same
-        if (!firstErrorElement && sBillCheckbox && !sBillCheckbox.checked) {
-            for (const input of bReqInputs) {
-                // Check if billing fields container is visible
-                const isHiddenBilling = document.getElementById('billing-address-fields')?.style.display === 'none';
-                if (isHiddenBilling) continue;
-
-                if (!input.value.trim()) {
-                    input.style.borderColor = 'red';
-                    if (!firstErrorElement) {
-                        firstErrorElement = input;
-                        const label = input.closest('.form-group')?.querySelector('label')?.textContent.replace('*', '').trim() || "required billing field";
-                        errorMessage = `Please complete the billing ${label} field.`;
-                    }
-                    break;
-                }
-            }
-        }
-
-        // Validate payment method (reuse ewalletEl, cardEl, ewallet, card from above)
-        if (!firstErrorElement && !ewallet && !card) {
-            console.log('Payment method validation failed - ewallet checked:', ewallet, 'card checked:', card);
-            console.log('Radio elements exist:', !!ewalletEl, !!cardEl);
-            const errorDiv = document.getElementById('payment-method-error');
+        // Validate Preferred Ocular Visit Date (required for booking)
+        if (!firstErrorElement && !preferredDate) {
+            const errorDiv = document.getElementById('installation-date-error');
             if (errorDiv) errorDiv.style.display = 'block';
+            document.getElementById('open-calendar-btn').style.borderColor = 'red';
             if (!firstErrorElement) {
-                firstErrorElement = document.querySelector('.payment-section');
-                errorMessage = "Please select a payment method.";
+                firstErrorElement = document.getElementById('open-calendar-btn');
+                errorMessage = "Please select your preferred ocular visit date.";
             }
         }
 
@@ -1830,9 +1637,70 @@ $(document).ready(function() {
         }
 
         if (firstErrorElement) {
+            // Get all missing fields (collect all at once to avoid duplicates)
+            const missingFields = new Set();
+            
+            // Check shipping fields (excluding Preferred Ocular Visit Date field)
+            const shippingInputs = document.querySelectorAll('#profileForm input[required], #profileForm select[required]');
+            shippingInputs.forEach(input => {
+                const isHiddenAddressField = input.closest('#shipping-address-fields')?.style.display === 'none';
+                // Skip if hidden or if it's the Preferred Ocular Visit Date field
+                if (isHiddenAddressField || input.id === 'preferred_installation_date' || input.name === 'preferred_installation_date') {
+                    return;
+                }
+                
+                if (!input.value.trim()) {
+                    const label = input.closest('.form-group')?.querySelector('label')?.textContent.replace(/\*/g, '').trim() || 'field';
+                    // Filter out any label that contains "Preferred Ocular Visit Date"
+                    if (label && !label.toLowerCase().includes('preferred ocular visit date')) {
+                        missingFields.add(label);
+                    }
+                }
+            });
+            
+            // Check Preferred Ocular Visit Date (only once, explicitly)
+            if (!preferredDate) {
+                missingFields.add('Preferred Ocular Visit Date');
+            }
+            
+            // Check terms
+            if (!termsAccepted) {
+                missingFields.add('Terms and Conditions acceptance');
+            }
+            
+            // Show validation notice (reuse existing variable)
+            if (!validationNotice) {
+                validationNotice = document.getElementById('booking-validation-notice');
+            }
+            if (!validationNotice) {
+                // Create validation notice element if it doesn't exist
+                validationNotice = document.createElement('div');
+                validationNotice.id = 'booking-validation-notice';
+                validationNotice.style.cssText = 'margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; color: #856404;';
+                const buttonParent = confirmBookingBtn.parentElement;
+                if (buttonParent) {
+                    buttonParent.insertBefore(validationNotice, confirmBookingBtn);
+                }
+            }
+            
+            // Update notice with unique fields
+            const missingFieldsArray = Array.from(missingFields);
+            if (missingFieldsArray.length > 0) {
+                validationNotice.innerHTML = '<strong>⚠ Please complete the following required fields before confirming booking:</strong><ul style="margin: 10px 0 0 20px; padding-left: 20px;">' + 
+                                          missingFieldsArray.map(field => `<li>${field}</li>`).join('') + '</ul>';
+                validationNotice.style.display = 'block';
+            } else {
+                validationNotice.style.display = 'none';
+            }
+            
             showToast(errorMessage, 'warning');
             firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
+        }
+        
+        // Hide validation notice if all fields are valid
+        if (validationNotice) {
+            validationNotice.style.display = 'none';
         }
 
         // Populate and show confirmation modal
@@ -1840,15 +1708,10 @@ $(document).ready(function() {
         openConfirmModal();
     });
 
-    // === Confirm Order button - Actually place the order ===
-    confirmOrderBtn.addEventListener("click", function () {
-        const btn = this;
-        const defaultConfirmLabel = 'Confirm & Place Order';
-        const ewallet = document.getElementById("ewallet-radio").checked;
-        const card = document.getElementById("card-radio").checked;
-
-        // Debug: Log payment method state
-        console.log('Payment method validation - E-wallet checked:', ewallet, 'Card checked:', card);
+        // === Confirm Booking button - Actually confirm the booking ===
+        confirmOrderBtn.addEventListener("click", function () {
+            const btn = this;
+            const defaultConfirmLabel = 'Confirm Booking';
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
 
@@ -1896,7 +1759,15 @@ $(document).ready(function() {
             }
         }
 
-        // Add payment method, terms, and SELECTED CART IDS
+        // Add terms and SELECTED CART IDS
+        const preferredDateInput = form.querySelector("input[name='preferred_installation_date']");
+        if (preferredDateInput && preferredDateInput.value) {
+            formData.append('preferred_installation_date', preferredDateInput.value);
+        }
+        
+        // Add selected cart IDs
+        formData.append('selected_cart_ids', SELECTED_CART_IDS);
+        formData.append('terms_accepted', termsAccepted ? 'true' : 'false');
         
         // Disable button and show loading state
         btn.disabled = true;
@@ -1930,7 +1801,7 @@ $(document).ready(function() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-        fetch(BASE_URL + 'shopcon/place_order', {
+        fetch(BASE_URL + 'shopcon/confirm_booking', {
             method: 'POST',
             body: formData,
             signal: controller.signal

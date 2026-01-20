@@ -309,6 +309,102 @@ public function checkout()
     $this->load->view('includes/footer');
 }
 
+// Booking page for Site Assessment Orders (same as checkout but without payment forms)
+public function booking()
+{
+    // Check if user is logged in and is a customer
+    if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+        // Set cache control headers to prevent back button access
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: 0');
+        redirect('login');
+        return;
+    }
+    
+    // Set cache control headers for customer pages
+    $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+    $this->output->set_header('Pragma: no-cache');
+    $this->output->set_header('Expires: 0');
+    
+    $userID = $this->session->userdata('user_id');
+    $data['user'] = null;
+    $data['addresses'] = ['Shipping' => null];
+
+    if ($userID) {
+        $this->load->model('User_model');
+        $data['user'] = $this->User_model->get_by_id($userID);
+        
+        // Get all addresses to find default or first one
+        $all_addresses = $this->User_model->get_user_addresses($userID);
+        
+        // Find default address first, then shipping, then first available
+        $default_address = null;
+        $shipping_address = null;
+        
+        foreach ($all_addresses as $addr) {
+            if ($addr->IsDefault == 1) {
+                $default_address = $addr;
+                break;
+            }
+            if ($addr->AddressType === 'Shipping' && !$shipping_address) {
+                $shipping_address = $addr;
+            }
+        }
+        
+        // Use default if found, otherwise shipping, otherwise first address
+        $selected_address = $default_address ?: $shipping_address ?: (!empty($all_addresses) ? $all_addresses[0] : null);
+        
+        if ($selected_address) {
+            $data['addresses']['Shipping'] = $selected_address;
+        }
+        
+        // Also get addresses by type for backward compatibility
+        $data['addresses'] = array_merge($data['addresses'], $this->User_model->get_addresses($userID));
+        
+        // Get all addresses for the dropdown selector
+        $data['all_addresses'] = $all_addresses;
+    } else {
+        $data['all_addresses'] = [];
+    }
+
+    // fallback if user not found
+    if (!$data['user']) {
+        $data['user'] = (object)[
+            'First_Name' => '',
+            'Middle_Name' => '',
+            'Last_Name' => '',
+            'Email' => '',
+            'PhoneNum' => '',
+            'ImageUrl' => ''
+        ];
+    }
+
+    // fallback address
+    if (!$data['addresses']['Shipping']) {
+        $data['addresses']['Shipping'] = (object)[
+            'AddressLine' => '',
+            'UnitHouseNumber' => '',
+            'Street' => '',
+            'Subdivision' => '',
+            'Barangay' => '',
+            'City' => '',
+            'Province' => '',
+            'Region' => '',
+            'Country' => 'Philippines',
+            'ZipCode' => '',
+            'Note' => ''
+        ];
+    }
+    
+    $data['title'] = "Glassify - Booking";
+    $this->load->view('includes/header', $data);
+    $this->load->view('shop/booking', $data);
+    $this->load->view('includes/footer');
+}
+
 
 
 
@@ -1129,6 +1225,168 @@ public function checkout()
         echo json_encode([
             'status' => 'success',
             'message' => 'Order placed successfully!',
+            'order_id' => $order_id,
+            'redirect_url' => $redirect_url
+        ]);
+    }
+
+    /**
+     * Confirm Booking - AJAX endpoint for Site Assessment Orders
+     * Creates an order with status "Pending Booking Confirmation"
+     */
+    public function confirm_booking()
+    {
+        // Set JSON response header
+        header('Content-Type: application/json');
+
+        // Check if user is logged in
+        $customer_id = $this->session->userdata('customer_id');
+        if (!$customer_id) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Please log in to confirm booking.'
+            ]);
+            return;
+        }
+
+        // Get POST data
+        $terms_accepted = $this->input->post('terms_accepted');
+
+        // Validate terms acceptance
+        if ($terms_accepted !== 'true' && $terms_accepted !== '1') {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Please accept the Terms and Conditions.'
+            ]);
+            return;
+        }
+
+        // Load models
+        $this->load->model('Cart_model');
+        $this->load->model('Order_model');
+        $this->load->model('User_model');
+
+        // Get selected cart IDs from POST
+        $selected_ids_str = $this->input->post('selected_cart_ids');
+        
+        // Get cart items
+        $all_cart_items = $this->Cart_model->get_cart_items_with_details($customer_id);
+        $cart_items = [];
+        
+        if (!empty($selected_ids_str)) {
+            $selected_ids = array_map('intval', explode(',', $selected_ids_str));
+            $selected_ids = array_filter($selected_ids);
+            
+            foreach ($all_cart_items as $item) {
+                if (in_array($item->Cart_ID, $selected_ids)) {
+                    $cart_items[] = $item;
+                }
+            }
+        } else {
+            // Default to all items if none specified (fallback)
+            $cart_items = $all_cart_items;
+        }
+
+        if (empty($cart_items)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Your cart is empty.'
+            ]);
+            return;
+        }
+
+        // Calculate totals (for Site Assessment, we show a price range)
+        $subtotal = 0;
+        $total_items = 0;
+        foreach ($cart_items as $item) {
+            $price = $item->EstimatePrice ?? $item->Price ?? 0;
+            $subtotal += $price * $item->Quantity;
+            $total_items += $item->Quantity;
+        }
+        $shipping = $total_items * 25;
+        $handling = $total_items * 10;
+        $total_amount = $subtotal + $shipping + $handling;
+
+        // Get shipping address
+        $addresses = $this->User_model->get_addresses($customer_id);
+        $shipping_address = '';
+        if (isset($addresses['Shipping']) && $addresses['Shipping']) {
+            $addr = $addresses['Shipping'];
+            $shipping_address = implode(', ', array_filter([
+                $addr->AddressLine,
+                $addr->City,
+                $addr->Province,
+                $addr->Country,
+                $addr->ZipCode
+            ]));
+        }
+
+        // Get form data for shipping info update (optional)
+        $firstname = $this->input->post('firstname');
+        $lastname = $this->input->post('lastname');
+        $address = $this->input->post('address');
+        $city = $this->input->post('city');
+        $province = $this->input->post('province');
+        $country = $this->input->post('country');
+        $zipcode = $this->input->post('zipcode');
+        $note = $this->input->post('note');
+        $preferred_installation_date = $this->input->post('preferred_installation_date');
+
+        // Build delivery address from form if provided
+        if (!empty($address)) {
+            $shipping_address = implode(', ', array_filter([
+                $address, $city, $province, $country, $zipcode
+            ]));
+        }
+
+        // Combine note and preferred installation date in SpecialInstructions
+        $special_instructions = [];
+        if ($note) {
+            $special_instructions[] = 'Note: ' . $note;
+        }
+        if ($preferred_installation_date) {
+            $special_instructions[] = 'Preferred Ocular Visit Date: ' . date('F j, Y', strtotime($preferred_installation_date));
+        }
+        $special_instructions_text = !empty($special_instructions) ? implode(' | ', $special_instructions) : null;
+
+        // Get default sales rep
+        $sales_rep_id = $this->Order_model->get_default_sales_rep();
+
+        // Prepare order data with "Pending Booking Confirmation" status
+        $order_data = [
+            'Customer_ID' => $customer_id,
+            'SalesRep_ID' => $sales_rep_id,
+            'TotalAmount' => $total_amount,
+            'Status' => 'Pending Booking Confirmation', // Site Assessment order status
+            'PaymentStatus' => 'Pending',
+            'DeliveryAddress' => $shipping_address,
+            'SpecialInstructions' => $special_instructions_text,
+            'OrderType' => 'Site-Assessed' // Mark as Site Assessment order
+        ];
+
+        // Create order
+        $order_id = $this->Order_model->create_order($order_data);
+
+        if (!$order_id) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Failed to create booking. Please try again.'
+            ]);
+            return;
+        }
+
+        // Save order customizations from cart items
+        $this->Order_model->save_order_customizations($order_id, $cart_items);
+
+        // Clear cart after successful booking
+        $this->Cart_model->clear_cart($customer_id);
+
+        // Redirect to track order page
+        $redirect_url = base_url('track_order?order=' . $order_id);
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Booking confirmed successfully!',
             'order_id' => $order_id,
             'redirect_url' => $redirect_url
         ]);

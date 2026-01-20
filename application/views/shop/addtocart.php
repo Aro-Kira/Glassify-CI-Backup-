@@ -39,7 +39,6 @@
               </label>
             </th>
             
-            <th>Image</th>
             <th>Product</th>
             <th>Customization</th>
             <th>Price</th>
@@ -62,40 +61,40 @@
                
                 <td>
                   <?php 
+                  // Get product image (not 2D customization image)
                   $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
                   $product_img = $placeholder_svg;
                   
-                  // Priority: DesignRef (Customized Image) -> ImageUrl (Product Image)
-                  if (!empty($item->DesignRef)) {
-                      $product_img = base_url($item->DesignRef);
-                  } else {
-                      $image_raw = $item->ImageUrl ?? '';
-                      if (!empty($image_raw)) {
-                          $decoded = json_decode($image_raw, true);
-                          $first_image = '';
-                          if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
-                              $first_image = $decoded[0];
+                  // Use product image (ImageUrl), not DesignRef (2D customization image)
+                  $image_raw = $item->ImageUrl ?? '';
+                  if (!empty($image_raw)) {
+                      $decoded = json_decode($image_raw, true);
+                      $first_image = '';
+                      if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
+                          $first_image = $decoded[0];
+                      } else {
+                          $first_image = $image_raw;
+                      }
+                      
+                      if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
+                          if (strpos($first_image, 'http') === 0) {
+                              $product_img = $first_image;
+                          } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
+                              $product_img = base_url($first_image);
                           } else {
-                              $first_image = $image_raw;
-                          }
-                          
-                          if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
-                              if (strpos($first_image, 'http') === 0) {
-                                  $product_img = $first_image;
-                              } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
-                                  $product_img = base_url($first_image);
-                              } else {
-                                  $product_img = base_url('uploads/products/' . basename($first_image));
-                              }
+                              $product_img = base_url('uploads/products/' . basename($first_image));
                           }
                       }
                   }
                   ?>
-                  <img src="<?= $product_img ?>" alt="<?= $item->ProductName ?>"
-                    class="cart-product-img"
-                    onerror="this.onerror=null;this.alt='Image unavailable';this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect fill=%22%23eee%22 width=%2280%22 height=%2280%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2210%22%3EN/A%3C/text%3E%3C/svg%3E';">
+                  <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="<?= $product_img ?>" alt="<?= $item->ProductName ?>"
+                      class="cart-product-img"
+                      style="width: 80px; height: 80px; object-fit: cover; border-radius: 6px; flex-shrink: 0;"
+                      onerror="this.onerror=null;this.alt='Image unavailable';this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect fill=%22%23eee%22 width=%2280%22 height=%2280%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2210%22%3EN/A%3C/text%3E%3C/svg%3E';">
+                    <span style="font-weight: 600; color: #0f2b46;"><?= $item->ProductName ?></span>
+                  </div>
                 </td>
-                <td><?= $item->ProductName ?></td>
                 <td class="customization-info">
                   <?php if (!empty($item->CustomizationID)): ?>
                     <div class="custom-layout">
