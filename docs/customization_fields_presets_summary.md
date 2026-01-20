@@ -12,32 +12,71 @@ This document summarizes the default customization field configurations for each
 ## 1. Windows Category
 
 ### Windows → Sliding
+**Step names:** Window Type · Sliding System & Size · Frame & Glass · Hardware & Accessories
+
 **Step 1:**
-- Glass Type (Tags): Clear, Tinted, Laminated
-- Frame Color/Material (Tags): White, Black, Silver, Bronze, Wood, Aluminum
+- Number of Panels (Tags): 2 Panels, 4 Panels
+- Transom Type (Tags): None, Fixed Transom Head (Fixed glass at top), Fixed Transom Sill (Fixed glass at bottom)
 
 **Step 2:**
-- Thickness (mm) (Number): min: 1, step: 0.1
-- Screen (Checkbox)
+- Track System (Tags): 2 Tracks, 3 Tracks
+- Panel Configuration (Tags): S | S (Sliding | Sliding), F | S (Fixed | Sliding), S | S | S | S (All Sliding), F | S | S | F (Fixed | Sliding | Sliding | Fixed)
+
+**Step 3:**
+- Frame Color (Tags): Hanalok, White, Black, Gray, Wood Finish
+- Glass Type (Tags): Clear, Ultra Clear, Bronze, Light Green, Dark Gray, Copperfree Mirror, Euro Gray, Ford Blue, Reflective: Clear, Reflective: Gray, Reflective: Light Blue, Reflective: Dark Blue, Reflective: Light Green, Reflective: Dark Green, Reflective: Light Bronze, Tempered: Clear, Tempered: Bronze
+- Glass Thickness (Tags): 6mm
+
+**Step 4:**
+- Lock Type (Tags): Center Lok 904 Big, Flushlok #12, Durable Flushlok, New Auto Flushlock
+- Roller Type (Tags): Single Panel Roller, Blue Single Roller, Blue Double Roller
+- Screen (Tags): With Screen, Without Screen
 
 ### Windows → Awning
-- Glass Type (Tags): Clear, Tinted, Laminated
-- Frame Color/Material (Tags): White, Black, Silver, Bronze, Wood, Aluminum
+**Step names:** Basic Options · Configuration & Details
+
+**Step 1:**
+- Glass Type (Tags): Clear, Tinted, Tinted (bronze/brown), Frosted, Low-E, Laminated
+- Frame Color/Material (Tags): White, Black, Brown, Silver, Bronze, Custom colors
+- Operation (Tags): Awning (crank-out), Awning (push-out)
+
+**Step 2:**
+- Size Configuration (Tags): Single panel, Multiple panels
+- Opening Direction (Tags): Top-hinged
 - Thickness (mm) (Number): min: 1, step: 0.1
 - Screen (Checkbox)
 
 ### Windows → Casement
-- Glass Type (Tags): Clear, Tinted, Laminated
-- Frame Color/Material (Tags): White, Black, Silver, Bronze, Wood, Aluminum
+**Step names:** Basic Options · Panel Configuration · Advanced Options
+
+**Step 1:**
+- Glass Type (Tags): Clear, Tinted, Frosted, Low-E, Laminated
+- Frame Color/Material (Tags): White, Black, Brown (wood-grain), Silver, Bronze, Custom colors
+- Operation (Tags): Casement (hinge side configurable)
+
+**Step 2:**
+- Number of Panels (Tags): Single panel, Multiple panels
+- Hinge Side (Tags): Left-hinged, Right-hinged
+- Configuration (Tags): Two casement windows with fixed transom, Custom configurations
+
+**Step 3:**
+- Transom Options (Tags): Different transom sizes, Shapes, Mullion options
 - Thickness (mm) (Number): min: 1, step: 0.1
 - Screen (Checkbox)
 
 ### Windows → Fixed Glass
-- Glass Type (Tags): Clear, Tinted, Laminated
-- Frame Color/Material (Tags): White, Black, Silver, Bronze, Wood, Aluminum
+**Step names:** Basic Options · Installation & Details
+
+**Step 1:**
+- Glass Type (Tags): Clear, Tinted, Frosted, Low-E, Reflective coatings, Safety glass, Laminated
+- Frame Color/Material (Tags): White, Black, Dark Grey/Black, Brown, Silver, Bronze, Custom colors
+- Configuration (Tags): Fixed corner glass, Various angles (90°, 135°, custom), Standard fixed
+
+**Step 2:**
+- Usage (Tags): Structural/architectural feature (non-operable), Standard fixed
+- Installation Method (Tags): Various integration methods, Standard mounting
 - Thickness (mm) (Number): min: 1, step: 0.1
 - Screen (Checkbox)
-
 ---
 
 ## 2. Doors Category
@@ -178,7 +217,7 @@ All commercial types share the same 3 fields:
 
 ## Notes
 
-- **Step Numbers**: Only `Windows_Sliding` has explicit step numbers assigned (Step 1 and Step 2). Other subcategories will default to Step 1 for all fields unless configured.
+- **Step Numbers**: Every Windows subcategory follows the breakdown described above (Sliding: four steps, Awning: two, Casement: three, Fixed Glass: two) so their presets inherit the documented stage order by default.
 - **Customization**: Admins can modify these presets through the "Manage Customization Fields" button in the product add/edit form.
 - **Storage**: Presets are stored in `customization_field_configs` table and can be overridden per subcategory.
 - **Default Values**: If no custom configuration exists, these presets are used automatically.

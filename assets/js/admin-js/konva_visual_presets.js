@@ -10,7 +10,7 @@
 const FIELD_VISUAL_CATEGORIES = {
   // Glass appearance fields - affects fill color, opacity, patterns
   glass: {
-    fieldIds: ['glassType', 'glassTreatment', 'finish', 'tintFinish', 'safetyGlassType', 'glassThickness'],
+    fieldIds: ['glassType', 'glassTreatment', 'finish', 'tintFinish', 'safetyGlassType', 'glassThickness', 'tint'],
     konvaProperties: ['fill', 'opacity', 'pattern', 'gradient'],
     description: 'Affects glass panel appearance (color, transparency, texture)'
   },
@@ -20,6 +20,13 @@ const FIELD_VISUAL_CATEGORIES = {
     fieldIds: ['frameColor', 'frameType', 'hardwareColor', 'hardwareFinish', 'frameMaterialFinish', 'frameProfile'],
     konvaProperties: ['stroke', 'strokeWidth', 'edgeStyle'],
     description: 'Affects frame/border appearance (color, thickness, style)'
+  },
+  
+  // Orientation fields - affects product orientation/layout
+  orientation: {
+    fieldIds: ['orientation'],
+    konvaProperties: ['rotation', 'aspectRatio'],
+    description: 'Affects product orientation (vertical, horizontal, full-body)'
   },
   
   // Shape fields - affects overall shape
@@ -45,7 +52,7 @@ const FIELD_VISUAL_CATEGORIES = {
   
   // Configuration fields - affects panel layout
   configuration: {
-    fieldIds: ['numberOfPanels', 'panelCount', 'panelConfiguration', 'configuration', 'sizeConfiguration', 'layoutConfiguration', 'fixedPanels'],
+    fieldIds: ['numberOfPanels', 'panelCount', 'panelConfiguration', 'configuration', 'sizeConfiguration', 'layoutConfiguration', 'fixedPanels', 'transomType', 'transomTypeTopBottomFixedPanel'],
     konvaProperties: ['panelCount', 'panelLayout'],
     description: 'Affects panel count and layout'
   },
@@ -66,8 +73,8 @@ const FIELD_VISUAL_CATEGORIES = {
   
   // Lighting fields - affects glow/lighting effects
   lighting: {
-    fieldIds: ['lighting', 'ledColorTemperature', 'smartFeatures'],
-    konvaProperties: ['shadow', 'shadowColor', 'glowEffect'],
+    fieldIds: ['lighting', 'ledColorTemperature', 'ledColor', 'smartFeatures'],
+    konvaProperties: ['shadow', 'shadowColor', 'glowEffect', 'shadowBlur', 'shadowOpacity'],
     description: 'Affects lighting and glow effects'
   },
   
@@ -80,7 +87,7 @@ const FIELD_VISUAL_CATEGORIES = {
   
   // Features/accessories - badge indicators
   features: {
-    fieldIds: ['screen', 'softClose', 'accessories', 'quantity', 'arrangement', 'transom', 'transomOptions'],
+    fieldIds: ['screen', 'softClose', 'accessories', 'quantity', 'arrangement', 'transom', 'transomOptions', 'smartFeatures'],
     konvaProperties: ['badge', 'indicator'],
     description: 'Adds feature badges or indicators'
   }
@@ -193,7 +200,42 @@ const VISUAL_PRESETS = {
   'backlighting': { effectType: 'shadow', shadowColor: '#FFFFFF', shadowBlur: 25, shadowOpacity: 0.6, shadowOffset: 0 },
   'warm white': { effectType: 'shadow', shadowColor: '#FFF8E1', shadowBlur: 15, shadowOpacity: 0.4, shadowOffset: 0 },
   'cool white': { effectType: 'shadow', shadowColor: '#E3F2FD', shadowBlur: 15, shadowOpacity: 0.4, shadowOffset: 0 },
-  'rgb': { effectType: 'shadow', shadowColor: '#E040FB', shadowBlur: 20, shadowOpacity: 0.5, shadowOffset: 0 }
+  'rgb': { effectType: 'shadow', shadowColor: '#E040FB', shadowBlur: 20, shadowOpacity: 0.5, shadowOffset: 0 },
+  
+  // Mirror-Specific Presets
+  // Mirror Tint Presets
+  'grey (smoked)': { fill: '#607D8B', opacity: 0.5, effectType: 'fill' },
+  'grey smoked': { fill: '#607D8B', opacity: 0.5, effectType: 'fill' },
+  'smoked': { fill: '#607D8B', opacity: 0.5, effectType: 'fill' },
+  'mirror bronze': { fill: '#795548', opacity: 0.6, effectType: 'fill' },
+  'mirror black': { fill: '#263238', opacity: 0.7, effectType: 'fill' },
+  'mirror clear': { fill: '#E0F2F1', opacity: 0.9, effectType: 'fill' },
+  
+  // Mirror Frame Type Presets
+  'frameless': { stroke: 'transparent', strokeWidth: 0, effectType: 'frame' },
+  'standard frame': { stroke: '#333333', strokeWidth: 6, effectType: 'frame' },
+  'thin frame': { stroke: '#333333', strokeWidth: 3, effectType: 'frame' },
+  'grid frame': { stroke: '#333333', strokeWidth: 4, effectType: 'pattern', patternType: 'grid', patternDensity: 4 },
+  
+  // Mirror Orientation Presets
+  'vertical': { rotation: 0, effectType: 'orientation' },
+  'horizontal': { rotation: 90, effectType: 'orientation' },
+  'full-body': { effectType: 'fill', opacity: 0.95 },
+  
+  // Mirror Lighting Presets
+  'led backlight': { effectType: 'shadow', shadowColor: '#FFFFFF', shadowBlur: 30, shadowOpacity: 0.7, shadowOffset: 0 },
+  'led front light': { effectType: 'shadow', shadowColor: '#FFFFFF', shadowBlur: 20, shadowOpacity: 0.6, shadowOffset: 0 },
+  'none': { effectType: 'fill' },
+  'daylight': { effectType: 'shadow', shadowColor: '#E3F2FD', shadowBlur: 18, shadowOpacity: 0.5, shadowOffset: 0 },
+  
+  // Mirror Smart Features Presets
+  'touch dimmer': { effectType: 'badge', badgeText: 'Dimmer', badgeColor: '#FF9800' },
+  'defogger': { effectType: 'badge', badgeText: 'Defog', badgeColor: '#2196F3' },
+  'motion sensor': { effectType: 'badge', badgeText: 'Motion', badgeColor: '#4CAF50' },
+  'bluetooth speaker': { effectType: 'badge', badgeText: 'BT', badgeColor: '#9C27B0' },
+  
+  // Top Glass & Glass Board Presets (shared with mirrors for basic options)
+  'custom shapes': { shape: 'rectangle', cornerRadius: 0, effectType: 'shape' }
 };
 
 /**

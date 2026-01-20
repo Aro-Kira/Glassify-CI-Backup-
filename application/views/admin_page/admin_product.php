@@ -44,56 +44,139 @@
 
   </div>
 
+  <!-- Active Filters Section -->
+  <div class="active-filters-section">
+    <h4 class="active-filters-title">Active Filters:</h4>
+    <div class="active-filters-tags" id="activeFiltersTags">
+      <!-- Active filter tags will be added here dynamically -->
+    </div>
+    <a href="#" class="clear-filters" id="clearAllFilters" style="display: none;">Clear All</a>
+  </div>
+
   <!-- Products Table -->
   <div class="table-container">
     <div class="product-grid">
-      <?php foreach ($products as $product): ?>
+      <?php foreach ($products as $product): 
+        // Handle images - can be JSON array or single string
+        $images = [];
+        $imagePaths = [];
+        $placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+        
+        if (!empty($product->ImageUrl)) {
+          $decoded = json_decode($product->ImageUrl, true);
+          if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && !empty($decoded)) {
+            $images = $decoded;
+          } else if (!empty($product->ImageUrl)) {
+            $images = [$product->ImageUrl];
+          }
+        }
+        
+        // Build proper image paths
+        if (!empty($images)) {
+          foreach ($images as $image) {
+            $image = trim($image);
+            if (empty($image) || strpos($image, 'broken-image-icon') !== false) {
+              $imagePaths[] = $placeholderSvg;
+              continue;
+            }
+            $image = ltrim($image, '/');
+            if (strpos($image, 'http://') === 0 || strpos($image, 'https://') === 0) {
+              $imagePaths[] = $image;
+            } else if (strpos($image, 'assets/') === 0) {
+              $imagePaths[] = base_url($image);
+            } else if (strpos($image, 'uploads/') === 0) {
+              $imagePaths[] = base_url($image);
+            } else {
+              $filename = basename($image);
+              $imagePaths[] = base_url('uploads/products/' . $filename);
+            }
+          }
+        }
+        
+        if (empty($imagePaths)) {
+          $imagePaths = [$placeholderSvg];
+        }
+        
+        // Get order type
+        $orderType = isset($product->OrderType) ? $product->OrderType : 'direct';
+        $orderTypeDisplay = ($orderType === 'site-assessed' || $orderType === 'Site-Assessed' || $orderType === 'site-assessment') ? 'Site Assessment' : 'Direct';
+        
+        // Get status
+        $status = isset($product->Status) ? $product->Status : 'Out of Stock';
+        $statusClass = '';
+        if ($status === 'In Stock') {
+          $statusClass = 'status-in-stock';
+        } elseif ($status === 'Low Stock') {
+          $statusClass = 'status-low-stock';
+        } else {
+          $statusClass = 'status-out-stock';
+        }
+        
+        // Get price range
+        $priceMin = isset($product->PriceMin) && $product->PriceMin > 0 ? floatval($product->PriceMin) : null;
+        $priceMax = isset($product->PriceMax) && $product->PriceMax > 0 ? floatval($product->PriceMax) : null;
+        $price = isset($product->Price) && $product->Price > 0 ? floatval($product->Price) : null;
+      ?>
         <div class="product-card" data-id="<?= $product->Product_ID; ?>" data-category="<?= $product->Category; ?>"
-          data-material="<?= $product->Material; ?>">
-          <div class="product-image">
-            <?php
-              // Handle both JSON array and single string formats
-              $imageUrl = $product->ImageUrl ?? '';
-              $firstImage = 'default.png';
-              $imagePath = '';
+          data-material="<?= $product->Material; ?>" data-status="<?= $status; ?>">
+          
+          <!-- Product Image with Carousel -->
+          <div class="product-image-container">
+            <div class="product-image-slideshow" data-product-id="<?= $product->Product_ID ?>">
+              <?php if (!empty($imagePaths)): ?>
+                <?php foreach ($imagePaths as $index => $imagePath): ?>
+                  <img src="<?= htmlspecialchars($imagePath) ?>" 
+                       alt="<?= htmlspecialchars($product->ProductName) ?>" 
+                       class="product-slide <?= $index === 0 ? 'active' : '' ?>"
+                       onerror="this.onerror=null; this.src='<?= $placeholderSvg ?>';">
+                <?php endforeach; ?>
+              <?php else: ?>
+                <div class="product-image-placeholder">No Image Available</div>
+              <?php endif; ?>
               
-              if (!empty($imageUrl)) {
-                // Check if it's a JSON array
-                $decoded = json_decode($imageUrl, true);
-                if (is_array($decoded) && !empty($decoded)) {
-                  $firstImage = $decoded[0];
-                } else {
-                  // Single image (backward compatibility)
-                  $firstImage = $imageUrl;
-                }
-                
-                // Check if image path already includes a full path or is just a filename
-                if (strpos($firstImage, 'broken-image-icon') !== false) {
-                  // Use placeholder SVG data URI for broken image icons
-                  $imagePath = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
-                } else if (strpos($firstImage, 'assets/') === 0 || strpos($firstImage, '/assets/') === 0) {
-                  // It's an assets path, use it as-is
-                  $imagePath = base_url($firstImage);
-                } else if (strpos($firstImage, 'http://') === 0 || strpos($firstImage, 'https://') === 0) {
-                  // It's a full URL, use it as-is
-                  $imagePath = $firstImage;
-                } else {
-                  // It's just a filename, prepend uploads/products/
-                  $imagePath = base_url('uploads/products/' . $firstImage);
-                }
-              } else {
-                $imagePath = base_url('uploads/products/default.png');
-              }
-            ?>
-            <img src="<?= $imagePath; ?>"
-              alt="<?= $product->ProductName; ?>"
-              onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';">
+              <!-- Carousel Dots -->
+              <?php if (count($imagePaths) > 1): ?>
+                <div class="slideshow-indicators">
+                  <?php for ($i = 0; $i < count($imagePaths); $i++): ?>
+                    <span class="indicator-dot <?= $i === 0 ? 'active' : '' ?>" data-slide="<?= $i ?>"></span>
+                  <?php endfor; ?>
+                </div>
+              <?php endif; ?>
+            </div>
           </div>
-          <p class="product-name"><?= $product->ProductName; ?></p>
-          <p class="product-price">₱<?= isset($product->Price) ? number_format($product->Price, 2) : '0.00'; ?></p>
-          <div class="product-actions">
-            <button class="edit-btn"><i class="fas fa-pen"></i> Edit</button>
-            <button class="remove-btn" type="button"><i class="fas fa-trash"></i> Remove</button>
+          
+          <!-- Product Details -->
+          <div class="product-details">
+            <p class="product-name"><?= htmlspecialchars($product->ProductName); ?></p>
+            
+            <!-- Order Type -->
+            <p class="product-type">Type: <span><?= htmlspecialchars($orderTypeDisplay); ?></span></p>
+            
+            <!-- Price Range -->
+            <p class="product-price">
+              <?php if ($priceMin !== null && $priceMax !== null): ?>
+                ₱<?= number_format($priceMin, 2) ?> - ₱<?= number_format($priceMax, 2) ?>
+              <?php elseif ($price !== null): ?>
+                ₱<?= number_format($price, 2) ?>
+              <?php else: ?>
+                Contact for pricing
+              <?php endif; ?>
+            </p>
+            
+            <!-- Stock Status -->
+            <div class="product-status-badge <?= $statusClass; ?>">
+              <?= htmlspecialchars($status); ?>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="product-actions">
+              <button class="product-edit-btn">
+                <i class="fas fa-pen"></i> Edit
+              </button>
+              <button class="product-remove-btn" type="button">
+                <i class="fas fa-trash"></i> Remove
+              </button>
+            </div>
           </div>
         </div>
       <?php endforeach; ?>
@@ -160,6 +243,13 @@
           <input type="text" id="productName" class="text-input" placeholder="Enter product name">
         </div>
 
+        <!-- Description -->
+        <div class="form-group">
+          <label for="productDescription">Description</label>
+          <textarea id="productDescription" class="text-input" rows="4" placeholder="Enter product specifications and description"></textarea>
+          <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Add product specifications, features, and details</small>
+        </div>
+
         <!-- Price Range (Min - Max) -->
         <div class="form-group">
           <label>Price Range (₱)</label>
@@ -224,28 +314,14 @@
         <div class="form-group" id="seriesGroup" style="display: none;">
           <label for="productSeries">Series <span style="color: #999; font-weight: normal;">(Optional)</span></label>
           <select id="productSeries" class="input-text">
-            <option value="" selected>None</option>
+            <option value="" disabled selected>Select series</option>
             <option value="798 Series">798 Series</option>
-            <option value="868-DMX Series">868-DMX Series</option>
             <option value="900 Series">900 Series</option>
-            <option value="130-DMX Series">130-DMX Series</option>
           </select>
           <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Select a series to auto-fill customization fields, or choose None to configure manually</small>
         </div>
 
-        <!-- Customization and Standard Tabs -->
-        <div class="form-group">
-          <div class="customization-tabs">
-            <button type="button" class="tab-btn active" id="customizeTab" data-tab="customize">
-              Customize Build
-            </button>
-            <button type="button" class="tab-btn" id="standardTab" data-tab="standard">
-              Standard
-            </button>
-          </div>
-        </div>
-
-        <!-- Customization Tab Content -->
+        <!-- Customization Content (Removed tab) -->
         <div id="customizeTabContent" class="tab-content active">
           <!-- Manage Customization Fields Button (shown when subcategory is selected) -->
           <div class="form-group" id="manageCustomizationGroup" style="display: none;">
@@ -256,21 +332,6 @@
           <!-- Dynamic Customization Fields Container -->
           <div id="customizationFields" class="customization-fields-container">
             <!-- Fields will be dynamically generated here based on category/subcategory selection -->
-          </div>
-        </div>
-
-        <!-- Standard Tab Content -->
-        <div id="standardTabContent" class="tab-content">
-          <div class="form-group">
-            <label>Standard Sizes (Series)</label>
-            <small style="color: #666; font-size: 12px; display: block; margin-bottom: 8px;">Add multiple series, each with their own measurements</small>
-            <div class="standard-series-container" id="standardSeriesContainer">
-              <!-- Series will be added here -->
-              <p style="color: #999; font-size: 13px; text-align: center; padding: 10px;">No series added yet. Click "Add Series" to start.</p>
-            </div>
-            <button type="button" class="add-series-btn" id="addSeriesBtn" style="margin-top: 10px;">
-              <i class="fas fa-plus"></i> Add Series
-            </button>
           </div>
         </div>
       </div>
@@ -327,6 +388,13 @@
         <div class="form-group">
           <label for="editProductName">Product Name</label>
           <input type="text" id="editProductName" class="text-input" placeholder="Enter product name">
+        </div>
+
+        <!-- Description -->
+        <div class="form-group">
+          <label for="editProductDescription">Description</label>
+          <textarea id="editProductDescription" class="text-input" rows="4" placeholder="Enter product specifications and description"></textarea>
+          <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Add product specifications, features, and details</small>
         </div>
 
         <!-- Price Range (Min - Max) -->
@@ -395,28 +463,14 @@
         <div class="form-group" id="editSeriesGroup" style="display: none;">
           <label for="editProductSeries">Series <span style="color: #999; font-weight: normal;">(Optional)</span></label>
           <select id="editProductSeries" class="input-text">
-            <option value="" selected>None</option>
+            <option value="" disabled selected>Select series</option>
             <option value="798 Series">798 Series</option>
-            <option value="868-DMX Series">868-DMX Series</option>
             <option value="900 Series">900 Series</option>
-            <option value="130-DMX Series">130-DMX Series</option>
           </select>
           <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Select a series to auto-fill customization fields, or choose None to configure manually</small>
         </div>
 
-        <!-- Customization and Standard Tabs -->
-        <div class="form-group">
-          <div class="customization-tabs">
-            <button type="button" class="tab-btn active" id="editCustomizeTab" data-tab="customize">
-              Customize Build
-            </button>
-            <button type="button" class="tab-btn" id="editStandardTab" data-tab="standard">
-              Standard
-            </button>
-          </div>
-        </div>
-
-        <!-- Customization Tab Content -->
+        <!-- Customization Content (Removed tab) -->
         <div id="editCustomizeTabContent" class="tab-content active">
           <!-- Manage Customization Fields Button (shown when subcategory is selected) -->
           <div class="form-group" id="editManageCustomizationGroup" style="display: none;">
@@ -427,21 +481,6 @@
           <!-- Dynamic Customization Fields Container -->
           <div id="editCustomizationFields" class="customization-fields-container">
             <!-- Fields will be dynamically generated here based on category/subcategory selection -->
-          </div>
-        </div>
-
-        <!-- Standard Tab Content -->
-        <div id="editStandardTabContent" class="tab-content">
-          <div class="form-group">
-            <label>Standard Sizes (Series)</label>
-            <small style="color: #666; font-size: 12px; display: block; margin-bottom: 8px;">Add multiple series, each with their own measurements</small>
-            <div class="standard-series-container" id="editStandardSeriesContainer">
-              <!-- Series will be added here -->
-              <p style="color: #999; font-size: 13px; text-align: center; padding: 10px;">No series added yet. Click "Add Series" to start.</p>
-            </div>
-            <button type="button" class="add-series-btn" id="editAddSeriesBtn" style="margin-top: 10px;">
-              <i class="fas fa-plus"></i> Add Series
-            </button>
           </div>
         </div>
       </div>
@@ -749,7 +788,7 @@
 </div>
 
 
-<script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+<script src="<?php echo base_url('assets/js/konva.min.js'); ?>"></script>
 <script>
   const base_url = "<?= base_url(); ?>";
 </script>

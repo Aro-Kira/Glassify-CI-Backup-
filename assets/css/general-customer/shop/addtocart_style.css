@@ -42,10 +42,11 @@ main {
   margin: 3% 10% 0 10%;
 }
 
-.title-divider{
+.title-divider {
   height: 1px;
   background-color: #333;
-  width: 72.5%;
+  width: 123.5%;
+  margin-left: 0;
 }
 
 .cart-title h2 {
@@ -276,13 +277,42 @@ main {
   outline: none;
 }
 
-/* Remove Button */
-.remove-btn {
+/* Action Buttons (Edit/Remove) */
+.edit-btn, .remove-btn {
   background: transparent;
-  color: rgb(0, 0, 0);
-  padding: 5px 10px;
-  cursor: pointer;
   border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin: 0 2px;
+}
+
+.edit-btn {
+  color: #0f2b46;
+}
+
+.edit-btn:hover {
+  background-color: #f0f5fa;
+  color: #1a4a75;
+}
+
+.remove-btn {
+  color: #999;
+}
+
+.remove-btn:hover {
+  background-color: #fff5f5;
+  color: #ee4d2d;
+}
+
+/* Ensure icons are aligned in the cell */
+.cart-table td:last-child {
+  white-space: nowrap;
+  min-width: 100px;
 }
 
 .clear-btn {
@@ -327,16 +357,28 @@ main {
 }
 
 .order-summary p {
-  margin: 40px 0;
+  margin: 25px 0;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+
+.price-val {
+  font-weight: 600;
+  color: #0f2b46;
+  white-space: nowrap;
+}
+
+.total .price-val {
+  color: #ee4d2d;
+  font-size: 1.2em;
 }
 
 #summary-subtotal, 
 #summary-shipping,
 #summary-handling,
 #summary-total{
-    margin-left: -50%;
+    margin-left: 0;
 } 
 
 .summary-divider{

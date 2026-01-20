@@ -93,45 +93,52 @@ $(document).on('click', '#add-to-cart-btn', function () {
         priceBreakdownData = state.priceBreakdown || {};
     }
 
-    // Clean price string (remove ₱ and commas)
-    let priceText = $('#sum-total').text().replace('₱', '').replace(/,/g, '').trim();
+    const totalQuotationVal = $('#sum-total').text().replace(/[₱,]/g, '') || $('#sum-total-breakdown').text().replace(/[₱,]/g, '') || $('#final-price').val() || '0.00';
+    const pbDataObjFinal = JSON.parse($('#final-specs').val() || '{}').priceBreakdown || {};
 
     // Collect all customization values dynamically from selectedCustomizationValues
     // This ensures we capture all fields configured in admin (numberOfPanels, operation, configuration, etc.)
-    const customizationValues = window.selectedCustomizationValues || {};
+    const customSelections = window.selectedCustomizationValues || {};
     
     // Get dimensions with units
     const heightValue = $('#input-height').val() || '';
     const widthValue = $('#input-width').val() || '';
     const heightUnit = $('#btn-unit-height').data('current-unit') || 'in';
     const widthUnit = $('#btn-unit-width').data('current-unit') || 'in';
-    const dimensions = `${heightValue}${heightUnit} x ${widthValue}${widthUnit}`;
+    const dims = `${heightValue}${heightUnit} x ${widthValue}${widthUnit}`;
     
     // Get legacy field values (for backward compatibility)
     // These are still used if dynamic fields aren't available
-    const legacyShape = $('.option-card[data-shape].active').data('shape') || customizationValues.shape || '';
-    const legacyType = $('.option-card[data-glass-type].active').data('glass-type') || customizationValues.glassType || '';
-    const legacyThickness = $('.option-card[data-thickness].active').data('thickness') || customizationValues.thickness || '';
-    const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customizationValues.edgeFinish || '';
-    const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customizationValues.frameColor || '';
+    const legacyShape = $('.option-card[data-shape].active').data('shape') || customSelections.shape || '';
+    const legacyType = $('.option-card[data-glass-type].active').data('glass-type') || customSelections.glassType || '';
+    const legacyThickness = $('.option-card[data-thickness].active').data('thickness') || customSelections.thickness || '';
+    const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customSelections.edgeFinish || '';
+    const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customSelections.frameColor || '';
     
+    // Get current quantity from summary if available
+    let quantity = 1;
+    const summaryQtyInput = $('#summary-qty-input');
+    if (summaryQtyInput.length) {
+        quantity = parseInt(summaryQtyInput.val()) || 1;
+    }
+
     // Build data object with all customization values
     let data = {
         product_id: product_id,
-        dimensions: dimensions,
+        dimensions: dims,
         // Legacy fields (for backward compatibility)
         shape: legacyShape,
         type: legacyType,
         thickness: legacyThickness,
         edge: legacyEdge,
         frame: legacyFrame,
-        engraving: $('#step-3 input').val() || customizationValues.engraving || 'None',
-        price: priceText,
-        quantity: 1,
+        engraving: $('#step-3 input').val() || customSelections.engraving || 'None',
+        price: totalQuotationVal,
+        quantity: quantity,
         design_image: designImageData,
-        price_breakdown: JSON.stringify(priceBreakdownData),
+        price_breakdown: JSON.stringify(pbDataObjFinal),
         // Include all dynamic customization values (synced with admin side)
-        customization: JSON.stringify(customizationValues)
+        customization: JSON.stringify(customSelections)
     };
 
     // Debug: Log the data being sent
@@ -161,7 +168,7 @@ $(document).on('click', '#add-to-cart-btn', function () {
                         $('#cart-count').toggle(response.cart_count > 0);
                     }
                 } else {
-                    showCartNotification("Error: " + (response.message || 'Unknown error'), 'error');
+                    showCartNotification((response.message || 'Unknown error'), 'error');
                 }
             } catch (e) {
                 console.error('Parse error:', e);
@@ -264,10 +271,116 @@ $(document).on('click', '#buy-now-btn', function () {
                 let response = typeof res === 'string' ? JSON.parse(res) : res;
 
                 if (response.status === 'success') {
-                    // Redirect to checkout with the cart item selected
-                    window.location.href = base_url + 'payment?selected=' + response.cart_id;
+                    // Redirect to payment page (shipping, order summary, payment method) with the cart item selected
+                    const payUrl = (typeof PAYMENT_URL === 'string' && PAYMENT_URL) ? PAYMENT_URL : ((typeof base_url === 'string' && base_url) ? base_url.replace(/\/?$/, '') + '/payment' : '/payment');
+                    window.location.href = payUrl + (payUrl.indexOf('?') >= 0 ? '&' : '?') + 'selected=' + response.cart_id;
                 } else {
-                    showCartNotification("Error: " + (response.message || 'Unknown error'), 'error');
+                    showCartNotification((response.message || 'Unknown error'), 'error');
+                    btn.prop('disabled', false).html(originalText);
+                }
+            } catch (e) {
+                console.error('Parse error:', e);
+                showCartNotification("Error processing response. Please try again.", 'error');
+                btn.prop('disabled', false).html(originalText);
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error('AJAX Error:', error);
+            console.error('Status:', status);
+            console.error('Response:', xhr.responseText);
+            
+            let errorMessage = "Server error. Please try again.";
+            
+            // Try to parse error response if it's JSON
+            try {
+                if (xhr.responseText) {
+                    const errorResponse = JSON.parse(xhr.responseText);
+                    if (errorResponse.message) {
+                        errorMessage = errorResponse.message;
+                    }
+                }
+            } catch (e) {
+                // If not JSON, show the raw response or status
+                if (xhr.status === 500) {
+                    errorMessage = "Internal server error. Please check the console for details.";
+                } else if (xhr.status === 404) {
+                    errorMessage = "Page not found. Please refresh and try again.";
+                }
+            }
+            
+            showCartNotification(errorMessage, 'error');
+            btn.prop('disabled', false).html(originalText);
+        }
+    });
+});
+
+// Book Now button handler (for Site Assessment Orders)
+$(document).on('click', '#book-now-btn', function () {
+    const btn = $(this);
+    const originalText = btn.html();
+    
+    btn.prop('disabled', true).html('Processing...');
+
+    let product_id = btn.data('product-id');
+    
+    // Get the design image from Konva
+    let designImageData = '';
+    if (typeof window.getDesignImageData === 'function') {
+        designImageData = window.getDesignImageData();
+    }
+
+    // Clean price string
+    let priceText = $('#sum-total').text().replace('₱', '').replace(/,/g, '').trim();
+
+    // Collect all customization values dynamically from selectedCustomizationValues
+    const customizationValues = window.selectedCustomizationValues || {};
+    
+    // Get dimensions with units
+    const heightValue = $('#input-height').val() || '';
+    const widthValue = $('#input-width').val() || '';
+    const heightUnit = $('#btn-unit-height').data('current-unit') || 'in';
+    const widthUnit = $('#btn-unit-width').data('current-unit') || 'in';
+    const dimensions = `${heightValue}${heightUnit} x ${widthValue}${widthUnit}`;
+    
+    // Get legacy field values (for backward compatibility)
+    const legacyShape = $('.option-card[data-shape].active').data('shape') || customizationValues.shape || '';
+    const legacyType = $('.option-card[data-glass-type].active').data('glass-type') || customizationValues.glassType || '';
+    const legacyThickness = $('.option-card[data-thickness].active').data('thickness') || customizationValues.thickness || '';
+    const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customizationValues.edgeFinish || '';
+    const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customizationValues.frameColor || '';
+    
+    let data = {
+        product_id: product_id,
+        dimensions: dimensions,
+        // Legacy fields (for backward compatibility)
+        shape: legacyShape,
+        type: legacyType,
+        thickness: legacyThickness,
+        edge: legacyEdge,
+        frame: legacyFrame,
+        engraving: $('#step-3 input').val() || customizationValues.engraving || 'None',
+        price: priceText,
+        quantity: 1,
+        design_image: designImageData,
+        book_now: true, // Flag for booking instead of buying
+        // Include all dynamic customization values (synced with admin side)
+        customization: JSON.stringify(customizationValues)
+    };
+
+    $.ajax({
+        url: base_url + "CartCon/add_customized_ajax",
+        type: "POST",
+        data: data,
+        success: function (res) {
+            try {
+                let response = typeof res === 'string' ? JSON.parse(res) : res;
+
+                if (response.status === 'success') {
+                    // Redirect to booking page (shipping, preferred visit date, order summary) with the cart item selected
+                    const bookUrl = (typeof BASE_URL === 'string' && BASE_URL) ? BASE_URL.replace(/\/?$/, '') + '/booking' : '/booking';
+                    window.location.href = bookUrl + (bookUrl.indexOf('?') >= 0 ? '&' : '?') + 'selected=' + response.cart_id;
+                } else {
+                    showCartNotification((response.message || 'Unknown error'), 'error');
                     btn.prop('disabled', false).html(originalText);
                 }
             } catch (e) {

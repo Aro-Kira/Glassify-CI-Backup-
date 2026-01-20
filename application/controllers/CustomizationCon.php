@@ -7,10 +7,11 @@ class CustomizationCon extends CI_Controller
         parent::__construct();
         $this->load->library('session');
         $this->load->helper('url');
-        $this->load->model('Customization_model');
     }
-public function save_customization() {
-$customer_id = $this->session->userdata('customer_id');
+
+    public function save_customization() {
+        $this->load->model('Customization_model');
+        $customer_id = $this->session->userdata('customer_id');
     if (!$customer_id) {
         echo json_encode(['status'=>'error','message'=>'User not logged in']);
         log_message('error', 'SESSION DATA: ' . print_r($this->session->userdata(), true));
@@ -40,8 +41,9 @@ $customer_id = $this->session->userdata('customer_id');
     file_put_contents('debug.log', print_r($post, true));
 }
 
-public function remove_customization() {
-    $customization_id = $this->input->post('customization_id');
+    public function remove_customization() {
+        $this->load->model('Customization_model');
+        $customization_id = $this->input->post('customization_id');
 
     if (!$customization_id) {
         echo json_encode(['status' => 'error', 'message' => 'No customization ID provided']);
@@ -57,53 +59,78 @@ public function remove_customization() {
     }
 }
 
-public function upload_file() {
-    header('Content-Type: application/json');
-    
-    $customer_id = $this->session->userdata('customer_id');
-    if (!$customer_id) {
-        echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
-        return;
-    }
+    public function upload_file() {
+        header('Content-Type: application/json');
+        try {
+            $customer_id = $this->session->userdata('customer_id');
+            if (!$customer_id) {
+                echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
+                return;
+            }
 
-    // Check if file was uploaded
-    if (empty($_FILES['file']['name'])) {
-        echo json_encode(['status' => 'error', 'message' => 'No file uploaded']);
-        return;
-    }
+            if (!isset($_FILES['file']['name']) || (string) $_FILES['file']['name'] === '') {
+                echo json_encode(['status' => 'error', 'message' => 'No file uploaded']);
+                return;
+            }
 
-    // Configure upload
-    $config['upload_path'] = FCPATH . 'uploads/issues/';
-    $config['allowed_types'] = 'jpg|jpeg|png|pdf';
-    $config['max_size'] = 25600; // 25MB in KB
-    $config['encrypt_name'] = TRUE;
+            $err = isset($_FILES['file']['error']) ? (int) $_FILES['file']['error'] : UPLOAD_ERR_OK;
+            if ($err !== UPLOAD_ERR_OK) {
+                $messages = [
+                    UPLOAD_ERR_INI_SIZE => 'File exceeds server limit',
+                    UPLOAD_ERR_FORM_SIZE => 'File too large',
+                    UPLOAD_ERR_PARTIAL => 'File was only partially uploaded',
+                    UPLOAD_ERR_NO_FILE => 'No file uploaded',
+                    UPLOAD_ERR_NO_TMP_DIR => 'Server temporary folder missing',
+                    UPLOAD_ERR_CANT_WRITE => 'Failed to write file',
+                    UPLOAD_ERR_EXTENSION => 'Upload blocked by server extension',
+                ];
+                $msg = isset($messages[$err]) ? $messages[$err] : 'Upload error (code ' . $err . ')';
+                echo json_encode(['status' => 'error', 'message' => $msg]);
+                return;
+            }
 
-    // Create directory if it doesn't exist
-    if (!is_dir($config['upload_path'])) {
-        if (!mkdir($config['upload_path'], 0755, true)) {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to create upload directory']);
-            return;
+            $upload_path = str_replace(['\\', '//'], ['/', '/'], FCPATH . 'uploads/issues/');
+            $upload_path = rtrim($upload_path, '/') . '/';
+
+            if (!is_dir($upload_path)) {
+                if (!@mkdir($upload_path, 0755, true)) {
+                    echo json_encode(['status' => 'error', 'message' => 'Failed to create upload directory']);
+                    return;
+                }
+            }
+            if (!is_writable($upload_path)) {
+                echo json_encode(['status' => 'error', 'message' => 'Upload directory is not writable']);
+                return;
+            }
+
+            $config = [
+                'upload_path'   => $upload_path,
+                'allowed_types' => 'jpg|jpeg|png|pdf',
+                'max_size'      => 25600,
+                'encrypt_name'  => true,
+            ];
+            $this->load->library('upload', $config);
+
+            if ($this->upload->do_upload('file')) {
+                $upload_data = $this->upload->data();
+                $file_path = 'uploads/issues/' . $upload_data['file_name'];
+                echo json_encode([
+                    'status' => 'success',
+                    'file_path' => $file_path,
+                    'file_name' => $upload_data['original_name']
+                ]);
+            } else {
+                $error = $this->upload->display_errors('', '');
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => $error ?: 'File upload failed'
+                ]);
+            }
+        } catch (Throwable $e) {
+            log_message('error', 'CustomizationCon::upload_file: ' . $e->getMessage());
+            if (!headers_sent()) header('Content-Type: application/json');
+            echo json_encode(['status' => 'error', 'message' => 'Upload failed. Please try again.']);
         }
     }
-
-    $this->load->library('upload', $config);
-
-    if ($this->upload->do_upload('file')) {
-        $upload_data = $this->upload->data();
-        $file_path = 'uploads/issues/' . $upload_data['file_name'];
-        
-        echo json_encode([
-            'status' => 'success',
-            'file_path' => $file_path,
-            'file_name' => $upload_data['original_name']
-        ]);
-    } else {
-        $error = $this->upload->display_errors('', '');
-        echo json_encode([
-            'status' => 'error',
-            'message' => $error ?: 'File upload failed'
-        ]);
-    }
-}
 
 }

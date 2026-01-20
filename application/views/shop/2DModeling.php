@@ -1,6 +1,6 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/2DModeling_styles.css'); ?>">
 
-<script src="https://unpkg.com/konva@9.3.6/konva.min.js" onerror="console.error('Failed to load Konva.js from CDN');"></script>
+<script src="<?php echo base_url('assets/js/konva.min.js'); ?>"></script>
 
 <body data-customer-id="<?= $this->session->userdata('customer_id') ?: '' ?>">
 
@@ -236,6 +236,25 @@
                 </div>
             </div>
 
+            <!-- AJAX Status Indicator -->
+            <div id="ajax-status-indicator" style="display: none; position: fixed; top: 20px; right: 20px; z-index: 10000; padding: 10px 15px; border-radius: 4px; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: all 0.3s ease;">
+                <span id="ajax-status-text">Saving...</span>
+            </div>
+
+            <style>
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; transform: translateY(0); }
+                    to { opacity: 0; transform: translateY(-10px); }
+                }
+                #ajax-status-indicator {
+                    animation: fadeIn 0.3s ease;
+                }
+            </style>
+
             <div id="custom-wrapper">
                 <!-- Default Size Fields (Height & Width) - Only visible on Step 1 -->
                 <div class="dimensions-container" id="dimensions-container">
@@ -281,6 +300,44 @@
                                     Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
                                 </button>
                                 <div class="unit-dropdown hidden-step" id="dropdown-width">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Inner Height (h1) - Sliding section - Only visible when transom is selected -->
+                    <div class="input-group hidden-step" id="input-group-h1">
+                        <label class="section-label">Inner Height (h1) - Sliding <span style="color: #0066CC; font-weight: bold;">●</span></label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-h1" name="h1" value="" min="0" step="0.1" placeholder="0.0">
+                            </div>
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-h1" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-h1">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Fixed Transom Height (h2) - Fixed section - Only visible when transom is selected -->
+                    <div class="input-group hidden-step" id="input-group-h2">
+                        <label class="section-label">Fixed Transom Height (h2) <span style="color: #00AA00; font-weight: bold;">●</span></label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-h2" name="h2" value="" min="0" step="0.1" placeholder="0.0">
+                            </div>
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-h2" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-h2">
                                     <div class="unit-option" data-value="in">Inches</div>
                                     <div class="unit-option" data-value="cm">Centimeters</div>
                                     <div class="unit-option" data-value="mm">Millimeters</div>
@@ -429,9 +486,23 @@
                         Add to Cart
                     </button>
 
-                    <button class="buy-btn" id="buy-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
-                        Buy Now
-                    </button>
+                    <?php
+                    // Determine order type
+                    $orderType = isset($product->OrderType) ? strtolower($product->OrderType) : 'direct';
+                    $isSiteAssessment = ($orderType === 'site-assessment' || $orderType === 'site-assessed');
+                    ?>
+                    
+                    <?php if ($isSiteAssessment): ?>
+                        <!-- Site Assessment Order: Show Book Now button -->
+                        <button class="buy-btn" id="book-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
+                            Book Now
+                        </button>
+                    <?php else: ?>
+                        <!-- Direct Order: Show Buy Now button -->
+                        <button class="buy-btn" id="buy-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
+                            Buy Now
+                        </button>
+                    <?php endif; ?>
 
                     <button class="edit-order-btn" id="edit-order-btn">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -464,6 +535,17 @@
             </div>
         </section>
     </main>
+
+    <?php if (isset($product) && !empty($product->Description)): ?>
+    <section id="product-description-section" class="full-width-section product-description-section">
+        <div class="inner-content">
+            <h2 class="section-title">Product Descriptions</h2>
+            <div class="product-description-content">
+                <?= nl2br(htmlspecialchars($product->Description)) ?>
+            </div>
+        </div>
+    </section>
+    <?php endif; ?>
 
     <section id="related-products-section" class="full-width-section dark-bg">
         <div class="inner-content">
@@ -615,6 +697,8 @@
     window.productBasePrice = <?= $productPrice ?>;
     const productBasePrice = window.productBasePrice;
     var base_url = '<?= base_url(); ?>';
+    var BASE_URL = '<?= base_url(); ?>';
+    var PAYMENT_URL = '<?= rtrim(base_url(), "/") . "/payment"; ?>';
     
     // Product images for gallery navigation
     <?php if (isset($product) && $product && isset($totalImages) && $totalImages > 1): ?>
@@ -628,6 +712,8 @@
 
 <script src="<?= base_url('assets/js/2d-functions/dynamic_customization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
+<script src="<?= base_url('assets/js/windows_visual_configs.js'); ?>"></script>
+<script src="<?= base_url('assets/js/2d-functions/customization_ajax.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtocustomization.js'); ?>"></script>
 <script src="<?= base_url('assets/js/2d-functions/addtowishlist.js'); ?>"></script>
 <script>
@@ -877,9 +963,23 @@
                     console.log('Using default step names:', stepNamesFromAPI);
                 }
                 
-                // Store step names globally for navigation
+                        // Store step names globally for navigation
                 if (stepNamesFromAPI) {
                     window.customizationStepNames = stepNamesFromAPI;
+                }
+
+                // Load Windows-specific visual configurations if this is a Windows product
+                if (selectedProduct.category === 'Windows' && window.windowsVisualConfigs) {
+                    console.log('Loading Windows visual configurations for 2D preview');
+                    if (typeof window.loadDynamicVisualConfigs === 'function') {
+                        // Convert Windows visual configs to the format expected by loadDynamicVisualConfigs
+                        const tagVisualConfigs = {};
+                        Object.keys(window.windowsVisualConfigs).forEach(fieldId => {
+                            tagVisualConfigs[fieldId] = window.windowsVisualConfigs[fieldId];
+                        });
+                        window.loadDynamicVisualConfigs(tagVisualConfigs);
+                        console.log('✅ Windows visual configurations loaded');
+                    }
                 }
 
                 // =====================================================
@@ -988,8 +1088,21 @@
                         renderCustomState();
                     }
                     
-                    console.log('✅ 2D Preview sync complete - admin visual configs applied');
+                        console.log('✅ 2D Preview sync complete - admin visual configs applied');
                 }, 500);
+
+                // Initialize AJAX functionality for customizations after everything is loaded
+                if (typeof window.customizationAjax !== 'undefined' && typeof window.customizationAjax.init === 'function') {
+                    console.log('Initializing AJAX customization functionality...');
+                    window.customizationAjax.init();
+                } else {
+                    // Retry after a delay if not yet available
+                    setTimeout(() => {
+                        if (typeof window.customizationAjax !== 'undefined' && typeof window.customizationAjax.init === 'function') {
+                            window.customizationAjax.init();
+                        }
+                    }, 1000);
+                }
             }, 200);
         });
 
@@ -1001,7 +1114,6 @@
                 'Doors': 'Doors',
                 'Glass Partitions & Enclosures': 'Partitions',
                 'Mirrors & Specialty Glass': 'Specialty',
-                'Cabinets & Furniture': 'Cabinets',
                 'Commercial & Exterior': 'Commercial'
             };
             

@@ -572,8 +572,15 @@ $(document).ready(function () {
             return;
         }
 
-        // Navigate to payment with selected cart IDs
-        window.location.href = BASE_URL + 'payment?selected=' + selectedIds.join(',');
+        // Navigate to payment page (shipping, order summary, payment method) with selected cart IDs
+        const payUrl = (typeof PAYMENT_URL === 'string' && PAYMENT_URL) ? PAYMENT_URL : ((typeof BASE_URL === 'string' && BASE_URL) ? BASE_URL.replace(/\/?$/, '') + '/payment' : '/payment');
+        window.location.href = payUrl + (payUrl.indexOf('?') >= 0 ? '&' : '?') + 'selected=' + selectedIds.join(',');
+    });
+
+    $(document).on('click', '.edit-btn', function () {
+        const product_id = $(this).data('product-id');
+        const cart_id = $(this).data('id');
+        window.location.href = BASE_URL + '2DModeling?id=' + product_id + '&cart_id=' + cart_id;
     });
 
     // =============================
@@ -1024,7 +1031,7 @@ $(document).on('change', '.qty-input', function () {
                                     <span class="design-product">${item.description}</span>
                                 </div>
                                 <div class="design-card-image">
-                                    <img src="${item.design_ref}" alt="Custom Design ${designIndex}">
+                                    <img src="${item.design_ref}" alt="Custom Design ${designIndex}" onerror="this.onerror=null;this.alt='Image unavailable';this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2280%22%3E%3Crect fill=%22%23eee%22 width=%2280%22 height=%2280%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2210%22%3EN/A%3C/text%3E%3C/svg%3E';">
                                 </div>
                                 <div class="design-card-specs">
                                     ${customization}

@@ -715,7 +715,7 @@
                     loadStatistics();
                     document.getElementById('addItemForm').reset();
                 } else {
-                    showToast('Error: ' + (data.message || 'Failed to add item'), 'error');
+                    showToast((data.message || 'Failed to add item'), 'error');
                 }
             })
             .catch(error => {
@@ -750,7 +750,7 @@
                     loadItems();
                     loadStatistics();
                 } else {
-                    showToast('Error: ' + (data.message || 'Failed to update stock'), 'error');
+                    showToast((data.message || 'Failed to update stock'), 'error');
                 }
             })
             .catch(error => {
@@ -784,7 +784,7 @@
                     loadItems();
                     loadStatistics();
                 } else {
-                    showToast('Error: ' + (data.message || 'Failed to update item'), 'error');
+                    showToast((data.message || 'Failed to update item'), 'error');
                 }
             })
             .catch(error => {
@@ -812,7 +812,7 @@
                     loadItems();
                     loadStatistics();
                 } else {
-                    showToast('Error: ' + (data.message || 'Failed to delete item'), 'error');
+                    showToast((data.message || 'Failed to delete item'), 'error');
                 }
             })
             .catch(error => {

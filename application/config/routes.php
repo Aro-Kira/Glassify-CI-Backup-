@@ -91,14 +91,26 @@ $route['submit-issue'] = 'FaqCon/submit_issue';
 
 $route['products'] = 'ShopCon/products';
 $route['2DModeling'] = 'ShopCon/product_2d';
+$route['get_booked_dates'] = 'ShopCon/get_booked_dates';
 
 /* Customization Fields API Routes */
 $route['customizationFields/get'] = 'CustomizationFieldsCon/get';
 $route['customizationFields/getAll'] = 'CustomizationFieldsCon/getAll';
 $route['customizationFields/save'] = 'CustomizationFieldsCon/save';
+
+// AJAX customization routes
+$route['customizationAjax/save'] = 'CustomizationAjaxCon/save';
+$route['customizationAjax/load'] = 'CustomizationAjaxCon/load';
+$route['customizationAjax/price'] = 'CustomizationAjaxCon/price';
 $route['addtocart'] = 'CartCon/cart_page';
 $route['cart-page'] = 'CartCon/cart_page';
 $route['payment'] = 'ShopCon/checkout';
+$route['booking'] = 'ShopCon/booking';
+$route['confirm-booking'] = 'ShopCon/confirm_booking';
+$route['accept-quotation'] = 'ShopCon/accept_quotation';
+$route['payment/create-payment-intent'] = 'ShopCon/create_payment_intent';
+$route['payment/attach-payment-method'] = 'ShopCon/attach_payment_method';
+$route['payment/complete'] = 'ShopCon/payment_complete';
 $route['paying'] = 'ShopCon/ewallet';
 $route['complete'] = 'ShopCon/complete';
 $route['ShopCon/submit_ewallet_payment'] = 'ShopCon/submit_ewallet_payment';

@@ -529,15 +529,30 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Define valid transitions (must match raw database status values)
         const transitions = {
-            'Pending Review': ['Approved', 'Cancelled'],
-            'Awaiting Admin': ['Approved', 'Disapproved', 'Cancelled'],
+            // Direct Order statuses
+            'Pending Payment': ['Paid', 'Cancelled'],
+            'Paid': ['Payment Verified', 'Cancelled'],
+            'Payment Verified': ['Approved', 'Cancelled'],
             'Approved': ['In Fabrication', 'Cancelled'],
-            'Ocular Pending': ['Approved', 'Cancelled'],
-            'In Fabrication': ['Ready for Installation', 'Cancelled'],
+            'In Fabrication': ['Scheduling', 'Ready for Installation', 'For Installation / Shipping', 'Cancelled'],
+            'Scheduling': ['For Installation / Shipping', 'Cancelled'],
+            'For Installation / Shipping': ['Completed', 'Cancelled'],
             'Ready for Installation': ['Completed', 'Cancelled'],
+            
+            // Site Assessment Order statuses
+            'Pending Booking Confirmation': ['Approved', 'Booking Confirmed', 'Cancelled'],
+            'Booking Confirmed': ['Quotation Available', 'In Fabrication', 'Cancelled'],
+            'Quotation Available': ['Awaiting Payment', 'Cancelled'],
+            'Awaiting Payment': ['In Fabrication', 'Paid', 'Cancelled'],
+            
+            // Legacy/Common statuses (backward compatibility)
+            'Pending Review': ['Approved', 'Disapproved', 'Cancelled'],
+            'Awaiting Admin': ['Approved', 'Disapproved', 'Cancelled'],
+            'Ocular Pending': ['Approved', 'Cancelled'],
+            'Disapproved': [], // Final state
             'Completed': [], // Final state
             'Cancelled': [], // Final state
-            'Disapproved': [], // Final state
+            
             // Also handle mapped display values as fallback
             'Ready to Approve': ['Approved', 'Disapproved', 'Cancelled'], // Mapped from 'Awaiting Admin' or 'Pending Review'
             'Confirmed': ['In Fabrication', 'Cancelled'], // Mapped from 'Approved'
@@ -1912,15 +1927,30 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Define valid transitions (must match raw database status values)
         const transitions = {
-            'Pending Review': ['Approved', 'Cancelled'],
-            'Awaiting Admin': ['Approved', 'Disapproved', 'Cancelled'],
+            // Direct Order statuses
+            'Pending Payment': ['Paid', 'Cancelled'],
+            'Paid': ['Payment Verified', 'Cancelled'],
+            'Payment Verified': ['Approved', 'Cancelled'],
             'Approved': ['In Fabrication', 'Cancelled'],
-            'Ocular Pending': ['Approved', 'Cancelled'],
-            'In Fabrication': ['Ready for Installation', 'Cancelled'],
+            'In Fabrication': ['Scheduling', 'Ready for Installation', 'For Installation / Shipping', 'Cancelled'],
+            'Scheduling': ['For Installation / Shipping', 'Cancelled'],
+            'For Installation / Shipping': ['Completed', 'Cancelled'],
             'Ready for Installation': ['Completed', 'Cancelled'],
+            
+            // Site Assessment Order statuses
+            'Pending Booking Confirmation': ['Approved', 'Booking Confirmed', 'Cancelled'],
+            'Booking Confirmed': ['Quotation Available', 'In Fabrication', 'Cancelled'],
+            'Quotation Available': ['Awaiting Payment', 'Cancelled'],
+            'Awaiting Payment': ['In Fabrication', 'Paid', 'Cancelled'],
+            
+            // Legacy/Common statuses (backward compatibility)
+            'Pending Review': ['Approved', 'Disapproved', 'Cancelled'],
+            'Awaiting Admin': ['Approved', 'Disapproved', 'Cancelled'],
+            'Ocular Pending': ['Approved', 'Cancelled'],
+            'Disapproved': [], // Final state
             'Completed': [], // Final state
             'Cancelled': [], // Final state
-            'Disapproved': [], // Final state
+            
             // Also handle mapped display values as fallback
             'Ready to Approve': ['Approved', 'Disapproved', 'Cancelled'], // Mapped from 'Awaiting Admin' or 'Pending Review'
             'Confirmed': ['In Fabrication', 'Cancelled'], // Mapped from 'Approved'

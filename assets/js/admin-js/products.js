@@ -358,11 +358,59 @@ function setupSearchFilter() {
   const searchInput = document.querySelector(".search-input");
   const searchButton = document.querySelector(".search-button");
   const categoryFilter = document.querySelector(".filter-category");
+  const activeFiltersTags = document.getElementById("activeFiltersTags");
+  const clearAllFilters = document.getElementById("clearAllFilters");
   
   if (!searchInput || !searchButton || !categoryFilter) {
     console.warn('Search/filter elements not found, retrying...');
     setTimeout(setupSearchFilter, 100);
     return;
+  }
+
+  // Update active filters display
+  function updateActiveFilters() {
+    if (!activeFiltersTags) return;
+    
+    const activeFilters = [];
+    const searchTerm = (searchInput?.value || "").trim();
+    const selectedCategory = (categoryFilter?.value || "").trim();
+    
+    if (searchTerm) {
+      activeFilters.push({ type: 'search', value: searchTerm, label: `Search: "${searchTerm}"` });
+    }
+    
+    if (selectedCategory) {
+      activeFilters.push({ type: 'category', value: selectedCategory, label: `Category: ${selectedCategory}` });
+    }
+    
+    // Clear existing tags
+    activeFiltersTags.innerHTML = '';
+    
+    // Add active filter tags
+    activeFilters.forEach(filter => {
+      const tag = document.createElement('span');
+      tag.className = 'active-filter-tag';
+      tag.innerHTML = `
+        ${filter.label}
+        <span class="remove-filter" data-type="${filter.type}">&times;</span>
+      `;
+      
+      tag.querySelector('.remove-filter').addEventListener('click', () => {
+        if (filter.type === 'search') {
+          searchInput.value = '';
+        } else if (filter.type === 'category') {
+          categoryFilter.value = '';
+        }
+        filterProducts();
+      });
+      
+      activeFiltersTags.appendChild(tag);
+    });
+    
+    // Show/hide clear all button
+    if (clearAllFilters) {
+      clearAllFilters.style.display = activeFilters.length > 0 ? 'block' : 'none';
+    }
   }
 
   function filterProducts() {
@@ -397,6 +445,9 @@ function setupSearchFilter() {
       if (show) visibleCount++;
     });
     
+    // Update active filters display
+    updateActiveFilters();
+    
     // Show message if no products match
     const productGrid = document.querySelector(".product-grid");
     let noResultsMsg = productGrid?.querySelector(".no-results-message");
@@ -412,6 +463,16 @@ function setupSearchFilter() {
     } else if (noResultsMsg) {
       noResultsMsg.style.display = "none";
     }
+  }
+  
+  // Clear all filters handler
+  if (clearAllFilters) {
+    clearAllFilters.addEventListener('click', (e) => {
+      e.preventDefault();
+      searchInput.value = '';
+      categoryFilter.value = '';
+      filterProducts();
+    });
   }
 
   // Attach event listeners
@@ -472,7 +533,6 @@ const orderTypeCategories = {
     "Windows",                    // Sliding, Awning, Casement, Fixed Glass (Large-Scale)
     "Doors",                      // Sliding, Frameless (Large-Scale)
     "Glass Partitions & Enclosures", // Frameless Glass, Shower Enclosure (Large-Scale)
-    "Cabinets & Furniture",       // Kitchen Cabinet, Wardrobe Cabinet (Large-Scale)
     "Commercial & Exterior"       // Storefront, Glass Balcony, Stair Railings (Large-Scale)
   ]
 };
@@ -484,7 +544,6 @@ const categorySubcategories = {
   "Doors": ["Sliding", "Frameless"],
   "Glass Partitions & Enclosures": ["Frameless Glass", "Shower Enclosure", "Fixed Glass"],
   "Mirrors & Specialty Glass": ["Mirrors", "Top Glass", "Glass Board"],
-  "Cabinets & Furniture": ["Kitchen Cabinet", "Wardrobe Cabinet"],
   "Commercial & Exterior": ["Storefront", "Glass Balcony", "Stair Railings"]
 };
 
@@ -502,6 +561,9 @@ const orderTypeSubcategories = {
 // Load from localStorage if available, otherwise use defaults
 let customizationFields = {};
 const CUSTOMIZATION_FIELDS_STORAGE_KEY = 'glassify_customization_fields';
+
+// Initialize defaults immediately so customizationFields is never empty
+initializeDefaultCustomizationFields();
 
 // Load saved customization fields from localStorage and database
 async function loadCustomizationFields() {
@@ -549,20 +611,18 @@ async function loadCustomizationFields() {
   if (saved) {
     try {
       const savedFields = JSON.parse(saved);
-      // Merge saved fields with defaults (defaults as fallback)
-      initializeDefaultCustomizationFields();
-      // Override with saved fields where they exist
+      // Load saved fields, but don't override database data
       for (const [key, value] of Object.entries(savedFields)) {
-        if (value && value.length > 0) {
+        if (!customizationFields[key] || customizationFields[key].length === 0) {
           customizationFields[key] = value;
         }
       }
-      return;
     } catch (e) {
       console.error('Error loading customization fields:', e);
     }
   }
-  // Use default fields if nothing saved
+
+  // Only load defaults for keys that still have no data
   initializeDefaultCustomizationFields();
 }
 
@@ -603,12 +663,11 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
         let subcategory = '';
         
         if (parts.length >= 2) {
-          const prefixMap = {
+        const prefixMap = {
             'Windows': 'Windows',
             'Doors': 'Doors',
             'Partitions': 'Glass Partitions & Enclosures',
             'Specialty': 'Mirrors & Specialty Glass',
-            'Cabinets': 'Cabinets & Furniture',
             'Commercial': 'Commercial & Exterior'
           };
           
@@ -642,7 +701,6 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
             'Doors': 'Doors',
             'Partitions': 'Glass Partitions & Enclosures',
             'Specialty': 'Mirrors & Specialty Glass',
-            'Cabinets': 'Cabinets & Furniture',
             'Commercial': 'Commercial & Exterior'
           };
           
@@ -652,6 +710,10 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
         }
       }
       
+      // Get step names for this field key
+      const stepNamesKey = item.fieldKey + '_stepNames';
+      const stepNames = customizationFields[stepNamesKey];
+
       // Send as form data - CodeIgniter expects fields as array, so we'll send it as JSON string
       // and the controller should handle it (or we need to adjust controller, but for now this should work)
       const formData = new FormData();
@@ -659,17 +721,35 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
       formData.append('category', category);
       formData.append('subcategory', subcategory);
       formData.append('fields', JSON.stringify(item.fields));
+      if (stepNames) {
+        formData.append('stepNames', JSON.stringify(stepNames));
+      }
       
       const response = await fetch(base_url + 'customizationFields/save', {
         method: 'POST',
         body: formData
       });
       
+      // Check if response is OK
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`HTTP error saving ${item.fieldKey}:`, response.status, text);
+        return false;
+      }
+      
+      // Check content type before parsing JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error(`Non-JSON response when saving ${item.fieldKey}:`, text.substring(0, 200));
+        return false;
+      }
+      
       const result = await response.json();
       if (result.status === 'success') {
         console.log(`Saved field config for ${item.fieldKey}`);
       } else {
-        console.error(`Error saving ${item.fieldKey}:`, result.message);
+        console.error(`Error saving ${item.fieldKey}:`, result.message || 'Unknown error');
         return false; // Return false if any save fails
       }
     }
@@ -685,29 +765,46 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
 // Enhanced with comprehensive options from product catalog
 // Organized into steps with 3-4 fields per step for better UX
 function initializeDefaultCustomizationFields() {
-  customizationFields = {
+  // Initialize customizationFields if not already done
+  if (!customizationFields) {
+    customizationFields = {};
+  }
+
+  // Only set defaults for keys that don't already have data
+  const defaultFields = getDefaultCustomizationFields();
+  for (const [key, value] of Object.entries(defaultFields)) {
+    if (!customizationFields[key] || customizationFields[key].length === 0) {
+      customizationFields[key] = value;
+    }
+  }
+}
+
+function getDefaultCustomizationFields() {
+  return {
+
   // Windows subcategories - Enhanced with catalog options
   "Windows_Sliding": [
-    // Step 1: Window Type
-    { type: "tags", label: "Number of Panels", id: "numberOfPanels", options: ["2 Panels", "4 Panels"], stepNumber: 1 },
-    { type: "tags", label: "Transom Type (Top / Bottom Fixed Panel)", id: "transomType", options: ["None", "Fixed Transom Head (Fixed glass at top)", "Fixed Transom Sill (Fixed glass at bottom)"], stepNumber: 1 },
-    // Step 2: Sliding System & Size
+    // Step 1: WINDOW TYPE
+    { type: "tags", label: "Panel", id: "numberOfPanels", options: ["2 Panels", "4 Panels"], stepNumber: 1 },
+    { type: "tags", label: "Transom Type", id: "transomType", options: ["Fixed Transom Head (fixed glass at top)", "Fixed Transom Sill (fixed glass at bottom)", "None"], stepNumber: 1 },
+    // Step 2: SLIDING SYSTEM & SIZE
     { type: "tags", label: "Track System (Sliding Rail Count)", id: "trackSystem", options: ["2 Tracks", "3 Tracks"], stepNumber: 2 },
+    { type: "tags", label: "Screen Option", id: "screenOption", options: ["With Screen", "Without Screen"], stepNumber: 2 },
     { type: "tags", label: "Panel Configuration", id: "panelConfiguration", options: ["S | S (Sliding | Sliding)", "F | S (Fixed | Sliding)", "S | S | S | S (All Sliding)", "F | S | S | F (Fixed | Sliding | Sliding | Fixed)"], stepNumber: 2 },
-    // Step 3: Frame & Glass
+    // Step 3: FRAME & GLASS
     { type: "tags", label: "Frame Color", id: "frameColor", options: ["Hanalok", "White", "Black", "Gray", "Wood Finish"], stepNumber: 3 },
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Clear", "Ultra Clear", "Bronze", "Light Green", "Dark Gray", "Copperfree Mirror", "Euro Gray", "Ford Blue", "Reflective: Clear", "Reflective: Gray", "Reflective: Light Blue", "Reflective: Dark Blue", "Reflective: Light Green", "Reflective: Dark Green", "Reflective: Light Bronze", "Tempered: Clear", "Tempered: Bronze"], stepNumber: 3 },
+    { type: "tags", label: "Glass Type (6mm thickness only)", id: "glassType", options: ["Clear", "Ultra Clear", "Bronze", "Light Green", "Dark Gray", "Euro Gray", "Ford Blue", "Copperfree Mirror", "Reflective: Clear", "Reflective: Gray", "Reflective: Light Blue", "Reflective: Dark Blue", "Reflective: Light Green", "Reflective: Dark Green", "Reflective: Light Bronze", "Tempered: Clear", "Tempered: Bronze"], stepNumber: 3 },
     { type: "tags", label: "Glass Thickness", id: "glassThickness", options: ["6mm"], stepNumber: 3 },
-    // Step 4: Hardware & Accessories
-    { type: "tags", label: "Lock Type", id: "lockType", options: ["Center Lok 904 Big", "Flushlok #12", "Durable Flushlok", "New Auto Flushlock"], stepNumber: 4 },
-    { type: "tags", label: "Roller Type", id: "rollerType", options: ["Single Panel Roller", "Blue Single Roller", "Blue Double Roller"], stepNumber: 4 },
+    // Step 4: HARDWARE & ACCESSORIES
+    { type: "tags", label: "Lock Type", id: "lockType", options: ["Enter Lock 908", "Enter Lock 907", "Flushlock #12", "New Flushlock", "Center Lok 904 Big", "Flushlok #12", "Durable Flushlok", "New Auto Flushlock"], stepNumber: 4 },
+    { type: "tags", label: "Roller Type", id: "rollerType", options: ["Single Roller ORD", "Single Roller with Bearing", "Double Roller HD", "Blue Single Roller", "Blue Double Roller", "Single Panel Roller", "Blue Single Roller", "Blue Double Roller"], stepNumber: 4 },
     { type: "tags", label: "Screen", id: "screen", options: ["With Screen", "Without Screen"], stepNumber: 4 }
   ],
   "Windows_Sliding_stepNames": {
-    "1": "Window Type",
-    "2": "Sliding System & Size",
-    "3": "Frame & Glass",
-    "4": "Hardware & Accessories"
+    "1": "WINDOW TYPE",
+    "2": "SLIDING SYSTEM & SIZE",
+    "3": "FRAME & GLASS",
+    "4": "HARDWARE & ACCESSORIES"
   },
   "Windows_Awning": [
     // Step 1: Basic Options
@@ -764,48 +861,26 @@ function initializeDefaultCustomizationFields() {
       "numberOfPanels": ["2 Panels"],
       "transomType": ["None"],
       "trackSystem": ["2 Tracks"],
+      "screenOption": ["Without Screen"],
       "panelConfiguration": ["S | S (Sliding | Sliding)"],
       "frameColor": ["White"],
       "glassType": ["Clear"],
       "glassThickness": ["6mm"],
       "lockType": ["Center Lok 904 Big"],
-      "rollerType": ["Blue Single Roller"],
+      "rollerType": ["Single Panel Roller"],
       "screen": ["Without Screen"]
     },
     "798 Series": {
       "numberOfPanels": ["2 Panels"],
       "transomType": ["None"],
       "trackSystem": ["2 Tracks"],
+      "screenOption": ["Without Screen"],
       "panelConfiguration": ["S | S (Sliding | Sliding)"],
       "frameColor": ["White"],
       "glassType": ["Clear"],
       "glassThickness": ["6mm"],
-      "lockType": ["Flushlok #12"],
-      "rollerType": ["Single Panel Roller"],
-      "screen": ["Without Screen"]
-    },
-    "868-DMX Series": {
-      "numberOfPanels": ["4 Panels"],
-      "transomType": ["Fixed Transom Head (Fixed glass at top)"],
-      "trackSystem": ["3 Tracks"],
-      "panelConfiguration": ["F | S | S | F (Fixed | Sliding | Sliding | Fixed)"],
-      "frameColor": ["Black"],
-      "glassType": ["Ultra Clear"],
-      "glassThickness": ["6mm"],
-      "lockType": ["Durable Flushlok"],
-      "rollerType": ["Blue Double Roller"],
-      "screen": ["With Screen"]
-    },
-    "130-DMX Series": {
-      "numberOfPanels": ["2 Panels"],
-      "transomType": ["None"],
-      "trackSystem": ["2 Tracks"],
-      "panelConfiguration": ["F | S (Fixed | Sliding)"],
-      "frameColor": ["Gray"],
-      "glassType": ["Bronze"],
-      "glassThickness": ["6mm"],
-      "lockType": ["New Auto Flushlock"],
-      "rollerType": ["Blue Single Roller"],
+      "lockType": ["Enter Lock 908"],
+      "rollerType": ["Single Roller ORD"],
       "screen": ["Without Screen"]
     }
   },
@@ -905,21 +980,18 @@ function initializeDefaultCustomizationFields() {
   // Mirrors & Specialty Glass subcategories - Organized and cleaned up
   "Specialty_Mirrors": [
     // Step 1: Shape & Frame
-    { type: "tags", label: "Shape", id: "shape", options: ["Round", "Oval", "Square", "Rectangle", "Arched", "Custom"], stepNumber: 1 },
-    { type: "tags", label: "Frame Type", id: "frameType", options: ["Frameless", "Standard Frame", "Thin Frame", "Grid Frame"], stepNumber: 1 },
-    { type: "tags", label: "Frame Color", id: "frameColor", options: ["Gold", "Silver", "Rose Gold", "Bronze", "Black", "White", "Wood", "Custom Color"], stepNumber: 1 },
+    { type: "tags", label: "Shape", id: "shape", options: ["Round", "Oval", "Square", "Rectangle", "Arched"], stepNumber: 1 },
+    { type: "tags", label: "Frame Type", id: "frameType", options: ["Frameless", "Standard Frame"], stepNumber: 1 },
+    { type: "tags", label: "Frame Color", id: "frameColor", options: ["Gold","Black", "White"], stepNumber: 1 },
     // Step 2: Finish & Details
-    { type: "tags", label: "Edge Finish", id: "edgeFinish", options: ["Beveled", "Flat Polish", "Pencil Edge", "Raw"], stepNumber: 2 },
+    { type: "tags", label: "Edge Finish", id: "edgeFinish", options: ["Beveled", "Machine Polished Edge"], stepNumber: 2 },
     { type: "tags", label: "Tint", id: "tintFinish", options: ["Clear", "Bronze", "Grey (Smoked)", "Black"], stepNumber: 2 },
-    { type: "tags", label: "Orientation", id: "orientation", options: ["Vertical", "Horizontal", "Full-body"], stepNumber: 2 },
     // Step 3: Size & Installation
-    { type: "tags", label: "Size", id: "size", options: ["Small", "Medium", "Large", "Extra Large", "Custom"], stepNumber: 3 },
-    { type: "number", label: "Corner Radius (in)", id: "cornerRadius", min: 0, step: 0.1, stepNumber: 3 },
     { type: "tags", label: "Mounting Method", id: "mountingMethod", options: ["Wall-mounted", "Freestanding", "Leaning", "Adhesive", "Hanging"], stepNumber: 3 },
     // Step 4: Lighting & Features
     { type: "tags", label: "Lighting", id: "lighting", options: ["None", "LED Backlight", "LED Front Light"], stepNumber: 4 },
-    { type: "tags", label: "LED Color", id: "ledColorTemperature", options: ["Warm White", "Cool White", "Daylight", "RGB"], stepNumber: 4 },
-    { type: "tags", label: "Smart Features", id: "smartFeatures", options: ["Touch Dimmer", "Defogger", "Motion Sensor", "Bluetooth Speaker"], stepNumber: 4 }
+    { type: "tags", label: "LED Color", id: "ledColorTemperature", options: ["Warm White", "Cool White", "Daylight"], stepNumber: 4 },
+    { type: "tags", label: "Smart Features", id: "smartFeatures", options: ["Touch Dimmer", "Defogger", "Motion Sensor"], stepNumber: 4 }
   ],
   "Specialty_Mirrors_stepNames": {
     "1": "Shape & Frame",
@@ -950,49 +1022,6 @@ function initializeDefaultCustomizationFields() {
   "Specialty_Glass Board_stepNames": {
     "1": "Basic Options",
     "2": "Details & Installation"
-  },
-  // Cabinets & Furniture subcategories - Enhanced with catalog options
-  "Cabinets_Kitchen Cabinet": [
-    // Step 1: Basic Material & Frame
-    { type: "tags", label: "Material", id: "material", options: ["Wood", "MDF", "Metal", "Glass", "Aluminum Composite Panel (ACP)"], stepNumber: 1 },
-    { type: "tags", label: "Frame Type", id: "frameType", options: ["Lockstile Frames", "ACP Frames"], stepNumber: 1 },
-    { type: "tags", label: "Cabinet Color/Finish", id: "cabinetColorFinish", options: ["White", "Light Gray", "Black", "Custom colors"], stepNumber: 1 },
-    { type: "tags", label: "Finish Type", id: "finish", options: ["Matte", "Glossy", "Laminate", "Semi-gloss", "Satin", "Textured"], stepNumber: 1 },
-    // Step 2: Door Style & Design
-    { type: "tags", label: "Cabinet Door Style", id: "doorType", options: ["Flat panel", "Shaker style", "Raised panel", "Panel with raised border", "Solid Panel (lower)", "Glass panel (upper)", "Recessed panel variations", "Horizontal slatted/louvered", "Solid Panel", "Glass Insert"], stepNumber: 2 },
-    { type: "tags", label: "Door Design", id: "doorDesign", options: ["Solid panels", "Frosted/translucent glass inserts", "Glass", "Solid"], stepNumber: 2 },
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Smoke Glass", "Clear Glass", "Frosted Glass", "Patterned Glass", "Other colored/tinted glass"], stepNumber: 2 },
-    // Step 3: Hardware & Features
-    { type: "tags", label: "Hinges", id: "hinges", options: ["Soft Close Hinges", "Standard Hinges"], stepNumber: 3 },
-    { type: "tags", label: "Handles/Pulls", id: "handlesPulls", options: ["Bar handles", "Knob handles", "Recessed handles", "Integrated finger pulls", "Handle-less (push-to-open)", "Handles", "Locks", "Soft-close"], stepNumber: 3 },
-    { type: "tags", label: "Frame Material/Finish", id: "frameMaterialFinish", options: ["Aluminum", "Frame Color (White, Black, Silver, Custom colors)"], stepNumber: 3 },
-    { type: "tags", label: "Frame Profile", id: "frameProfile", options: ["Lockstile Frames", "Other styles"], stepNumber: 3 },
-    // Step 4: Layout & Configuration
-    { type: "tags", label: "Layout Configuration", id: "layoutConfiguration", options: ["Linear", "L-shape", "U-shape", "Island configurations"], stepNumber: 4 },
-    { type: "tags", label: "Open Shelving", id: "openShelving", options: ["Inclusion/Exclusion", "Number and spacing of shelves", "Placement (end units, mid-section)"], stepNumber: 4 },
-    { type: "tags", label: "Lighting", id: "lighting", options: ["Integrated LED strips", "Puck lights", "Under-cabinet lighting", "Various color temperatures"], stepNumber: 4 },
-    // Step 5: Surfaces & Accessories
-    { type: "tags", label: "Countertop Material", id: "countertopMaterial", options: ["Tiled", "Quartz", "Granite", "Solid surface", "Laminate", "Various colors"], stepNumber: 5 },
-    { type: "tags", label: "Backsplash Material", id: "backsplashMaterial", options: ["Matching countertop", "Subway tile", "Glass", "Painted", "Various designs"], stepNumber: 5 },
-    { type: "tags", label: "Accessories", id: "accessories", options: ["Handles", "Locks", "Soft-close", "Utensil Organizer", "Stainless Pull out Basket for Plates", "Stainless Pull out Basket for Cups/Mugs", "Stainless Pull out Condiment Rack", "Stainless Pantry", "Multiple utensil organizers", "Multiple plate/cup baskets", "Additional condiment racks", "Lazy Susans for corner cabinets", "Pantry pull-outs", "Waste bin pull-outs", "Drawer dividers", "Spice racks", "Pot and pan organizers", "Adjustable shelving"], stepNumber: 5 },
-    { type: "tags", label: "Organizer Materials", id: "organizerMaterials", options: ["Stainless steel (standard)", "Plastic", "Wood (for some organizers)"], stepNumber: 5 }
-  ],
-  "Cabinets_Kitchen Cabinet_stepNames": {
-    "1": "Basic Material & Frame",
-    "2": "Door Style & Design",
-    "3": "Hardware & Features",
-    "4": "Layout & Configuration",
-    "5": "Surfaces & Accessories"
-  },
-  "Cabinets_Wardrobe Cabinet": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Material", id: "material", options: ["Wood", "MDF", "Metal", "Glass", "Aluminum Composite Panel (ACP)"], stepNumber: 1 },
-    { type: "tags", label: "Finish", id: "finish", options: ["Matte", "Glossy", "Laminate", "Semi-gloss", "Satin"], stepNumber: 1 },
-    { type: "tags", label: "Door Type", id: "doorType", options: ["Glass", "Solid", "Flat panel", "Shaker style", "Raised panel"], stepNumber: 1 },
-    { type: "tags", label: "Accessories", id: "accessories", options: ["Handles", "Locks", "Soft-close"], stepNumber: 1 }
-  ],
-  "Cabinets_Wardrobe Cabinet_stepNames": {
-    "1": "Basic Options"
   },
   // Commercial & Exterior subcategories - Enhanced with catalog options
   "Commercial_Storefront": [
@@ -1124,21 +1153,14 @@ function showManageCustomizationFields(category, subcategory) {
     fieldKey = `Partitions_${subcategory}`;
   } else if (category === "Mirrors & Specialty Glass") {
     fieldKey = `Specialty_${subcategory}`;
-  } else if (category === "Cabinets & Furniture") {
-    fieldKey = `Cabinets_${subcategory}`;
   } else if (category === "Commercial & Exterior") {
     fieldKey = `Commercial_${subcategory}`;
   } else {
     fieldKey = subcategory;
   }
   
-  // Get fields from saved data, or fall back to default presets
-  let fields = customizationFields[fieldKey];
-  if (!fields || fields.length === 0) {
-    // Fall back to default presets if no saved fields exist
-    initializeDefaultCustomizationFields();
-    fields = customizationFields[fieldKey] || [];
-  }
+  // Get fields from saved data
+  let fields = customizationFields[fieldKey] || [];
   
   // Get step names (stored separately)
   const stepNamesKey = `${fieldKey}_stepNames`;
@@ -1169,9 +1191,14 @@ function showManageCustomizationFields(category, subcategory) {
         ${fields.length === 0 ? '<p style="color: #999; text-align: center; padding: 20px;">No fields added yet. Click "Add Field" to start.</p>' : ''}
       </div>
       
-      <button type="button" class="add-series-btn" id="addCustomizationFieldBtn" style="margin-top: 15px;">
-        <i class="fas fa-plus"></i> Add Field
-      </button>
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button type="button" class="add-series-btn" id="addCustomizationFieldBtn">
+          <i class="fas fa-plus"></i> Add Field
+        </button>
+        <button type="button" class="add-series-btn" id="loadDefaultsBtn" style="background: #28a745; border-color: #28a745;">
+          <i class="fas fa-magic"></i> Load Defaults
+        </button>
+      </div>
       
       <div class="popup-actions" style="margin-top: 20px;">
         <button class="save-btn" id="saveCustomizationFieldsBtn">Save Changes</button>
@@ -1701,6 +1728,39 @@ function showManageCustomizationFields(category, subcategory) {
   // Initial render
   renderFieldsManager();
   
+  // Load defaults button
+  document.getElementById("loadDefaultsBtn").onclick = async () => {
+    if (workingFields.length > 0) {
+      if (!confirm('Loading defaults will replace all current fields. Continue?')) {
+        return;
+      }
+    }
+
+    try {
+      const response = await fetch(base_url + 'customizationFields/get?category=' + encodeURIComponent(category) + '&subcategory=' + encodeURIComponent(subcategory));
+      const data = await response.json();
+
+      if (data.status === 'success' && data.fields && data.fields.length > 0) {
+        workingFields = JSON.parse(JSON.stringify(data.fields));
+        window.currentWorkingFields = workingFields;
+
+        // Also load step names if available
+        const stepNamesKey = `${fieldKey}_stepNames`;
+        if (data.stepNames || customizationFields[stepNamesKey]) {
+          workingStepNames = JSON.parse(JSON.stringify(data.stepNames || customizationFields[stepNamesKey]));
+        }
+
+        renderFieldsManager();
+        showToast('Defaults loaded successfully!', 'success');
+      } else {
+        showToast('No defaults available for this category/subcategory.', 'info');
+      }
+    } catch (error) {
+      console.error('Error loading defaults:', error);
+      showToast('Error loading defaults. Please try again.', 'error');
+    }
+  };
+
   // Add field button
   document.getElementById("addCustomizationFieldBtn").onclick = () => {
     // Check which steps are available or need new fields
@@ -2011,15 +2071,15 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
 function generateCustomizationFields(subcategory, container, prefix = "", category = "") {
   // Clear existing fields
   container.innerHTML = "";
-  
+
   if (!subcategory) {
     return;
   }
-  
+
   // Determine which field set to use based on category and subcategory
   // Build composite key from category and subcategory to handle conflicts
   let fieldKey;
-  
+
   if (category === "Windows") {
     fieldKey = `Windows_${subcategory}`;
   } else if (category === "Doors") {
@@ -2028,17 +2088,20 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
     fieldKey = `Partitions_${subcategory}`;
   } else if (category === "Mirrors & Specialty Glass") {
     fieldKey = `Specialty_${subcategory}`;
-  } else if (category === "Cabinets & Furniture") {
-    fieldKey = `Cabinets_${subcategory}`;
   } else if (category === "Commercial & Exterior") {
     fieldKey = `Commercial_${subcategory}`;
   } else {
     fieldKey = subcategory; // Fallback to subcategory name
   }
-  
+
   const fields = customizationFields[fieldKey];
-  
+
   if (!fields) {
+    // Show loading message and retry after a short delay
+    container.innerHTML = '<p style="color: #666; font-style: italic;">Loading customization fields...</p>';
+    setTimeout(() => {
+      generateCustomizationFields(subcategory, container, prefix, category);
+    }, 500);
     return;
   }
   
@@ -2220,10 +2283,24 @@ function renderTags(container, options, prefix, fieldId) {
   const hiddenInput = document.getElementById(`${prefix}${fieldId}`);
   const selectedValues = hiddenInput ? JSON.parse(hiddenInput.value || "[]") : [];
   
-  // Get all available options (including dynamically added ones)
+  // Get all available options from global config
   const availableOptions = JSON.parse(container.dataset.availableOptions || "[]");
-  const originalOptions = JSON.parse(container.dataset.originalOptions || "[]");
-  const allOptions = [...new Set([...availableOptions, ...selectedValues])]; // Merge and deduplicate
+  
+  // Merge with tags that have prices/images for this specific product
+  const productSpecificTags = [];
+  if (tagPrices && tagPrices[fieldId]) {
+    Object.keys(tagPrices[fieldId]).forEach(tag => {
+      if (!productSpecificTags.includes(tag)) productSpecificTags.push(tag);
+    });
+  }
+  if (tagImages && tagImages[fieldId]) {
+    Object.keys(tagImages[fieldId]).forEach(tag => {
+      if (!productSpecificTags.includes(tag)) productSpecificTags.push(tag);
+    });
+  }
+
+  // Final list: global options + product specific tags + previously selected values
+  const allOptions = [...new Set([...availableOptions, ...productSpecificTags, ...selectedValues])]; 
   
   // Update available options
   container.dataset.availableOptions = JSON.stringify(allOptions);
@@ -2231,7 +2308,7 @@ function renderTags(container, options, prefix, fieldId) {
   // Render each tag
   allOptions.forEach(option => {
     const tag = document.createElement("span");
-    tag.className = "tag";
+    tag.className = "tag selected"; // Always selected by default
     tag.dataset.value = option;
     
     // Create tag content with image if available
@@ -2280,15 +2357,14 @@ function renderTags(container, options, prefix, fieldId) {
     priceSpan.textContent = `(₱${priceValue.toFixed(2)})`;
     tag.appendChild(priceSpan);
     
-    // Check if tag is selected
-    if (selectedValues.includes(option)) {
-      tag.classList.add("selected");
-    }
+    // Tags are always part of the product specs if they exist
+    // No need to toggle selection (it's always selected/blue)
+    // tag.classList.add("selected"); 
     
-    // Toggle selection on click
-    tag.addEventListener("click", () => {
-      toggleTagSelection(tag, prefix, fieldId);
-    });
+    // Toggle selection on click (removed as requested)
+    // tag.addEventListener("click", () => {
+    //   toggleTagSelection(tag, prefix, fieldId);
+    // });
     
     // Add edit and remove buttons for ALL tags - admin can edit/remove any tags (both preset and custom)
     const tagActions = document.createElement("span");
@@ -2326,64 +2402,8 @@ function renderTags(container, options, prefix, fieldId) {
     hiddenInput.value = JSON.stringify(selectedValues);
   }
   
-  // Add event listener for series field to auto-fill when tags are clicked
-  if (fieldId === "series") {
-    // Use event delegation on the container for dynamically added tags
-    container.addEventListener("click", (e) => {
-      const tag = e.target.closest(".tag");
-      if (tag && !e.target.closest(".tag-edit") && !e.target.closest(".tag-remove")) {
-        // Wait for toggleTagSelection to complete
-        setTimeout(() => {
-          const seriesInput = document.getElementById(`${prefix}series`);
-          if (seriesInput) {
-            const seriesValues = JSON.parse(seriesInput.value || "[]");
-            const seriesValue = seriesValues.find(v => v !== "None");
-            if (seriesValue && customizationFields["Series_Presets"] && customizationFields["Series_Presets"][seriesValue]) {
-              autoFillSeriesPreset(seriesValue, prefix);
-            }
-          }
-        }, 150);
-      }
-    });
-  }
-}
-
-/**
- * Toggles tag selection state
- * @param {HTMLElement} tag - Tag element clicked
- * @param {string} prefix - Field prefix
- * @param {string} fieldId - Field ID
- */
-function toggleTagSelection(tag, prefix, fieldId) {
-  const value = tag.dataset.value;
-  const hiddenInput = document.getElementById(`${prefix}${fieldId}`);
-  
-  if (!hiddenInput) return;
-  
-  let selectedValues = JSON.parse(hiddenInput.value || "[]");
-  
-  if (tag.classList.contains("selected")) {
-    // Deselect tag
-    tag.classList.remove("selected");
-    selectedValues = selectedValues.filter(v => v !== value);
-  } else {
-    // Select tag
-    tag.classList.add("selected");
-    if (!selectedValues.includes(value)) {
-      selectedValues.push(value);
-    }
-  }
-  
-  // Update hidden input
-  hiddenInput.value = JSON.stringify(selectedValues);
-  
-  // Auto-fill fields if series is selected (and not "None")
-  if (fieldId === "series" && value !== "None" && selectedValues.includes(value)) {
-    autoFillSeriesPreset(value, prefix);
-  }
-  
-  // Auto-save customization fields
-  autoSaveCustomizationFields(prefix);
+  // No need for click listeners on tags for selection anymore
+  // as all tags are automatically selected/included
 }
 
 /**
@@ -2992,14 +3012,6 @@ function showAddTagDialog(container, prefix, fieldId, isEdit = false, oldTagValu
     
     // Re-render tags with updated list
     renderTags(container, availableOptions, prefix, fieldId);
-    
-    // Auto-select if it was a new tag
-    if (!isEdit) {
-      const newTag = container.querySelector(`[data-value="${tagValue}"]`);
-      if (newTag && !newTag.classList.contains("selected")) {
-        toggleTagSelection(newTag, prefix, fieldId);
-      }
-    }
     
     closeModal();
   };
@@ -3882,12 +3894,20 @@ function collectCustomizationData(prefix = "") {
   
   inputs.forEach(input => {
     if (input.type === "hidden") {
-      // Hidden inputs store tag selections as JSON arrays
-      try {
-        const parsed = JSON.parse(input.value || "[]");
-        data[input.name] = Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        data[input.name] = [];
+      // For tags, we now collect ALL tags in the container as they are all considered selected
+      const fieldId = input.name;
+      const tagContainer = container.querySelector(`[data-field-id="${fieldId}"]`);
+      if (tagContainer) {
+        const tags = Array.from(tagContainer.querySelectorAll(".tag")).map(t => t.dataset.value);
+        data[fieldId] = tags;
+      } else {
+        // Fallback to hidden input value if container not found
+        try {
+          const parsed = JSON.parse(input.value || "[]");
+          data[fieldId] = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          data[fieldId] = [];
+        }
       }
     } else if (input.type === "checkbox") {
       data[input.name] = input.checked;
@@ -4942,6 +4962,7 @@ function setupProductPopups() {
   const addImageInput = document.getElementById("productImageInput");
   const addImagePreview = addPopup?.querySelector(".image-preview img");
   const addNameInput = document.getElementById("productName");
+  const addDescriptionInput = document.getElementById("productDescription");
   const addPriceMinInput = document.getElementById("productPriceMin");
   const addPriceMaxInput = document.getElementById("productPriceMax");
   const addCategorySelect = document.getElementById("productCategory");
@@ -5004,13 +5025,15 @@ function setupProductPopups() {
       // Show Series dropdown for Windows subcategories
       if (selectedCategory === "Windows" && seriesGroup && seriesSelect) {
         seriesGroup.style.display = "block";
-        seriesSelect.value = ""; // Reset to None
+        seriesSelect.value = ""; // Reset to "Select series" placeholder
       } else if (seriesGroup) {
         seriesGroup.style.display = "none";
       }
       
-      generateCustomizationFields(selectedSubcategory, addCustomizationContainer, "", selectedCategory);
-      // Show manage button for Customize Build tab
+      // Removed automatic call to generateCustomizationFields to keep it blank as per user request
+      if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
+      
+      // Show manage button for customization fields
       if (manageGroup) manageGroup.style.display = "block";
     } else {
       if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
@@ -5120,16 +5143,37 @@ function setupProductPopups() {
       e.preventDefault();
       e.stopPropagation();
       addPopup.style.display = "flex";
+      
+      // Full reset when opening
+      if (addNameInput) addNameInput.value = "";
+      if (addPriceMinInput) addPriceMinInput.value = "";
+      if (addPriceMaxInput) addPriceMaxInput.value = "";
+      clearImages('add');
+      setOrderType("direct");
+      if (addCategorySelect) addCategorySelect.value = "";
+      if (addSubcategorySelect) addSubcategorySelect.value = "";
+      if (addSubcategoryGroup) addSubcategoryGroup.style.display = "none";
+      if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
+      
+      const manageGroup = document.getElementById("manageCustomizationGroup");
+      const seriesGroup = document.getElementById("seriesGroup");
+      const seriesSelect = document.getElementById("productSeries");
+      if (manageGroup) manageGroup.style.display = "none";
+      if (seriesGroup) seriesGroup.style.display = "none";
+      if (seriesSelect) seriesSelect.value = "";
+
       // Reset standard series
       standardSeries = [];
       renderStandardSeries();
       
-      // Reset to Customize tab by default
-      switchTab("customize");
+      // Reset tag prices
+      tagPrices = {};
+      tagImages = {};
+      visualConfigs = {};
+      standardFieldOptions = {};
+      const previewContainer = document.getElementById('konvaPreviewContainer');
+      if (previewContainer) previewContainer.innerHTML = '';
       
-      // Reset order type to direct
-      setOrderType("direct");
-    
       // Setup add series button when popup opens (in case button wasn't found initially)
       const addSeriesBtn = document.getElementById("addSeriesBtn");
       if (addSeriesBtn) {
@@ -5152,27 +5196,21 @@ function setupProductPopups() {
 
   // Setup tab switching
   const customizeTab = document.getElementById("customizeTab");
-  const standardTab = document.getElementById("standardTab");
   const customizeTabContent = document.getElementById("customizeTabContent");
-  const standardTabContent = document.getElementById("standardTabContent");
 
   function switchTab(tabName) {
     // Remove active class from all tabs and contents
-    [customizeTab, standardTab].forEach(tab => tab?.classList.remove("active"));
-    [customizeTabContent, standardTabContent].forEach(content => content?.classList.remove("active"));
+    [customizeTab].forEach(tab => tab?.classList.remove("active"));
+    [customizeTabContent].forEach(content => content?.classList.remove("active"));
 
     // Add active class to selected tab and content
     if (tabName === "customize") {
       customizeTab?.classList.add("active");
       customizeTabContent?.classList.add("active");
-    } else if (tabName === "standard") {
-      standardTab?.classList.add("active");
-      standardTabContent?.classList.add("active");
     }
   }
 
   customizeTab?.addEventListener("click", () => switchTab("customize"));
-  standardTab?.addEventListener("click", () => switchTab("standard"));
 
   // Setup Order Type Buttons
   const directOrderBtn = document.getElementById("directOrderBtn");
@@ -5229,11 +5267,27 @@ function setupProductPopups() {
       if (addSubcategorySelect) addSubcategorySelect.value = "";
       if (addSubcategoryGroup) addSubcategoryGroup.style.display = "none";
       if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
+      
+      const manageGroup = document.getElementById("manageCustomizationGroup");
+      const seriesGroup = document.getElementById("seriesGroup");
+      const seriesSelect = document.getElementById("productSeries");
+      if (manageGroup) manageGroup.style.display = "none";
+      if (seriesGroup) seriesGroup.style.display = "none";
+      if (seriesSelect) seriesSelect.value = "";
+      
       // Reset standard series
       standardSeries = [];
       renderStandardSeries();
       // Reset tag prices
       tagPrices = {};
+      tagImages = {};
+      // Reset visual configs
+      visualConfigs = {};
+      // Reset standard field options
+      standardFieldOptions = {};
+      // Reset any previews
+      const previewContainer = document.getElementById('konvaPreviewContainer');
+      if (previewContainer) previewContainer.innerHTML = '';
     })
   );
 
@@ -5252,6 +5306,7 @@ function setupProductPopups() {
     }
 
     let name = addNameInput.value.trim();
+    let description = addDescriptionInput ? addDescriptionInput.value.trim() : '';
     let categoryEl = document.getElementById("productCategory");
     let subcategoryEl = document.getElementById("productSubcategory");
     let orderTypeEl = document.getElementById("productOrderType");
@@ -5309,6 +5364,7 @@ function setupProductPopups() {
 
     let formData = new FormData();
     formData.append("name", name);
+    formData.append("description", description);
     formData.append("category", category);
     if (subcategory) formData.append("subcategory", subcategory);
     formData.append("orderType", orderType);
@@ -5406,6 +5462,7 @@ function populateEditForm(product) {
   
   // Populate basic fields
   const editNameInput = document.getElementById("editProductName");
+  const editDescriptionInput = document.getElementById("editProductDescription");
   const editPriceMinInput = document.getElementById("editProductPriceMin");
   const editPriceMaxInput = document.getElementById("editProductPriceMax");
   const editCategoryEl = document.getElementById("editProductCategory");
@@ -5422,6 +5479,7 @@ function populateEditForm(product) {
   const editManageCustomizationGroup = document.getElementById("editManageCustomizationGroup");
   
   if (editNameInput) editNameInput.value = product.ProductName || '';
+  if (editDescriptionInput) editDescriptionInput.value = product.Description || '';
   
   // Populate price range
   if (editPriceMinInput) editPriceMinInput.value = product.PriceMin || '';
@@ -5671,10 +5729,76 @@ function populateEditForm(product) {
     console.log("[Edit Product] No tagVisualConfigs found or invalid format, initialized as empty object");
   }
   
+  // IMPORTANT: Populate customization data BEFORE generating fields
+  // This ensures hidden inputs are set before renderTags reads them
+  const customizationDataToPopulate = {};
+  if (product.Customization) {
+    Object.keys(product.Customization).forEach(fieldId => {
+      customizationDataToPopulate[fieldId] = product.Customization[fieldId];
+    });
+  }
+  
   // NOW render customization fields (after all tag data is loaded)
   if (product.Subcategory && editCustomizationContainer) {
     console.log("[Edit Product] Generating customization fields with loaded tag data...");
     generateCustomizationFields(product.Subcategory, editCustomizationContainer, "edit", product.Category);
+    
+    // After fields are generated, populate the selected values
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+      // Handle Customization field - it might be a JSON string or an object
+      let customizationData = product.Customization;
+      if (typeof customizationData === 'string') {
+        try {
+          customizationData = JSON.parse(customizationData);
+        } catch (e) {
+          console.error('[Edit Product] Failed to parse Customization JSON:', e);
+          customizationData = null;
+        }
+      }
+      
+      if (customizationData && typeof customizationData === 'object') {
+        console.log('[Edit Product] Populating customization fields with data:', customizationData);
+        
+        Object.keys(customizationData).forEach(fieldId => {
+          const value = customizationData[fieldId];
+          const fieldInput = document.getElementById(`edit${fieldId}`);
+          const fieldContainer = document.getElementById(`edit${fieldId}Container`);
+          
+          console.log(`[Edit Product] Processing field "${fieldId}":`, value, 'Input exists:', !!fieldInput, 'Container exists:', !!fieldContainer);
+          
+          if (fieldInput) {
+            if (Array.isArray(value)) {
+              // Tags field - set hidden input value and re-render tags to show selection
+              fieldInput.value = JSON.stringify(value);
+              console.log(`[Edit Product] Set tag field "${fieldId}" to:`, value);
+              
+              if (fieldContainer) {
+                // Get available options from container dataset (set during field generation)
+                const availableOptions = JSON.parse(fieldContainer.dataset.availableOptions || "[]");
+                console.log(`[Edit Product] Re-rendering tags for "${fieldId}" with selected values:`, value);
+                // Re-render tags with the selected values - this will read from hidden input
+                renderTags(fieldContainer, availableOptions, "edit", fieldId);
+              } else {
+                console.warn(`[Edit Product] Tag container not found for field "${fieldId}"`);
+              }
+            } else if (typeof value === 'boolean') {
+              // Checkbox field
+              fieldInput.checked = value;
+              console.log(`[Edit Product] Set checkbox field "${fieldId}" to:`, value);
+            } else {
+              // Number or other field
+              fieldInput.value = value;
+              console.log(`[Edit Product] Set field "${fieldId}" to:`, value);
+            }
+          } else {
+            console.warn(`[Edit Product] Field input not found for "${fieldId}"`);
+          }
+        });
+      } else {
+        console.log('[Edit Product] No customization data to populate');
+      }
+    }, 200); // Increased delay to ensure all DOM elements are ready
   }
   
   // Populate standard series
@@ -5723,35 +5847,6 @@ function populateEditForm(product) {
     editStandardTab.style.opacity = "1";
     editCustomizeTab.style.pointerEvents = "auto";
     editCustomizeTab.style.opacity = "1";
-  }
-  
-  // Populate customization data if exists
-  if (product.Customization && editCustomizationContainer) {
-    // Set values in customization fields based on saved data
-    Object.keys(product.Customization).forEach(fieldId => {
-      const value = product.Customization[fieldId];
-      const fieldInput = document.getElementById(`edit${fieldId}`);
-      const fieldContainer = document.getElementById(`edit${fieldId}Container`);
-      
-      if (fieldInput) {
-        if (Array.isArray(value)) {
-          // Tags field - select the tags
-          fieldInput.value = JSON.stringify(value);
-          if (fieldContainer) {
-            value.forEach(tagValue => {
-              const tag = fieldContainer.querySelector(`[data-value="${tagValue}"]`);
-              if (tag) tag.classList.add("selected");
-            });
-          }
-        } else if (typeof value === 'boolean') {
-          // Checkbox field
-          fieldInput.checked = value;
-        } else {
-          // Number or other field
-          fieldInput.value = value;
-        }
-      }
-    });
   }
 }
 
@@ -5972,7 +6067,7 @@ function setupEditPopupHandlers() {
   const editPopup = document.getElementById("editPopup");
   
   productGridEl.addEventListener("click", e => {
-    const editBtn = e.target.closest(".edit-btn");
+    const editBtn = e.target.closest(".edit-btn") || e.target.closest(".product-edit-btn");
     if (editBtn) {
       e.stopPropagation();
       window.productBeingEdited = editBtn.closest(".product-card");
@@ -5998,7 +6093,7 @@ function setupEditPopupHandlers() {
       return;
     }
 
-    const removeBtn = e.target.closest(".remove-btn");
+    const removeBtn = e.target.closest(".remove-btn") || e.target.closest(".product-remove-btn");
     if (removeBtn) {
       e.stopPropagation();
       const productCard = removeBtn.closest(".product-card");
@@ -6006,7 +6101,7 @@ function setupEditPopupHandlers() {
         openDeletePopup(productCard);
       } else {
         console.error('Product card not found for remove button');
-        showToast("Error: Could not find product to delete.", 'error');
+        showToast("Could not find product to delete.", 'error');
       }
     }
   });
@@ -6125,41 +6220,18 @@ function setupEditPopupHandlers() {
   const editCustomizeTab = document.getElementById("editCustomizeTab");
   const editStandardTab = document.getElementById("editStandardTab");
   const editCustomizeTabContent = document.getElementById("editCustomizeTabContent");
-  const editStandardTabContent = document.getElementById("editStandardTabContent");
-  
-  // Ensure Standard tab is always enabled and clickable
-  if (editStandardTab) {
-    editStandardTab.style.pointerEvents = "auto";
-    editStandardTab.style.opacity = "1";
-    editStandardTab.style.cursor = "pointer";
-    editStandardTab.disabled = false;
-  }
-  
+
   // Function to switch to Customize Build tab
   const switchToCustomizeTab = () => {
     if (editCustomizeTab) editCustomizeTab.classList.add("active");
-    if (editStandardTab) editStandardTab.classList.remove("active");
     if (editCustomizeTabContent) editCustomizeTabContent.classList.add("active");
-    if (editStandardTabContent) editStandardTabContent.classList.remove("active");
   };
-  
-  // Function to switch to Standard tab
-  const switchToStandardTab = () => {
-    if (editStandardTab) editStandardTab.classList.add("active");
-    if (editCustomizeTab) editCustomizeTab.classList.remove("active");
-    if (editStandardTabContent) editStandardTabContent.classList.add("active");
-    if (editCustomizeTabContent) editCustomizeTabContent.classList.remove("active");
-  };
-  
+
   editCustomizeTab?.addEventListener("click", switchToCustomizeTab);
-  editStandardTab?.addEventListener("click", switchToStandardTab);
-  
+
   // Also allow switching via data-tab attribute for consistency
   if (editCustomizeTab) {
     editCustomizeTab.setAttribute("data-tab", "customize");
-  }
-  if (editStandardTab) {
-    editStandardTab.setAttribute("data-tab", "standard");
   }
   
   // Setup Add Series button for edit
@@ -6212,13 +6284,9 @@ function setupEditPopupHandlers() {
     
     // Reset tabs
     const editCustTab = document.getElementById("editCustomizeTab");
-    const editStdTab = document.getElementById("editStandardTab");
     const editCustTabContent = document.getElementById("editCustomizeTabContent");
-    const editStdTabContent = document.getElementById("editStandardTabContent");
     if (editCustTab) editCustTab.classList.add("active");
-    if (editStdTab) editStdTab.classList.remove("active");
     if (editCustTabContent) editCustTabContent.classList.add("active");
-    if (editStdTabContent) editStdTabContent.classList.remove("active");
   };
   
   editCloseBtn?.addEventListener("click", closeEditPopup);
@@ -6230,6 +6298,7 @@ function setupEditPopupHandlers() {
 
     const id = window.productBeingEdited.dataset.id;
     const editNameInput = document.getElementById("editProductName");
+    const editDescriptionInput = document.getElementById("editProductDescription");
     const editPriceMinInput = document.getElementById("editProductPriceMin");
     const editPriceMaxInput = document.getElementById("editProductPriceMax");
     const editCategoryEl = document.getElementById("editProductCategory");
@@ -6237,6 +6306,7 @@ function setupEditPopupHandlers() {
     const editOrderTypeInput = document.getElementById("editProductOrderType");
 
     let name = editNameInput ? editNameInput.value.trim() : '';
+    let description = editDescriptionInput ? editDescriptionInput.value.trim() : '';
     let category = editCategoryEl ? editCategoryEl.value : '';
     let subcategory = editSubcategoryEl ? editSubcategoryEl.value : '';
     let orderType = editOrderTypeInput ? editOrderTypeInput.value : 'direct';
@@ -6312,6 +6382,7 @@ function setupEditPopupHandlers() {
 
     let formData = new FormData();
     formData.append("name", name);
+    formData.append("description", description);
     // Category and subcategory are read-only - don't send them (they won't be updated)
     // formData.append("category", category);
     // if (subcategory) formData.append("subcategory", subcategory);
@@ -6420,8 +6491,11 @@ function setupProductSorting() {
 // -------------------- INIT --------------------
 document.addEventListener("DOMContentLoaded", () => {
   console.log('Products page DOM loaded, initializing...');
-  
-  // Load customization fields first (async, but we don't need to wait)
+
+  // Initialize with default customization fields immediately for instant availability
+  initializeDefaultCustomizationFields();
+
+  // Then load customization fields from database (async, to update with latest data)
   loadCustomizationFields().catch(e => console.error('Error loading customization fields:', e));
   
   // Setup functions with retry logic
@@ -6441,4 +6515,71 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Small delay to ensure DOM is fully ready
   setTimeout(initializeAll, 50);
+  
+  // -------------------- PRODUCT IMAGE CAROUSEL --------------------
+  function initializeProductCarousels() {
+    const slideshows = document.querySelectorAll('.product-image-slideshow');
+    
+    slideshows.forEach(function(slideshow) {
+      const slides = slideshow.querySelectorAll('.product-slide');
+      const indicators = slideshow.querySelectorAll('.indicator-dot');
+      
+      if (slides.length <= 1) return; // No carousel needed for single image
+      
+      let currentSlide = 0;
+      const totalSlides = slides.length;
+      let carouselInterval;
+      
+      function showSlide(index) {
+        // Remove active class from all slides and indicators
+        slides.forEach(slide => slide.classList.remove('active'));
+        indicators.forEach(indicator => indicator.classList.remove('active'));
+        
+        // Add active class to current slide and indicator
+        if (slides[index]) {
+          slides[index].classList.add('active');
+        }
+        if (indicators[index]) {
+          indicators[index].classList.add('active');
+        }
+      }
+      
+      function nextSlide() {
+        currentSlide = (currentSlide + 1) % totalSlides;
+        showSlide(currentSlide);
+      }
+      
+      function startCarousel() {
+        if (carouselInterval) clearInterval(carouselInterval);
+        carouselInterval = setInterval(nextSlide, 3000);
+      }
+      
+      function stopCarousel() {
+        if (carouselInterval) clearInterval(carouselInterval);
+      }
+      
+      // Add click handlers to indicators
+      indicators.forEach(function(indicator, index) {
+        indicator.addEventListener('click', function() {
+          currentSlide = index;
+          showSlide(currentSlide);
+          startCarousel(); // Restart carousel after manual navigation
+        });
+      });
+      
+      // Pause on hover
+      slideshow.addEventListener('mouseenter', stopCarousel);
+      slideshow.addEventListener('mouseleave', startCarousel);
+      
+      // Start carousel
+      startCarousel();
+    });
+  }
+  
+  // Initialize carousels when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeProductCarousels);
+  } else {
+    initializeProductCarousels();
+  }
 });

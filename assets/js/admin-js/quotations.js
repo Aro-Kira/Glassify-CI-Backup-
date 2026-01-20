@@ -131,6 +131,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) throw new Error("Network response was not ok");
             
             const data = await response.json();
+            if (data.success === false && data.message) {
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 20px; color: #856404;">' + (data.message || 'Error loading quotations.') + '</td></tr>';
+                }
+                if (foundText) foundText.textContent = '0 Quotations found';
+                return;
+            }
             renderQuotationsTable(data.quotations || []);
             totalPages = data.total_pages || 1;
             updatePagination(data.total || 0);
@@ -155,6 +162,9 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) throw new Error("Network response was not ok");
             
             const data = await response.json();
+            if (data.success === false && data.message) {
+                console.warn('Sales reps:', data.message);
+            }
             if (data.success && salesRepFilter) {
                 salesRepFilter.innerHTML = '<option value="all">All</option>';
                 data.sales_reps.forEach(rep => {

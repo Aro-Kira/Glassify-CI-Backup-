@@ -25,14 +25,14 @@ main {
 
 /* Make title full width and separate from flex row */
 .info-title {
-  width: 65%;
-  margin: 3% 25% 0 10%;
+  width: calc(100% - 20%);
+  margin: 3% 10% 0 10%;
 }
 
 .title-divider{
   height: 1px;
   background-color: #333;
-  width: 123%;
+  width: 100%;
   margin-left: 0;
 }
 
@@ -111,12 +111,12 @@ main {
 /* Container that holds form and order summary */
 .info-container {
   display: flex;
-  justify-content: center;   
+  justify-content: space-between;
   align-items: flex-start;
-  gap: 30px;                
+  gap: 30px;
   margin: 40px 10% 40px 10%;
-  max-width: 1280px;         
-  width: auto;
+  max-width: 1280px;
+  width: calc(100% - 20%);
 }
 
 
@@ -385,54 +385,112 @@ input[type="checkbox"] {
 
 .order-summary-content{
     flex: 1;
-     background: #fff;
-     border: 1px solid #0f2b46;
-      padding: 20px;
+    background: #fff;
+    border: 1px solid #0f2b46;
+    border-radius: 8px;
+    padding: 24px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
-
-
 
 .order-summary h3 {
   background: #0f2b46;
   color: #fff;
-  padding: 10px;
-  margin: -20px -20px 15px -20px;
+  padding: 12px 24px;
+  margin: -24px -24px 24px -24px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.summary-item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  background: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+.summary-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-item-info h4 {
+  margin: 0;
+  font-size: 15px;
+  color: #0f2b46;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.summary-item-qty {
+  font-size: 13px;
+  color: #888;
+  font-weight: 500;
+}
+
+.summary-item-total {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f2b46;
+  white-space: nowrap;
 }
 
 .order-summary p {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin: 8px 0;
+  margin: 10px 0;
+  font-size: 0.95rem;
 }
 
 .order-summary p span:first-child {
   flex: 1;
+  color: #666;
 }
 
 .order-summary p span:last-child {
   text-align: right;
   min-width: 100px;
+  font-weight: 600;
+  color: #333;
 }
 
-#summary-subtotal, 
-#summary-shipping,
-#summary-handling,
-#summary-total,
-#summary-items {
-    margin-left: 0;
-} 
+.summary-totals-box {
+    margin-top: 15px;
+}
 
-.summary-divider{
-  height: 2px;
-  margin: 10px 0;
-  background-color: #333;
+.summary-divider {
+  height: 1px;
+  margin: 15px 0;
+  background-color: #eee;
 }
 
 .order-summary .total {
-  margin: 10px 0px;
-  font-weight: bold;
-  font-size: 1.2em;
+  margin: 15px 0 0 0;
+  padding-top: 15px;
+  border-top: 2px solid #0f2b46;
+  font-weight: 800;
+  font-size: 1.25rem;
+  color: #0f2b46;
+}
+
+.order-summary .total span:first-child {
+    color: #0f2b46;
+}
+
+.order-summary .total span:last-child {
+    color: #0f2b46;
 }
 
 .placeOrder-btn {
@@ -593,16 +651,18 @@ input[type="checkbox"] {
 
 /* ===================== QUOTATION MODAL STYLES ===================== */
 
-/* Modal Overlay */
+/* Modal Overlay - hidden by default; only .modal.show makes it visible */
 .modal {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 9999;
+  align-items: center;
+  justify-content: center;
 }
 
 .modal.show {
-  display: block;
+  display: flex;
   animation: fadeIn 0.2s ease;
 }
 
@@ -640,9 +700,10 @@ input[type="checkbox"] {
   width: 90%;
   max-width: 750px;
   max-height: 90vh;
-  margin: 3vh auto;
   border-radius: 12px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   z-index: 1;
 }
@@ -695,7 +756,7 @@ input[type="checkbox"] {
 /* Modal Body */
 .modal-body {
   padding: 28px;
-  max-height: 65vh;
+  flex: 1;
   overflow-y: auto;
 }
 
@@ -1120,6 +1181,12 @@ input[type="checkbox"] {
   border: 1px solid #a5d6a7;
 }
 
+.payment-badge.card {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  color: #1565c0;
+  border: 1px solid #90caf9;
+}
+
 .payment-badge.cod {
   background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
   color: #f57c00;
@@ -1135,6 +1202,7 @@ input[type="checkbox"] {
   border: 1px solid #e9ecef;
   border-radius: 8px;
   overflow: hidden;
+  padding: 0 12px 12px;
 }
 
 .confirm-items-table {
@@ -1269,7 +1337,7 @@ input[type="checkbox"] {
 /* Modal Footer for Confirm Modal */
 .confirm-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
 }
 

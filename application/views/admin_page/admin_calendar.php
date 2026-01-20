@@ -7,8 +7,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
   const getCalendarEventsUrl = "<?php echo base_url('AdminCon/get_calendar_events'); ?>";
   const getDayDetailsUrl = "<?php echo base_url('AdminCon/get_day_details'); ?>";
 </script>
-
-<script src="<?php echo base_url('assets/js/admin-js/calendar.js'); ?>"></script>
+<!-- calendar.js loaded via layout page_js -->
 
 <!-- Calendar Section -->
 <section class="calendar-section">
