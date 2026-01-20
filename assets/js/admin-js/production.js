@@ -106,6 +106,10 @@ function loadFabricationQueue() {
         .then(data => {
             if (data.success) {
                 ordersData = data.orders;
+                // Debug: Log ready orders
+                const readyOrders = ordersData.filter(o => o.queue_status === 'ready');
+                console.log('Total orders loaded:', ordersData.length);
+                console.log('Ready orders:', readyOrders.length, readyOrders);
                 renderCurrentView();
                 updateFoundText();
             } else {
@@ -605,7 +609,17 @@ function saveOrderDetails() {
         method: 'POST',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        // Check if response is actually JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            return response.text().then(text => {
+                console.error('Non-JSON response:', text);
+                throw new Error('Server returned non-JSON response. Check console for details.');
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             alert('Order updated successfully');
@@ -616,8 +630,8 @@ function saveOrderDetails() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('Error updating order');
+        console.error('Error updating order:', error);
+        alert('Error updating order: ' + (error.message || 'Please check the console for details'));
     });
 }
 

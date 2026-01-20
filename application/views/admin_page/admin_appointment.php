@@ -126,6 +126,7 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
             <th>Client</th>
             <th>Order ID</th>
             <th>Date & Time</th>
+            <th>Specs</th>
             <th>Assigned Staff</th>
             <th>Status</th>
             <th>Actions</th>
@@ -133,7 +134,7 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
         </thead>
         <tbody id="appointmentsTableBody">
           <tr>
-            <td colspan="7" style="text-align: center; padding: 20px;">Loading appointments...</td>
+            <td colspan="8" style="text-align: center; padding: 20px;">Loading appointments...</td>
           </tr>
         </tbody>
       </table>
@@ -196,6 +197,40 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
           </div>
         </div>
       </div>
+
+      <?php if ($is_ocular): ?>
+      <!-- Order Specifications Section -->
+      <div class="details-section">
+        <h4 class="section-title">Order Specifications</h4>
+        <input type="hidden" id="detail-order-item-id">
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Width</span>
+            <input type="number" id="detail-spec-width" class="form-control editable" min="0" step="0.01">
+          </div>
+          <div class="info-item">
+            <span class="info-label">Height</span>
+            <input type="number" id="detail-spec-height" class="form-control editable" min="0" step="0.01">
+          </div>
+          <div class="info-item">
+            <span class="info-label">Unit</span>
+            <select id="detail-spec-unit" class="form-control editable">
+              <option value="in">in</option>
+              <option value="cm">cm</option>
+              <option value="mm">mm</option>
+            </select>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Price</span>
+            <input type="number" id="detail-spec-price" class="form-control editable" min="0" step="0.01">
+          </div>
+          <div class="info-item">
+            <span class="info-label">Quantity</span>
+            <input type="number" id="detail-spec-quantity" class="form-control editable" min="1" step="1">
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
 
       <!-- Client Information Section -->
       <div class="details-section">
@@ -267,6 +302,15 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
               </div>
             </div>
           </div>
+          <div class="info-item full-width">
+            <span class="info-label">Payment Receipt:</span>
+            <input type="file" id="detail-payment-receipt" accept="image/*,application/pdf" class="form-control editable">
+            <div id="detail-payment-receipt-link" style="margin-top: 8px; display: none;">
+              <a href="#" target="_blank" style="color: #02455F; text-decoration: underline;">
+                <i class="fas fa-file-pdf" style="margin-right: 5px;"></i>View uploaded receipt
+              </a>
+            </div>
+          </div>
         </div>
       </div>
       <?php endif; ?>
@@ -319,536 +363,3 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
   </div>
 </div>
 
-<script>
-// =============================
-// TOAST NOTIFICATION SYSTEM
-// =============================
-function showToast(message, type = 'info', duration = 3000) {
-    const existingToasts = document.querySelectorAll('.toast-notification');
-    existingToasts.forEach(toast => {
-        toast.classList.add('toast-fade-out');
-        setTimeout(() => toast.remove(), 300);
-    });
-
-    const toast = document.createElement('div');
-    toast.className = `toast-notification toast-${type}`;
-    
-    const config = {
-        success: { icon: '✓', bg: '#28a745', border: '#1e7e34' },
-        error: { icon: '✕', bg: '#dc3545', border: '#c82333' },
-        warning: { icon: '⚠', bg: '#ffc107', border: '#e0a800' },
-        info: { icon: 'ℹ', bg: '#17a2b8', border: '#138496' }
-    };
-    
-    const toastConfig = config[type] || config.info;
-    
-    toast.innerHTML = `
-        <div class="toast-icon">${toastConfig.icon}</div>
-        <div class="toast-message">${message}</div>
-        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
-    `;
-    
-    toast.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        background: ${toastConfig.bg};
-        color: white;
-        padding: 16px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        min-width: 300px;
-        max-width: 500px;
-        animation: toastSlideIn 0.3s ease;
-        font-family: 'Montserrat', sans-serif;
-        border-left: 4px solid ${toastConfig.border};
-    `;
-    
-    if (!document.getElementById('toast-styles')) {
-        const style = document.createElement('style');
-        style.id = 'toast-styles';
-        style.textContent = `
-            @keyframes toastSlideIn {
-                from { transform: translateX(400px); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes toastFadeOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(400px); opacity: 0; }
-            }
-            .toast-notification { transition: all 0.3s ease; }
-            .toast-fade-out { animation: toastFadeOut 0.3s ease forwards; }
-            .toast-icon { font-size: 20px; font-weight: bold; flex-shrink: 0; }
-            .toast-message { flex: 1; font-size: 14px; line-height: 1.4; }
-            .toast-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: opacity 0.2s; flex-shrink: 0; }
-            .toast-close:hover { opacity: 1; }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    document.body.appendChild(toast);
-    setTimeout(() => {
-        toast.classList.add('toast-fade-out');
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
-    
-    return toast;
-}
-
-function showConfirmModal(message, onConfirm, onCancel = null) {
-    const existingModal = document.getElementById('confirm-modal-overlay');
-    if (existingModal) existingModal.remove();
-    
-    const overlay = document.createElement('div');
-    overlay.id = 'confirm-modal-overlay';
-    overlay.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.5); z-index: 10001;
-        display: flex; align-items: center; justify-content: center;
-        animation: fadeIn 0.2s ease;
-    `;
-    
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        background: white; border-radius: 12px; padding: 30px;
-        max-width: 450px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        animation: slideUp 0.3s ease;
-    `;
-    
-    modal.innerHTML = `
-        <h3 style="margin: 0 0 15px 0; font-size: 20px; color: #333; font-family: 'Montserrat', sans-serif;">Confirm Action</h3>
-        <p style="margin: 0 0 25px 0; color: #666; font-size: 15px; line-height: 1.5;">${message}</p>
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button id="confirm-cancel-btn" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; color: #666; transition: all 0.2s;">Cancel</button>
-            <button id="confirm-ok-btn" style="padding: 10px 20px; border: none; background: #dc3545; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">Confirm</button>
-        </div>
-    `;
-    
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    
-    if (!document.getElementById('modal-styles')) {
-        const style = document.createElement('style');
-        style.id = 'modal-styles';
-        style.textContent = `
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            #confirm-cancel-btn:hover { background: #f5f5f5; }
-            #confirm-ok-btn:hover { background: #c82333; }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    const cancelBtn = overlay.querySelector('#confirm-cancel-btn');
-    const okBtn = overlay.querySelector('#confirm-ok-btn');
-    
-    cancelBtn.addEventListener('click', () => {
-        overlay.style.animation = 'fadeIn 0.2s ease reverse';
-        setTimeout(() => overlay.remove(), 200);
-        if (onCancel) onCancel();
-    });
-    
-    okBtn.addEventListener('click', () => {
-        overlay.style.animation = 'fadeIn 0.2s ease reverse';
-        setTimeout(() => overlay.remove(), 200);
-        if (onConfirm) onConfirm();
-    });
-    
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            overlay.style.animation = 'fadeIn 0.2s ease reverse';
-            setTimeout(() => overlay.remove(), 200);
-            if (onCancel) onCancel();
-        }
-    });
-    
-    const escapeHandler = (e) => {
-        if (e.key === 'Escape') {
-            overlay.style.animation = 'fadeIn 0.2s ease reverse';
-            setTimeout(() => overlay.remove(), 200);
-            if (onCancel) onCancel();
-            document.removeEventListener('keydown', escapeHandler);
-        }
-    };
-    document.addEventListener('keydown', escapeHandler);
-}
-
-// Calendar functionality for appointments page
-let currentDate = new Date();
-let appointmentsData = [];
-
-// Initialize calendar on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Load appointments first, then render calendar
-    loadAppointmentsForCalendar();
-});
-
-// Render calendar for current month
-function renderCalendar() {
-    const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
-    
-    // Update month/year header
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'];
-    document.getElementById('calendar-month-year').textContent = `${monthNames[month]} ${year}`;
-    
-    // Get first day of month and number of days
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const daysInPrevMonth = new Date(year, month, 0).getDate();
-    
-    // Get today's date for highlighting
-    const today = new Date();
-    const isCurrentMonth = year === today.getFullYear() && month === today.getMonth();
-    const todayDate = today.getDate();
-    
-    // Build calendar HTML
-    let calendarHTML = '';
-    let dayCounter = 1;
-    let prevMonthDay = daysInPrevMonth - firstDay + 1;
-    
-    // Calculate number of weeks needed
-    const totalCells = firstDay + daysInMonth;
-    const weeksNeeded = Math.ceil(totalCells / 7);
-    
-    for (let week = 0; week < weeksNeeded; week++) {
-        calendarHTML += '<tr>';
-        
-        for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
-            let cellHTML = '';
-            let dayNumber = '';
-            let isOtherMonth = false;
-            let isToday = false;
-            
-            if (week === 0 && dayOfWeek < firstDay) {
-                // Previous month days
-                dayNumber = prevMonthDay;
-                prevMonthDay++;
-                isOtherMonth = true;
-            } else if (dayCounter <= daysInMonth) {
-                // Current month days
-                dayNumber = dayCounter;
-                isToday = isCurrentMonth && dayCounter === todayDate;
-                dayCounter++;
-            } else {
-                // Next month days
-                dayNumber = dayCounter - daysInMonth;
-                dayCounter++;
-                isOtherMonth = true;
-            }
-            
-            // Format date for this cell (YYYY-MM-DD)
-            let cellDate;
-            if (isOtherMonth && week === 0) {
-                // Previous month
-                const prevMonth = month === 0 ? 11 : month - 1;
-                const prevYear = month === 0 ? year - 1 : year;
-                cellDate = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
-            } else if (isOtherMonth && dayCounter > daysInMonth) {
-                // Next month
-                const nextMonth = month === 11 ? 0 : month + 1;
-                const nextYear = month === 11 ? year + 1 : year;
-                cellDate = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
-            } else {
-                // Current month
-                cellDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNumber).padStart(2, '0')}`;
-            }
-            
-            // Get appointments for this date
-            const dayAppointments = getAppointmentsForDate(cellDate);
-            
-            cellHTML = `<td class="${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}">`;
-            cellHTML += `<div class="day-number">${dayNumber}</div>`;
-            
-            // Add appointments for this day
-            if (dayAppointments.length > 0) {
-                dayAppointments.forEach(apt => {
-                    const serviceClass = getServiceColorClass(apt.service);
-                    const timeDisplay = apt.appointment_time ? formatTime(apt.appointment_time) + ' - ' : '';
-                    cellHTML += `<div class="event ${serviceClass}" title="${apt.service} - ${apt.client}">${timeDisplay}${apt.service} - ${apt.client}</div>`;
-                });
-            }
-            
-            cellHTML += '</td>';
-            calendarHTML += cellHTML;
-        }
-        
-        calendarHTML += '</tr>';
-    }
-    
-    document.getElementById('calendar-body').innerHTML = calendarHTML;
-}
-
-// Get appointments for a specific date
-function getAppointmentsForDate(dateString) {
-    return appointmentsData.filter(apt => {
-        if (!apt.appointment_date) {
-            console.log('Appointment missing date:', apt);
-            return false;
-        }
-        // Handle both date string and date object formats
-        let aptDate;
-        if (typeof apt.appointment_date === 'string') {
-            aptDate = apt.appointment_date.split(' ')[0]; // Get date part only (YYYY-MM-DD)
-        } else if (apt.appointment_date instanceof Date) {
-            aptDate = apt.appointment_date.toISOString().split('T')[0];
-        } else {
-            return false;
-        }
-        return aptDate === dateString;
-    });
-}
-
-// Get color class for service type
-function getServiceColorClass(service) {
-    const colorMap = {
-        'Order Placed': 'blue',
-        'Ocular Visit': 'orange',
-        'In Fabrication': 'purple',
-        'Installed': 'yellow',
-        'Completed': 'green'
-    };
-    return colorMap[service] || 'blue';
-}
-
-// Format time from HH:MM:SS to readable format
-function formatTime(timeString) {
-    if (!timeString) return '';
-    const [hours, minutes] = timeString.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-}
-
-// Load appointments for calendar
-function loadAppointmentsForCalendar() {
-    fetch('<?php echo base_url('AdminCon/get_appointments_ajax'); ?>?status=all')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                appointmentsData = data.appointments;
-                console.log('Loaded appointments for calendar:', appointmentsData.length, 'appointments');
-                if (appointmentsData.length > 0) {
-                    console.log('Sample appointment:', appointmentsData[0]);
-                    console.log('Appointment date format:', appointmentsData[0].appointment_date);
-                }
-                // Always render calendar (even if no appointments, to show empty calendar)
-                renderCalendar();
-            } else {
-                console.error('Error loading appointments:', data.message);
-                // Still render calendar even on error
-                renderCalendar();
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            // Still render calendar even on error
-            renderCalendar();
-        });
-}
-
-// Navigate to previous month
-function prevMonth() {
-    currentDate.setMonth(currentDate.getMonth() - 1);
-    renderCalendar();
-    loadAppointmentsForCalendar();
-}
-
-// Navigate to next month
-function nextMonth() {
-    currentDate.setMonth(currentDate.getMonth() + 1);
-    renderCalendar();
-    loadAppointmentsForCalendar();
-}
-
-// Go to today's date
-function goToToday() {
-    currentDate = new Date();
-    renderCalendar();
-    loadAppointmentsForCalendar();
-}
-</script>
-<script src="<?php echo base_url('assets/js/side-popup-appointment.js'); ?>"></script>
-<script src="<?php echo base_url('assets/js/filter-status.js'); ?>"></script>
-<script>
-// Load appointments on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadAppointments();
-    
-    // Setup filter handlers
-    const filterSearch = document.getElementById('filter-search');
-    
-    if (filterSearch) {
-        filterSearch.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                applyFilters();
-            }
-        });
-    }
-});
-
-function loadAppointments() {
-    applyFilters();
-}
-
-function applyFilters() {
-    const statusFilter = document.getElementById('filter-status')?.value || 'all';
-    const serviceFilter = document.getElementById('filter-service')?.value || 'all';
-    const search = document.getElementById('filter-search')?.value || '';
-    const dateFilter = document.getElementById('filter-date')?.value || '';
-    
-    // Build query string
-    const params = new URLSearchParams();
-    if (statusFilter && statusFilter !== 'all') {
-        params.append('status', statusFilter);
-    }
-    if (serviceFilter && serviceFilter !== 'all') {
-        params.append('service', serviceFilter);
-    }
-    if (search) {
-        params.append('search', search);
-    }
-    if (dateFilter) {
-        params.append('date', dateFilter);
-    }
-    
-    const queryString = params.toString();
-    const url = `<?php echo base_url('AdminCon/get_appointments_ajax'); ?>${queryString ? '?' + queryString : ''}`;
-    
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                renderAppointments(data.appointments);
-                updatePaginationInfo(data.total);
-                // Also update calendar with all appointments (not filtered)
-                loadAppointmentsForCalendar();
-            } else {
-                console.error('Error loading appointments:', data.message);
-                document.getElementById('appointments-tbody').innerHTML = 
-                    '<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">Error loading appointments</td></tr>';
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            document.getElementById('appointments-tbody').innerHTML = 
-                '<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">Error loading appointments</td></tr>';
-        });
-}
-
-function clearFilters() {
-    document.getElementById('filter-status').value = 'all';
-    document.getElementById('filter-service').value = 'all';
-    document.getElementById('filter-search').value = '';
-    document.getElementById('filter-date').value = '';
-    loadAppointments();
-}
-
-function renderAppointments(appointments) {
-    const tbody = document.getElementById('appointments-tbody');
-    
-    if (appointments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No appointments found</td></tr>';
-        return;
-    }
-    
-    tbody.innerHTML = appointments.map((apt, index) => {
-        return `
-            <tr>
-                <td>${index + 1}</td>
-                <td class="client-cell">${apt.client}</td>
-                <td class="status-cell"><span class="tag ${apt.service_class}">${apt.service}</span></td>
-                <td class="date-cell">${apt.date_time}</td>
-                <td>${apt.assigned_staff}</td>
-                <td class="progress-cell"><span class="status ${apt.status_class}"></span> ${apt.status}</td>
-                <td><button class="edit-progress-btn" onclick="openEditModal(${apt.id})">Edit Progress</button></td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function updatePaginationInfo(total) {
-    const paginationInfo = document.getElementById('pagination-info');
-    if (paginationInfo) {
-        paginationInfo.textContent = `Showing ${total} item${total !== 1 ? 's' : ''}`;
-    }
-}
-
-function openEditModal(appointmentId) {
-    fetch(`<?php echo base_url('AdminCon/get_appointment_details_ajax'); ?>?appointment_id=${appointmentId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                const apt = data.appointment;
-                document.getElementById('edit-appointment-id').value = apt.id;
-                document.getElementById('edit-project-name').value = apt.product;
-                document.getElementById('edit-client-name').value = apt.client;
-                document.getElementById('edit-service').value = apt.service;
-                document.getElementById('edit-date').value = apt.date;
-                document.getElementById('edit-time').value = apt.time;
-                document.getElementById('edit-assigned-staff').value = apt.assigned_staff;
-                document.getElementById('edit-status').value = apt.status;
-                document.getElementById('edit-notes').value = apt.notes;
-                
-                document.getElementById('editProgressPopupOverlay').style.display = 'flex';
-            } else {
-                showToast('Error loading appointment details: ' + data.message, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showToast('Error loading appointment details', 'error');
-        });
-}
-
-function saveAppointmentChanges() {
-    const appointmentId = document.getElementById('edit-appointment-id').value;
-    const formData = new FormData();
-    
-    formData.append('appointment_id', appointmentId);
-    formData.append('client_name', document.getElementById('edit-client-name').value);
-    formData.append('service', document.getElementById('edit-service').value);
-    formData.append('date', document.getElementById('edit-date').value);
-    formData.append('time', document.getElementById('edit-time').value);
-    formData.append('assigned_staff', document.getElementById('edit-assigned-staff').value);
-    formData.append('status', document.getElementById('edit-status').value);
-    formData.append('notes', document.getElementById('edit-notes').value);
-    
-    fetch('<?php echo base_url('AdminCon/update_appointment_ajax'); ?>', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showToast('Appointment updated successfully!', 'success');
-            closePopup();
-            loadAppointments(); // This will also refresh the calendar
-        } else {
-            showToast('Error: ' + data.message, 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('Error updating appointment', 'error');
-    });
-}
-
-function deleteAppointment() {
-    showConfirmModal('Are you sure you want to delete this appointment?', () => {
-        const appointmentId = document.getElementById('edit-appointment-id').value;
-        // TODO: Implement delete functionality if needed
-        showToast('Delete functionality not yet implemented', 'info');
-    });
-}
-
-function closePopup() {
-    document.getElementById('editProgressPopupOverlay').style.display = 'none';
-}
-</script>
