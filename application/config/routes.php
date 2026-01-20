@@ -107,6 +107,7 @@ $route['cart-page'] = 'CartCon/cart_page';
 $route['payment'] = 'ShopCon/checkout';
 $route['booking'] = 'ShopCon/booking';
 $route['confirm-booking'] = 'ShopCon/confirm_booking';
+$route['accept-quotation'] = 'ShopCon/accept_quotation';
 $route['paying'] = 'ShopCon/ewallet';
 $route['complete'] = 'ShopCon/complete';
 $route['ShopCon/submit_ewallet_payment'] = 'ShopCon/submit_ewallet_payment';

@@ -3234,13 +3234,89 @@ class AdminCon extends CI_Controller
         }
         
         // Validate status transition
-        $current_status = $order->Status ?? 'Pending Review';
+        // Handle empty or NULL status - default to 'Pending Review' for validation
+        $raw_status = isset($order->Status) ? trim($order->Status) : '';
+        if (empty($raw_status) || $raw_status === '' || $raw_status === null) {
+            $current_status = 'Pending Review';
+        } else {
+            $current_status = $raw_status;
+        }
+        
+        // Ensure current_status is not empty
+        if (empty($current_status)) {
+            $current_status = 'Pending Review';
+        }
+        
         $valid_transitions = $this->get_valid_status_transitions($current_status);
         
-        if (!in_array($new_status, $valid_transitions)) {
-            echo json_encode(['success' => false, 'message' => 'Invalid status transition']);
+        // Normalize both statuses for comparison (case-insensitive)
+        $current_status_normalized = trim($current_status);
+        $new_status_normalized = trim($new_status);
+        
+        // Log for debugging
+        log_message('debug', "Validating status transition. Current: '{$current_status}', New: '{$new_status_normalized}', Valid transitions count: " . count($valid_transitions));
+        
+        // If no valid transitions found, allow common status changes as fallback
+        if (empty($valid_transitions) && $current_status === 'Cancelled') {
+            // Cancelled is a terminal state - no transitions allowed
+            log_message('error', "Attempted to change status from terminal state 'Cancelled' to '{$new_status_normalized}'");
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Cannot change status from Cancelled. Cancelled orders cannot be modified.',
+                'debug' => [
+                    'current_status' => $current_status,
+                    'new_status' => $new_status_normalized
+                ]
+            ]);
             return;
         }
+        
+        // If valid_transitions is empty but status is not Cancelled, set default transitions
+        if (empty($valid_transitions)) {
+            log_message('warning', "No valid transitions found for status '{$current_status}', using default transitions");
+            $valid_transitions = ['Cancelled']; // At minimum, allow cancellation
+        }
+        
+        $valid_transitions_normalized = array_map('trim', $valid_transitions);
+        
+        // Log transitions for debugging
+        log_message('debug', "Valid transitions for '{$current_status}': " . implode(', ', $valid_transitions_normalized));
+        
+        // Check if new status is in valid transitions (case-insensitive)
+        $is_valid = false;
+        $matched_status = null;
+        $new_status_lower = strtolower($new_status_normalized);
+        
+        foreach ($valid_transitions_normalized as $valid_status) {
+            $valid_status_lower = strtolower(trim($valid_status));
+            if ($valid_status_lower === $new_status_lower) {
+                $is_valid = true;
+                // Use the normalized version from valid_transitions to ensure exact match
+                $matched_status = trim($valid_status);
+                log_message('debug', "Status transition matched: '{$matched_status}' (matched from '{$new_status_normalized}')");
+                break;
+            }
+        }
+        
+        if (!$is_valid) {
+            // Log for debugging
+            log_message('error', "Invalid status transition attempted. Current: '{$current_status}', New: '{$new_status_normalized}', Valid transitions: " . implode(', ', $valid_transitions_normalized));
+            echo json_encode([
+                'success' => false, 
+                'message' => 'Invalid status transition',
+                'debug' => [
+                    'current_status' => $current_status,
+                    'current_status_raw' => $order->Status ?? 'NULL',
+                    'new_status' => $new_status_normalized,
+                    'valid_transitions' => $valid_transitions_normalized,
+                    'valid_transitions_count' => count($valid_transitions_normalized)
+                ]
+            ]);
+            return;
+        }
+        
+        // Use the matched status (exact case match from valid_transitions)
+        $new_status = $matched_status ?? $new_status_normalized;
         
         // Update order status
         $update_data = ['Status' => $new_status];
@@ -3278,17 +3354,80 @@ class AdminCon extends CI_Controller
      */
     private function get_valid_status_transitions($current_status)
     {
-        $transitions = [
-            'Pending Review' => ['Approved', 'Cancelled'],
-            'Approved' => ['In Fabrication', 'Cancelled'],
-            'Ocular Pending' => ['Approved', 'Cancelled'],
-            'In Fabrication' => ['Ready for Installation', 'Cancelled'],
-            'Ready for Installation' => ['Completed', 'Cancelled'],
-            'Completed' => [], // Final state
-            'Cancelled' => [] // Final state
+        // Normalize status for comparison (case-insensitive)
+        $status_lower = strtolower(trim($current_status));
+        $normalized_status = trim($current_status); // Keep original for exact matching first
+        
+        // Map old/alternative status names to standard names
+        $status_mapping = [
+            'pending review' => 'Pending Review',
+            'awaiting admin' => 'Awaiting Admin',
+            'ready to approve' => 'Pending Review',
+            'disapproved' => 'Cancelled',
+            'ready for installation' => 'Ready for Installation',
+            'booking confirmed' => 'Approved',
+            'pending booking confirmation' => 'Pending Booking Confirmation',
+            'quotation available' => 'Quotation Available',
+            'quotation ready' => 'Quotation Available',
+            'ready for quotation' => 'Quotation Available',
+            'awaiting payment' => 'Awaiting Payment',
+            'pending payment' => 'Pending Payment'
         ];
         
-        return $transitions[$current_status] ?? [];
+        if (isset($status_mapping[$status_lower])) {
+            $normalized_status = $status_mapping[$status_lower];
+        }
+        
+        // Combine all transitions (case-insensitive lookup)
+        $all_transitions = [
+            // Direct Order status transitions
+            'Pending Payment' => ['Paid', 'Cancelled'],
+            'Paid' => ['Payment Verified', 'Cancelled'],
+            'Payment Verified' => ['Approved', 'Cancelled'],
+            'Approved' => ['In Fabrication', 'Cancelled'],
+            'In Fabrication' => ['Scheduling', 'Ready for Installation', 'For Installation / Shipping', 'Cancelled'],
+            'Scheduling' => ['For Installation / Shipping', 'Cancelled'],
+            'For Installation / Shipping' => ['Completed', 'Cancelled'],
+            'Ready for Installation' => ['Completed', 'Cancelled'],
+            
+            // Site Assessment Order status transitions
+            'Pending Booking Confirmation' => ['Approved', 'Booking Confirmed', 'Cancelled'],
+            'Booking Confirmed' => ['Quotation Available', 'In Fabrication', 'Cancelled'],
+            'Quotation Available' => ['Awaiting Payment', 'Cancelled'],
+            'Awaiting Payment' => ['In Fabrication', 'Paid', 'Cancelled'],
+            
+            // Legacy/Common status transitions (work for both order types)
+            'Pending Review' => ['Approved', 'Disapproved', 'Cancelled'],
+            'Awaiting Admin' => ['Approved', 'Disapproved', 'Cancelled'],
+            'Ocular Pending' => ['Approved', 'Cancelled'],
+            'Disapproved' => [],
+            
+            // Terminal states
+            'Completed' => [],
+            'Cancelled' => [],
+            'Returned' => []
+        ];
+        
+        // Try exact match first (case-sensitive)
+        if (isset($all_transitions[$normalized_status])) {
+            return $all_transitions[$normalized_status];
+        }
+        
+        // Try exact match with original status
+        if (isset($all_transitions[$current_status])) {
+            return $all_transitions[$current_status];
+        }
+        
+        // Try case-insensitive match
+        foreach ($all_transitions as $status_key => $transitions) {
+            if (strtolower($status_key) === $status_lower) {
+                return $transitions;
+            }
+        }
+        
+        // Default: allow common transitions if status not found
+        // This provides backward compatibility for any unmapped statuses
+        return ['Cancelled'];
     }
     
     /**

@@ -758,16 +758,42 @@ public function booking()
             return;
         }
         
+        // Check if this is a Direct Order (not Site Assessment)
+        $order_type = strtolower(trim($order->OrderType ?? ''));
+        $is_site_assessment = (
+            $order_type === 'site-assessed' || 
+            $order_type === 'site assessment' || 
+            $order_type === 'site-assessed order'
+        );
+        $is_direct_order = !$is_site_assessment;
+        
+        // Get payment info for Direct Orders
+        $payment_status = strtolower(trim($order->PaymentStatus ?? 'pending'));
+        $payment = null;
+        if ($is_direct_order) {
+            $payment = $this->Order_model->get_order_payment($order_id);
+        }
+        
         // Get progress with order_id to check appointments table
         $progress = $this->Order_model->get_order_progress($order->Status, $order_id);
         
-        // Calculate progress percentage
-        $completed_steps = 0;
-        $total_steps = 5; // order_placed, ocular_visit, in_fabrication, installed, completed
-        
-        foreach ($progress as $step => $status) {
-            if ($status === 'completed') {
-                $completed_steps++;
+        // Calculate progress percentage based on order type
+        if ($is_direct_order) {
+            // Direct Order: 4 steps (Order Placed, Paid, In Fabrication, Completed)
+            $total_steps = 4;
+            $completed_steps = 0;
+            if ($progress['order_placed'] === 'completed') $completed_steps++;
+            if ($payment_status === 'paid' || $payment_status === 'partial') $completed_steps++;
+            if ($progress['in_fabrication'] === 'completed') $completed_steps++;
+            if ($progress['completed'] === 'completed') $completed_steps++;
+        } else {
+            // Site Assessment Order: 5 steps (Booking Submitted, Ocular Visit, In Fabrication, Installed, Completed)
+            $total_steps = 5;
+            $completed_steps = 0;
+            foreach ($progress as $step => $status) {
+                if ($status === 'completed') {
+                    $completed_steps++;
+                }
             }
         }
         
@@ -775,10 +801,12 @@ public function booking()
         
         // Get dates from order
         $dates = [
-            'order_placed' => $order->OrderDate ?? null,
-            'ocular_visit' => $order->OcularDate ?? null,
-            'fabrication' => $order->FabricationDate ?? null,
-            'installation' => $order->InstallationDate ?? null,
+            'order_date' => $order->OrderDate ?? null,
+            'order_time' => $order->OrderDate ? date('g:i A', strtotime($order->OrderDate)) : null,
+            'ocular_date' => $order->OcularDate ?? null,
+            'payment_date' => ($payment && isset($payment->Payment_Date)) ? $payment->Payment_Date : (($payment && isset($payment->PaymentDate)) ? $payment->PaymentDate : null),
+            'fabrication_date' => $order->FabricationDate ?? null,
+            'installation_date' => $order->InstallationDate ?? null,
             'estimated_delivery' => $order->EstimatedDelivery ?? null
         ];
         
@@ -797,7 +825,10 @@ public function booking()
             'progress_percent' => $progress_percent,
             'dates' => $dates,
             'order_status' => $order->Status,
-            'has_in_progress' => $has_in_progress
+            'has_in_progress' => $has_in_progress,
+            'payment_status' => $payment_status,
+            'is_direct_order' => $is_direct_order,
+            'is_site_assessment' => $is_site_assessment
         ]);
     }
 
@@ -1389,6 +1420,68 @@ public function booking()
             'message' => 'Booking confirmed successfully!',
             'order_id' => $order_id,
             'redirect_url' => $redirect_url
+        ]);
+    }
+
+    /**
+     * Accept quotation for Site Assessment order
+     * Changes status from "Quotation Available" to "Awaiting Payment"
+     */
+    public function accept_quotation()
+    {
+        header('Content-Type: application/json');
+
+        $customer_id = $this->session->userdata('customer_id');
+        if (!$customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Please log in to accept quotation.']);
+            return;
+        }
+
+        $order_id = $this->input->post('order_id');
+        if (!$order_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Order ID is required.']);
+            return;
+        }
+
+        $this->load->model('Order_model');
+
+        // Verify order belongs to customer and is a Site Assessment order
+        $order = $this->Order_model->get_order($order_id);
+        if (!$order) {
+            echo json_encode(['status' => 'error', 'message' => 'Order not found.']);
+            return;
+        }
+
+        if ($order->Customer_ID != $customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Unauthorized access.']);
+            return;
+        }
+
+        $order_type = strtolower(trim($order->OrderType ?? ''));
+        $is_site_assessment = (
+            $order_type === 'site-assessed' || 
+            $order_type === 'site assessment' || 
+            $order_type === 'site-assessed order'
+        );
+
+        if (!$is_site_assessment) {
+            echo json_encode(['status' => 'error', 'message' => 'This order is not a Site Assessment order.']);
+            return;
+        }
+
+        $status_lower = strtolower(trim($order->Status ?? ''));
+        if ($status_lower !== 'quotation available' && $status_lower !== 'quotation ready' && $status_lower !== 'ready for quotation') {
+            echo json_encode(['status' => 'error', 'message' => 'Quotation is not available for acceptance at this time.']);
+            return;
+        }
+
+        // Update order status to "Awaiting Payment"
+        $this->Order_model->update_order_status($order_id, 'Awaiting Payment');
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Quotation accepted successfully!',
+            'order_id' => $order_id
         ]);
     }
 

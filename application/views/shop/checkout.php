@@ -1766,9 +1766,15 @@ $(document).ready(function() {
         let firstErrorElement = null;
         let errorMessage = "Please complete all required fields.";
 
-        // Reset errors
+        // Reset errors and warnings
         document.querySelectorAll('.form-group input, .form-group select').forEach(el => el.style.borderColor = '#ccc');
         document.querySelectorAll('.inline-error').forEach(el => el.style.display = 'none');
+        
+        // Hide validation notice initially
+        let validationNotice = document.getElementById('payment-validation-notice');
+        if (validationNotice) {
+            validationNotice.style.display = 'none';
+        }
 
         // Validate shipping info
         const shippingInputs = document.querySelectorAll('#profileForm input[required], #profileForm select[required]');
@@ -1830,9 +1836,80 @@ $(document).ready(function() {
         }
 
         if (firstErrorElement) {
+            // Get all missing fields (collect all at once to avoid duplicates)
+            const missingFields = new Set();
+            
+            // Check shipping fields
+            const shippingInputs = document.querySelectorAll('#profileForm input[required], #profileForm select[required]');
+            shippingInputs.forEach(input => {
+                const isHiddenAddressField = input.closest('#shipping-address-fields')?.style.display === 'none';
+                if (isHiddenAddressField) return;
+                
+                if (!input.value.trim()) {
+                    const label = input.closest('.form-group')?.querySelector('label')?.textContent.replace(/\*/g, '').trim() || 'field';
+                    if (label) {
+                        missingFields.add(label);
+                    }
+                }
+            });
+            
+            // Check billing fields if not same as shipping
+            if (sBillCheckbox && !sBillCheckbox.checked) {
+                let hasMissingBilling = false;
+                bReqInputs.forEach(input => {
+                    const isHiddenBilling = document.getElementById('billing-address-fields')?.style.display === 'none';
+                    if (isHiddenBilling) return;
+                    
+                    if (!input.value.trim()) {
+                        hasMissingBilling = true;
+                    }
+                });
+                // Add "Billing Address" as a single field instead of individual field names
+                if (hasMissingBilling) {
+                    missingFields.add('Billing Address');
+                }
+            }
+            
+            // Check payment method
+            if (!ewallet && !card) {
+                missingFields.add('Payment Method');
+            }
+            
+            // Check terms
+            if (!termsAccepted) {
+                missingFields.add('Terms and Conditions acceptance');
+            }
+            
+            // Show validation notice
+            if (!validationNotice) {
+                // Create validation notice element if it doesn't exist
+                validationNotice = document.createElement('div');
+                validationNotice.id = 'payment-validation-notice';
+                validationNotice.style.cssText = 'margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; color: #856404;';
+                const buttonParent = document.getElementById('placeOrderBtn').parentElement;
+                if (buttonParent) {
+                    buttonParent.insertBefore(validationNotice, document.getElementById('placeOrderBtn'));
+                }
+            }
+            
+            // Update notice with unique fields
+            const missingFieldsArray = Array.from(missingFields);
+            if (missingFieldsArray.length > 0) {
+                validationNotice.innerHTML = '<strong>⚠ Please complete the following required fields before placing order:</strong><ul style="margin: 10px 0 0 20px; padding-left: 20px;">' + 
+                                          missingFieldsArray.map(field => `<li>${field}</li>`).join('') + '</ul>';
+                validationNotice.style.display = 'block';
+            } else {
+                validationNotice.style.display = 'none';
+            }
+            
             showToast(errorMessage, 'warning');
             firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
+        }
+        
+        // Hide validation notice if all fields are valid
+        if (validationNotice) {
+            validationNotice.style.display = 'none';
         }
 
         // Populate and show confirmation modal

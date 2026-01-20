@@ -4,10 +4,133 @@
 <div class="order-status-page">
     <?php if ($order): ?>
         <?php 
+        // Check if this is a Site Assessment order
+        $order_type = strtolower(trim($order->OrderType ?? ''));
+        $is_site_assessment = (
+            $order_type === 'site-assessed' || 
+            $order_type === 'site assessment' || 
+            $order_type === 'site-assessed order'
+        );
+        
         $status_lower = strtolower(trim($order->Status));
         $is_cancelled = ($status_lower === 'cancelled' || $status_lower === 'returned');
         $is_completed = ($status_lower === 'completed' || $status_lower === 'delivered');
         $is_ongoing = !$is_cancelled && !$is_completed;
+        
+        // Map Site Assessment status to display labels and messages
+        $site_assessment_status_map = [];
+        if ($is_site_assessment) {
+            // Get payment status for checking balance due
+            $payment_status = strtolower(trim($order->PaymentStatus ?? ''));
+            $has_balance = ($payment_status === 'partial' || $payment_status === 'pending');
+            
+            // Check if ocular visit is completed
+            $ocular_completed = ($progress['ocular_visit'] ?? 'pending') === 'completed';
+            
+            // Check if quotation file exists
+            $has_quotation = !empty($order->QuotationPDFUrl ?? '');
+            
+            switch ($status_lower) {
+                case 'pending booking confirmation':
+                    $site_assessment_status_map = [
+                        'label' => 'Booking Submitted',
+                        'message' => 'Your site assessment booking has been submitted and is awaiting admin confirmation. Payment is not available yet.',
+                        'show_payment' => false
+                    ];
+                    break;
+                case 'approved':
+                case 'booking confirmed':
+                    // Check if quotation is available (has QuotationPDFUrl)
+                    if ($has_quotation) {
+                        $site_assessment_status_map = [
+                            'label' => 'Quotation Available',
+                            'message' => 'Your quotation is ready for review. Please accept it to proceed.',
+                            'show_payment' => false,
+                            'show_accept_quotation' => true
+                        ];
+                    } elseif ($ocular_completed) {
+                        $site_assessment_status_map = [
+                            'label' => 'Ocular Visit Completed – Preparing Quotation',
+                            'message' => 'The ocular visit has been completed. We are preparing your quotation.',
+                            'show_payment' => false
+                        ];
+                    } else {
+                        $site_assessment_status_map = [
+                            'label' => 'Booking Confirmed – Waiting for Ocular Visit',
+                            'message' => 'Your booking has been confirmed. We will schedule an ocular visit soon.',
+                            'show_payment' => false
+                        ];
+                    }
+                    break;
+                case 'quotation available':
+                case 'quotation ready':
+                case 'ready for quotation':
+                    $site_assessment_status_map = [
+                        'label' => 'Quotation Available',
+                        'message' => 'Your quotation is ready for review. Please accept it to proceed.',
+                        'show_payment' => false,
+                        'show_accept_quotation' => true
+                    ];
+                    break;
+                case 'awaiting payment':
+                case 'pending payment':
+                    $site_assessment_status_map = [
+                        'label' => 'Awaiting Payment',
+                        'message' => 'Please proceed with payment to continue with your order.',
+                        'show_payment' => true,
+                        'show_pay_now' => true
+                    ];
+                    break;
+                case 'in fabrication':
+                    $site_assessment_status_map = [
+                        'label' => 'Payment Received – In Fabrication',
+                        'message' => 'Payment has been received. Your order is now in fabrication.',
+                        'show_payment' => false
+                    ];
+                    break;
+                case 'ready for installation':
+                    // Check if installation is completed
+                    $installation_completed = ($progress['installed'] ?? 'pending') === 'completed';
+                    if ($installation_completed && $has_balance) {
+                        $site_assessment_status_map = [
+                            'label' => 'Installation Completed – Balance Due',
+                            'message' => 'Installation has been completed. Please pay the final payment.',
+                            'show_payment' => true,
+                            'show_pay_final' => true
+                        ];
+                    } else {
+                        $site_assessment_status_map = [
+                            'label' => 'Ready for Installation',
+                            'message' => 'Your order is ready for installation.',
+                            'show_payment' => false
+                        ];
+                    }
+                    break;
+                case 'installation completed':
+                    if ($has_balance) {
+                        $site_assessment_status_map = [
+                            'label' => 'Installation Completed – Balance Due',
+                            'message' => 'Installation has been completed. Please pay the final payment.',
+                            'show_payment' => true,
+                            'show_pay_final' => true
+                        ];
+                    } else {
+                        $site_assessment_status_map = [
+                            'label' => 'Installation Completed',
+                            'message' => 'Installation has been completed.',
+                            'show_payment' => false
+                        ];
+                    }
+                    break;
+                default:
+                    // For other statuses, use generic booking message
+                    $site_assessment_status_map = [
+                        'label' => ucfirst(str_replace('-', ' ', $status_lower)),
+                        'message' => 'Your site assessment order is being processed.',
+                        'show_payment' => false
+                    ];
+            }
+        }
         ?>
         <!-- Title -->
         <section class="order-header">
@@ -41,23 +164,55 @@
                     </div>
                 </div>
             <?php else: ?>
-                <div class="status-card ongoing" style="background: #ebf8ff; border-left: 5px solid #3182ce; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
-                    <h3 style="color: #3182ce; margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-sync fa-spin"></i> Your Order is In Progress
-                    </h3>
-                    <p style="color: #2d3748; margin: 0 0 15px 0;">We are working on your order. You can view the real-time status updates in the timeline below.</p>
-                    <div style="background: rgba(255,255,255,0.5); padding: 12px 15px; border-radius: 6px; border: 1px dashed #bee3f8;">
-                        <span style="color: #2b6cb0;"><strong>Current Step:</strong> 
-                            <?php
-                            if ($progress['completed'] === 'in_progress') echo "Final Delivery & Completion";
-                            elseif ($progress['installed'] === 'in_progress') echo "Installation in progress";
-                            elseif ($progress['in_fabrication'] === 'in_progress') echo "Fabricating your custom products";
-                            elseif ($progress['ocular_visit'] === 'in_progress') echo "Preparing for ocular visit";
-                            else echo "Order validation & payment verification";
-                            ?>
-                        </span>
+                <?php if ($is_site_assessment && !empty($site_assessment_status_map)): ?>
+                    <div class="status-card ongoing" style="background: #ebf8ff; border-left: 5px solid #3182ce; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="color: #3182ce; margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-sync fa-spin"></i> <?= htmlspecialchars($site_assessment_status_map['label']) ?>
+                        </h3>
+                        <p style="color: #2d3748; margin: 0 0 15px 0;"><?= htmlspecialchars($site_assessment_status_map['message']) ?></p>
+                        
+                        <?php if (!empty($site_assessment_status_map['show_accept_quotation'])): ?>
+                            <button onclick="acceptQuotation(<?= $order->OrderID ?>)" 
+                                    style="background: #3182ce; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: all 0.2s;"
+                                    onmouseover="this.style.background='#2c5282'" 
+                                    onmouseout="this.style.background='#3182ce'">
+                                Accept Quotation
+                            </button>
+                        <?php elseif (!empty($site_assessment_status_map['show_pay_now'])): ?>
+                            <button onclick="window.location.href='<?= base_url('payment?order=' . $order->OrderID) ?>'" 
+                                    style="background: #3182ce; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: all 0.2s;"
+                                    onmouseover="this.style.background='#2c5282'" 
+                                    onmouseout="this.style.background='#3182ce'">
+                                Pay Now
+                            </button>
+                        <?php elseif (!empty($site_assessment_status_map['show_pay_final'])): ?>
+                            <button onclick="window.location.href='<?= base_url('payment?order=' . $order->OrderID . '&type=final') ?>'" 
+                                    style="background: #3182ce; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px; transition: all 0.2s;"
+                                    onmouseover="this.style.background='#2c5282'" 
+                                    onmouseout="this.style.background='#3182ce'">
+                                Pay Final Payment
+                            </button>
+                        <?php endif; ?>
                     </div>
-                </div>
+                <?php else: ?>
+                    <div class="status-card ongoing" style="background: #ebf8ff; border-left: 5px solid #3182ce; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                        <h3 style="color: #3182ce; margin: 0 0 10px 0; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-sync fa-spin"></i> Your Order is In Progress
+                        </h3>
+                        <p style="color: #2d3748; margin: 0 0 15px 0;">We are working on your order. You can view the real-time status updates in the timeline below.</p>
+                        <div style="background: rgba(255,255,255,0.5); padding: 12px 15px; border-radius: 6px; border: 1px dashed #bee3f8;">
+                            <span style="color: #2b6cb0;"><strong>Current Step:</strong> 
+                                <?php
+                                if ($progress['completed'] === 'in_progress') echo "Final Delivery & Completion";
+                                elseif ($progress['installed'] === 'in_progress') echo "Installation in progress";
+                                elseif ($progress['in_fabrication'] === 'in_progress') echo "Fabricating your custom products";
+                                elseif ($progress['ocular_visit'] === 'in_progress') echo "Preparing for ocular visit";
+                                else echo "Order validation & payment verification";
+                                ?>
+                            </span>
+                        </div>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
 
@@ -91,45 +246,82 @@
         <!-- Order Progress -->
         <?php if (!$is_cancelled): ?>
         <?php
-        // Calculate progress percentage (include in-progress steps so line connects)
-        // The line should extend to the highest completed or in-progress step
-        $progress_percent = 0;
-        if ($progress['order_placed'] === 'completed' || $progress['order_placed'] === 'in_progress') {
-            $progress_percent = 0;
-        }
-        // Extend line to in-progress or completed steps
-        if ($progress['ocular_visit'] === 'completed' || $progress['ocular_visit'] === 'in_progress') {
-            $progress_percent = 25;
-        }
-        if ($progress['in_fabrication'] === 'completed' || $progress['in_fabrication'] === 'in_progress') {
-            $progress_percent = 50;
-        }
-        if ($progress['installed'] === 'completed' || $progress['installed'] === 'in_progress') {
-            $progress_percent = 75;
-        }
-        if ($progress['completed'] === 'completed' || $progress['completed'] === 'in_progress') {
-            $progress_percent = 100;
+        // Determine if this is a Direct Order (not Site Assessment)
+        $is_direct_order = !$is_site_assessment;
+        
+        // For Direct Orders: Calculate payment status
+        $payment_status = strtolower(trim($order->PaymentStatus ?? 'pending'));
+        $is_paid = ($payment_status === 'paid' || $payment_status === 'partial');
+        $payment_date = null;
+        if (isset($payment) && $payment->Payment_Date) {
+            $payment_date = $payment->Payment_Date;
+        } elseif (isset($payment) && $payment->PaymentDate) {
+            $payment_date = $payment->PaymentDate;
         }
         
-        // Ensure line extends fully to in-progress steps by checking if previous steps are completed
-        // If a step is in progress, all previous steps should be completed for proper line display
-        if ($progress['installed'] === 'in_progress') {
-            // If installed is in progress, fabrication and ocular should be completed
-            if ($progress['in_fabrication'] !== 'completed') $progress['in_fabrication'] = 'completed';
-            if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
-            $progress_percent = 75; // Ensure line extends to installed step
-        }
-        if ($progress['completed'] === 'in_progress') {
-            // If completed is in progress, all previous should be completed
-            if ($progress['installed'] !== 'completed') $progress['installed'] = 'completed';
-            if ($progress['in_fabrication'] !== 'completed') $progress['in_fabrication'] = 'completed';
-            if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
-            $progress_percent = 100; // Ensure line extends to completed step
-        }
-        if ($progress['in_fabrication'] === 'in_progress') {
-            // If fabrication is in progress, ocular should be completed
-            if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
-            $progress_percent = 50; // Ensure line extends to fabrication step
+        if ($is_direct_order) {
+            // Direct Order: Order Placed → Paid → In Fabrication → Completed (4 steps)
+            $progress_percent = 0;
+            if ($progress['order_placed'] === 'completed' || $progress['order_placed'] === 'in_progress') {
+                $progress_percent = 0;
+            }
+            // Paid step (33%)
+            if ($is_paid) {
+                $progress_percent = 33;
+            }
+            // In Fabrication step (66%)
+            if ($progress['in_fabrication'] === 'completed' || $progress['in_fabrication'] === 'in_progress') {
+                $progress_percent = 66;
+            }
+            // Completed step (100%)
+            if ($progress['completed'] === 'completed' || $progress['completed'] === 'in_progress') {
+                $progress_percent = 100;
+            }
+            
+            // Ensure line extends fully to in-progress steps
+            if ($progress['completed'] === 'in_progress') {
+                if ($progress['in_fabrication'] !== 'completed') $progress['in_fabrication'] = 'completed';
+                $progress_percent = 100;
+            }
+            if ($progress['in_fabrication'] === 'in_progress') {
+                if (!$is_paid) $is_paid = true; // Mark as paid if fabrication started
+                $progress_percent = 66;
+            }
+        } else {
+            // Site Assessment Order: Booking Submitted → Ocular Visit → In Fabrication → Installed → Completed (5 steps)
+            $progress_percent = 0;
+            if ($progress['order_placed'] === 'completed' || $progress['order_placed'] === 'in_progress') {
+                $progress_percent = 0;
+            }
+            if ($progress['ocular_visit'] === 'completed' || $progress['ocular_visit'] === 'in_progress') {
+                $progress_percent = 25;
+            }
+            if ($progress['in_fabrication'] === 'completed' || $progress['in_fabrication'] === 'in_progress') {
+                $progress_percent = 50;
+            }
+            if ($progress['installed'] === 'completed' || $progress['installed'] === 'in_progress') {
+                $progress_percent = 75;
+            }
+            if ($progress['completed'] === 'completed' || $progress['completed'] === 'in_progress') {
+                $progress_percent = 100;
+            }
+            
+            // Ensure line extends fully to in-progress steps
+            if ($progress['installed'] === 'in_progress') {
+                if ($progress['in_fabrication'] !== 'completed') $progress['in_fabrication'] = 'completed';
+                if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
+                $progress_percent = 75;
+            }
+            if ($progress['completed'] === 'in_progress') {
+                if ($progress['installed'] !== 'completed') $progress['installed'] = 'completed';
+                if ($progress['in_fabrication'] !== 'completed') $progress['in_fabrication'] = 'completed';
+                if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
+                $progress_percent = 100;
+            }
+            if ($progress['in_fabrication'] === 'in_progress') {
+                if ($progress['ocular_visit'] !== 'completed') $progress['ocular_visit'] = 'completed';
+                $progress_percent = 50;
+            }
         }
         
         // Check if any step is in progress (for progress bar color)
@@ -151,9 +343,10 @@
         }
         ?>
         <section class="order-progress <?= $has_in_progress ? 'has-in-progress' : '' ?>" style="--progress-width: <?= $progress_percent ?>%;">
+            <!-- Step 1: Order Placed / Booking Submitted -->
             <div class="step <?= get_step_class($progress['order_placed']) ?>">
                 <img src="<?php echo base_url('assets/images/img-page/checkout_track.svg'); ?>" class="order-icon" alt="checkout">
-                <p>Order Placed</p>
+                <p><?= $is_site_assessment ? 'Booking Submitted' : 'Order Placed' ?></p>
                 <?php if ($progress['order_placed'] === 'completed'): ?>
                     <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
                     <small><?= date('M j, Y', strtotime($order->OrderDate)) ?><br><?= date('g:i A', strtotime($order->OrderDate)) ?></small>
@@ -165,62 +358,121 @@
                     <small>Pending</small>
                 <?php endif; ?>
             </div>
-            <div class="step <?= get_step_class($progress['ocular_visit']) ?>">
-                <img src="<?php echo base_url('assets/images/img-page/ocular_track.svg'); ?>" class="order-icon" alt="ocular visit">
-                <p>Ocular Visit</p>
-                <?php if ($progress['ocular_visit'] === 'completed'): ?>
-                    <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
-                    <small><?= date('M j, Y', strtotime($order->OcularDate)) ?><br>Completed</small>
-                <?php elseif ($progress['ocular_visit'] === 'in_progress'): ?>
-                    <span class="icon"></span>
-                    <small><?= date('M j, Y', strtotime($order->OcularDate)) ?><br>In Progress</small>
-                <?php else: ?>
-                    <span class="icon"></span>
-                    <small>Expected<br><?= date('M j, Y', strtotime($order->OcularDate)) ?></small>
-                <?php endif; ?>
-            </div>
-            <div class="step <?= get_step_class($progress['in_fabrication']) ?>">
-                <img src="<?php echo base_url('assets/images/img-page/package_track.svg'); ?>" class="order-icon" alt="fabrication">
-                <p>In Fabrication</p>
-                <?php if ($progress['in_fabrication'] === 'completed'): ?>
-                    <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
-                    <small><?= date('M j, Y', strtotime($order->FabricationDate)) ?><br>Completed</small>
-                <?php elseif ($progress['in_fabrication'] === 'in_progress'): ?>
-                    <span class="icon"></span>
-                    <small><?= date('M j, Y', strtotime($order->FabricationDate)) ?><br>In Progress</small>
-                <?php else: ?>
-                    <span class="icon"></span>
-                    <small>Expected<br><?= date('M j, Y', strtotime($order->FabricationDate)) ?></small>
-                <?php endif; ?>
-            </div>
-            <div class="step <?= get_step_class($progress['installed']) ?>">
-                <img src="<?php echo base_url('assets/images/img-page/window_track.svg'); ?>" class="order-icon" alt="Installation">
-                <p>Installed</p>
-                <?php if ($progress['installed'] === 'completed'): ?>
-                    <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
-                    <small><?= date('M j, Y', strtotime($order->InstallationDate)) ?><br>Completed</small>
-                <?php elseif ($progress['installed'] === 'in_progress'): ?>
-                    <span class="icon"></span>
-                    <small><?= date('M j, Y', strtotime($order->InstallationDate)) ?><br>In Progress</small>
-                <?php else: ?>
-                    <span class="icon"></span>
-                    <small>Expected<br><?= date('M j, Y', strtotime($order->InstallationDate)) ?></small>
-                <?php endif; ?>
-            </div>
-            <div class="step <?= get_step_class($progress['completed']) ?>">
-                <img src="<?php echo base_url('assets/images/img-page/delivered_track.svg'); ?>" class="order-icon" alt="delivery">
-                <p>Completed</p>
-                <?php if ($progress['completed'] === 'completed'): ?>
-                    <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
-                    <small><?= date('M j, Y', strtotime($order->EstimatedDelivery)) ?><br>Completed</small>
-                <?php elseif ($progress['completed'] === 'in_progress'): ?>
-                    <span class="icon"></span>
-                    <small><?= date('M j, Y', strtotime($order->EstimatedDelivery)) ?><br>In Progress</small>
-                <?php else: ?>
-                    <span class="icon"></span>
-                    <small>Expected<br><?= date('M j, Y', strtotime($order->EstimatedDelivery)) ?></small>
-                <?php endif; ?>
-            </div>
+            
+            <?php if ($is_direct_order): ?>
+                <!-- Direct Order: Step 2 - Paid -->
+                <div class="step <?= $is_paid ? 'completed' : 'pending' ?>">
+                    <img src="<?php echo base_url('assets/images/img-page/payment_track.svg'); ?>" class="order-icon" alt="payment" onerror="this.src='<?php echo base_url('assets/images/img-page/checkout_track.svg'); ?>'">
+                    <p>Paid</p>
+                    <?php if ($is_paid): ?>
+                        <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
+                        <?php if ($payment_date): ?>
+                            <small><?= date('M j, Y', strtotime($payment_date)) ?><br>Completed</small>
+                        <?php else: ?>
+                            <small>Completed</small>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <span class="icon"></span>
+                        <small>Pending</small>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- Direct Order: Step 3 - In Fabrication -->
+                <div class="step <?= get_step_class($progress['in_fabrication']) ?>">
+                    <img src="<?php echo base_url('assets/images/img-page/package_track.svg'); ?>" class="order-icon" alt="fabrication">
+                    <p>In Fabrication</p>
+                    <?php if ($progress['in_fabrication'] === 'completed'): ?>
+                        <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
+                        <small><?= date('M j, Y', strtotime($order->FabricationDate)) ?><br>Completed</small>
+                    <?php elseif ($progress['in_fabrication'] === 'in_progress'): ?>
+                        <span class="icon"></span>
+                        <small><?= date('M j, Y', strtotime($order->FabricationDate)) ?><br>In Progress</small>
+                    <?php else: ?>
+                        <span class="icon"></span>
+                        <small>Expected<br><?= date('M j, Y', strtotime($order->FabricationDate)) ?></small>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- Direct Order: Step 4 - Completed -->
+                <div class="step <?= get_step_class($progress['completed']) ?>">
+                    <img src="<?php echo base_url('assets/images/img-page/delivered_track.svg'); ?>" class="order-icon" alt="delivery">
+                    <p>Completed</p>
+                    <?php if ($progress['completed'] === 'completed'): ?>
+                        <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
+                        <small><?= date('M j, Y', strtotime($order->EstimatedDelivery)) ?><br>Completed</small>
+                    <?php elseif ($progress['completed'] === 'in_progress'): ?>
+                        <span class="icon"></span>
+                        <small><?= date('M j, Y', strtotime($order->EstimatedDelivery)) ?><br>In Progress</small>
+                    <?php else: ?>
+                        <span class="icon"></span>
+                        <small>Expected<br><?= date('M j, Y', strtotime($order->EstimatedDelivery)) ?></small>
+                    <?php endif; ?>
+                </div>
+            <?php else: ?>
+                <!-- Site Assessment Order: Step 2 - Ocular Visit -->
+                <div class="step <?= get_step_class($progress['ocular_visit']) ?>">
+                    <img src="<?php echo base_url('assets/images/img-page/ocular_track.svg'); ?>" class="order-icon" alt="ocular visit">
+                    <p>Ocular Visit</p>
+                    <?php if ($progress['ocular_visit'] === 'completed'): ?>
+                        <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
+                        <small><?= date('M j, Y', strtotime($order->OcularDate)) ?><br>Completed</small>
+                    <?php elseif ($progress['ocular_visit'] === 'in_progress'): ?>
+                        <span class="icon"></span>
+                        <small><?= date('M j, Y', strtotime($order->OcularDate)) ?><br>In Progress</small>
+                    <?php else: ?>
+                        <span class="icon"></span>
+                        <small>Expected<br><?= date('M j, Y', strtotime($order->OcularDate)) ?></small>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- Site Assessment Order: Step 3 - In Fabrication -->
+                <div class="step <?= get_step_class($progress['in_fabrication']) ?>">
+                    <img src="<?php echo base_url('assets/images/img-page/package_track.svg'); ?>" class="order-icon" alt="fabrication">
+                    <p>In Fabrication</p>
+                    <?php if ($progress['in_fabrication'] === 'completed'): ?>
+                        <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
+                        <small><?= date('M j, Y', strtotime($order->FabricationDate)) ?><br>Completed</small>
+                    <?php elseif ($progress['in_fabrication'] === 'in_progress'): ?>
+                        <span class="icon"></span>
+                        <small><?= date('M j, Y', strtotime($order->FabricationDate)) ?><br>In Progress</small>
+                    <?php else: ?>
+                        <span class="icon"></span>
+                        <small>Expected<br><?= date('M j, Y', strtotime($order->FabricationDate)) ?></small>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- Site Assessment Order: Step 4 - Installed -->
+                <div class="step <?= get_step_class($progress['installed']) ?>">
+                    <img src="<?php echo base_url('assets/images/img-page/window_track.svg'); ?>" class="order-icon" alt="Installation">
+                    <p>Installed</p>
+                    <?php if ($progress['installed'] === 'completed'): ?>
+                        <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
+                        <small><?= date('M j, Y', strtotime($order->InstallationDate)) ?><br>Completed</small>
+                    <?php elseif ($progress['installed'] === 'in_progress'): ?>
+                        <span class="icon"></span>
+                        <small><?= date('M j, Y', strtotime($order->InstallationDate)) ?><br>In Progress</small>
+                    <?php else: ?>
+                        <span class="icon"></span>
+                        <small>Expected<br><?= date('M j, Y', strtotime($order->InstallationDate)) ?></small>
+                    <?php endif; ?>
+                </div>
+                
+                <!-- Site Assessment Order: Step 5 - Completed -->
+                <div class="step <?= get_step_class($progress['completed']) ?>">
+                    <img src="<?php echo base_url('assets/images/img-page/delivered_track.svg'); ?>" class="order-icon" alt="delivery">
+                    <p>Completed</p>
+                    <?php if ($progress['completed'] === 'completed'): ?>
+                        <span class="icon"><img src="<?php echo base_url('assets/images/img-page/check-track.png'); ?>" alt="check"></span>
+                        <small><?= date('M j, Y', strtotime($order->EstimatedDelivery)) ?><br>Completed</small>
+                    <?php elseif ($progress['completed'] === 'in_progress'): ?>
+                        <span class="icon"></span>
+                        <small><?= date('M j, Y', strtotime($order->EstimatedDelivery)) ?><br>In Progress</small>
+                    <?php else: ?>
+                        <span class="icon"></span>
+                        <small>Expected<br><?= date('M j, Y', strtotime($order->EstimatedDelivery)) ?></small>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </section>
         <?php endif; ?>
 
@@ -449,6 +701,8 @@ document.addEventListener('keydown', function(e) {
 // Real-time order progress polling
 (function() {
     const orderId = <?= $order ? $order->OrderID : 'null' ?>;
+    const isDirectOrder = <?= isset($is_direct_order) && $is_direct_order ? 'true' : 'false' ?>;
+    const isSiteAssessment = <?= isset($is_site_assessment) && $is_site_assessment ? 'true' : 'false' ?>;
     if (!orderId) return;
     
     let lastUpdateTime = Date.now();
@@ -470,42 +724,71 @@ document.addEventListener('keydown', function(e) {
     }
     
     function updateProgressUI(data) {
-        const { progress, progress_percent, dates, order_status, has_in_progress } = data;
+        const { progress, progress_percent, dates, order_status, has_in_progress, payment_status } = data;
+        
+        // Check if payment is completed for Direct Orders
+        const isPaid = payment_status === 'paid' || payment_status === 'partial';
         
         // Ensure previous steps are marked as completed when a later step is in progress
         // This ensures the line connects properly
-        if (progress.installed === 'in_progress') {
-            // If installed is in progress, fabrication and ocular should be completed
-            if (progress.in_fabrication !== 'completed') progress.in_fabrication = 'completed';
-            if (progress.ocular_visit !== 'completed') progress.ocular_visit = 'completed';
-        }
-        if (progress.completed === 'in_progress') {
-            // If completed is in progress, all previous should be completed
-            if (progress.installed !== 'completed') progress.installed = 'completed';
-            if (progress.in_fabrication !== 'completed') progress.in_fabrication = 'completed';
-            if (progress.ocular_visit !== 'completed') progress.ocular_visit = 'completed';
-        }
-        if (progress.in_fabrication === 'in_progress') {
-            // If fabrication is in progress, ocular should be completed
-            if (progress.ocular_visit !== 'completed') progress.ocular_visit = 'completed';
+        if (isDirectOrder) {
+            // Direct Order: Order Placed → Paid → In Fabrication → Completed
+            if (progress.completed === 'in_progress') {
+                if (progress.in_fabrication !== 'completed') progress.in_fabrication = 'completed';
+            }
+            if (progress.in_fabrication === 'in_progress') {
+                // If fabrication is in progress, payment should be completed
+                // This is handled by payment_status check
+            }
+        } else {
+            // Site Assessment Order: Booking Submitted → Ocular Visit → In Fabrication → Installed → Completed
+            if (progress.installed === 'in_progress') {
+                if (progress.in_fabrication !== 'completed') progress.in_fabrication = 'completed';
+                if (progress.ocular_visit !== 'completed') progress.ocular_visit = 'completed';
+            }
+            if (progress.completed === 'in_progress') {
+                if (progress.installed !== 'completed') progress.installed = 'completed';
+                if (progress.in_fabrication !== 'completed') progress.in_fabrication = 'completed';
+                if (progress.ocular_visit !== 'completed') progress.ocular_visit = 'completed';
+            }
+            if (progress.in_fabrication === 'in_progress') {
+                if (progress.ocular_visit !== 'completed') progress.ocular_visit = 'completed';
+            }
         }
         
         // Recalculate progress percentage to include in-progress steps (so line connects)
         let calculatedProgress = 0;
-        if (progress.order_placed === 'completed' || progress.order_placed === 'in_progress') {
-            calculatedProgress = 0;
-        }
-        if (progress.ocular_visit === 'completed' || progress.ocular_visit === 'in_progress') {
-            calculatedProgress = 25;
-        }
-        if (progress.in_fabrication === 'completed' || progress.in_fabrication === 'in_progress') {
-            calculatedProgress = 50;
-        }
-        if (progress.installed === 'completed' || progress.installed === 'in_progress') {
-            calculatedProgress = 75;
-        }
-        if (progress.completed === 'completed' || progress.completed === 'in_progress') {
-            calculatedProgress = 100;
+        if (isDirectOrder) {
+            // Direct Order: 4 steps (0%, 33%, 66%, 100%)
+            if (progress.order_placed === 'completed' || progress.order_placed === 'in_progress') {
+                calculatedProgress = 0;
+            }
+            if (isPaid) {
+                calculatedProgress = 33;
+            }
+            if (progress.in_fabrication === 'completed' || progress.in_fabrication === 'in_progress') {
+                calculatedProgress = 66;
+            }
+            if (progress.completed === 'completed' || progress.completed === 'in_progress') {
+                calculatedProgress = 100;
+            }
+        } else {
+            // Site Assessment Order: 5 steps (0%, 25%, 50%, 75%, 100%)
+            if (progress.order_placed === 'completed' || progress.order_placed === 'in_progress') {
+                calculatedProgress = 0;
+            }
+            if (progress.ocular_visit === 'completed' || progress.ocular_visit === 'in_progress') {
+                calculatedProgress = 25;
+            }
+            if (progress.in_fabrication === 'completed' || progress.in_fabrication === 'in_progress') {
+                calculatedProgress = 50;
+            }
+            if (progress.installed === 'completed' || progress.installed === 'in_progress') {
+                calculatedProgress = 75;
+            }
+            if (progress.completed === 'completed' || progress.completed === 'in_progress') {
+                calculatedProgress = 100;
+            }
         }
         
         // Update progress bar width
@@ -521,25 +804,38 @@ document.addEventListener('keydown', function(e) {
         }
         
         // Update each step (pass status string: 'pending', 'in_progress', or 'completed')
-        updateStep('order_placed', progress.order_placed, data.order_date, data.order_time);
-        updateStep('ocular_visit', progress.ocular_visit, dates.ocular_date);
-        updateStep('in_fabrication', progress.in_fabrication, dates.fabrication_date);
-        updateStep('installed', progress.installed, dates.installation_date);
-        updateStep('completed', progress.completed, dates.estimated_delivery);
+        if (isDirectOrder) {
+            // Direct Order: Order Placed (0), Paid (1), In Fabrication (2), Completed (3)
+            updateStep('order_placed', progress.order_placed, data.order_date, data.order_time, 0);
+            updateStep('paid', isPaid ? 'completed' : 'pending', dates.payment_date, null, 1);
+            updateStep('in_fabrication', progress.in_fabrication, dates.fabrication_date, null, 2);
+            updateStep('completed', progress.completed, dates.estimated_delivery, null, 3);
+        } else {
+            // Site Assessment Order: Booking Submitted (0), Ocular Visit (1), In Fabrication (2), Installed (3), Completed (4)
+            updateStep('order_placed', progress.order_placed, data.order_date, data.order_time, 0);
+            updateStep('ocular_visit', progress.ocular_visit, dates.ocular_date, null, 1);
+            updateStep('in_fabrication', progress.in_fabrication, dates.fabrication_date, null, 2);
+            updateStep('installed', progress.installed, dates.installation_date, null, 3);
+            updateStep('completed', progress.completed, dates.estimated_delivery, null, 4);
+        }
     }
     
-    function updateStep(stepName, status, date, time = null) {
-        // Map step names to step indices (0-based)
-        const stepMap = {
-            'order_placed': 0,
-            'ocular_visit': 1,
-            'in_fabrication': 2,
-            'installed': 3,
-            'completed': 4
-        };
+    function updateStep(stepName, status, date, time = null, stepIndex = null) {
+        // If stepIndex is provided, use it directly; otherwise, map step names to indices
+        if (stepIndex === null) {
+            // Legacy mapping for backward compatibility (for Site Assessment Orders)
+            const stepMap = {
+                'order_placed': 0,
+                'ocular_visit': 1,
+                'in_fabrication': 2,
+                'installed': 3,
+                'completed': 4,
+                'paid': 1 // For Direct Orders
+            };
+            stepIndex = stepMap[stepName];
+        }
         
-        const stepIndex = stepMap[stepName];
-        if (stepIndex === undefined) return;
+        if (stepIndex === undefined || stepIndex === null) return;
         
         const allSteps = document.querySelectorAll('.order-progress .step');
         const stepElement = allSteps[stepIndex];
@@ -616,3 +912,34 @@ document.addEventListener('keydown', function(e) {
 </script>
 
 <script src="<?php echo base_url('js/order-status.js'); ?>"></script>
+
+<script>
+    // Accept Quotation function for Site Assessment orders
+    function acceptQuotation(orderId) {
+        if (!confirm('Are you sure you want to accept this quotation? You will be redirected to the payment page.')) {
+            return;
+        }
+        
+        // AJAX call to accept quotation
+        fetch('<?= base_url('accept-quotation') ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'order_id=' + orderId
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Quotation accepted successfully! Redirecting to payment page...');
+                window.location.href = '<?= base_url('payment') ?>?order=' + orderId;
+            } else {
+                alert('Error: ' + (data.message || 'Failed to accept quotation. Please try again.'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred. Please try again.');
+        });
+    }
+</script>
