@@ -1,6 +1,6 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/2DModeling_styles.css'); ?>">
 
-<script src="https://unpkg.com/konva@9.3.6/konva.min.js" onerror="console.error('Failed to load Konva.js from CDN');"></script>
+<script src="<?php echo base_url('assets/js/konva.min.js'); ?>"></script>
 
 <body data-customer-id="<?= $this->session->userdata('customer_id') ?: '' ?>">
 

@@ -788,7 +788,7 @@
 </div>
 
 
-<script src="https://unpkg.com/konva@9.3.6/konva.min.js"></script>
+<script src="<?php echo base_url('assets/js/konva.min.js'); ?>"></script>
 <script>
   const base_url = "<?= base_url(); ?>";
 </script>

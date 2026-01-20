@@ -1213,18 +1213,19 @@ public function booking()
         // Get default sales rep
         $sales_rep_id = $this->Order_model->get_default_sales_rep();
 
-        // Prepare order data
+        // Prepare order data - Set status to Pending Payment (will be updated after PayMongo verification)
         $order_data = [
             'Customer_ID' => $customer_id,
             'SalesRep_ID' => $sales_rep_id,
             'TotalAmount' => $total_amount,
-            'Status' => 'Pending',
+            'Status' => 'Pending Payment',
             'PaymentStatus' => 'Pending',
             'DeliveryAddress' => $shipping_address,
-            'SpecialInstructions' => $special_instructions_text
+            'SpecialInstructions' => $special_instructions_text,
+            'PaymentMethod' => ucfirst($payment_method) // Store selected payment method
         ];
 
-        // Create order
+        // Create order (before payment)
         $order_id = $this->Order_model->create_order($order_data);
 
         if (!$order_id) {
@@ -1238,26 +1239,18 @@ public function booking()
         // Save order customizations from cart items
         $this->Order_model->save_order_customizations($order_id, $cart_items);
 
-        // Store order info in session for payment/complete page
-        $this->session->set_userdata([
-            'last_order_id' => $order_id,
-            'last_order_total' => $total_amount,
-            'last_payment_method' => $payment_method
-        ]);
+        // DO NOT clear cart yet - wait until payment is successful
+        // Cart will be cleared after payment verification in attach_payment_method() or payment_complete()
+        // This allows users to refresh the payment page without losing their items
 
-        // Clear cart after successful order
-        $this->Cart_model->clear_cart($customer_id);
-
-        // Determine redirect URL based on payment method
-        $redirect_url = ($payment_method === 'E-Wallet') 
-            ? base_url('paying') 
-            : base_url('complete');
-
+        // Return order_id to frontend - frontend will then create payment intent
         echo json_encode([
             'status' => 'success',
-            'message' => 'Order placed successfully!',
+            'message' => 'Order created. Proceeding to payment...',
             'order_id' => $order_id,
-            'redirect_url' => $redirect_url
+            'payment_method' => $payment_method,
+            'total_amount' => $total_amount,
+            'next_step' => 'create_payment_intent' // Indicates frontend should create payment intent
         ]);
     }
 
@@ -1423,6 +1416,265 @@ public function booking()
         ]);
     }
 
+    /**
+     * Create PayMongo payment intent for Direct Order
+     * STEP 2 - Backend Creates Payment Intent
+     */
+    public function create_payment_intent()
+    {
+        header('Content-Type: application/json');
+        
+        $customer_id = $this->session->userdata('customer_id');
+        if (!$customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Please log in to proceed with payment.']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        $payment_method = $this->input->post('payment_method'); // card, gcash, maya
+        
+        if (!$order_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Order ID is required.']);
+            return;
+        }
+        
+        // Load PayMongo library
+        $this->load->library('paymongo');
+        
+        // Get order details
+        $this->load->model('Order_model');
+        $order = $this->Order_model->get_order($order_id);
+        
+        if (!$order || $order->Customer_ID != $customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Order not found or access denied.']);
+            return;
+        }
+        
+        // Only allow payment for Direct Orders (not Site Assessment)
+        $order_type = strtolower(trim($order->OrderType ?? ''));
+        if ($order_type === 'site-assessed' || $order_type === 'site assessment') {
+            echo json_encode(['status' => 'error', 'message' => 'Site Assessment orders use a different payment flow.']);
+            return;
+        }
+        
+        // Map payment method
+        $paymongo_method = 'card';
+        if ($payment_method === 'gcash' || $payment_method === 'ewallet') {
+            $paymongo_method = 'gcash';
+        } elseif ($payment_method === 'maya') {
+            $paymongo_method = 'maya';
+        }
+        
+        // Create payment intent
+        $order_number = $order->OrderNumber ?? 'GI' . str_pad($order_id, 3, '0', STR_PAD_LEFT);
+        $description = 'Order #' . $order_number;
+        
+        $result = $this->paymongo->create_payment_intent(
+            $order->TotalAmount,
+            $paymongo_method,
+            $description,
+            ['order_id' => $order_id]
+        );
+        
+        if (!$result['success']) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Failed to initialize payment: ' . ($result['error'] ?? 'Unknown error')
+            ]);
+            return;
+        }
+        
+        // Save payment intent to database (using Transaction_ID field to store PaymentIntentID)
+        $this->load->database();
+        $payment_data = [
+            'OrderID' => $order_id,
+            'PaymentMethod' => ucfirst($payment_method),
+            'Amount' => $order->TotalAmount,
+            'Status' => 'Pending',
+            'Payment_Date' => date('Y-m-d H:i:s'),
+            'Transaction_ID' => $result['payment_intent_id'] // Store PaymentIntentID in Transaction_ID field
+        ];
+        
+        // Check if payment record exists, update or create
+        $existing_payment = $this->db->where('OrderID', $order_id)->get('payment')->row();
+        if ($existing_payment) {
+            $this->db->where('OrderID', $order_id)->update('payment', $payment_data);
+        } else {
+            $this->db->insert('payment', $payment_data);
+        }
+        
+        echo json_encode([
+            'status' => 'success',
+            'payment_intent_id' => $result['payment_intent_id'],
+            'client_key' => $result['client_key'],
+            'public_key' => $this->paymongo->get_public_key()
+        ]);
+    }
+    
+    /**
+     * Attach payment method to payment intent
+     * STEP 4 - Backend Attaches Payment Method
+     */
+    public function attach_payment_method()
+    {
+        header('Content-Type: application/json');
+        
+        $customer_id = $this->session->userdata('customer_id');
+        if (!$customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Please log in.']);
+            return;
+        }
+        
+        $payment_intent_id = $this->input->post('payment_intent_id');
+        $payment_method_id = $this->input->post('payment_method_id');
+        $order_id = $this->input->post('order_id');
+        
+        if (!$payment_intent_id || !$payment_method_id || !$order_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing required parameters.']);
+            return;
+        }
+        
+        // Verify order belongs to customer
+        $this->load->model('Order_model');
+        $order = $this->Order_model->get_order($order_id);
+        
+        if (!$order || $order->Customer_ID != $customer_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Order not found or access denied.']);
+            return;
+        }
+        
+        // Load PayMongo library
+        $this->load->library('paymongo');
+        
+        // Build return URL for e-wallet redirects
+        $return_url = base_url('payment/complete?order_id=' . $order_id);
+        
+        // Attach payment method
+        $result = $this->paymongo->attach_payment_method($payment_intent_id, $payment_method_id, $return_url);
+        
+        if (!$result['success']) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Failed to process payment: ' . ($result['error'] ?? 'Unknown error')
+            ]);
+            return;
+        }
+        
+        // Check payment status
+        if ($result['status'] === 'succeeded') {
+            // Payment succeeded immediately (card payment)
+            $this->db->where('OrderID', $order_id)->update('payment', [
+                'Status' => 'Paid',
+                'Payment_Date' => date('Y-m-d H:i:s')
+            ]);
+            
+            // Update order status
+            $this->db->where('OrderID', $order_id)->update('`order`', [
+                'PaymentStatus' => 'Paid',
+                'Status' => 'Pending Payment' // Will be changed to "Paid" after admin verification
+            ]);
+            
+            // Clear cart only after payment is successful
+            $this->load->model('Cart_model');
+            $this->Cart_model->clear_cart($customer_id);
+            
+            echo json_encode([
+                'status' => 'success',
+                'payment_status' => 'succeeded',
+                'message' => 'Payment successful!',
+                'redirect_url' => base_url('payment/complete?order_id=' . $order_id . '&payment_intent_id=' . $payment_intent_id)
+            ]);
+        } elseif ($result['status'] === 'awaiting_next_action' && !empty($result['next_action'])) {
+            // E-wallet payment - redirect to PayMongo
+            echo json_encode([
+                'status' => 'success',
+                'payment_status' => 'awaiting_next_action',
+                'redirect_url' => $result['next_action']['redirect']['url'],
+                'message' => 'Redirecting to payment...'
+            ]);
+        } else {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Payment processing failed. Please try again.'
+            ]);
+        }
+    }
+    
+    /**
+     * Handle payment completion (return from PayMongo)
+     * STEP 6 - Return From PayMongo
+     */
+    public function payment_complete()
+    {
+        $order_id = $this->input->get('order_id');
+        $payment_intent_id = $this->input->get('payment_intent_id');
+        
+        if (!$order_id) {
+            show_error('Order ID is required.');
+            return;
+        }
+        
+        // Load PayMongo library
+        $this->load->library('paymongo');
+        
+        // Get payment intent ID from URL or database
+        if (!$payment_intent_id) {
+            $this->load->database();
+            $payment = $this->db->where('OrderID', $order_id)->get('payment')->row();
+            if ($payment && !empty($payment->Transaction_ID)) {
+                $payment_intent_id = $payment->Transaction_ID; // Transaction_ID stores PaymentIntentID
+            }
+        }
+        
+        if ($payment_intent_id) {
+            // Verify payment intent status
+            $result = $this->paymongo->retrieve_payment_intent($payment_intent_id);
+            
+            if ($result['success'] && $result['status'] === 'succeeded') {
+                // Payment verified - update database
+                $this->load->database();
+                $this->db->where('OrderID', $order_id)->update('payment', [
+                    'Status' => 'Paid',
+                    'Payment_Date' => date('Y-m-d H:i:s')
+                ]);
+                
+                $this->db->where('OrderID', $order_id)->update('`order`', [
+                    'PaymentStatus' => 'Paid',
+                    'Status' => 'Pending Payment' // Will be verified by admin
+                ]);
+                
+                // Clear cart only after payment is verified
+                $customer_id = $this->session->userdata('customer_id');
+                if ($customer_id) {
+                    $this->load->model('Cart_model');
+                    $this->Cart_model->clear_cart($customer_id);
+                }
+            }
+        }
+        
+        // Load order details for success page
+        $this->load->model('Order_model');
+        $order = $this->Order_model->get_order($order_id);
+        
+        if (!$order) {
+            show_error('Order not found.');
+            return;
+        }
+        
+        // Get payment details
+        $this->load->database();
+        $payment = $this->db->where('OrderID', $order_id)->get('payment')->row();
+        
+        $data['title'] = 'Payment Complete';
+        $data['order'] = $order;
+        $data['payment'] = $payment;
+        $data['payment_status'] = $result['status'] ?? 'unknown';
+        
+        $this->load->view('includes/header', $data);
+        $this->load->view('shop/payment_complete', $data);
+        $this->load->view('includes/footer');
+    }
+    
     /**
      * Accept quotation for Site Assessment order
      * Changes status from "Quotation Available" to "Awaiting Payment"

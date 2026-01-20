@@ -382,15 +382,19 @@
                 <div class="payment-method-content">
                     <h3>Payment Methods</h3>
                     <p>
-                        <img src="<?php echo base_url('assets/images/img-page/dollar.png'); ?>" alt="dollaricon">
-                        <label for="ewallet-radio">E-Wallet</label>
-                        <input type="radio" id="ewallet-radio" name="payment-method"
-                            title="Select E-Wallet as payment method">
+                        <img src="<?php echo base_url('assets/images/img-page/atm-card.png'); ?>" alt="card-icon">
+                        <label for="card-radio">Credit / Debit Card</label>
+                        <input type="radio" id="card-radio" name="payment-method" value="card" title="Select Credit or Debit Card as payment method">
                     </p>
                     <p>
-                        <img src="<?php echo base_url('assets/images/img-page/atm-card.png'); ?>" alt="card-icon">
-                        <label for="card-radio">Credit or Debit Card</label>
-                        <input type="radio" id="card-radio" name="payment-method" title="Select Credit or Debit Card as payment method">
+                        <img src="<?php echo base_url('assets/images/img-page/dollar.png'); ?>" alt="gcash-icon">
+                        <label for="gcash-radio">GCash</label>
+                        <input type="radio" id="gcash-radio" name="payment-method" value="gcash" title="Select GCash as payment method">
+                    </p>
+                    <p>
+                        <img src="<?php echo base_url('assets/images/img-page/dollar.png'); ?>" alt="maya-icon">
+                        <label for="maya-radio">Maya</label>
+                        <input type="radio" id="maya-radio" name="payment-method" value="maya" title="Select Maya as payment method">
                     </p>
                 </div>
 
@@ -1331,14 +1335,11 @@ $(document).ready(function() {
     }
 
     // Clear errors when user interacts with fields
-    document.getElementById('ewallet-radio')?.addEventListener('change', function() {
-        const errorDiv = document.getElementById('payment-method-error');
-        if (errorDiv) errorDiv.style.display = 'none';
-    });
-
-    document.getElementById('card-radio')?.addEventListener('change', function() {
-        const errorDiv = document.getElementById('payment-method-error');
-        if (errorDiv) errorDiv.style.display = 'none';
+    ['card-radio', 'gcash-radio', 'maya-radio'].forEach(id => {
+        document.getElementById(id)?.addEventListener('change', function() {
+            const errorDiv = document.getElementById('payment-method-error');
+            if (errorDiv) errorDiv.style.display = 'none';
+        });
     });
 
     document.getElementById('accept-terms')?.addEventListener('change', function() {
@@ -1422,15 +1423,20 @@ $(document).ready(function() {
         document.getElementById('confirm-address').textContent = fullAddress;
 
         // Payment method
-        const ewallet = document.getElementById("ewallet-radio").checked;
-        const card = document.getElementById("card-radio").checked;
+        const card = document.getElementById("card-radio")?.checked || false;
+        const gcash = document.getElementById("gcash-radio")?.checked || false;
+        const maya = document.getElementById("maya-radio")?.checked || false;
         const paymentBadge = document.getElementById('confirm-payment-method');
-        if (ewallet) {
-            paymentBadge.innerHTML = '<span class="payment-icon">💰</span><span class="payment-text">E-Wallet</span>';
-            paymentBadge.className = 'payment-badge ewallet';
-        } else if (card) {
-            paymentBadge.innerHTML = '<span class="payment-icon">💳</span><span class="payment-text">Credit or Debit Card</span>';
+        
+        if (card) {
+            paymentBadge.innerHTML = '<span class="payment-icon">💳</span><span class="payment-text">Credit / Debit Card</span>';
             paymentBadge.className = 'payment-badge card';
+        } else if (gcash) {
+            paymentBadge.innerHTML = '<span class="payment-icon">💰</span><span class="payment-text">GCash</span>';
+            paymentBadge.className = 'payment-badge ewallet';
+        } else if (maya) {
+            paymentBadge.innerHTML = '<span class="payment-icon">💰</span><span class="payment-text">Maya</span>';
+            paymentBadge.className = 'payment-badge ewallet';
         }
 
         // Preferred Ocular Visit Date removed - only for booking page
@@ -1723,9 +1729,10 @@ $(document).ready(function() {
         }
         
         // Ensure a payment method is selected
-        const ewallet = document.getElementById("ewallet-radio")?.checked;
-        const card = document.getElementById("card-radio")?.checked;
-        if (!ewallet && !card) isValid = false;
+        const card = document.getElementById("card-radio")?.checked || false;
+        const gcash = document.getElementById("gcash-radio")?.checked || false;
+        const maya = document.getElementById("maya-radio")?.checked || false;
+        if (!card && !gcash && !maya) isValid = false;
 
         // Ensure terms are accepted
         const terms = document.getElementById('accept-terms')?.checked;
@@ -1745,7 +1752,7 @@ $(document).ready(function() {
         input.addEventListener('change', validatePlaceOrderButton);
     });
 
-    ['ewallet-radio', 'card-radio', 'accept-terms'].forEach(id => {
+    ['card-radio', 'gcash-radio', 'maya-radio', 'accept-terms'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', validatePlaceOrderButton);
         document.getElementById(id)?.addEventListener('input', validatePlaceOrderButton);
     });
@@ -1755,12 +1762,12 @@ $(document).ready(function() {
 
     // === Place Order button - Show confirmation modal ===
     document.getElementById("placeOrderBtn").addEventListener("click", function () {
-        const ewalletEl = document.getElementById("ewallet-radio");
-        const cardEl = document.getElementById("card-radio");
-        const ewallet = ewalletEl ? ewalletEl.checked : false;
-        const card = cardEl ? cardEl.checked : false;
-
-        console.log('Place Order clicked - E-wallet element:', ewalletEl, 'checked:', ewallet, 'Card element:', cardEl, 'checked:', card);
+        const card = document.getElementById("card-radio")?.checked || false;
+        const gcash = document.getElementById("gcash-radio")?.checked || false;
+        const maya = document.getElementById("maya-radio")?.checked || false;
+        const selectedPaymentMethod = document.querySelector('input[name="payment-method"]:checked')?.value || '';
+        
+        console.log('Place Order clicked - Card:', card, 'GCash:', gcash, 'Maya:', maya, 'Selected:', selectedPaymentMethod);
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
         let firstErrorElement = null;
@@ -1813,10 +1820,9 @@ $(document).ready(function() {
             }
         }
 
-        // Validate payment method (reuse ewalletEl, cardEl, ewallet, card from above)
-        if (!firstErrorElement && !ewallet && !card) {
-            console.log('Payment method validation failed - ewallet checked:', ewallet, 'card checked:', card);
-            console.log('Radio elements exist:', !!ewalletEl, !!cardEl);
+        // Validate payment method
+        if (!firstErrorElement && !card && !gcash && !maya) {
+            console.log('Payment method validation failed - Card:', card, 'GCash:', gcash, 'Maya:', maya);
             const errorDiv = document.getElementById('payment-method-error');
             if (errorDiv) errorDiv.style.display = 'block';
             if (!firstErrorElement) {
@@ -1871,7 +1877,7 @@ $(document).ready(function() {
             }
             
             // Check payment method
-            if (!ewallet && !card) {
+            if (!card && !gcash && !maya) {
                 missingFields.add('Payment Method');
             }
             
@@ -1921,11 +1927,14 @@ $(document).ready(function() {
     confirmOrderBtn.addEventListener("click", function () {
         const btn = this;
         const defaultConfirmLabel = 'Confirm & Place Order';
-        const ewallet = document.getElementById("ewallet-radio").checked;
-        const card = document.getElementById("card-radio").checked;
-
+        // Get selected payment method
+        const card = document.getElementById("card-radio")?.checked || false;
+        const gcash = document.getElementById("gcash-radio")?.checked || false;
+        const maya = document.getElementById("maya-radio")?.checked || false;
+        const selectedPaymentMethod = document.querySelector('input[name="payment-method"]:checked')?.value || '';
+        
         // Debug: Log payment method state
-        console.log('Payment method validation - E-wallet checked:', ewallet, 'Card checked:', card);
+        console.log('Payment method validation - Card:', card, 'GCash:', gcash, 'Maya:', maya, 'Selected:', selectedPaymentMethod);
         const termsCheckbox = document.getElementById('accept-terms');
         const termsAccepted = termsCheckbox ? termsCheckbox.checked : false;
 
@@ -1973,7 +1982,16 @@ $(document).ready(function() {
             }
         }
 
-        // Add payment method, terms, and SELECTED CART IDS
+        // Add payment method to formData
+        if (selectedPaymentMethod) {
+            formData.append('payment_method', selectedPaymentMethod);
+        }
+        
+        // Add terms acceptance
+        formData.append('terms_accepted', termsAccepted ? 'true' : 'false');
+        
+        // Add selected cart IDs
+        formData.append('selected_cart_ids', SELECTED_CART_IDS);
         
         // Disable button and show loading state
         btn.disabled = true;
@@ -2045,9 +2063,16 @@ $(document).ready(function() {
             }
             
             if (data.status === 'success') {
-                // Show success message briefly before redirect
-                console.log('Redirecting to:', data.redirect_url);
-                window.location.href = data.redirect_url;
+                // Check if we need to create payment intent (PayMongo flow)
+                if (data.next_step === 'create_payment_intent') {
+                    // Start PayMongo payment flow
+                    console.log('Starting PayMongo payment flow...');
+                    initiatePayMongoPayment(data.order_id, data.payment_method, data.total_amount, btn, defaultConfirmLabel);
+                } else {
+                    // Old flow - redirect immediately
+                    console.log('Redirecting to:', data.redirect_url);
+                    window.location.href = data.redirect_url;
+                }
             } else {
                 // Show error message with debug info
                 let errorMsg = data.message || 'An error occurred. Please try again.';
@@ -2074,6 +2099,351 @@ $(document).ready(function() {
             closeConfirmModal();
         });
     });
+
+    /**
+     * PayMongo Payment Flow
+     * Handles the complete PayMongo payment process
+     */
+    async function initiatePayMongoPayment(orderId, paymentMethod, totalAmount, btn, defaultConfirmLabel) {
+        try {
+            btn.disabled = true;
+            btn.textContent = 'Initializing payment...';
+            closeConfirmModal();
+            
+            // STEP 1: Create Payment Intent (Backend)
+            console.log('STEP 1: Creating payment intent...');
+            const createIntentResponse = await fetch(BASE_URL + 'payment/create-payment-intent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    order_id: orderId,
+                    payment_method: paymentMethod
+                })
+            });
+            
+            const intentData = await createIntentResponse.json();
+            
+            if (!intentData.status || intentData.status !== 'success') {
+                throw new Error(intentData.message || 'Failed to initialize payment');
+            }
+            
+            const { payment_intent_id, client_key, public_key } = intentData;
+            console.log('Payment Intent Created:', payment_intent_id);
+            
+            // STEP 2 & 3: Create Payment Method (Frontend using PayMongo REST API)
+            let paymentMethodId;
+            
+            if (paymentMethod === 'card') {
+                // Card payment - collect card details
+                console.log('STEP 2: Collecting card details...');
+                
+                const cardDetails = await collectCardDetails();
+                
+                if (!cardDetails) {
+                    throw new Error('Card details collection cancelled');
+                }
+                
+                // Create card payment method using PayMongo REST API (frontend)
+                btn.textContent = 'Processing card payment...';
+                
+                const paymentMethodResponse = await fetch('https://api.paymongo.com/v1/payment_methods', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic ' + btoa(public_key + ':')
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            attributes: {
+                                type: 'card',
+                                details: {
+                                    card_number: cardDetails.cardNumber,
+                                    exp_month: parseInt(cardDetails.expMonth),
+                                    exp_year: parseInt(cardDetails.expYear),
+                                    cvc: cardDetails.cvc
+                                },
+                                billing: {
+                                    name: cardDetails.customerName || 'Customer',
+                                    email: cardDetails.email || '',
+                                    phone: cardDetails.phone || ''
+                                }
+                            }
+                        }
+                    })
+                });
+                
+                const paymentMethodData = await paymentMethodResponse.json();
+                
+                if (paymentMethodResponse.ok && paymentMethodData.data && paymentMethodData.data.id) {
+                    paymentMethodId = paymentMethodData.data.id;
+                } else {
+                    const errorMsg = paymentMethodData.errors?.[0]?.detail || 'Failed to create payment method';
+                    throw new Error(errorMsg);
+                }
+                console.log('Payment Method Created (Card):', paymentMethodId);
+                
+            } else if (paymentMethod === 'gcash' || paymentMethod === 'maya' || paymentMethod === 'ewallet') {
+                // E-Wallet payment
+                console.log('STEP 2: Creating e-wallet payment method...');
+                
+                const ewalletType = paymentMethod === 'maya' ? 'paymaya' : 'gcash';
+                btn.textContent = 'Processing e-wallet payment...';
+                
+                // Create e-wallet payment method using PayMongo REST API (frontend)
+                const paymentMethodResponse = await fetch('https://api.paymongo.com/v1/payment_methods', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic ' + btoa(public_key + ':')
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            attributes: {
+                                type: ewalletType
+                            }
+                        }
+                    })
+                });
+                
+                const paymentMethodData = await paymentMethodResponse.json();
+                
+                if (paymentMethodResponse.ok && paymentMethodData.data && paymentMethodData.data.id) {
+                    paymentMethodId = paymentMethodData.data.id;
+                } else {
+                    const errorMsg = paymentMethodData.errors?.[0]?.detail || 'Failed to create payment method';
+                    throw new Error(errorMsg);
+                }
+                console.log('Payment Method Created (E-Wallet):', paymentMethodId);
+            } else {
+                throw new Error('Invalid payment method');
+            }
+            
+            // STEP 4: Attach Payment Method to Payment Intent (Backend)
+            console.log('STEP 3: Attaching payment method...');
+            const attachResponse = await fetch(BASE_URL + 'payment/attach-payment-method', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    payment_intent_id: payment_intent_id,
+                    payment_method_id: paymentMethodId,
+                    order_id: orderId
+                })
+            });
+            
+            const attachData = await attachResponse.json();
+            
+            if (!attachData.status || attachData.status !== 'success') {
+                throw new Error(attachData.message || 'Failed to process payment');
+            }
+            
+            // STEP 5: Handle Response
+            if (attachData.payment_status === 'succeeded') {
+                // Card payment succeeded immediately
+                console.log('Payment succeeded!');
+                showToast('Payment successful! Redirecting...', 'success');
+                setTimeout(() => {
+                    window.location.href = attachData.redirect_url || (BASE_URL + 'payment/complete?order_id=' + orderId);
+                }, 1500);
+            } else if (attachData.payment_status === 'awaiting_next_action') {
+                // E-Wallet - redirect to PayMongo
+                console.log('Redirecting to PayMongo for e-wallet payment...');
+                
+                // Show instruction message before redirect
+                showToast('Redirecting to PayMongo test payment page. Click "Authorize Test Payment" to complete.', 'info', 4000);
+                
+                // Small delay to show message before redirect
+                setTimeout(() => {
+                    window.location.href = attachData.redirect_url;
+                }, 500);
+            } else {
+                throw new Error('Payment processing failed. Please try again.');
+            }
+            
+        } catch (error) {
+            console.error('PayMongo Payment Error:', error);
+            showToast(error.message || 'Payment processing failed. Please try again.', 'error', 5000);
+            btn.disabled = false;
+            btn.textContent = defaultConfirmLabel;
+        }
+    }
+    
+    /**
+     * Detect card brand from card number
+     */
+    function detectCardBrand(cardNumber) {
+        const cleaned = cardNumber.replace(/\s/g, '');
+        
+        // Visa: starts with 4
+        if (/^4/.test(cleaned)) return 'Visa';
+        
+        // Mastercard: starts with 5
+        if (/^5[1-5]/.test(cleaned)) return 'Mastercard';
+        
+        // American Express: starts with 34 or 37
+        if (/^3[47]/.test(cleaned)) return 'American Express';
+        
+        // Discover: starts with 6
+        if (/^6/.test(cleaned)) return 'Discover';
+        
+        // JCB: starts with 35
+        if (/^35/.test(cleaned)) return 'JCB';
+        
+        return 'Unknown';
+    }
+
+    /**
+     * Collect Card Details
+     * Shows a modal to collect card information
+     */
+    function collectCardDetails() {
+        return new Promise((resolve) => {
+            // Create modal for card details
+            const modal = document.createElement('div');
+            modal.id = 'card-details-modal';
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: flex; align-items: center; justify-content: center;';
+            
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%;">
+                    <h3 style="margin: 0 0 20px 0;">Enter Card Details</h3>
+                    <form id="card-details-form">
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Card Number</label>
+                            <input type="text" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19" required 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
+                                   oninput="this.value = this.value.replace(/[^0-9]/g, '').replace(/(.{4})/g, '$1 ').trim()">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: 600;">Brand</label>
+                            <input type="text" id="card-brand" readonly 
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background-color: #f5f5f5; cursor: not-allowed; color: #666;">
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">Expiration Date</label>
+                                <input type="text" id="exp-date" placeholder="MM/YY" maxlength="5" required 
+                                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '').replace(/^(\\d{2})(\\d)/, '$1/$2').substring(0, 5)">
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 5px; font-weight: 600;">CVC</label>
+                                <input type="text" id="cvc" placeholder="123" maxlength="4" required 
+                                       style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;"
+                                       oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                            <button type="button" id="cancel-card" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
+                            <button type="submit" style="padding: 10px 20px; background: #02455F; color: white; border: none; border-radius: 4px; cursor: pointer;">Submit</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            const form = modal.querySelector('#card-details-form');
+            const cancelBtn = modal.querySelector('#cancel-card');
+            const cardNumberInput = document.getElementById('card-number');
+            const cardBrandInput = document.getElementById('card-brand');
+            
+            // Detect card brand as user types
+            cardNumberInput.addEventListener('input', function() {
+                const cardNumber = this.value.replace(/\s/g, '');
+                if (cardNumber.length >= 4) {
+                    const brand = detectCardBrand(cardNumber);
+                    if (brand !== 'Unknown') {
+                        cardBrandInput.value = brand;
+                        cardBrandInput.style.color = '#02455F';
+                    } else {
+                        cardBrandInput.value = '';
+                    }
+                } else {
+                    cardBrandInput.value = '';
+                }
+            });
+            
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const cardNumber = document.getElementById('card-number').value.replace(/\s/g, '');
+                const expDate = document.getElementById('exp-date').value;
+                const cvc = document.getElementById('cvc').value;
+                
+                // Parse expiration date (MM/YY)
+                const expParts = expDate.split('/');
+                if (expParts.length !== 2 || expParts[0].length !== 2 || expParts[1].length !== 2) {
+                    alert('Please enter expiration date in MM/YY format');
+                    return;
+                }
+                
+                const expMonth = parseInt(expParts[0]);
+                const expYear2Digit = parseInt(expParts[1]);
+                
+                // Validate month (1-12)
+                if (expMonth < 1 || expMonth > 12) {
+                    alert('Please enter a valid month (01-12)');
+                    return;
+                }
+                
+                // Convert 2-digit year to 4-digit year
+                // Years 00-30 are 2000-2030, years 31-99 are 1931-1999
+                const currentYear = new Date().getFullYear();
+                const currentYear2Digit = currentYear % 100;
+                let expYear = 2000 + expYear2Digit;
+                
+                // If the 2-digit year is less than current 2-digit year, assume next century
+                // But if it's far in the past (like 99), assume previous century
+                if (expYear2Digit < currentYear2Digit && expYear2Digit > 30) {
+                    expYear = 1900 + expYear2Digit;
+                }
+                
+                // Validate year (not in the past)
+                if (expYear < currentYear) {
+                    alert('Please enter a valid expiration year');
+                    return;
+                }
+                
+                // Also check if the card is expired (month and year in the past)
+                const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11
+                if (expYear === currentYear && expMonth < currentMonth) {
+                    alert('This card has expired');
+                    return;
+                }
+                
+                const cardDetails = {
+                    cardNumber: cardNumber,
+                    expMonth: expMonth.toString().padStart(2, '0'),
+                    expYear: expYear.toString(), // Convert to 4-digit for PayMongo API
+                    cvc: cvc,
+                    brand: detectCardBrand(cardNumber)
+                };
+                
+                // Get customer name from main form
+                const firstNameInput = document.querySelector('input[name="firstname"]');
+                const lastNameInput = document.querySelector('input[name="lastname"]');
+                const customerName = (firstNameInput?.value || '') + ' ' + (lastNameInput?.value || '');
+                cardDetails.customerName = customerName.trim() || 'Customer';
+                
+                // Get email/phone from main form if available
+                const emailInput = document.querySelector('input[name="email"]');
+                const phoneInput = document.querySelector('input[name="phone"]');
+                if (emailInput) cardDetails.email = emailInput.value;
+                if (phoneInput) cardDetails.phone = phoneInput.value;
+                
+                document.body.removeChild(modal);
+                resolve(cardDetails);
+            });
+            
+            cancelBtn.addEventListener('click', () => {
+                document.body.removeChild(modal);
+                resolve(null);
+            });
+        });
+    }
 
 }); // End of $(document).ready
 
