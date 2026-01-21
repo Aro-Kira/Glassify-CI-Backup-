@@ -130,16 +130,37 @@ const generatedCustomizationDefaults = {
     "Windows_Awning": [
         {
             "type": "tags",
+            "label": "Series",
+            "id": "series",
+            "stepNumber": 1,
+            "options": [
+                "38 Series",
+                "50 Series",
+                "60 Series",
+                "85 Series",
+                "75 Series"
+            ]
+        },
+        {
+            "type": "tags",
             "label": "Glass Type",
             "id": "glassType",
             "stepNumber": 1,
             "options": [
+                "Ordinary",
+                "Tempered",
+                "Reflective"
+            ]
+        },
+        {
+            "type": "tags",
+            "label": "Glass Color",
+            "id": "glassColor",
+            "stepNumber": 1,
+            "options": [
                 "Clear",
-                "Tinted",
-                "Tinted (bronze\/brown)",
-                "Frosted",
-                "Low-E",
-                "Laminated"
+                "Bronze",
+                "Frosted\/Smoke"
             ]
         },
         {
@@ -148,12 +169,11 @@ const generatedCustomizationDefaults = {
             "id": "frameColormaterial",
             "stepNumber": 1,
             "options": [
-                "White",
-                "Black",
-                "Brown",
-                "Silver",
-                "Bronze",
-                "Custom colors"
+                "Powder Coated White",
+                "Analok",
+                "Matte Gray",
+                "Matte Black",
+                "Wood Finish"
             ]
         },
         {
@@ -186,26 +206,58 @@ const generatedCustomizationDefaults = {
             ]
         },
         {
-            "type": "number",
+            "type": "tags",
             "label": "Thickness (mm)",
             "id": "thicknessMm",
             "stepNumber": 2,
-            "min": 1,
-            "step": 0.1
+            "options": [
+                "6mm",
+                "8mm",
+                "10mm",
+                "12mm"
+            ]
+        },
+        {
+            "type": "checkbox",
+            "label": "Screen",
+            "id": "screen",
+            "stepNumber": 2
         }
     ],
     "Windows_Casement": [
+        {
+            "type": "tags",
+            "label": "Series",
+            "id": "series",
+            "stepNumber": 1,
+            "options": [
+                "38 Series",
+                "50 Series",
+                "60 Series",
+                "85 Series",
+                "75 Series"
+            ]
+        },
         {
             "type": "tags",
             "label": "Glass Type",
             "id": "glassType",
             "stepNumber": 1,
             "options": [
+                "Ordinary",
+                "Tempered",
+                "Reflective"
+            ]
+        },
+        {
+            "type": "tags",
+            "label": "Glass Color",
+            "id": "glassColor",
+            "stepNumber": 1,
+            "options": [
                 "Clear",
-                "Tinted",
-                "Frosted",
-                "Low-E",
-                "Laminated"
+                "Bronze",
+                "Frosted\/Smoke"
             ]
         },
         {
@@ -214,12 +266,11 @@ const generatedCustomizationDefaults = {
             "id": "frameColormaterial",
             "stepNumber": 1,
             "options": [
-                "White",
-                "Black",
-                "Brown (wood-grain)",
-                "Silver",
-                "Bronze",
-                "Custom colors"
+                "Powder Coated White",
+                "Analok",
+                "Matte Gray",
+                "Matte Black",
+                "Wood Finish"
             ]
         },
         {
@@ -273,10 +324,24 @@ const generatedCustomizationDefaults = {
             ]
         },
         {
-            "type": "number",
+            "type": "tags",
             "label": "Thickness (mm)",
             "id": "thicknessMm",
             "stepNumber": 3,
+            "options": [
+                "6mm",
+                "8mm",
+                "10mm",
+                "12mm"
+            ]
+        },
+        {
+            "type": "checkbox",
+            "label": "Screen",
+            "id": "screen",
+            "stepNumber": 3
+        }
+    ],
             "min": 1,
             "step": 0.1
         }

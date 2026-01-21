@@ -180,6 +180,12 @@ class ProductCon extends CI_Controller
                         $visualConfigsData = $tagVisualConfigs ? json_decode($tagVisualConfigs, true) : [];
                         if (isset($visualConfigsData[$fieldId][$tagName])) {
                             $visualConfig = json_encode($visualConfigsData[$fieldId][$tagName]);
+                        } else {
+                            // Auto-generate default visual config for frameColor, glassType, or frameType fields
+                            $defaultConfig = $this->generateDefaultVisualConfig($fieldId, $tagName, $category, $subcategory);
+                            if ($defaultConfig) {
+                                $visualConfig = json_encode($defaultConfig);
+                            }
                         }
                         
                         $this->db->insert('product_tag_prices', [
@@ -568,6 +574,14 @@ public function update_product($id)
                             } elseif (isset($existing_visual_configs[$tag_key])) {
                                 // Keep existing visual config if no new one provided
                                 $visualConfig = $existing_visual_configs[$tag_key];
+                            } else {
+                                // Auto-generate default visual config for frameColor, glassType, or frameType fields
+                                $category = $this->input->post('category', true);
+                                $subcategory = $this->input->post('subcategory', true);
+                                $defaultConfig = $this->generateDefaultVisualConfig($fieldId, $tagName, $category, $subcategory);
+                                if ($defaultConfig) {
+                                    $visualConfig = json_encode($defaultConfig);
+                                }
                             }
                             
                             $this->db->insert('product_tag_prices', [
@@ -845,5 +859,140 @@ public function update_product($id)
             default:
                 return $value; // Already in cm
         }
+    }
+
+    /**
+     * Generate default visual config for frameColor, glassType, or frameType fields
+     * Based on KONVA_DEFAULT_OPTIONS_REFERENCE.md defaults
+     * @param string $fieldId The field ID (e.g., 'frameColor', 'glassType', 'frameType')
+     * @param string $tagName The tag name (e.g., 'White', 'Tempered', 'Aluminum')
+     * @param string $category Product category
+     * @param string $subcategory Product subcategory
+     * @return array|null Visual config array or null if not applicable
+     */
+    private function generateDefaultVisualConfig($fieldId, $tagName, $category = null, $subcategory = null) {
+        // Normalize field ID and tag name for matching
+        $fieldIdLower = strtolower($fieldId);
+        $tagNameLower = strtolower($tagName);
+        
+        // Only process frameColor, glassType, and frameType fields
+        $isFrameColor = $fieldIdLower === 'framecolor' || $fieldIdLower === 'framecolormaterial';
+        $isGlassType = $fieldIdLower === 'glasstype' || $fieldIdLower === 'type';
+        $isFrameType = $fieldIdLower === 'frametype' || $fieldIdLower === 'frame';
+        
+        if (!$isFrameColor && !$isGlassType && !$isFrameType) {
+            return null;
+        }
+        
+        // Default glass type styles from KONVA_DEFAULT_OPTIONS_REFERENCE.md
+        $glassStyles = [
+            'clear' => ['fill' => '#E0F2F1', 'opacity' => 0.9, 'enabled' => true],
+            'tinted' => ['fill' => '#546E7A', 'opacity' => 0.7, 'enabled' => true],
+            'laminated' => ['fill' => '#CFD8DC', 'opacity' => 0.95, 'enabled' => true],
+            'laminated safety glass' => ['fill' => '#CFD8DC', 'opacity' => 0.95, 'enabled' => true],
+            'tempered' => ['fill' => '#E0F2F1', 'opacity' => 0.9, 'enabled' => true],
+            'double' => ['fill' => '#B2DFDB', 'opacity' => 0.9, 'enabled' => true],
+            'low-e' => ['fill' => '#Dcedc8', 'opacity' => 0.85, 'enabled' => true],
+            'frosted' => ['fill' => '#FFFFFF', 'opacity' => 0.95, 'enabled' => true],
+            'fully frosted' => ['fill' => '#FFFFFF', 'opacity' => 0.95, 'enabled' => true],
+            'frosted (full or partial)' => ['fill' => '#FFFFFF', 'opacity' => 0.95, 'enabled' => true],
+            'patterned' => ['fill' => '#E8E8E8', 'opacity' => 0.9, 'enabled' => true],
+            'safety glass' => ['fill' => '#CFD8DC', 'opacity' => 0.95, 'enabled' => true],
+            'reflective coatings' => ['fill' => 'rgba(200, 200, 200, 0.6)', 'opacity' => 0.85, 'enabled' => true],
+            'clear with frosted sticker' => ['fill' => '#E0F2F1', 'opacity' => 0.9, 'enabled' => true],
+            '10mm frosted tempered' => ['fill' => '#FFFFFF', 'opacity' => 0.95, 'enabled' => true],
+            'bulletproof' => ['fill' => '#CFD8DC', 'opacity' => 0.98, 'enabled' => true],
+            'ordinary' => ['fill' => '#E0F2F1', 'opacity' => 0.9, 'enabled' => true],
+            'reflective' => ['fill' => 'rgba(200, 200, 200, 0.6)', 'opacity' => 0.85, 'enabled' => true],
+            'ultra clear' => ['fill' => 'rgba(255, 255, 255, 0.1)', 'opacity' => 0.9, 'enabled' => true],
+            'bronze' => ['fill' => 'rgba(205, 127, 50, 0.4)', 'opacity' => 0.7, 'enabled' => true],
+            'light green' => ['fill' => 'rgba(144, 238, 144, 0.4)', 'opacity' => 0.7, 'enabled' => true],
+            'dark gray' => ['fill' => 'rgba(105, 105, 105, 0.5)', 'opacity' => 0.6, 'enabled' => true],
+            'copperfree mirror' => ['fill' => 'rgba(192, 192, 192, 0.8)', 'opacity' => 0.9, 'enabled' => true],
+            'euro gray' => ['fill' => 'rgba(169, 169, 169, 0.5)', 'opacity' => 0.7, 'enabled' => true],
+            'ford blue' => ['fill' => 'rgba(70, 130, 180, 0.5)', 'opacity' => 0.7, 'enabled' => true],
+            'frosted/smoked' => ['fill' => 'rgba(220, 220, 220, 0.7)', 'opacity' => 0.8, 'enabled' => true],
+            'frosted/smoke' => ['fill' => 'rgba(220, 220, 220, 0.7)', 'opacity' => 0.8, 'enabled' => true],
+            'copper free and lead free mirror' => ['fill' => 'rgba(192, 192, 192, 0.8)', 'opacity' => 0.9, 'enabled' => true],
+        ];
+        
+        // Default frame color/styles from KONVA_DEFAULT_OPTIONS_REFERENCE.md
+        $frameStyles = [
+            'white' => ['stroke' => '#FFFFFF', 'strokeWidth' => 4, 'enabled' => true],
+            'black' => ['stroke' => '#000000', 'strokeWidth' => 4, 'enabled' => true],
+            'silver' => ['stroke' => '#C0C0C0', 'strokeWidth' => 3, 'enabled' => true],
+            'bronze' => ['stroke' => '#CD7F32', 'strokeWidth' => 3, 'enabled' => true],
+            'gold' => ['stroke' => '#FFD700', 'strokeWidth' => 4, 'enabled' => true],
+            'rose-gold' => ['stroke' => '#B76E79', 'strokeWidth' => 4, 'enabled' => true],
+            'wood' => ['stroke' => '#795548', 'strokeWidth' => 6, 'enabled' => true],
+            'brown' => ['stroke' => '#8B4513', 'strokeWidth' => 4, 'enabled' => true],
+            'brown (wood-look)' => ['stroke' => '#8B4513', 'strokeWidth' => 4, 'enabled' => true],
+            'aluminum' => ['stroke' => '#90A4AE', 'strokeWidth' => 3, 'enabled' => true],
+            'chrome' => ['stroke' => '#E8E8E8', 'strokeWidth' => 3, 'enabled' => true],
+            'brushed-nickel' => ['stroke' => '#A8A9AD', 'strokeWidth' => 3, 'enabled' => true],
+            'stainless-steel' => ['stroke' => '#C9CCD1', 'strokeWidth' => 3, 'enabled' => true],
+            'stainless mirror finish' => ['stroke' => '#D4D4D4', 'strokeWidth' => 3, 'enabled' => true],
+            'custom-color' => ['stroke' => '#888888', 'strokeWidth' => 4, 'enabled' => true],
+            'custom colors' => ['stroke' => '#888888', 'strokeWidth' => 4, 'enabled' => true],
+            'vinyl' => ['stroke' => '#333333', 'strokeWidth' => 4, 'enabled' => true],
+            'frameless' => ['stroke' => 'transparent', 'strokeWidth' => 0, 'enabled' => true],
+            'powder coated white' => ['stroke' => '#F8F8F8', 'strokeWidth' => 4, 'enabled' => true],
+            'analok' => ['stroke' => '#F5F5DC', 'strokeWidth' => 4, 'enabled' => true],
+            'matte gray' => ['stroke' => '#6B6B6B', 'strokeWidth' => 4, 'enabled' => true],
+            'matte black' => ['stroke' => '#1A1A1A', 'strokeWidth' => 4, 'enabled' => true],
+            'wood finish' => ['stroke' => '#8B4513', 'strokeWidth' => 4, 'enabled' => true],
+            'hanalok' => ['stroke' => '#F5F5DC', 'strokeWidth' => 4, 'enabled' => true],
+            'gray' => ['stroke' => '#808080', 'strokeWidth' => 4, 'enabled' => true],
+            'grey' => ['stroke' => '#808080', 'strokeWidth' => 4, 'enabled' => true],
+            'dark grey/black' => ['stroke' => '#2C2C2C', 'strokeWidth' => 4, 'enabled' => true],
+            'analok (dark/bronze finish)' => ['stroke' => '#8B4513', 'strokeWidth' => 4, 'enabled' => true],
+            'standard-frame' => ['stroke' => '#333333', 'strokeWidth' => 6, 'enabled' => true],
+            'thin-frame' => ['stroke' => '#333333', 'strokeWidth' => 3, 'enabled' => true],
+            'grid-frame' => ['stroke' => '#333333', 'strokeWidth' => 4, 'enabled' => true],
+            'machine polished edges' => ['stroke' => 'transparent', 'strokeWidth' => 0, 'enabled' => true],
+            'beveled edge' => ['stroke' => 'transparent', 'strokeWidth' => 0, 'enabled' => true],
+            'framed' => ['stroke' => '#333333', 'strokeWidth' => 6, 'enabled' => true],
+        ];
+        
+        // Try to match tag name (case-insensitive, with variations)
+        $matchedConfig = null;
+        
+        if ($isGlassType) {
+            // Try exact lowercase match first
+            if (isset($glassStyles[$tagNameLower])) {
+                $matchedConfig = $glassStyles[$tagNameLower];
+            } else {
+                // Try partial matches and common variations (case-insensitive)
+                foreach ($glassStyles as $key => $config) {
+                    $keyLower = strtolower($key);
+                    // Check if tag name contains key or key contains tag name
+                    if ($tagNameLower === $keyLower || 
+                        strpos($tagNameLower, $keyLower) !== false || 
+                        strpos($keyLower, $tagNameLower) !== false) {
+                        $matchedConfig = $config;
+                        break;
+                    }
+                }
+            }
+        } elseif ($isFrameColor || $isFrameType) {
+            // Try exact lowercase match first
+            if (isset($frameStyles[$tagNameLower])) {
+                $matchedConfig = $frameStyles[$tagNameLower];
+            } else {
+                // Try partial matches and common variations (case-insensitive)
+                foreach ($frameStyles as $key => $config) {
+                    $keyLower = strtolower($key);
+                    // Check if tag name contains key or key contains tag name
+                    if ($tagNameLower === $keyLower || 
+                        strpos($tagNameLower, $keyLower) !== false || 
+                        strpos($keyLower, $tagNameLower) !== false) {
+                        $matchedConfig = $config;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        return $matchedConfig;
     }
 }

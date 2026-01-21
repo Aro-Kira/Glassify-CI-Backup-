@@ -61,11 +61,53 @@ const windowsVisualConfigs = {
         "Wood Finish": {
             "color": "#8B4513",
             "width": 4
+        },
+        "Powder Coated White": {
+            "color": "#F8F8F8",
+            "width": 4
+        },
+        "Analok": {
+            "color": "#F5F5DC",
+            "width": 4
+        },
+        "Matte Gray": {
+            "color": "#6B6B6B",
+            "width": 4
+        },
+        "Matte Black": {
+            "color": "#1A1A1A",
+            "width": 4
         }
     },
     "glassType": {
         "Clear": {
             "fill": "rgba(173, 216, 230, 0.3)",
+            "opacity": 0.8
+        },
+        "Ordinary": {
+            "fill": "#E0F2F1",
+            "opacity": 0.9
+        },
+        "Tempered": {
+            "fill": "#E0F2F1",
+            "opacity": 0.9
+        },
+        "Reflective": {
+            "fill": "rgba(200, 200, 200, 0.6)",
+            "opacity": 0.85
+        }
+    },
+    "glassColor": {
+        "Clear": {
+            "fill": "rgba(255, 255, 255, 0.1)",
+            "opacity": 0.9
+        },
+        "Bronze": {
+            "fill": "rgba(205, 127, 50, 0.4)",
+            "opacity": 0.7
+        },
+        "Frosted/Smoke": {
+            "fill": "rgba(220, 220, 220, 0.7)",
             "opacity": 0.8
         }
     },

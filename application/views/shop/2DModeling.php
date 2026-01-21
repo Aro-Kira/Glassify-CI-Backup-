@@ -1,6 +1,9 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/2DModeling_styles.css'); ?>">
 
 <script src="<?php echo base_url('assets/js/konva.min.js'); ?>"></script>
+<!-- Comprehensive 2D Renderer -->
+<script src="<?php echo base_url('assets/js/2d-functions/comprehensive_2d_renderer.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/2d-functions/comprehensive_renderer_integration.js'); ?>"></script>
 
 <body data-customer-id="<?= $this->session->userdata('customer_id') ?: '' ?>">
 
@@ -936,31 +939,11 @@
                     console.warn('⚠️ No customizationFieldKey available');
                 }
                 
-                // If no fields from database, try localStorage (admin might have configured but not saved to DB)
+                // If no fields came back, we intentionally do NOT fall back to localStorage.
+                // localStorage can be stale per-browser and will break "sync" with admin DB updates.
+                // The API already returns JSON-backed defaults when the DB has no entry.
                 if (customizationFields.length === 0) {
-                    try {
-                        const savedFields = localStorage.getItem('glassify_customization_fields');
-                        if (savedFields) {
-                            const allFields = JSON.parse(savedFields);
-                            customizationFields = allFields[selectedProduct.customizationFieldKey] || [];
-                            if (customizationFields.length > 0) {
-                                console.log('Loaded customization fields from localStorage:', customizationFields);
-                            }
-                        }
-                    } catch(e2) {
-                        console.error('Error loading from localStorage:', e2);
-                    }
-                }
-                
-                // If still no fields, use default fields based on category/subcategory
-                if (customizationFields.length === 0 && selectedProduct.category && selectedProduct.subcategory) {
-                    const defaultResult = getDefaultFieldsForSubcategory(selectedProduct.category, selectedProduct.subcategory);
-                    customizationFields = defaultResult.fields || [];
-                    if (!stepNamesFromAPI && defaultResult.stepNames) {
-                        stepNamesFromAPI = defaultResult.stepNames;
-                    }
-                    console.log('Using default fields:', customizationFields);
-                    console.log('Using default step names:', stepNamesFromAPI);
+                    console.warn('⚠️ No customization fields returned. Ensure the fieldKey exists or defaults are configured.');
                 }
                 
                         // Store step names globally for navigation

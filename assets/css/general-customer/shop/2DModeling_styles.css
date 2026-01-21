@@ -110,6 +110,20 @@ body {
     font-weight: 600;
 }
 
+.breadcrumbs a {
+    color: #ccc;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.breadcrumbs a:hover {
+    color: #fff;
+}
+
+.breadcrumbs a span {
+    color: inherit;
+}
+
 .chevron-right {
     width: 6px;
     height: 6px;

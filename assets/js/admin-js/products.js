@@ -523,14 +523,14 @@ function setupSearchFilter() {
 // Order Type to Category mapping
 // Defines which categories are available for each order type
 // Based on new reference:
-// 🟢 Small-Scale Items (Direct Order): Mirrors, Glass Board, Top Glass
-// 🔵 Large-Scale Items (Site Assessment): Everything else
+// 🟢 Direct Order: Windows, Mirrors & Specialty Glass
+// 🔵 Site Assessment: Doors, Glass Partitions & Enclosures, Commercial & Exterior
 const orderTypeCategories = {
   "direct": [
+    "Windows",                    // Sliding, Awning, Casement, Fixed Glass
     "Mirrors & Specialty Glass"   // Mirrors, Top Glass, Glass Board (Small-Scale Items)
   ],
   "site-assessment": [
-    "Windows",                    // Sliding, Awning, Casement, Fixed Glass (Large-Scale)
     "Doors",                      // Sliding, Frameless (Large-Scale)
     "Glass Partitions & Enclosures", // Frameless Glass, Shower Enclosure (Large-Scale)
     "Commercial & Exterior"       // Storefront, Glass Balcony, Stair Railings (Large-Scale)
@@ -562,68 +562,59 @@ const orderTypeSubcategories = {
 let customizationFields = {};
 const CUSTOMIZATION_FIELDS_STORAGE_KEY = 'glassify_customization_fields';
 
-// Initialize defaults immediately so customizationFields is never empty
-initializeDefaultCustomizationFields();
-
-// Load saved customization fields from localStorage and database
+// Load customization fields with correct precedence:
+// 1) Database (latest source of truth)
+// 2) localStorage (offline cache; should not override DB)
+// 3) JSON defaults (fill missing keys only)
 async function loadCustomizationFields() {
-  // Check if base_url is defined
-  if (typeof base_url === 'undefined') {
-    console.warn('base_url not defined yet, skipping database load. Will retry when available.');
-    // Fallback to localStorage only
-    const saved = localStorage.getItem(CUSTOMIZATION_FIELDS_STORAGE_KEY);
-    if (saved) {
-      try {
-        const savedFields = JSON.parse(saved);
-        customizationFields = savedFields;
-      } catch (e) {
-        console.error("Error loading from localStorage:", e);
+  // 1) Database (source of truth)
+  if (typeof base_url !== 'undefined') {
+    try {
+      const response = await fetch(base_url + 'customizationFields/getAll', { cache: 'no-cache' });
+      const result = await response.json();
+
+      if (result.status === 'success' && result.configs) {
+        for (const [fieldKey, config] of Object.entries(result.configs)) {
+          // DB should override anything already in memory
+          customizationFields[fieldKey] = config.fields || [];
+        }
+        console.log('Customization fields loaded from database');
       }
+    } catch (e) {
+      console.error("Error loading customization fields from database:", e);
     }
-    return;
   }
-  
-  // First try to load from database
-  try {
-    const response = await fetch(base_url + 'customizationFields/getAll');
-    const result = await response.json();
-    
-    if (result.status === 'success' && result.configs) {
-      // Convert database format to our format
-      for (const [fieldKey, config] of Object.entries(result.configs)) {
-        customizationFields[fieldKey] = config.fields || [];
-      }
-      
-      // Also save to localStorage for offline access
-      localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
-      
-      // If we got data from database, use it
-      if (Object.keys(customizationFields).length > 0) {
-        return;
-      }
-    }
-  } catch (e) {
-    console.error("Error loading customization fields from database:", e);
-  }
-  
-  // Fallback to localStorage
+
+  // 2) localStorage cache (fill missing only; never override DB)
   const saved = localStorage.getItem(CUSTOMIZATION_FIELDS_STORAGE_KEY);
   if (saved) {
     try {
       const savedFields = JSON.parse(saved);
-      // Load saved fields, but don't override database data
       for (const [key, value] of Object.entries(savedFields)) {
-        if (!customizationFields[key] || customizationFields[key].length === 0) {
+        if (customizationFields[key] === undefined || customizationFields[key] === null || (Array.isArray(customizationFields[key]) && customizationFields[key].length === 0)) {
           customizationFields[key] = value;
         }
       }
+      console.log('Customization fields loaded from localStorage (fill-missing)');
     } catch (e) {
-      console.error('Error loading customization fields:', e);
+      console.error('Error loading customization fields from localStorage:', e);
     }
   }
 
-  // Only load defaults for keys that still have no data
-  initializeDefaultCustomizationFields();
+  // 3) JSON defaults (fill missing only)
+  try {
+    await initializeDefaultCustomizationFields();
+    console.log('Customization fields defaults loaded from JSON (fill-missing)');
+  } catch (e) {
+    console.error('Error loading customization fields from JSON defaults:', e);
+  }
+
+  // Persist merged view back to localStorage for caching/offline behavior
+  try {
+    localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
+  } catch (e) {
+    console.error('Error caching customization fields to localStorage:', e);
+  }
 }
 
 // Save customization fields to localStorage and database
@@ -761,17 +752,57 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
   }
 }
 
+// Store cached default fields to avoid multiple fetches
+let cachedDefaultFields = null;
+
+/**
+ * Load default customization fields from JSON file
+ * Falls back to empty object if file fails to load
+ */
+async function getDefaultCustomizationFields() {
+  // Return cached data if available
+  if (cachedDefaultFields !== null) {
+    return cachedDefaultFields;
+  }
+
+  try {
+    // Ensure base_url has trailing slash and construct proper path
+    const jsonPath = (base_url.endsWith('/') ? base_url : base_url + '/') + 'assets/data/default-customization-fields.json';
+    const response = await fetch(jsonPath, {
+      cache: 'no-cache', // Always fetch fresh data on page load
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    cachedDefaultFields = data;
+    console.log('Successfully loaded customization fields from JSON file');
+    return data;
+  } catch (error) {
+    console.error('Error loading default customization fields from JSON:', error);
+    console.warn('Falling back to empty customization fields. Please ensure the JSON file exists at: assets/data/default-customization-fields.json');
+    // Return empty object as fallback
+    cachedDefaultFields = {};
+    return {};
+  }
+}
+
 // Initialize default customization fields
 // Enhanced with comprehensive options from product catalog
 // Organized into steps with 3-4 fields per step for better UX
-function initializeDefaultCustomizationFields() {
+async function initializeDefaultCustomizationFields() {
   // Initialize customizationFields if not already done
   if (!customizationFields) {
     customizationFields = {};
   }
 
   // Only set defaults for keys that don't already have data
-  const defaultFields = getDefaultCustomizationFields();
+  const defaultFields = await getDefaultCustomizationFields();
   for (const [key, value] of Object.entries(defaultFields)) {
     if (!customizationFields[key] || customizationFields[key].length === 0) {
       customizationFields[key] = value;
@@ -779,52 +810,102 @@ function initializeDefaultCustomizationFields() {
   }
 }
 
-function getDefaultCustomizationFields() {
-  return {
+// Legacy function removed - data now loaded from JSON file
+// The old hardcoded return statement has been moved to assets/data/default-customization-fields.json
 
-  // Windows subcategories - Enhanced with catalog options
-  "Windows_Sliding": [
-    // Step 1: WINDOW TYPE
-    { type: "tags", label: "Panel", id: "numberOfPanels", options: ["2 Panels", "4 Panels"], stepNumber: 1 },
-    { type: "tags", label: "Transom Type", id: "transomType", options: ["Fixed Transom Head (fixed glass at top)", "Fixed Transom Sill (fixed glass at bottom)", "None"], stepNumber: 1 },
-    // Step 2: SLIDING SYSTEM & SIZE
-    { type: "tags", label: "Track System (Sliding Rail Count)", id: "trackSystem", options: ["2 Tracks", "3 Tracks"], stepNumber: 2 },
-    { type: "tags", label: "Screen Option", id: "screenOption", options: ["With Screen", "Without Screen"], stepNumber: 2 },
-    { type: "tags", label: "Panel Configuration", id: "panelConfiguration", options: ["S | S (Sliding | Sliding)", "F | S (Fixed | Sliding)", "S | S | S | S (All Sliding)", "F | S | S | F (Fixed | Sliding | Sliding | Fixed)"], stepNumber: 2 },
-    // Step 3: FRAME & GLASS
-    { type: "tags", label: "Frame Color", id: "frameColor", options: ["Hanalok", "White", "Black", "Gray", "Wood Finish"], stepNumber: 3 },
-    { type: "tags", label: "Glass Type (6mm thickness only)", id: "glassType", options: ["Clear", "Ultra Clear", "Bronze", "Light Green", "Dark Gray", "Euro Gray", "Ford Blue", "Copperfree Mirror", "Reflective: Clear", "Reflective: Gray", "Reflective: Light Blue", "Reflective: Dark Blue", "Reflective: Light Green", "Reflective: Dark Green", "Reflective: Light Bronze", "Tempered: Clear", "Tempered: Bronze"], stepNumber: 3 },
-    { type: "tags", label: "Glass Thickness", id: "glassThickness", options: ["6mm"], stepNumber: 3 },
-    // Step 4: HARDWARE & ACCESSORIES
-    { type: "tags", label: "Lock Type", id: "lockType", options: ["Enter Lock 908", "Enter Lock 907", "Flushlock #12", "New Flushlock", "Center Lok 904 Big", "Flushlok #12", "Durable Flushlok", "New Auto Flushlock"], stepNumber: 4 },
-    { type: "tags", label: "Roller Type", id: "rollerType", options: ["Single Roller ORD", "Single Roller with Bearing", "Double Roller HD", "Blue Single Roller", "Blue Double Roller", "Single Panel Roller", "Blue Single Roller", "Blue Double Roller"], stepNumber: 4 },
-    { type: "tags", label: "Screen", id: "screen", options: ["With Screen", "Without Screen"], stepNumber: 4 }
-  ],
-  "Windows_Sliding_stepNames": {
-    "1": "WINDOW TYPE",
-    "2": "SLIDING SYSTEM & SIZE",
-    "3": "FRAME & GLASS",
-    "4": "HARDWARE & ACCESSORIES"
-  },
-  "Windows_Awning": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Clear", "Tinted", "Tinted (bronze/brown)", "Frosted", "Low-E", "Laminated"], stepNumber: 1 },
-    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["White", "Black", "Brown", "Silver", "Bronze", "Custom colors"], stepNumber: 1 },
-    { type: "tags", label: "Operation", id: "operation", options: ["Awning (crank-out)", "Awning (push-out)"], stepNumber: 1 },
-    // Step 2: Configuration & Details
-    { type: "tags", label: "Size Configuration", id: "sizeConfiguration", options: ["Single panel", "Multiple panels"], stepNumber: 2 },
-    { type: "tags", label: "Opening Direction", id: "openingDirection", options: ["Top-hinged"], stepNumber: 2 },
-    { type: "number", label: "Thickness (mm)", id: "thickness", min: 1, step: 0.1, stepNumber: 2 },
-    { type: "checkbox", label: "Screen", id: "screen", stepNumber: 2 }
-  ],
-  "Windows_Awning_stepNames": {
-    "1": "Basic Options",
-    "2": "Configuration & Details"
-  },
-  "Windows_Casement": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Clear", "Tinted", "Frosted", "Low-E", "Laminated"], stepNumber: 1 },
-    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["White", "Black", "Brown (wood-grain)", "Silver", "Bronze", "Custom colors"], stepNumber: 1 },
+// Initialize on load
+// loadCustomizationFields will be called in DOMContentLoaded to ensure base_url is defined
+
+/**
+ * Populates category dropdown based on selected order type
+ * @param {string} orderType - Selected order type ("direct" or "site-assessment")
+ * @param {HTMLElement} categorySelect - Category select element
+ */
+function populateCategories(orderType, categorySelect) {
+  // Clear existing options except the first placeholder
+  categorySelect.innerHTML = '<option value="" disabled selected>Select category</option>';
+  
+  if (orderType && orderTypeCategories[orderType]) {
+    orderTypeCategories[orderType].forEach(category => {
+      const option = document.createElement("option");
+      option.value = category;
+      option.textContent = category;
+      categorySelect.appendChild(option);
+    });
+  }
+  
+  // Clear subcategory when category changes
+  const subcategorySelect = document.getElementById("productSubcategory");
+  const subcategoryGroup = document.getElementById("subcategoryGroup");
+  if (subcategorySelect) {
+    subcategorySelect.innerHTML = '<option value="" disabled selected>Select subcategory</option>';
+    subcategorySelect.value = "";
+  }
+  if (subcategoryGroup) {
+    subcategoryGroup.style.display = "none";
+  }
+  
+  // Clear customization fields
+  const customizationContainer = document.getElementById("customizationFields");
+  if (customizationContainer) {
+    customizationContainer.innerHTML = "";
+  }
+}
+
+/**
+ * Populates subcategory dropdown based on selected category and order type
+ * @param {string} category - Selected category
+ * @param {HTMLElement} subcategorySelect - Subcategory select element
+ * @param {string} orderType - Optional order type for filtering
+ */
+function populateSubcategories(category, subcategorySelect, orderType = null) {
+  if (!subcategorySelect || !subcategorySelect.tagName || subcategorySelect.tagName !== 'SELECT') {
+    console.warn('populateSubcategories: subcategorySelect is null or invalid');
+    return;
+  }
+
+  try {
+    // Clear existing options and set placeholder with selected attribute
+    subcategorySelect.innerHTML = '<option value="" disabled selected>Select subcategory</option>';
+    
+    if (category && categorySubcategories[category]) {
+      let subcategories = categorySubcategories[category];
+      
+      // Filter subcategories based on order type if category has order-type-specific subcategories
+      if (orderType && orderTypeSubcategories[category] && orderTypeSubcategories[category][orderType]) {
+        subcategories = orderTypeSubcategories[category][orderType];
+      }
+      
+      subcategories.forEach(subcat => {
+        const option = document.createElement("option");
+        option.value = subcat;
+        option.textContent = subcat;
+        subcategorySelect.appendChild(option);
+      });
+      
+      // Show subcategory group if subcategories exist
+      const subcategoryGroup = document.getElementById("subcategoryGroup");
+      if (subcategoryGroup) {
+        subcategoryGroup.style.display = "block";
+      }
+    } else {
+      // Hide subcategory group if no subcategories
+      const subcategoryGroup = document.getElementById("subcategoryGroup");
+      if (subcategoryGroup) {
+        subcategoryGroup.style.display = "none";
+      }
+    }
+  } catch (error) {
+    console.error('Error in populateSubcategories:', error, { category, orderType });
+  }
+}
+
+// Category and subcategory mappings
+// Note: Default customization fields data has been moved to assets/data/default-customization-fields.json
+// The getDefaultCustomizationFields() function now loads from that JSON file
+
+/**
+    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"], stepNumber: 1 },
     { type: "tags", label: "Operation", id: "operation", options: ["Casement (hinge side configurable)"], stepNumber: 1 },
     // Step 2: Panel Configuration
     { type: "tags", label: "Number of Panels", id: "numberOfPanels", options: ["Single panel", "Multiple panels"], stepNumber: 2 },
@@ -832,7 +913,7 @@ function getDefaultCustomizationFields() {
     { type: "tags", label: "Configuration", id: "configuration", options: ["Two casement windows with fixed transom", "Custom configurations"], stepNumber: 2 },
     // Step 3: Advanced Options
     { type: "tags", label: "Transom Options", id: "transomOptions", options: ["Different transom sizes", "Shapes", "Mullion options"], stepNumber: 3 },
-    { type: "number", label: "Thickness (mm)", id: "thickness", min: 1, step: 0.1, stepNumber: 3 },
+    { type: "tags", label: "Thickness (mm)", id: "thickness", options: ["6mm", "8mm", "10mm", "12mm"], stepNumber: 3 },
     { type: "checkbox", label: "Screen", id: "screen", stepNumber: 3 }
   ],
   "Windows_Casement_stepNames": {
@@ -903,6 +984,32 @@ function getDefaultCustomizationFields() {
     "2": "Operation & Configuration",
     "3": "Hardware & Features"
   },
+  "Doors_Swing Door": [
+    // Step 1: Basic Options
+    { type: "tags", label: "Series", id: "series", options: ["68 Series", "ED & FD100"], stepNumber: 1 },
+    { type: "tags", label: "Glass Type", id: "glassType", options: ["Ordinary", "Tempered", "Reflective"], stepNumber: 1 },
+    { type: "tags", label: "Glass Color", id: "glassColor", options: ["Clear", "Bronze", "Frosted/Smoked"], stepNumber: 1 },
+    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"], stepNumber: 1 },
+    // Step 2: Configuration & Details
+    { type: "tags", label: "Thickness (mm)", id: "thickness", options: ["6mm", "8mm", "10mm", "12mm"], stepNumber: 2 }
+  ],
+  "Doors_Swing Door_stepNames": {
+    "1": "Basic Options",
+    "2": "Configuration & Details"
+  },
+  "Doors_Bi-fold Door": [
+    // Step 1: Basic Options
+    { type: "tags", label: "Series", id: "series", options: ["45 Series", "75 Series"], stepNumber: 1 },
+    { type: "tags", label: "Glass Type", id: "glassType", options: ["Ordinary", "Tempered", "Reflective"], stepNumber: 1 },
+    { type: "tags", label: "Glass Color", id: "glassColor", options: ["Clear", "Bronze", "Frosted/Smoked"], stepNumber: 1 },
+    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"], stepNumber: 1 },
+    // Step 2: Configuration & Details
+    { type: "tags", label: "Thickness (mm)", id: "thickness", options: ["6mm", "8mm", "10mm", "12mm"], stepNumber: 2 }
+  ],
+  "Doors_Bi-fold Door_stepNames": {
+    "1": "Basic Options",
+    "2": "Configuration & Details"
+  },
   "Doors_Frameless": [
     // Step 1: Basic Options
     { type: "tags", label: "Glass Type", id: "glassType", options: ["Clear", "Tinted", "Frosted", "Laminated", "Laminated safety glass"], stepNumber: 1 },
@@ -927,6 +1034,19 @@ function getDefaultCustomizationFields() {
     "3": "Design & Hardware",
     "4": "Glass Treatment & Installation"
   },
+  "Doors_Patch Fitting": [
+    // Step 1: Basic Options
+    { type: "tags", label: "Series", id: "series", options: ["Frameless Fixed Glass", "Frameless Door"], stepNumber: 1 },
+    { type: "tags", label: "Glass Type", id: "glassType", options: ["Tempered", "Reflective"], stepNumber: 1 },
+    { type: "tags", label: "Glass Color", id: "glassColor", options: ["Clear", "Bronze", "Frosted/Smoked"], stepNumber: 1 },
+    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["Stainless Mirror Finish"], stepNumber: 1 },
+    // Step 2: Configuration & Details
+    { type: "tags", label: "Thickness (mm)", id: "thickness", options: ["10mm-12mm"], stepNumber: 2 }
+  ],
+  "Doors_Patch Fitting_stepNames": {
+    "1": "Basic Options",
+    "2": "Configuration & Details"
+  },
   // Glass Partitions & Enclosures subcategories - Enhanced with catalog options
   "Partitions_Frameless Glass": [
     // Step 1: Basic Options
@@ -945,14 +1065,16 @@ function getDefaultCustomizationFields() {
   },
   "Partitions_Shower Enclosure": [
     // Step 1: Basic Options
+    { type: "tags", label: "Series", id: "series", options: ["Arched Fixed Frameless Shower Partition", "Fixed Frameless with Curved Corner Shower Partition", "Fixed Frameless Shower Partition", "Fixed with Swing Shower Enclosure", "Fixed with Sliding Shower Enclosure", "Fixed Framed Shower Partition", "Swing Door Shower Enclosure", "Corner Swing Shower Enclosure", "Corner Sliding Shower Enclosure", "Corner Double Sliding Shower Enclosure", "Bay Swing Shower Enclosure", "2 Fixed and 1 Sliding Shower Enclosure", "2 Fixed and 1 Swing Shower Enclosure"], stepNumber: 1 },
     { type: "tags", label: "Layout", id: "layout", options: ["L-shape", "Straight", "U-shape", "L-type", "Neo-angle", "Square", "Bay", "Other corner layouts"], stepNumber: 1 },
     { type: "tags", label: "Configuration", id: "configuration", options: ["Fixed and swing", "Swing with small fixed glass", "Single sliding door", "Double sliding doors", "Sliding with fixed panels", "Single sliding", "Double sliding", "With fixed panels", "2 fixed panels", "3 fixed panels", "Custom configurations"], stepNumber: 1 },
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Clear", "Frosted", "Tinted", "Frosted (full or partial)", "Clear with frosted sticker", "Fully frosted", "Custom frosting patterns", "Frosted (full or partial with custom patterns/heights)"], stepNumber: 1 },
+    { type: "tags", label: "Glass Type", id: "glassType", options: ["Tempered"], stepNumber: 1 },
+    { type: "tags", label: "Glass Color", id: "glassColor", options: ["Clear", "Clear with Frosted Sticker (Middle Portion)", "10mm Frosted Tempered"], stepNumber: 1 },
+    { type: "tags", label: "Hardware Finish", id: "hardwareFinish", options: ["Mirror/Stainless Hardware", "Matte Black Hardware"], stepNumber: 1 },
     // Step 2: Glass Treatment
     { type: "tags", label: "Glass Treatment", id: "glassTreatment", options: ["Frosted sticker (customizable patterns, opacity, colors)", "Clear", "Custom patterns", "Heights (top clear, bottom frosted)", "Colors"], stepNumber: 2 },
-    { type: "number", label: "Glass Thickness (mm)", id: "glassThickness", min: 1, step: 0.1, stepNumber: 2 },
+    { type: "tags", label: "Glass Thickness (mm)", id: "glassThickness", options: ["10mm"], stepNumber: 2 },
     // Step 3: Hardware & Installation
-    { type: "tags", label: "Hardware Finish", id: "hardwareColor", options: ["Chrome/Stainless Steel", "Black Matte", "Gold", "Brushed Nickel", "Polished Chrome/Stainless Steel", "Matte Black (handles, hinges, connectors)", "Matte Black (rail, rollers, handles)", "Matte Black (hinges, handle, top bracing bar)", "Stainless Steel", "Black", "Silver", "Bronze"], stepNumber: 3 },
     { type: "tags", label: "Handle Style", id: "handleStyle", options: ["Various pull handle designs", "Various pull handles", "Knob handles", "Square handles", "Square matte black", "Round", "Bar-style"], stepNumber: 3 },
     { type: "tags", label: "Door Swing", id: "doorSwing", options: ["Left-hinged", "Right-hinged", "Left swing", "Right swing"], stepNumber: 3 },
     { type: "tags", label: "Mounting", id: "mounting", options: ["Standard mounting", "Custom mounting methods"], stepNumber: 3 }
@@ -977,34 +1099,38 @@ function getDefaultCustomizationFields() {
     "1": "Basic Options",
     "2": "Configuration & Hardware"
   },
-  // Mirrors & Specialty Glass subcategories - Organized and cleaned up
+  // Mirrors & Specialty Glass subcategories - Based on CUSTOMIZATION_REFERENCE.md
   "Specialty_Mirrors": [
-    // Step 1: Shape & Frame
-    { type: "tags", label: "Shape", id: "shape", options: ["Round", "Oval", "Square", "Rectangle", "Arched"], stepNumber: 1 },
-    { type: "tags", label: "Frame Type", id: "frameType", options: ["Frameless", "Standard Frame"], stepNumber: 1 },
-    { type: "tags", label: "Frame Color", id: "frameColor", options: ["Gold","Black", "White"], stepNumber: 1 },
-    // Step 2: Finish & Details
-    { type: "tags", label: "Edge Finish", id: "edgeFinish", options: ["Beveled", "Machine Polished Edge"], stepNumber: 2 },
-    { type: "tags", label: "Tint", id: "tintFinish", options: ["Clear", "Bronze", "Grey (Smoked)", "Black"], stepNumber: 2 },
-    // Step 3: Size & Installation
-    { type: "tags", label: "Mounting Method", id: "mountingMethod", options: ["Wall-mounted", "Freestanding", "Leaning", "Adhesive", "Hanging"], stepNumber: 3 },
-    // Step 4: Lighting & Features
-    { type: "tags", label: "Lighting", id: "lighting", options: ["None", "LED Backlight", "LED Front Light"], stepNumber: 4 },
-    { type: "tags", label: "LED Color", id: "ledColorTemperature", options: ["Warm White", "Cool White", "Daylight"], stepNumber: 4 },
-    { type: "tags", label: "Smart Features", id: "smartFeatures", options: ["Touch Dimmer", "Defogger", "Motion Sensor"], stepNumber: 4 }
+    // Step 1: Basic Options
+    { type: "tags", label: "Series", id: "series", options: ["Rectangle/Square Framed Mirror", "Rectangle/Square Frameless Mirror", "Oval Framed Mirror", "Oval Frameless Mirror", "Arched Framed Mirror", "Arched Frameless Mirror"], stepNumber: 1 },
+    { type: "tags", label: "Shape", id: "shape", options: ["Round", "Rectangle", "Oval", "Circle", "Square", "Rectangular with rounded edges", "Rectangular with arched top", "Custom shapes"], stepNumber: 1 },
+    { type: "number", label: "Corner Radius (in)", id: "cornerRadius", min: 0, step: 0.1, stepNumber: 1 },
+    { type: "tags", label: "Frame Type", id: "frameType", options: ["Frameless", "Framed"], stepNumber: 1 },
+    { type: "tags", label: "Frame Material/Color", id: "frameColor", options: ["White", "Black", "Gold", "Machine Polished Edges", "Beveled Edge"], stepNumber: 1 },
+    // Step 2: Configuration & Details
+    { type: "tags", label: "Glass Type", id: "glassType", options: ["Copper Free and Lead Free Mirror"], stepNumber: 2 },
+    { type: "tags", label: "Thickness (mm)", id: "thickness", options: ["6mm"], stepNumber: 2 },
+    { type: "tags", label: "Tint/Finish", id: "tintFinish", options: ["Bronze tint/color", "Grey tint (smoked)", "Colored glass"], stepNumber: 2 },
+    { type: "tags", label: "Orientation", id: "orientation", options: ["Vertical", "Horizontal", "Vertical/Full-body"], stepNumber: 2 },
+    { type: "tags", label: "Style", id: "style", options: ["French Type (grid/paneled design)"], stepNumber: 2 },
+    { type: "tags", label: "Lighting", id: "lighting", options: ["Integrated LED lighting", "Backlighting", "Front lighting", "Integrated LED options"], stepNumber: 2 },
+    { type: "tags", label: "LED Color/Temperature", id: "ledColorTemperature", options: ["Warm white", "Cool white", "Tunable white", "RGB"], stepNumber: 2 },
+    { type: "tags", label: "Grid Pattern", id: "gridPattern", options: ["French window style grid"], stepNumber: 2 },
+    { type: "tags", label: "Quantity", id: "quantity", options: ["Available in sets (3 sets, or individually)"], stepNumber: 2 },
+    { type: "tags", label: "Mounting Method", id: "mountingMethod", options: ["Wall-mounted", "Stand", "Adhesive", "Leaning", "Wall-mounted (often fixed above vanity)", "Fixed wall mount", "Integrated hanger", "Rope hanger", "Chain"], stepNumber: 2 },
+    { type: "tags", label: "Control", id: "control", options: ["Touch sensor button", "Dimmer", "Defogger"], stepNumber: 2 },
+    { type: "tags", label: "Additional Features", id: "additionalFeatures", options: ["Defogger", "Dimmer"], stepNumber: 2 },
+    { type: "tags", label: "Arrangement", id: "arrangement", options: ["Can be displayed as triptych", "Individually"], stepNumber: 2 }
   ],
   "Specialty_Mirrors_stepNames": {
-    "1": "Shape & Frame",
-    "2": "Finish & Details",
-    "3": "Size & Installation",
-    "4": "Lighting & Features"
+    "1": "Basic Options",
+    "2": "Configuration & Details"
   },
   "Specialty_Top Glass": [
     // Step 1: Basic Options
     { type: "tags", label: "Shape", id: "shape", options: ["Round", "Rectangle", "Oval", "Square", "Custom shapes"], stepNumber: 1 },
     { type: "tags", label: "Edge Finish", id: "edgeFinish", options: ["Beveled", "Polished", "Raw", "Beveled edge", "Flat polished edge", "Pencil edge"], stepNumber: 1 },
     // Step 2: Details & Installation
-    { type: "number", label: "Corner Radius (in)", id: "cornerRadius", min: 0, step: 0.1, stepNumber: 2 },
     { type: "tags", label: "Mounting Method", id: "mountingMethod", options: ["Wall-mounted", "Stand", "Adhesive"], stepNumber: 2 }
   ],
   "Specialty_Top Glass_stepNames": {
@@ -1045,55 +1171,6 @@ function getDefaultCustomizationFields() {
   ],
   "Commercial_Glass Balcony_stepNames": {
     "1": "Basic Options"
-  },
-  "Commercial_Stair Railings": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Safety Glass Type", id: "safetyGlassType", options: ["Tempered", "Laminated", "Bulletproof"], stepNumber: 1 },
-    { type: "tags", label: "Handrail Type", id: "handrailType", options: ["Stainless steel", "Aluminum", "Glass"], stepNumber: 1 },
-    { type: "tags", label: "Mounting System", id: "mountingSystem", options: ["Clamp", "Bolt", "Adhesive"], stepNumber: 1 }
-  ],
-  "Commercial_Stair Railings_stepNames": {
-    "1": "Basic Options"
-  }
-  };
-}
-
-// Initialize on load
-// loadCustomizationFields will be called in DOMContentLoaded to ensure base_url is defined
-
-/**
- * Populates category dropdown based on selected order type
- * @param {string} orderType - Selected order type ("direct" or "site-assessment")
- * @param {HTMLElement} categorySelect - Category select element
- */
-function populateCategories(orderType, categorySelect) {
-  // Clear existing options except the first placeholder
-  categorySelect.innerHTML = '<option value="" disabled selected>Select category</option>';
-  
-  if (orderType && orderTypeCategories[orderType]) {
-    orderTypeCategories[orderType].forEach(category => {
-      const option = document.createElement("option");
-      option.value = category;
-      option.textContent = category;
-      categorySelect.appendChild(option);
-    });
-  }
-  
-  // Clear subcategory when category changes
-  const subcategorySelect = document.getElementById("productSubcategory");
-  const subcategoryGroup = document.getElementById("subcategoryGroup");
-  if (subcategorySelect) {
-    subcategorySelect.innerHTML = '<option value="" disabled selected>Select subcategory</option>';
-    subcategorySelect.value = "";
-  }
-  if (subcategoryGroup) {
-    subcategoryGroup.style.display = "none";
-  }
-  
-  // Clear customization fields
-  const customizationContainer = document.getElementById("customizationFields");
-  if (customizationContainer) {
-    customizationContainer.innerHTML = "";
   }
 }
 
@@ -1728,7 +1805,7 @@ function showManageCustomizationFields(category, subcategory) {
   // Initial render
   renderFieldsManager();
   
-  // Load defaults button
+  // Load defaults button - loads from JSON file
   document.getElementById("loadDefaultsBtn").onclick = async () => {
     if (workingFields.length > 0) {
       if (!confirm('Loading defaults will replace all current fields. Continue?')) {
@@ -1737,26 +1814,28 @@ function showManageCustomizationFields(category, subcategory) {
     }
 
     try {
-      const response = await fetch(base_url + 'customizationFields/get?category=' + encodeURIComponent(category) + '&subcategory=' + encodeURIComponent(subcategory));
-      const data = await response.json();
-
-      if (data.status === 'success' && data.fields && data.fields.length > 0) {
-        workingFields = JSON.parse(JSON.stringify(data.fields));
+      // Load from JSON file instead of database
+      const defaultFields = await getDefaultCustomizationFields();
+      
+      if (defaultFields[fieldKey] && defaultFields[fieldKey].length > 0) {
+        workingFields = JSON.parse(JSON.stringify(defaultFields[fieldKey]));
         window.currentWorkingFields = workingFields;
 
         // Also load step names if available
         const stepNamesKey = `${fieldKey}_stepNames`;
-        if (data.stepNames || customizationFields[stepNamesKey]) {
-          workingStepNames = JSON.parse(JSON.stringify(data.stepNames || customizationFields[stepNamesKey]));
+        if (defaultFields[stepNamesKey]) {
+          workingStepNames = JSON.parse(JSON.stringify(defaultFields[stepNamesKey]));
+        } else if (customizationFields[stepNamesKey]) {
+          workingStepNames = JSON.parse(JSON.stringify(customizationFields[stepNamesKey]));
         }
 
         renderFieldsManager();
-        showToast('Defaults loaded successfully!', 'success');
+        showToast('Defaults loaded successfully from JSON file!', 'success');
       } else {
-        showToast('No defaults available for this category/subcategory.', 'info');
+        showToast('No defaults available for this category/subcategory in JSON file.', 'info');
       }
     } catch (error) {
-      console.error('Error loading defaults:', error);
+      console.error('Error loading defaults from JSON:', error);
       showToast('Error loading defaults. Please try again.', 'error');
     }
   };
@@ -2270,6 +2349,36 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
 }
 
 /**
+ * Toggles tag selection state
+ * @param {HTMLElement} tag - The tag element to toggle
+ * @param {string} prefix - Field prefix
+ * @param {string} fieldId - Field ID
+ */
+function toggleTagSelection(tag, prefix, fieldId) {
+  const hiddenInput = document.getElementById(`${prefix}${fieldId}`);
+  if (!hiddenInput) return;
+  
+  let selectedValues = JSON.parse(hiddenInput.value || "[]");
+  const tagValue = tag.dataset.value;
+  
+  // Toggle selection
+  if (tag.classList.contains("selected")) {
+    // Deselect: remove from selectedValues
+    selectedValues = selectedValues.filter(v => v !== tagValue);
+    tag.classList.remove("selected");
+  } else {
+    // Select: add to selectedValues
+    if (!selectedValues.includes(tagValue)) {
+      selectedValues.push(tagValue);
+    }
+    tag.classList.add("selected");
+  }
+  
+  // Update hidden input
+  hiddenInput.value = JSON.stringify(selectedValues);
+}
+
+/**
  * Renders tag elements in a container
  * @param {HTMLElement} container - Container to render tags in
  * @param {Array} options - Available tag options
@@ -2308,7 +2417,9 @@ function renderTags(container, options, prefix, fieldId) {
   // Render each tag
   allOptions.forEach(option => {
     const tag = document.createElement("span");
-    tag.className = "tag selected"; // Always selected by default
+    // Check if tag is in selectedValues to determine if it should be selected
+    const isSelected = selectedValues.includes(option);
+    tag.className = isSelected ? "tag selected" : "tag";
     tag.dataset.value = option;
     
     // Create tag content with image if available
@@ -2357,14 +2468,14 @@ function renderTags(container, options, prefix, fieldId) {
     priceSpan.textContent = `(₱${priceValue.toFixed(2)})`;
     tag.appendChild(priceSpan);
     
-    // Tags are always part of the product specs if they exist
-    // No need to toggle selection (it's always selected/blue)
-    // tag.classList.add("selected"); 
-    
-    // Toggle selection on click (removed as requested)
-    // tag.addEventListener("click", () => {
-    //   toggleTagSelection(tag, prefix, fieldId);
-    // });
+    // Toggle selection on click - allow users to select/deselect tags
+    tag.addEventListener("click", (e) => {
+      // Don't toggle if clicking on edit/remove buttons
+      if (e.target.closest('.tag-actions')) {
+        return;
+      }
+      toggleTagSelection(tag, prefix, fieldId);
+    });
     
     // Add edit and remove buttons for ALL tags - admin can edit/remove any tags (both preset and custom)
     const tagActions = document.createElement("span");
@@ -2401,9 +2512,6 @@ function renderTags(container, options, prefix, fieldId) {
   if (hiddenInput) {
     hiddenInput.value = JSON.stringify(selectedValues);
   }
-  
-  // No need for click listeners on tags for selection anymore
-  // as all tags are automatically selected/included
 }
 
 /**
@@ -3894,18 +4002,19 @@ function collectCustomizationData(prefix = "") {
   
   inputs.forEach(input => {
     if (input.type === "hidden") {
-      // For tags, we now collect ALL tags in the container as they are all considered selected
+      // For tags, read directly from hidden input (source of truth)
+      // The hidden input is updated by toggleTagSelection when tags are clicked
       const fieldId = input.name;
-      const tagContainer = container.querySelector(`[data-field-id="${fieldId}"]`);
-      if (tagContainer) {
-        const tags = Array.from(tagContainer.querySelectorAll(".tag")).map(t => t.dataset.value);
-        data[fieldId] = tags;
-      } else {
-        // Fallback to hidden input value if container not found
-        try {
-          const parsed = JSON.parse(input.value || "[]");
-          data[fieldId] = Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
+      try {
+        const parsed = JSON.parse(input.value || "[]");
+        data[fieldId] = Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        // If parsing fails, try to get from selected tags in DOM as fallback
+        const tagContainer = container.querySelector(`[data-field-id="${fieldId}"]`);
+        if (tagContainer) {
+          const selectedTags = Array.from(tagContainer.querySelectorAll(".tag.selected")).map(t => t.dataset.value);
+          data[fieldId] = selectedTags;
+        } else {
           data[fieldId] = [];
         }
       }
@@ -6492,10 +6601,7 @@ function setupProductSorting() {
 document.addEventListener("DOMContentLoaded", () => {
   console.log('Products page DOM loaded, initializing...');
 
-  // Initialize with default customization fields immediately for instant availability
-  initializeDefaultCustomizationFields();
-
-  // Then load customization fields from database (async, to update with latest data)
+  // Load customization fields (DB → localStorage → JSON defaults)
   loadCustomizationFields().catch(e => console.error('Error loading customization fields:', e));
   
   // Setup functions with retry logic
