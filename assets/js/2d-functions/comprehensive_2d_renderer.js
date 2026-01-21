@@ -318,7 +318,7 @@ function renderWindowsSliding(productData, dimensions, layer, renderContext) {
                 x: panelX + panelWidth / 2,
                 y: transomY + transomHeight / 2,
                 text: 'F',
-                fontSize: Math.max(12, transomHeight / 4),
+                fontSize: Math.max(12, transomHeight / 10),
                 fontFamily: 'Arial',
                 fontStyle: 'bold',
                 fill: '#FFFFFF',
@@ -364,19 +364,29 @@ function renderWindowsSliding(productData, dimensions, layer, renderContext) {
             });
             layer.add(fixedRect);
 
+            // Centered, capped "F" label (prevent oversized letters on large panels)
+            const handleX = panelX + panelWidth / 2;
+            const handleY = mainY + mainHeight / 2;
+
+            // Use a fraction of panel height but cap to a maximum for visual consistency
+            const labelFontSize = Math.max(12, Math.min(mainHeight * 0.18, 24));
+
             const label = new Konva.Text({
-                x: panelX + panelWidth / 2,
-                y: mainY + mainHeight / 2,
+                x: handleX,
+                y: handleY,
                 text: 'F',
-                fontSize: Math.max(12, mainHeight / 4),
+                fontSize: labelFontSize,
                 fontFamily: 'Arial',
                 fontStyle: 'bold',
                 fill: '#FFFFFF',
                 align: 'center',
-                offsetX: 6,
-                offsetY: 8,
                 listening: false,
             });
+
+            // Precisely center text using measured dimensions instead of fixed offsets
+            label.offsetX(label.width() / 2);
+            label.offsetY(label.height() / 2);
+
             layer.add(label);
         } else {
             // Sliding panel
@@ -394,10 +404,14 @@ function renderWindowsSliding(productData, dimensions, layer, renderContext) {
             layer.add(glassRect);
 
             // "S" label for sliding - only show when no transom is selected
-            if (!hasTransom) {
+            if (!hasTransom || (hasTransom && (isFixedTransomHead || isFixedTransomSill))) {
                 const handleX = panelX + panelWidth / 2;
                 const handleY = mainY + mainHeight / 2;
-                const labelFontSize = Math.max(12, mainHeight / 4);
+
+                // Cap the size of the "S" so it doesn't become oversized on large panels.
+                // Use a sensible fraction of the panel height and an upper bound.
+                const labelFontSize = Math.max(12, Math.min(mainHeight * 0.18, 24));
+
                 const label = new Konva.Text({
                     x: handleX,
                     y: handleY,
@@ -407,11 +421,14 @@ function renderWindowsSliding(productData, dimensions, layer, renderContext) {
                     fontStyle: 'bold',
                     fill: '#333333',
                     align: 'center',
-                    verticalAlign: 'middle',
-                    offsetX: labelFontSize * 0.35,
-                    offsetY: labelFontSize * 0.5,
                     listening: false,
                 });
+
+                // Center the text precisely by using measured width/height
+                // (avoid relying on fixed offset multipliers that break on different fonts/sizes)
+                label.offsetX(label.width() / 2);
+                label.offsetY(label.height() / 2);
+
                 layer.add(label);
             }
         }
@@ -672,6 +689,32 @@ function renderWindowsAwning(productData, dimensions, layer, renderContext) {
     
     drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight, 
                        originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
+
+    // Draw annotations (thickness, edge work)
+    if (thickness || customizationValues.edgeWork) {
+        // Normalize thickness so values like 6 or '6' or '6mm' become '6mm'
+        let formatThickness = (thickness === undefined || thickness === null) ? '6mm' : String(thickness);
+        formatThickness = formatThickness.replace(/mm$/i, '');
+        formatThickness = `${formatThickness}mm`;
+        const formatEdge = (customizationValues.edgeWork || '').split('-').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || '';
+        const annotationText = formatEdge ? 
+            `Thickness: ${formatThickness}  |  Edge: ${formatEdge}` : 
+            `Thickness: ${formatThickness}`;
+        
+        layer.add(new Konva.Text({
+            x: offsetX + totalWidth / 2,
+            y: offsetY + totalHeight + 15,
+            text: annotationText,
+            fontSize: 11,
+            fontStyle: 'bold',
+            fontFamily: 'Montserrat, Arial',
+            fill: '#555',
+            align: 'center',
+            offsetX: (annotationText.length * 6) / 2,
+            listening: false,
+        }));
+    }
 }
 
 /**
@@ -716,7 +759,21 @@ function renderWindowsCasement(productData, dimensions, layer, renderContext) {
     const fStyle = getFrameStyle(frameColor, frameStyles);
 
     const panelWidth = totalWidth / numberOfPanels;
-    const isLeftHinged = hingeSide.toLowerCase().includes('left');
+
+    // Support per-panel hinge side input. Accept:
+    // - customizationValues.hingeSides as pipe-separated string, e.g. 'Left|Right|Left'
+    // - an array of hinge sides
+    // - fallback to single hingeSide value for all panels
+    const hingeSidesRaw = customizationValues.hingeSides || customizationValues.hingeSide || hingeSide;
+    let hingeSidesArray = [];
+    if (Array.isArray(hingeSidesRaw)) {
+        hingeSidesArray = hingeSidesRaw.map(s => String(s || '').trim());
+    } else if (typeof hingeSidesRaw === 'string') {
+        // split by pipe if multiple provided, otherwise single-value array
+        hingeSidesArray = hingeSidesRaw.includes('|') ? hingeSidesRaw.split('|').map(s => s.trim()) : [hingeSidesRaw.trim()];
+    } else {
+        hingeSidesArray = [String(hingeSidesRaw)];
+    }
 
     // Draw panels
     for (let i = 0; i < numberOfPanels; i++) {
@@ -736,8 +793,12 @@ function renderWindowsCasement(productData, dimensions, layer, renderContext) {
         });
         layer.add(panelRect);
 
+        // Determine hinge for this panel (per-panel or fallback)
+        const hingeForPanel = hingeSidesArray[i] || hingeSidesArray[0] || hingeSide;
+        const isLeft = String(hingeForPanel).toLowerCase().includes('left');
+
         // Draw hinge on appropriate side
-        const hingeX = isLeftHinged ? panelX : panelX + panelWidth;
+        const hingeX = isLeft ? panelX : panelX + panelWidth;
         const hingeLine = new Konva.Line({
             points: [hingeX, offsetY, hingeX, offsetY + totalHeight],
             stroke: '#FF6B6B',
@@ -747,7 +808,7 @@ function renderWindowsCasement(productData, dimensions, layer, renderContext) {
         layer.add(hingeLine);
 
         // Draw opening arc
-        const arcCenterX = isLeftHinged ? panelX : panelX + panelWidth;
+        const arcCenterX = isLeft ? panelX : panelX + panelWidth;
         const arcCenterY = offsetY + totalHeight / 2;
         const arcRadius = panelWidth * 0.4;
         
@@ -757,7 +818,7 @@ function renderWindowsCasement(productData, dimensions, layer, renderContext) {
             innerRadius: 0,
             outerRadius: arcRadius,
             angle: 90,
-            rotation: isLeftHinged ? 0 : 180,
+            rotation: isLeft ? 0 : 180,
             fill: 'rgba(255, 107, 107, 0.2)',
             stroke: '#FF6B6B',
             strokeWidth: 2,
@@ -944,7 +1005,7 @@ function renderDoorsSliding(productData, dimensions, layer, renderContext) {
                 x: panelX + panelWidth / 2,
                 y: offsetY + totalHeight / 2,
                 text: 'F',
-                fontSize: Math.max(14, totalHeight / 5),
+                fontSize: Math.max(14, totalHeight / 10),
                 fontFamily: 'Arial',
                 fontStyle: 'bold',
                 fill: '#FFFFFF',
@@ -979,7 +1040,7 @@ function renderDoorsSliding(productData, dimensions, layer, renderContext) {
                 width: 30,
                 height: 6,
                 fill: '#333333',
-                opacity: 0.9,
+                opacity: 0,
                 cornerRadius: 3,
                 listening: false,
             });
@@ -1807,6 +1868,37 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
         });
         layer.add(ledIndicator);
     }
+
+    // Draw dimension lines (width and height) for mirrors
+    const originalWidth = productData.originalWidth || dimensions.width;
+    const originalHeight = productData.originalHeight || dimensions.height;
+    const widthUnit = productData.widthUnit || dimensions.unit || 'in';
+    const heightUnit = productData.heightUnit || dimensions.unit || 'in';
+    drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight,
+                       originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
+
+    // Draw annotations (thickness, edge work)
+    if (thickness || customizationValues.edgeWork) {
+        const formatThickness = thickness || '6mm';
+        const formatEdge = (customizationValues.edgeWork || '').split('-').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || '';
+        const annotationText = formatEdge ? 
+            `Thickness: ${formatThickness}  |  Edge: ${formatEdge}` : 
+            `Thickness: ${formatThickness}`;
+        
+        layer.add(new Konva.Text({
+            x: offsetX + totalWidth / 2,
+            y: offsetY + totalHeight + 15,
+            text: annotationText,
+            fontSize: 11,
+            fontStyle: 'bold',
+            fontFamily: 'Montserrat, Arial',
+            fill: '#555',
+            align: 'center',
+            offsetX: (annotationText.length * 6) / 2,
+            listening: false,
+        }));
+    }
 }
 
 /**
@@ -2412,8 +2504,21 @@ function drawTransomDimensions(layer, offsetX, offsetY, totalWidth, totalHeight,
  */
 function extractPanelCount(panelString) {
     if (!panelString) return 2;
-    const match = panelString.match(/(\d+)/);
-    return match ? parseInt(match[1]) : 2;
+    // If a number is provided directly, accept it
+    if (typeof panelString === 'number' && isFinite(panelString)) {
+        return Math.max(1, parseInt(panelString, 10));
+    }
+
+    // Handle string inputs: 'Single', '2 Panels', '3', etc.
+    if (typeof panelString === 'string') {
+        const trimmed = panelString.trim().toLowerCase();
+        if (trimmed === 'single' || trimmed === 'single panel') return 1;
+        const match = trimmed.match(/(\d+)/);
+        if (match) return Math.max(1, parseInt(match[1], 10));
+    }
+
+    // Fallback default
+    return 2;
 }
 
 /**
@@ -2479,7 +2584,9 @@ function getGlassStyle(glassType, glassColor, styles = null) {
     if (normalizedColor.includes('frosted') || normalizedColor.includes('smoked')) {
         return glassStyles['frosted'] || glassStyles['clear'];
     }
-
+    if (normalizedColor.includes('smoked')){
+        return glassStyles['smoked'] || glassStyles['clear'];
+    }
     // Try type lookup
     if (glassStyles[normalizedType]) {
         return glassStyles[normalizedType];

@@ -90,7 +90,7 @@ This reference lists every main category, its supported subcategories, and the d
 | --- | --- | --- | --- |
 | Step 1 (1) | Glass Type | `tags` | Clear \| Tinted \| Frosted \| Low-E \| Tempered \| Laminated \| Laminated safety glass |
 | Step 1 (1) | Frame Material/Color | `tags` | Aluminum \| Black \| White \| Bronze \| Brown (wood-look) \| Silver \| Custom colors |
-| Step 1 (1) | Panel Count | `tags` | 2-panel \| 3-panel \| 4-panel \| More panels |
+| Step 1 (1) | Panel Count | `tags` | 2-panel \| 3-panel \| 4-panel |
 | Step 2 (2) | Operation | `tags` | Sliding (single) \| Sliding (double) \| Sliding (multi-track) |
 | Step 2 (2) | Panel Configuration | `tags` | Central sliding panels with fixed outer panels \| All sliding \| 2 sliding + 2 fixed \| 2 sliding only \| 3 sliding \| Custom |
 | Step 3 (3) | Handle Type | `tags` | Various pull handles \| Knob handles \| Square handles \| Bar-style \| Round \| Square matte black |
@@ -207,24 +207,17 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Step 1 (1) | Series | `tags` | Rectangle/Square Framed Mirror \| Rectangle/Square Frameless Mirror \| Oval Framed Mirror \| Oval Frameless Mirror \| Arched Framed Mirror \| Arched Frameless Mirror |
 | Step 1 (1) | Shape | `tags` | Round \| Rectangle \| Oval \| Circle \| Square \| Rectangular with rounded edges \| Rectangular with arched top \| Custom shapes |
-| Step 1 (1) | Corner Radius (in) | `number` | min 0 · step 0.1 |
+| Step 1 (1) | Corner Radius (in) | `number` | min 0 · step 1 |
 | Step 1 (1) | Frame Type | `tags` | Frameless \| Framed |
 | Step 2 (2) | Frame Material/Color | `tags` | White \| Black \| Gold \| Machine Polished Edges \| Beveled Edge |
 | Step 2 (2) | Glass Type | `tags` | Copper Free and Lead Free Mirror |
 | Step 2 (2) | Thickness (mm) | `tags` | 6mm |
 | Step 2 (2) | Tint/Finish | `tags` | Bronze tint/color \| Grey tint (smoked) \| Colored glass |
-| Step 3 (3) | Orientation | `tags` | Vertical \| Horizontal \| Vertical/Full-body |
-| Step 3 (3) | Style | `tags` | French Type (grid/paneled design) |
-| Step 3 (3) | Grid Pattern | `tags` | French window style grid |
-| Step 3 (3) | Arrangement | `tags` | Can be displayed as triptych \| Individually |
-| Step 4 (4) | Lighting | `tags` | Integrated LED lighting \| Backlighting \| Front lighting \| Integrated LED options |
-| Step 4 (4) | LED Color/Temperature | `tags` | Warm white \| Cool white \| Tunable white \| RGB |
+| Step 3 (3) | Lighting | `tags` | Integrated LED lighting \| Backlighting \| Front lighting |
+| Step 3 (3) | LED Color/Temperature | `tags` | Warm white \| Cool white \| Tunable white |
 | Step 4 (4) | Control | `tags` | Touch sensor button \| Dimmer \| Defogger |
-| Step 4 (4) | Additional Features | `tags` | Defogger \| Dimmer |
-| Step 5 (5) | Mounting Method | `tags` | Wall-mounted \| Stand \| Adhesive \| Leaning \| Wall-mounted (often fixed above vanity) \| Fixed wall mount \| Integrated hanger \| Rope hanger \| Chain |
-| Step 5 (5) | Quantity | `tags` | Available in sets (3 sets, or individually) |
+| Step 4 (4) | Mounting Method | `tags` | Wall-mounted \| Stand \| Adhesive \| Leaning |
 
 **Notes:**
 - Frame Color options depend on Series:
