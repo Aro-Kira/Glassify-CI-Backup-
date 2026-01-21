@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadAppointments() {
         if (!tbody) return;
         
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading appointments...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">Loading appointments...</td></tr>';
         
         try {
             const params = new URLSearchParams({
@@ -199,11 +199,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 updatePagination(data.total || 0, data.page || 1, data.total_pages || 1);
                 updateFoundText(data.total || 0);
             } else {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">Error: ' + (data.message || 'Failed to load appointments') + '</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: red;">Error: ' + (data.message || 'Failed to load appointments') + '</td></tr>';
             }
         } catch (error) {
             console.error('Error loading appointments:', error);
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">Error loading appointments</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: red;">Error loading appointments</td></tr>';
         }
     }
     
@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!tbody) return;
         
         if (appointments.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No appointments found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px;">No appointments found</td></tr>';
             return;
         }
         
@@ -223,13 +223,20 @@ document.addEventListener('DOMContentLoaded', function() {
             const date = apt.appointment_date ? new Date(apt.appointment_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '-';
             const time = apt.appointment_time ? new Date('2000-01-01T' + apt.appointment_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
             const statusBadge = getStatusBadge(apt.status);
+            const priceValue = apt.unit_price ?? apt.estimate_price ?? '';
+            const specs = [
+                apt.dimensions ? `Size: ${apt.dimensions}` : null,
+                apt.quantity ? `Qty: ${apt.quantity}` : null,
+                priceValue !== '' ? `Price: ₱${Number(priceValue).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : null
+            ].filter(Boolean).join('<br>');
             
             return `
                 <tr>
                     <td>${rowNum}</td>
-                    <td>${apt.client_name || '-'}</td>
+                    <td>${apt.client_name || apt.client || '-'}</td>
                     <td><a href="${baseUrl}admin-orders?order_id=${apt.order_id}" class="order-link">${apt.order_number || apt.order_id || '-'}</a></td>
                     <td>${date} ${time}</td>
+                    <td>${specs || '-'}</td>
                     <td>${apt.assigned_staff || 'Unassigned'}</td>
                     <td>${statusBadge}</td>
                     <td>
@@ -277,6 +284,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // POPULATE APPOINTMENT MODAL
     // ======================
     function populateAppointmentModal(apt) {
+        // Clear pending photos when opening modal
+        pendingSitePhotos = [];
+        
         // Order information
         const orderLink = document.getElementById('detail-order-link');
         if (orderLink) {
@@ -287,7 +297,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Client information
         const clientName = document.getElementById('detail-client-name');
         if (clientName) {
-            clientName.value = apt.client || '';
+            clientName.value = apt.client || apt.client_name || '';
         }
         
         // Appointment information
@@ -306,19 +316,56 @@ document.addEventListener('DOMContentLoaded', function() {
             appointmentTime.value = apt.time || '';
         }
         
-        // Assigned staff
+        // Assigned staff - match by ID first, then by name as fallback
         const assignedStaff = document.getElementById('detail-assigned-staff');
         if (assignedStaff) {
+            // Get staff ID - check if it's explicitly set (even if 0) or use null
+            const assignedStaffId = apt.assigned_staff_id !== undefined && apt.assigned_staff_id !== null ? apt.assigned_staff_id : null;
+            const assignedStaffName = apt.assigned_staff || '';
             assignedStaff.innerHTML = '<option value="">Select Staff...</option>' + 
-                staffList.map(staff => 
-                    `<option value="${staff.id}" ${staff.id == apt.assigned_staff ? 'selected' : ''}>${staff.name}</option>`
-                ).join('');
+                staffList.map(staff => {
+                    // Prioritize ID match, then fallback to name match
+                    const isSelected = (assignedStaffId !== null && staff.id == assignedStaffId) || 
+                                      (assignedStaffId === null && assignedStaffName && staff.name.trim() === assignedStaffName.trim());
+                    return `<option value="${staff.id}" ${isSelected ? 'selected' : ''}>${staff.name}</option>`;
+                }).join('');
         }
         
         // Status
         const status = document.getElementById('detail-status');
         if (status) {
             status.value = apt.status || 'In Progress';
+        }
+
+        // Order specifications (ocular only)
+        const orderItemId = document.getElementById('detail-order-item-id');
+        if (orderItemId) {
+            orderItemId.value = apt.order_item_id || '';
+        }
+        const specWidth = document.getElementById('detail-spec-width');
+        const specHeight = document.getElementById('detail-spec-height');
+        const specUnit = document.getElementById('detail-spec-unit');
+        if (specWidth || specHeight || specUnit) {
+            const dims = (apt.dimensions || '').toString();
+            const match = dims.match(/([\d.]+)\s*(in|cm|mm)?\s*x\s*([\d.]+)\s*(in|cm|mm)?/i);
+            if (match) {
+                if (specWidth) specWidth.value = match[1];
+                if (specHeight) specHeight.value = match[3];
+                const unit = match[2] || match[4] || 'in';
+                if (specUnit) specUnit.value = unit.toLowerCase();
+            } else {
+                if (specWidth) specWidth.value = '';
+                if (specHeight) specHeight.value = '';
+            }
+        }
+        const specPrice = document.getElementById('detail-spec-price');
+        if (specPrice) {
+            const priceValue = apt.unit_price ?? apt.estimate_price ?? '';
+            specPrice.value = priceValue !== null ? priceValue : '';
+        }
+        const specQuantity = document.getElementById('detail-spec-quantity');
+        if (specQuantity) {
+            specQuantity.value = apt.quantity || '';
         }
         
         // Notes
@@ -336,6 +383,72 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Load site photos if available
             loadSitePhotos(apt.id);
+
+            const receiptLink = document.getElementById('detail-payment-receipt-link');
+            const receiptInput = document.getElementById('detail-payment-receipt');
+            
+            // Remove any existing status messages or helper text first
+            if (receiptLink) {
+                const existingStatus = receiptLink.querySelector('.receipt-status');
+                if (existingStatus) {
+                    existingStatus.remove();
+                }
+            }
+            if (receiptInput) {
+                const existingHelper = receiptInput.nextElementSibling;
+                if (existingHelper && existingHelper.classList.contains('receipt-helper')) {
+                    existingHelper.remove();
+                }
+                // Always clear file input when opening modal (file inputs can't be pre-filled)
+                receiptInput.value = '';
+            }
+            
+            if (receiptLink) {
+                if (apt.receipt_url && apt.receipt_url.trim() !== '') {
+                    receiptLink.style.display = 'block';
+                    const anchor = receiptLink.querySelector('a');
+                    if (anchor) {
+                        // Ensure URL is properly formatted
+                        let receiptUrl = apt.receipt_url;
+                        if (!receiptUrl.startsWith('http://') && !receiptUrl.startsWith('https://') && !receiptUrl.startsWith('/')) {
+                            // If it's a relative path, ensure it has base URL
+                            if (receiptUrl.startsWith('uploads/')) {
+                                receiptUrl = baseUrl + receiptUrl;
+                            } else {
+                                receiptUrl = baseUrl + 'uploads/' + receiptUrl;
+                            }
+                        }
+                        anchor.href = receiptUrl;
+                        // Extract filename from URL for display
+                        const urlParts = receiptUrl.split('/');
+                        const fileName = urlParts[urlParts.length - 1].split('?')[0]; // Remove query params if any
+                        anchor.innerHTML = `<i class="fas fa-file-pdf" style="margin-right: 5px;"></i>View uploaded receipt: ${fileName}`;
+                        anchor.title = fileName;
+                    }
+                    // Add a message that receipt already exists
+                    const statusMsg = document.createElement('p');
+                    statusMsg.className = 'receipt-status';
+                    statusMsg.style.marginTop = '8px';
+                    statusMsg.style.color = '#28a745';
+                    statusMsg.style.fontSize = '13px';
+                    statusMsg.innerHTML = '<i class="fas fa-check-circle" style="margin-right: 5px;"></i>Receipt already uploaded';
+                    receiptLink.appendChild(statusMsg);
+                    
+                    // Add helper text to file input
+                    if (receiptInput) {
+                        const helper = document.createElement('small');
+                        helper.className = 'receipt-helper';
+                        helper.style.display = 'block';
+                        helper.style.marginTop = '4px';
+                        helper.style.color = '#6c757d';
+                        helper.style.fontStyle = 'italic';
+                        helper.textContent = 'Upload a new file to replace the existing receipt';
+                        receiptInput.parentNode.insertBefore(helper, receiptInput.nextSibling);
+                    }
+                } else {
+                    receiptLink.style.display = 'none';
+                }
+            }
         }
         
         // Installation notes (if installation appointment)
@@ -355,25 +468,38 @@ document.addEventListener('DOMContentLoaded', function() {
     // ======================
     async function saveAppointment() {
         if (!currentAppointment) return;
-        
-        const appointmentData = {
-            appointment_id: currentAppointment.id,
-            client_name: document.getElementById('detail-client-name')?.value || '',
-            date: document.getElementById('detail-appointment-date')?.value || '',
-            time: document.getElementById('detail-appointment-time')?.value || '',
-            assigned_staff: document.getElementById('detail-assigned-staff')?.value || '',
-            status: document.getElementById('detail-status')?.value || '',
-            notes: document.getElementById('detail-notes')?.value || ''
-        };
+        const formData = new FormData();
+        formData.append('appointment_id', currentAppointment.id);
+        formData.append('client_name', document.getElementById('detail-client-name')?.value || '');
+        formData.append('date', document.getElementById('detail-appointment-date')?.value || '');
+        formData.append('time', document.getElementById('detail-appointment-time')?.value || '');
+        formData.append('assigned_staff', document.getElementById('detail-assigned-staff')?.value || '');
+        formData.append('status', document.getElementById('detail-status')?.value || '');
+        formData.append('notes', document.getElementById('detail-notes')?.value || '');
+        formData.append('service', currentAppointment.service || (appointmentType === 'ocular' ? 'Ocular Visit' : 'Installed'));
+        formData.append('order_item_id', document.getElementById('detail-order-item-id')?.value || '');
         
         // Add ocular notes if ocular appointment
         if (appointmentType === 'ocular') {
-            appointmentData.ocular_notes = document.getElementById('detail-ocular-notes')?.value || '';
+            formData.append('ocular_notes', document.getElementById('detail-ocular-notes')?.value || '');
+            formData.append('spec_width', document.getElementById('detail-spec-width')?.value || '');
+            formData.append('spec_height', document.getElementById('detail-spec-height')?.value || '');
+            formData.append('spec_unit', document.getElementById('detail-spec-unit')?.value || '');
+            formData.append('spec_price', document.getElementById('detail-spec-price')?.value || '');
+            formData.append('spec_quantity', document.getElementById('detail-spec-quantity')?.value || '');
+            const receiptInput = document.getElementById('detail-payment-receipt');
+            if (receiptInput && receiptInput.files && receiptInput.files[0]) {
+                formData.append('payment_receipt', receiptInput.files[0]);
+            }
+            // Add site photos
+            pendingSitePhotos.forEach((file, index) => {
+                formData.append(`site_photos[${index}]`, file);
+            });
         }
         
         // Add installation notes if installation appointment
         if (appointmentType === 'installation') {
-            appointmentData.installation_notes = document.getElementById('detail-installation-notes')?.value || '';
+            formData.append('installation_notes', document.getElementById('detail-installation-notes')?.value || '');
             
             // Get checklist values
             const checklist = {
@@ -382,21 +508,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 installation_completed: document.getElementById('checklist-installation-completed')?.checked || false,
                 quality_check: document.getElementById('checklist-quality-check')?.checked || false
             };
-            appointmentData.checklist = checklist;
+            formData.append('checklist', JSON.stringify(checklist));
         }
         
         try {
             const response = await fetch(updateAppointmentUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(appointmentData)
+                body: formData
             });
             
             const data = await response.json();
             
             if (data.success) {
+                // Clear pending photos after successful save
+                pendingSitePhotos = [];
                 alert('Appointment updated successfully');
                 appointmentDetailsModal.classList.remove('active');
                 loadAppointments();
@@ -428,6 +553,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     appointment_id: currentAppointment.id,
+                    service: currentAppointment.service || 'Ocular Visit',
                     status: 'Complete',
                     ocular_completed: true
                 })
@@ -741,26 +867,61 @@ document.addEventListener('DOMContentLoaded', function() {
     // ======================
     // PHOTO UPLOAD
     // ======================
+    let pendingSitePhotos = []; // Store files to be uploaded when saving
+    
     function handlePhotoUpload(files) {
         if (!files || files.length === 0) return;
         
-        // This would typically upload to server
-        // For now, just show preview
         const gallery = document.getElementById('site-photos-gallery');
         if (!gallery) return;
         
         Array.from(files).forEach(file => {
             if (file.type.startsWith('image/')) {
+                // Add to pending photos array
+                pendingSitePhotos.push(file);
+                
+                // Show preview
                 const reader = new FileReader();
                 reader.onload = function(e) {
+                    const photoContainer = document.createElement('div');
+                    photoContainer.style.position = 'relative';
+                    photoContainer.style.display = 'inline-block';
+                    photoContainer.style.margin = '5px';
+                    
                     const img = document.createElement('img');
                     img.src = e.target.result;
                     img.style.width = '100px';
                     img.style.height = '100px';
                     img.style.objectFit = 'cover';
-                    img.style.margin = '5px';
                     img.style.borderRadius = '4px';
-                    gallery.appendChild(img);
+                    img.style.border = '2px solid #ddd';
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.innerHTML = '×';
+                    removeBtn.style.position = 'absolute';
+                    removeBtn.style.top = '-5px';
+                    removeBtn.style.right = '-5px';
+                    removeBtn.style.background = 'red';
+                    removeBtn.style.color = 'white';
+                    removeBtn.style.border = 'none';
+                    removeBtn.style.borderRadius = '50%';
+                    removeBtn.style.width = '20px';
+                    removeBtn.style.height = '20px';
+                    removeBtn.style.cursor = 'pointer';
+                    removeBtn.style.fontSize = '14px';
+                    removeBtn.style.lineHeight = '1';
+                    removeBtn.onclick = function() {
+                        // Remove from pending photos
+                        const index = pendingSitePhotos.indexOf(file);
+                        if (index > -1) {
+                            pendingSitePhotos.splice(index, 1);
+                        }
+                        photoContainer.remove();
+                    };
+                    
+                    photoContainer.appendChild(img);
+                    photoContainer.appendChild(removeBtn);
+                    gallery.appendChild(photoContainer);
                 };
                 reader.readAsDataURL(file);
             }
@@ -771,11 +932,82 @@ document.addEventListener('DOMContentLoaded', function() {
     // LOAD SITE PHOTOS
     // ======================
     async function loadSitePhotos(appointmentId) {
-        // This would load photos from server
-        // Placeholder for now
         const gallery = document.getElementById('site-photos-gallery');
-        if (gallery) {
-            gallery.innerHTML = ''; // Clear existing photos
+        if (!gallery) return;
+        
+        gallery.innerHTML = ''; // Clear existing photos
+        
+        try {
+            const response = await fetch(`${baseUrl}AdminCon/get_site_photos_ajax?appointment_id=${appointmentId}`);
+            const data = await response.json();
+            
+            if (data.success && data.photos && data.photos.length > 0) {
+                data.photos.forEach(photo => {
+                    const photoContainer = document.createElement('div');
+                    photoContainer.style.position = 'relative';
+                    photoContainer.style.display = 'inline-block';
+                    photoContainer.style.margin = '5px';
+                    
+                    const img = document.createElement('img');
+                    img.src = photo.url;
+                    img.style.width = '100px';
+                    img.style.height = '100px';
+                    img.style.objectFit = 'cover';
+                    img.style.borderRadius = '4px';
+                    img.style.border = '2px solid #ddd';
+                    img.onclick = function() {
+                        window.open(photo.url, '_blank');
+                    };
+                    img.style.cursor = 'pointer';
+                    
+                    const removeBtn = document.createElement('button');
+                    removeBtn.innerHTML = '×';
+                    removeBtn.style.position = 'absolute';
+                    removeBtn.style.top = '-5px';
+                    removeBtn.style.right = '-5px';
+                    removeBtn.style.background = 'red';
+                    removeBtn.style.color = 'white';
+                    removeBtn.style.border = 'none';
+                    removeBtn.style.borderRadius = '50%';
+                    removeBtn.style.width = '20px';
+                    removeBtn.style.height = '20px';
+                    removeBtn.style.cursor = 'pointer';
+                    removeBtn.style.fontSize = '14px';
+                    removeBtn.style.lineHeight = '1';
+                    removeBtn.onclick = async function(e) {
+                        e.stopPropagation();
+                        if (confirm('Delete this photo?')) {
+                            try {
+                                const deleteResponse = await fetch(`${baseUrl}AdminCon/delete_site_photo`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                        appointment_id: appointmentId,
+                                        photo_path: photo.path
+                                    })
+                                });
+                                const deleteData = await deleteResponse.json();
+                                if (deleteData.success) {
+                                    photoContainer.remove();
+                                } else {
+                                    alert('Error deleting photo: ' + (deleteData.message || 'Unknown error'));
+                                }
+                            } catch (error) {
+                                console.error('Error deleting photo:', error);
+                                alert('Error deleting photo');
+                            }
+                        }
+                    };
+                    
+                    photoContainer.appendChild(img);
+                    photoContainer.appendChild(removeBtn);
+                    gallery.appendChild(photoContainer);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading site photos:', error);
         }
     }
     

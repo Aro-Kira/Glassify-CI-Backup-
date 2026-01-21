@@ -126,6 +126,7 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
             <th>Client</th>
             <th>Order ID</th>
             <th>Date & Time</th>
+            <th>Specs</th>
             <th>Assigned Staff</th>
             <th>Status</th>
             <th>Actions</th>
@@ -133,7 +134,7 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
         </thead>
         <tbody id="appointmentsTableBody">
           <tr>
-            <td colspan="7" style="text-align: center; padding: 20px;">Loading appointments...</td>
+            <td colspan="8" style="text-align: center; padding: 20px;">Loading appointments...</td>
           </tr>
         </tbody>
       </table>
@@ -196,6 +197,40 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
           </div>
         </div>
       </div>
+
+      <?php if ($is_ocular): ?>
+      <!-- Order Specifications Section -->
+      <div class="details-section">
+        <h4 class="section-title">Order Specifications</h4>
+        <input type="hidden" id="detail-order-item-id">
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Width</span>
+            <input type="number" id="detail-spec-width" class="form-control editable" min="0" step="0.01">
+          </div>
+          <div class="info-item">
+            <span class="info-label">Height</span>
+            <input type="number" id="detail-spec-height" class="form-control editable" min="0" step="0.01">
+          </div>
+          <div class="info-item">
+            <span class="info-label">Unit</span>
+            <select id="detail-spec-unit" class="form-control editable">
+              <option value="in">in</option>
+              <option value="cm">cm</option>
+              <option value="mm">mm</option>
+            </select>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Price</span>
+            <input type="number" id="detail-spec-price" class="form-control editable" min="0" step="0.01">
+          </div>
+          <div class="info-item">
+            <span class="info-label">Quantity</span>
+            <input type="number" id="detail-spec-quantity" class="form-control editable" min="1" step="1">
+          </div>
+        </div>
+      </div>
+      <?php endif; ?>
 
       <!-- Client Information Section -->
       <div class="details-section">
@@ -267,6 +302,15 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
               </div>
             </div>
           </div>
+          <div class="info-item full-width">
+            <span class="info-label">Payment Receipt:</span>
+            <input type="file" id="detail-payment-receipt" accept="image/*,application/pdf" class="form-control editable">
+            <div id="detail-payment-receipt-link" style="margin-top: 8px; display: none;">
+              <a href="#" target="_blank" style="color: #02455F; text-decoration: underline;">
+                <i class="fas fa-file-pdf" style="margin-right: 5px;"></i>View uploaded receipt
+              </a>
+            </div>
+          </div>
         </div>
       </div>
       <?php endif; ?>
@@ -319,162 +363,3 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
   </div>
 </div>
 
-<script>
-// =============================
-// TOAST NOTIFICATION SYSTEM
-// =============================
-function showToast(message, type = 'info', duration = 3000) {
-    const existingToasts = document.querySelectorAll('.toast-notification');
-    existingToasts.forEach(toast => {
-        toast.classList.add('toast-fade-out');
-        setTimeout(() => toast.remove(), 300);
-    });
-
-    const toast = document.createElement('div');
-    toast.className = `toast-notification toast-${type}`;
-    
-    const config = {
-        success: { icon: '✓', bg: '#28a745', border: '#1e7e34' },
-        error: { icon: '✕', bg: '#dc3545', border: '#c82333' },
-        warning: { icon: '⚠', bg: '#ffc107', border: '#e0a800' },
-        info: { icon: 'ℹ', bg: '#17a2b8', border: '#138496' }
-    };
-    
-    const toastConfig = config[type] || config.info;
-    
-    toast.innerHTML = `
-        <div class="toast-icon">${toastConfig.icon}</div>
-        <div class="toast-message">${message}</div>
-        <button class="toast-close" onclick="this.parentElement.remove()">×</button>
-    `;
-    
-    toast.style.cssText = `
-        position: fixed;
-        top: 80px;
-        right: 20px;
-        background: ${toastConfig.bg};
-        color: white;
-        padding: 16px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 10000;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        min-width: 300px;
-        max-width: 500px;
-        animation: toastSlideIn 0.3s ease;
-        font-family: 'Montserrat', sans-serif;
-        border-left: 4px solid ${toastConfig.border};
-    `;
-    
-    if (!document.getElementById('toast-styles')) {
-        const style = document.createElement('style');
-        style.id = 'toast-styles';
-        style.textContent = `
-            @keyframes toastSlideIn {
-                from { transform: translateX(400px); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes toastFadeOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(400px); opacity: 0; }
-            }
-            .toast-notification { transition: all 0.3s ease; }
-            .toast-fade-out { animation: toastFadeOut 0.3s ease forwards; }
-            .toast-icon { font-size: 20px; font-weight: bold; flex-shrink: 0; }
-            .toast-message { flex: 1; font-size: 14px; line-height: 1.4; }
-            .toast-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: opacity 0.2s; flex-shrink: 0; }
-            .toast-close:hover { opacity: 1; }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    document.body.appendChild(toast);
-    setTimeout(() => {
-        toast.classList.add('toast-fade-out');
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
-    
-    return toast;
-}
-
-function showConfirmModal(message, onConfirm, onCancel = null) {
-    const existingModal = document.getElementById('confirm-modal-overlay');
-    if (existingModal) existingModal.remove();
-    
-    const overlay = document.createElement('div');
-    overlay.id = 'confirm-modal-overlay';
-    overlay.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.5); z-index: 10001;
-        display: flex; align-items: center; justify-content: center;
-        animation: fadeIn 0.2s ease;
-    `;
-    
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        background: white; border-radius: 12px; padding: 30px;
-        max-width: 450px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        animation: slideUp 0.3s ease;
-    `;
-    
-    modal.innerHTML = `
-        <h3 style="margin: 0 0 15px 0; font-size: 20px; color: #333; font-family: 'Montserrat', sans-serif;">Confirm Action</h3>
-        <p style="margin: 0 0 25px 0; color: #666; font-size: 15px; line-height: 1.5;">${message}</p>
-        <div style="display: flex; gap: 10px; justify-content: flex-end;">
-            <button id="confirm-cancel-btn" style="padding: 10px 20px; border: 1px solid #ddd; background: white; border-radius: 6px; cursor: pointer; font-size: 14px; color: #666; transition: all 0.2s;">Cancel</button>
-            <button id="confirm-ok-btn" style="padding: 10px 20px; border: none; background: #dc3545; color: white; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">Confirm</button>
-        </div>
-    `;
-    
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    
-    if (!document.getElementById('modal-styles')) {
-        const style = document.createElement('style');
-        style.id = 'modal-styles';
-        style.textContent = `
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-            #confirm-cancel-btn:hover { background: #f5f5f5; }
-            #confirm-ok-btn:hover { background: #c82333; }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    const cancelBtn = overlay.querySelector('#confirm-cancel-btn');
-    const okBtn = overlay.querySelector('#confirm-ok-btn');
-    
-    cancelBtn.addEventListener('click', () => {
-        overlay.style.animation = 'fadeIn 0.2s ease reverse';
-        setTimeout(() => overlay.remove(), 200);
-        if (onCancel) onCancel();
-    });
-    
-    okBtn.addEventListener('click', () => {
-        overlay.style.animation = 'fadeIn 0.2s ease reverse';
-        setTimeout(() => overlay.remove(), 200);
-        if (onConfirm) onConfirm();
-    });
-    
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            overlay.style.animation = 'fadeIn 0.2s ease reverse';
-            setTimeout(() => overlay.remove(), 200);
-            if (onCancel) onCancel();
-        }
-    });
-    
-    const escapeHandler = (e) => {
-        if (e.key === 'Escape') {
-            overlay.style.animation = 'fadeIn 0.2s ease reverse';
-            setTimeout(() => overlay.remove(), 200);
-            if (onCancel) onCancel();
-            document.removeEventListener('keydown', escapeHandler);
-        }
-    };
-    document.addEventListener('keydown', escapeHandler);
-}
-
-</script>
