@@ -654,7 +654,8 @@ class AdminCon extends CI_Controller
         if ($order_items_table_exists && $product_table_exists) {
             $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
         }
-        $this->db->where('o.Status', 'Approved');
+        // Get orders that are Approved or Ocular Pending (after approval, orders go to Ocular Pending)
+        $this->db->where_in('o.Status', ['Approved', 'Ocular Pending']);
         $this->db->group_by('o.OrderID'); // Group to avoid duplicates from multiple order_items
         $approved_orders = $this->db->get()->result();
         
@@ -845,6 +846,12 @@ class AdminCon extends CI_Controller
             // Check if fields exist before inserting
             $schedule_data = ['OrderID' => $order_id];
             
+            // Get the current admin user ID for the foreign key constraint
+            $admin_id = $this->session->userdata('user_id');
+            if ($admin_id && $this->db->field_exists('Admin_ID', 'projectschedule')) {
+                $schedule_data['Admin_ID'] = $admin_id;
+            }
+            
             if ($this->db->field_exists('Status', 'projectschedule')) {
                 $schedule_data['Status'] = 'In progress';
             }
@@ -855,7 +862,13 @@ class AdminCon extends CI_Controller
                 $schedule_data['CreatedDate'] = date('Y-m-d H:i:s');
             }
             
-            $this->db->insert('projectschedule', $schedule_data);
+            $insert_result = $this->db->insert('projectschedule', $schedule_data);
+            
+            if (!$insert_result) {
+                $db_error = $this->db->error();
+                log_message('error', 'AdminCon::create_fabrication_appointment - Failed to insert into projectschedule: ' . ($db_error['message'] ?? 'Unknown error'));
+                // Don't fail the whole operation if projectschedule insert fails
+            }
         }
         
         // Log the creation for debugging
@@ -948,343 +961,421 @@ class AdminCon extends CI_Controller
     {
         header('Content-Type: application/json');
         
-        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
-            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
-            return;
-        }
+        // Enable error logging for debugging
+        error_reporting(E_ALL);
+        ini_set('display_errors', 0);
         
-        // Handle both JSON and form data
-        $input_data = [];
-        $content_type = $this->input->server('CONTENT_TYPE');
-        if (strpos($content_type, 'application/json') !== false) {
-            $raw_input = file_get_contents('php://input');
-            $input_data = json_decode($raw_input, true) ?: [];
-        } else {
-            $input_data = $this->input->post();
-        }
-        
-        $appointment_id = isset($input_data['appointment_id']) ? $input_data['appointment_id'] : null;
-        $client_name = isset($input_data['client_name']) ? $input_data['client_name'] : null;
-        $service = isset($input_data['service']) ? $input_data['service'] : null;
-        $date = isset($input_data['date']) ? $input_data['date'] : null;
-        $time = isset($input_data['time']) ? $input_data['time'] : null;
-        $assigned_staff = isset($input_data['assigned_staff']) ? $input_data['assigned_staff'] : null;
-        $status = isset($input_data['status']) ? $input_data['status'] : null;
-        $notes = isset($input_data['notes']) ? $input_data['notes'] : null;
-        $ocular_notes = isset($input_data['ocular_notes']) ? $input_data['ocular_notes'] : null;
-        $installation_notes = isset($input_data['installation_notes']) ? $input_data['installation_notes'] : null;
-        $order_item_id = isset($input_data['order_item_id']) ? $input_data['order_item_id'] : null;
-        $spec_width = isset($input_data['spec_width']) ? $input_data['spec_width'] : null;
-        $spec_height = isset($input_data['spec_height']) ? $input_data['spec_height'] : null;
-        $spec_unit = isset($input_data['spec_unit']) ? $input_data['spec_unit'] : 'in';
-        $spec_price = isset($input_data['spec_price']) ? $input_data['spec_price'] : null;
-        $spec_quantity = isset($input_data['spec_quantity']) ? $input_data['spec_quantity'] : null;
-        
-        if (!$appointment_id) {
-            echo json_encode(['success' => false, 'message' => 'Appointment ID is required']);
-            return;
-        }
-        
-        // Get appointment to find OrderID and previous status
-        $this->db->where('AppointmentID', $appointment_id);
-        $appointment = $this->db->get('appointments')->row();
-        
-        if (!$appointment) {
-            echo json_encode(['success' => false, 'message' => 'Appointment not found']);
-            return;
-        }
-        
-        // Use existing service if not provided
-        if (empty($service) && !empty($appointment->Service)) {
-            $service = $appointment->Service;
-        }
-        
-        // Validate service (only if provided or existing appointment has service)
-        if (!empty($service)) {
-            $valid_services = ['Order Placed', 'Ocular Visit', 'In Fabrication', 'Installed', 'Completed'];
-            if (!in_array($service, $valid_services)) {
-                echo json_encode(['success' => false, 'message' => 'Invalid service']);
+        try {
+            if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+                echo json_encode(['success' => false, 'message' => 'Unauthorized']);
                 return;
             }
-        }
-        
-        // Validate status
-        if (!empty($status)) {
-            $valid_statuses = ['In Progress', 'Complete', 'Cancelled'];
-            if (!in_array($status, $valid_statuses)) {
-                echo json_encode(['success' => false, 'message' => 'Invalid status']);
+            
+            // Handle both JSON and form data
+            $input_data = [];
+            $content_type = $this->input->server('CONTENT_TYPE');
+            if (empty($content_type)) {
+                $content_type = '';
+            }
+            if (strpos($content_type, 'application/json') !== false) {
+                $raw_input = file_get_contents('php://input');
+                $input_data = json_decode($raw_input, true) ?: [];
+            } else {
+                $input_data = $this->input->post();
+            }
+            
+            log_message('debug', 'update_appointment_ajax called with data: ' . json_encode($input_data));
+            
+            $appointment_id = isset($input_data['appointment_id']) ? $input_data['appointment_id'] : null;
+            $client_name = isset($input_data['client_name']) ? $input_data['client_name'] : null;
+            $service = isset($input_data['service']) ? $input_data['service'] : null;
+            $date = isset($input_data['date']) ? $input_data['date'] : null;
+            $time = isset($input_data['time']) ? $input_data['time'] : null;
+            $assigned_staff = isset($input_data['assigned_staff']) ? $input_data['assigned_staff'] : null;
+            $status = isset($input_data['status']) ? $input_data['status'] : null;
+            $notes = isset($input_data['notes']) ? $input_data['notes'] : null;
+            $ocular_notes = isset($input_data['ocular_notes']) ? $input_data['ocular_notes'] : null;
+            $installation_notes = isset($input_data['installation_notes']) ? $input_data['installation_notes'] : null;
+            $order_item_id = isset($input_data['order_item_id']) ? $input_data['order_item_id'] : null;
+            $spec_width = isset($input_data['spec_width']) ? $input_data['spec_width'] : null;
+            $spec_height = isset($input_data['spec_height']) ? $input_data['spec_height'] : null;
+            $spec_unit = isset($input_data['spec_unit']) ? $input_data['spec_unit'] : 'in';
+            $spec_price = isset($input_data['spec_price']) ? $input_data['spec_price'] : null;
+            $spec_quantity = isset($input_data['spec_quantity']) ? $input_data['spec_quantity'] : null;
+            $ocular_completed = isset($input_data['ocular_completed']) ? (bool)$input_data['ocular_completed'] : null;
+            
+            if (!$appointment_id) {
+                echo json_encode(['success' => false, 'message' => 'Appointment ID is required']);
                 return;
             }
-        }
-        
-        $order_id = $appointment->OrderID;
-        $previous_status = $appointment->Status; // Store previous status to detect reversals
-        
-        // Start transaction
-        $this->db->trans_start();
-        
-        // Convert staff ID to staff name if needed
-        $assigned_staff_name = null;
-        $assigned_staff_id = null;
-        if (!empty($assigned_staff) && is_numeric($assigned_staff)) {
-            // If it's a numeric ID, get the staff name
-            if ($this->db->table_exists('user')) {
-                $this->db->select('CONCAT(First_Name, " ", Last_Name) as StaffName', false);
-                $this->db->where('UserID', (int)$assigned_staff);
-                $staff = $this->db->get('user')->row();
-                if ($staff) {
-                    $assigned_staff_name = $staff->StaffName;
-                    $assigned_staff_id = (int)$assigned_staff;
+            
+            // Get appointment to find OrderID and previous status
+            $this->db->where('AppointmentID', $appointment_id);
+            $appointment = $this->db->get('appointments')->row();
+            
+            if (!$appointment) {
+                echo json_encode(['success' => false, 'message' => 'Appointment not found']);
+                return;
+            }
+            
+            // Use existing service if not provided
+            if (empty($service) && !empty($appointment->Service)) {
+                $service = $appointment->Service;
+            }
+            
+            // Validate service (only if provided or existing appointment has service)
+            if (!empty($service)) {
+                $valid_services = ['Order Placed', 'Ocular Visit', 'In Fabrication', 'Installed', 'Completed'];
+                if (!in_array($service, $valid_services)) {
+                    echo json_encode(['success' => false, 'message' => 'Invalid service']);
+                    return;
                 }
             }
-        }
-        // If $assigned_staff is empty, null, or not numeric, both $assigned_staff_name and $assigned_staff_id remain null
-        
-        // Prepare update data - only update fields that are provided
-        $update_data = [
-            'Updated_Date' => date('Y-m-d H:i:s')
-        ];
-        
-        // Only include fields that are provided (not null or empty string for optional fields)
-        if ($client_name !== null) {
-            $update_data['ClientName'] = $client_name;
-        }
-        if ($service !== null) {
-            $update_data['Service'] = $service;
-        }
-        if ($date !== null) {
-            $update_data['AppointmentDate'] = $date ?: null;
-        }
-        if ($time !== null) {
-            $update_data['AppointmentTime'] = $time ?: null;
-        }
-        // Handle assigned staff - update if provided (empty string means unassign)
-        if ($assigned_staff !== null) {
-            $update_data['AssignedStaff'] = $assigned_staff_name;
-            if ($this->db->field_exists('AssignedStaff_ID', 'appointments')) {
-                $update_data['AssignedStaff_ID'] = $assigned_staff_id;
+            
+            // Validate status
+            if (!empty($status)) {
+                $valid_statuses = ['In Progress', 'Complete', 'Cancelled'];
+                if (!in_array($status, $valid_statuses)) {
+                    echo json_encode(['success' => false, 'message' => 'Invalid status']);
+                    return;
+                }
             }
-        }
-        if ($status !== null) {
-            $update_data['Status'] = $status;
-        }
-        if ($notes !== null) {
-            $update_data['Notes'] = $notes ?: null;
-        }
-        if ($ocular_notes !== null && $this->db->field_exists('OcularNotes', 'appointments')) {
-            $update_data['OcularNotes'] = $ocular_notes ?: null;
-        }
-        if ($installation_notes !== null && $this->db->field_exists('InstallationNotes', 'appointments')) {
-            $update_data['InstallationNotes'] = $installation_notes ?: null;
-        }
-        
-        $this->db->where('AppointmentID', $appointment_id);
-        $this->db->update('appointments', $update_data);
+            
+            $order_id = isset($appointment->OrderID) ? $appointment->OrderID : null;
+            if (!$order_id) {
+                echo json_encode(['success' => false, 'message' => 'Order ID not found in appointment']);
+                return;
+            }
+            
+            $previous_status = isset($appointment->Status) ? $appointment->Status : null; // Store previous status to detect reversals
+            
+            // Start transaction
+            $this->db->trans_start();
+            
+            // Convert staff ID to staff name if needed
+            $assigned_staff_name = null;
+            $assigned_staff_id = null;
+            if (!empty($assigned_staff) && is_numeric($assigned_staff)) {
+                // If it's a numeric ID, get the staff name
+                if ($this->db->table_exists('user')) {
+                    $this->db->select('CONCAT(First_Name, " ", Last_Name) as StaffName', false);
+                    $this->db->where('UserID', (int)$assigned_staff);
+                    $staff = $this->db->get('user')->row();
+                    if ($staff) {
+                        $assigned_staff_name = $staff->StaffName;
+                        $assigned_staff_id = (int)$assigned_staff;
+                    }
+                }
+            }
+            // If $assigned_staff is empty, null, or not numeric, both $assigned_staff_name and $assigned_staff_id remain null
+            
+            // Prepare update data - only update fields that are provided
+            $update_data = [
+                'Updated_Date' => date('Y-m-d H:i:s')
+            ];
+            
+            // Only include fields that are provided (not null or empty string for optional fields)
+            if ($client_name !== null) {
+                $update_data['ClientName'] = $client_name;
+            }
+            if ($service !== null) {
+                $update_data['Service'] = $service;
+            }
+            if ($date !== null) {
+                $update_data['AppointmentDate'] = $date ?: null;
+            }
+            if ($time !== null) {
+                $update_data['AppointmentTime'] = $time ?: null;
+            }
+            // Handle assigned staff - update if provided (empty string means unassign)
+            if ($assigned_staff !== null) {
+                $update_data['AssignedStaff'] = $assigned_staff_name;
+                if ($this->db->field_exists('AssignedStaff_ID', 'appointments')) {
+                    $update_data['AssignedStaff_ID'] = $assigned_staff_id;
+                }
+            }
+            if ($status !== null) {
+                $update_data['Status'] = $status;
+            }
+            if ($notes !== null) {
+                $update_data['Notes'] = $notes ?: null;
+            }
+            if ($ocular_notes !== null && $this->db->field_exists('OcularNotes', 'appointments')) {
+                $update_data['OcularNotes'] = $ocular_notes ?: null;
+            }
+            if ($installation_notes !== null && $this->db->field_exists('InstallationNotes', 'appointments')) {
+                $update_data['InstallationNotes'] = $installation_notes ?: null;
+            }
+            
+            $this->db->where('AppointmentID', $appointment_id);
+            $this->db->update('appointments', $update_data);
 
-        // Update order item specs if provided
-        if ($this->db->table_exists('order_items') && $order_id) {
-            $target_item_id = $order_item_id;
-            if (empty($target_item_id)) {
-                $this->db->reset_query();
-                $this->db->where('OrderID', $order_id);
-                $item = $this->db->get('order_items')->row();
-                $target_item_id = $item->OrderItemID ?? null;
-            }
-            if (!empty($target_item_id)) {
-                $item_update = [];
-                if ($spec_width !== '' && $spec_height !== '' && $this->db->field_exists('Dimensions', 'order_items')) {
-                    $item_update['Dimensions'] = trim($spec_width) . $spec_unit . ' x ' . trim($spec_height) . $spec_unit;
-                }
-                if ($spec_quantity !== '' && $this->db->field_exists('Quantity', 'order_items')) {
-                    $item_update['Quantity'] = (int)$spec_quantity;
-                }
-                if ($spec_price !== '') {
-                    if ($this->db->field_exists('UnitPrice', 'order_items')) {
-                        $item_update['UnitPrice'] = (float)$spec_price;
-                    }
-                    if ($this->db->field_exists('EstimatePrice', 'order_items')) {
-                        $item_update['EstimatePrice'] = (float)$spec_price;
-                    }
-                }
-                if (!empty($item_update)) {
+            // Update order item specs if provided
+            if ($this->db->table_exists('order_items') && $order_id) {
+                $target_item_id = $order_item_id;
+                if (empty($target_item_id)) {
                     $this->db->reset_query();
-                    $this->db->where('OrderItemID', $target_item_id);
-                    $this->db->update('order_items', $item_update);
+                    $this->db->where('OrderID', $order_id);
+                    $item = $this->db->get('order_items')->row();
+                    $target_item_id = $item->OrderItemID ?? null;
+                }
+                if (!empty($target_item_id)) {
+                    $item_update = [];
+                    if ($spec_width !== '' && $spec_height !== '' && $this->db->field_exists('Dimensions', 'order_items')) {
+                        $item_update['Dimensions'] = trim($spec_width) . $spec_unit . ' x ' . trim($spec_height) . $spec_unit;
+                    }
+                    if ($spec_quantity !== '' && $this->db->field_exists('Quantity', 'order_items')) {
+                        $item_update['Quantity'] = (int)$spec_quantity;
+                    }
+                    if ($spec_price !== '') {
+                        if ($this->db->field_exists('UnitPrice', 'order_items')) {
+                            $item_update['UnitPrice'] = (float)$spec_price;
+                        }
+                        if ($this->db->field_exists('EstimatePrice', 'order_items')) {
+                            $item_update['EstimatePrice'] = (float)$spec_price;
+                        }
+                    }
+                    if (!empty($item_update)) {
+                        $this->db->reset_query();
+                        $this->db->where('OrderItemID', $target_item_id);
+                        $this->db->update('order_items', $item_update);
+                    }
                 }
             }
-        }
 
-        // Handle site photos upload (ocular appointments)
-        if (isset($_FILES['site_photos']) && is_array($_FILES['site_photos']['name'])) {
-            $upload_path = './uploads/appointments/site_photos/';
-            if (!is_dir($upload_path)) {
-                mkdir($upload_path, 0755, true);
-            }
-            
-            // Get existing site photos
-            $existing_photos = [];
-            if ($this->db->field_exists('SitePhotos', 'appointments')) {
-                $this->db->select('SitePhotos');
-                $this->db->where('AppointmentID', $appointment_id);
-                $apt = $this->db->get('appointments')->row();
-                if ($apt && !empty($apt->SitePhotos)) {
-                    $existing_photos = json_decode($apt->SitePhotos, true) ?: [];
+            // Handle site photos upload (ocular appointments)
+            if (isset($_FILES['site_photos']) && is_array($_FILES['site_photos']['name'])) {
+                $upload_path = './uploads/appointments/site_photos/';
+                if (!is_dir($upload_path)) {
+                    mkdir($upload_path, 0755, true);
                 }
-            }
-            
-            $uploaded_photos = [];
-            foreach ($_FILES['site_photos']['name'] as $key => $filename) {
-                if (!empty($filename) && $_FILES['site_photos']['error'][$key] === UPLOAD_ERR_OK) {
-                    $file_tmp = $_FILES['site_photos']['tmp_name'][$key];
-                    $file_type = $_FILES['site_photos']['type'][$key];
-                    
-                    // Validate image type
-                    if (strpos($file_type, 'image/') === 0) {
-                        $file_ext = pathinfo($filename, PATHINFO_EXTENSION);
-                        $new_filename = 'site_' . $appointment_id . '_' . time() . '_' . $key . '.' . $file_ext;
-                        $destination = $upload_path . $new_filename;
+                
+                // Get existing site photos
+                $existing_photos = [];
+                if ($this->db->field_exists('SitePhotos', 'appointments')) {
+                    $this->db->select('SitePhotos');
+                    $this->db->where('AppointmentID', $appointment_id);
+                    $apt = $this->db->get('appointments')->row();
+                    if ($apt && !empty($apt->SitePhotos)) {
+                        $existing_photos = json_decode($apt->SitePhotos, true) ?: [];
+                    }
+                }
+                
+                $uploaded_photos = [];
+                foreach ($_FILES['site_photos']['name'] as $key => $filename) {
+                    if (!empty($filename) && $_FILES['site_photos']['error'][$key] === UPLOAD_ERR_OK) {
+                        $file_tmp = $_FILES['site_photos']['tmp_name'][$key];
+                        $file_type = $_FILES['site_photos']['type'][$key];
                         
-                        if (move_uploaded_file($file_tmp, $destination)) {
-                            $photo_path = 'uploads/appointments/site_photos/' . $new_filename;
-                            $uploaded_photos[] = $photo_path;
+                        // Validate image type
+                        if (strpos($file_type, 'image/') === 0) {
+                            $file_ext = pathinfo($filename, PATHINFO_EXTENSION);
+                            $new_filename = 'site_' . $appointment_id . '_' . time() . '_' . $key . '.' . $file_ext;
+                            $destination = $upload_path . $new_filename;
+                            
+                            if (move_uploaded_file($file_tmp, $destination)) {
+                                $photo_path = 'uploads/appointments/site_photos/' . $new_filename;
+                                $uploaded_photos[] = $photo_path;
+                            }
                         }
                     }
                 }
-            }
-            
-            // Merge with existing photos
-            $all_photos = array_merge($existing_photos, $uploaded_photos);
-            
-            // Update SitePhotos field if it exists
-            if ($this->db->field_exists('SitePhotos', 'appointments') && !empty($all_photos)) {
-                $this->db->where('AppointmentID', $appointment_id);
-                $this->db->update('appointments', [
-                    'SitePhotos' => json_encode($all_photos)
-                ]);
-            }
-        }
-        
-        // Handle payment receipt upload (ocular payments)
-        if ($this->db->table_exists('payment') && isset($_FILES['payment_receipt']) && !empty($_FILES['payment_receipt']['name'])) {
-            $upload_path = './uploads/payments/ocular/';
-            if (!is_dir($upload_path)) {
-                mkdir($upload_path, 0755, true);
-            }
-            $config = [
-                'upload_path' => $upload_path,
-                'allowed_types' => 'jpg|jpeg|png|pdf',
-                'max_size' => 5120
-            ];
-            $this->load->library('upload', $config);
-            if ($this->upload->do_upload('payment_receipt')) {
-                $upload_data = $this->upload->data();
-                $receipt_path = 'uploads/payments/ocular/' . $upload_data['file_name'];
-                $payment = $this->db->where('OrderID', $order_id)->get('payment')->row();
-                if ($payment) {
-                    $this->db->where('OrderID', $order_id)
-                             ->update('payment', [
-                                 'ReceiptPath' => $receipt_path,
-                                 'Status' => 'Paid',
-                                 'Payment_Date' => date('Y-m-d H:i:s'),
-                                 'PaymentMethod' => 'Ocular'
-                             ]);
-                } else {
-                    $this->db->insert('payment', [
-                        'OrderID' => $order_id,
-                        'ReceiptPath' => $receipt_path,
-                        'Status' => 'Paid',
-                        'Payment_Date' => date('Y-m-d H:i:s'),
-                        'PaymentMethod' => 'Ocular'
+                
+                // Merge with existing photos
+                $all_photos = array_merge($existing_photos, $uploaded_photos);
+                
+                // Update SitePhotos field if it exists
+                if ($this->db->field_exists('SitePhotos', 'appointments') && !empty($all_photos)) {
+                    $this->db->where('AppointmentID', $appointment_id);
+                    $this->db->update('appointments', [
+                        'SitePhotos' => json_encode($all_photos)
                     ]);
                 }
-                if ($this->db->field_exists('PaymentStatus', 'order')) {
-                    $this->db->where('OrderID', $order_id)->update('`order`', ['PaymentStatus' => 'Paid']);
-                }
-                if ($this->db->field_exists('PaymentMethod', 'order')) {
-                    $this->db->where('OrderID', $order_id)->update('`order`', ['PaymentMethod' => 'Ocular']);
-                }
             }
-        }
-        
-        // Get current order status
-        $this->db->where('OrderID', $order_id);
-        $current_order = $this->db->get('`order`')->row();
-        
-        // Sync appointment changes to order table
-        $order_update = [];
-        
-        // Check if status is being reverted from Complete to something else
-        $is_reverting = ($previous_status === 'Complete' && $status !== 'Complete');
-        
-        // Update order dates based on appointment service and status
-        if ($service === 'Ocular Visit' && $date) {
-            $order_update['OcularDate'] = $date;
-        } elseif ($service === 'In Fabrication' && $date) {
-            $order_update['FabricationDate'] = $date;
-        } elseif ($service === 'Installed' && $date) {
-            $order_update['InstallationDate'] = $date;
-        } elseif ($service === 'Completed' && $status === 'Complete') {
-            // When appointment is marked as Completed and status is Complete, update order status
-            $order_update['Status'] = 'Completed';
-            if ($date) {
-                $order_update['EstimatedDelivery'] = $date;
-            }
-        }
-        
-        // Handle status changes (both forward and reverse)
-        if ($status === 'Complete') {
-            // Moving forward: Complete the step
-            switch ($service) {
-                case 'Order Placed':
-                    // Order Placed complete - typically doesn't change order status
-                    // Order status should remain as 'Approved' or whatever it was
-                    break;
-                case 'Ocular Visit':
-                    // Ocular visit complete - order can move to In Fabrication
-                    // Create fabrication appointment/entry after ocular is complete
-                    // This should happen regardless of current order status
-                    $this->create_fabrication_appointment($order_id);
-                    
-                    // Update order status to In Fabrication if it's currently Approved or Ocular Pending
-                    if ($current_order && in_array($current_order->Status, ['Approved', 'Ocular Pending'])) {
-                        $order_update['Status'] = 'In Fabrication';
+            
+            // Handle payment receipt upload (ocular payments)
+            if ($this->db->table_exists('payment') && isset($_FILES['payment_receipt']) && !empty($_FILES['payment_receipt']['name'])) {
+                $upload_path = './uploads/payments/ocular/';
+                if (!is_dir($upload_path)) {
+                    mkdir($upload_path, 0755, true);
+                }
+                $config = [
+                    'upload_path' => $upload_path,
+                    'allowed_types' => 'jpg|jpeg|png|pdf',
+                    'max_size' => 5120
+                ];
+                $this->load->library('upload', $config);
+                if ($this->upload->do_upload('payment_receipt')) {
+                    $upload_data = $this->upload->data();
+                    $receipt_path = 'uploads/payments/ocular/' . $upload_data['file_name'];
+                    $payment = $this->db->where('OrderID', $order_id)->get('payment')->row();
+                    if ($payment) {
+                        $this->db->where('OrderID', $order_id)
+                                 ->update('payment', [
+                                     'ReceiptPath' => $receipt_path,
+                                     'Status' => 'Paid',
+                                     'Payment_Date' => date('Y-m-d H:i:s'),
+                                     'PaymentMethod' => 'Ocular'
+                                 ]);
+                    } else {
+                        $this->db->insert('payment', [
+                            'OrderID' => $order_id,
+                            'ReceiptPath' => $receipt_path,
+                            'Status' => 'Paid',
+                            'Payment_Date' => date('Y-m-d H:i:s'),
+                            'PaymentMethod' => 'Ocular'
+                        ]);
                     }
-                    break;
-                case 'In Fabrication':
-                    // Fabrication complete - order can move to Ready for Installation
-                    $order_update['Status'] = 'Ready for Installation';
-                    break;
-                case 'Installed':
-                    // Installation complete - order can move to Completed
-                    $order_update['Status'] = 'Completed';
-                    break;
+                    if ($this->db->field_exists('PaymentStatus', 'order')) {
+                        $this->db->where('OrderID', $order_id)->update('`order`', ['PaymentStatus' => 'Paid']);
+                    }
+                    if ($this->db->field_exists('PaymentMethod', 'order')) {
+                        $this->db->where('OrderID', $order_id)->update('`order`', ['PaymentMethod' => 'Ocular']);
+                    }
+                }
             }
-        } elseif ($is_reverting) {
-            // Reverting from Complete: Cascade backwards step-by-step
-            // When reverting a step, automatically revert all later steps that depend on it
-            $services_order = ['Order Placed', 'Ocular Visit', 'In Fabrication', 'Installed', 'Completed'];
-            $current_service_index = array_search($service, $services_order);
             
-            // Get all appointments for this order to check dependencies
-            $all_appointments = $this->db->where('OrderID', $order_id)
-                                         ->get('appointments')
-                                         ->result();
+            // Get current order status
+            $current_order = null;
+            if ($order_id) {
+                $this->db->where('OrderID', $order_id);
+                $current_order = $this->db->get('`order`')->row();
+            }
             
-            // Step 1: Revert all later steps that are complete (cascade backwards)
-            if ($current_service_index !== false) {
+            // Sync appointment changes to order table
+            $order_update = [];
+            
+            // Check if status is being reverted from Complete to something else
+            $is_reverting = false;
+            if (isset($previous_status) && isset($status)) {
+                $is_reverting = ($previous_status === 'Complete' && $status !== 'Complete' && $status !== null);
+            }
+            
+            // Update order dates based on appointment service and status
+            if ($service === 'Ocular Visit' && $date) {
+                $order_update['OcularDate'] = $date;
+            } elseif ($service === 'In Fabrication' && $date) {
+                $order_update['FabricationDate'] = $date;
+            } elseif ($service === 'Installed' && $date) {
+                $order_update['InstallationDate'] = $date;
+            } elseif ($service === 'Completed' && $status === 'Complete') {
+                // When appointment is marked as Completed and status is Complete, update order status
+                $order_update['Status'] = 'Completed';
+                if ($date) {
+                    $order_update['EstimatedDelivery'] = $date;
+                }
+            }
+            
+            // Handle status changes (both forward and reverse)
+            if (isset($status) && $status === 'Complete' && isset($service) && !empty($service)) {
+                // Moving forward: Complete the step
+                switch ($service) {
+                    case 'Order Placed':
+                        // Order Placed complete - typically doesn't change order status
+                        // Order status should remain as 'Approved' or whatever it was
+                        break;
+                    case 'Ocular Visit':
+                        // Ocular visit complete - order can move to In Fabrication
+                        // Create fabrication appointment/entry after ocular is complete
+                        // This should happen regardless of current order status
+                        try {
+                            if (method_exists($this, 'create_fabrication_appointment')) {
+                                $this->create_fabrication_appointment($order_id);
+                            }
+                        } catch (Exception $e) {
+                            log_message('error', 'Failed to create fabrication appointment: ' . $e->getMessage());
+                        }
+                        
+                        // Update order status to In Fabrication if it's currently Approved or Ocular Pending
+                        // Also check if status is NULL/empty (which might happen if 'Ocular Pending' isn't in enum)
+                        $current_status = $current_order->Status ?? null;
+                        if ($current_order && ($current_status === 'Approved' || $current_status === 'Ocular Pending' || empty($current_status))) {
+                            $order_update['Status'] = 'In Fabrication';
+                        }
+                        
+                        // Update OcularCompleted flag in order table
+                        if ($this->db->field_exists('OcularCompleted', 'order')) {
+                            $order_update['OcularCompleted'] = 1;
+                            $order_update['OcularCompletedBy_ID'] = $this->session->userdata('user_id');
+                            if (!$order_update['OcularDate']) {
+                                $order_update['OcularDate'] = date('Y-m-d');
+                            }
+                        }
+                        
+                        // Send notification to customer about fabrication start
+                        if ($current_order && $current_order->Customer_ID) {
+                            try {
+                                $this->load->helper('notification');
+                                if (function_exists('send_order_notification')) {
+                                    $order_number = $current_order->OrderNumber ?? 'GI' . str_pad($order_id, 3, '0', STR_PAD_LEFT);
+                                    $admin_id = $this->session->userdata('user_id');
+                                    
+                                    send_order_notification(
+                                        $current_order->Customer_ID,
+                                        $order_id,
+                                        'Order in Fabrication',
+                                        "Great news! Your order #{$order_number} has completed the ocular visit and is now being fabricated. We'll notify you once fabrication is complete.",
+                                        'fa-cog',
+                                        $admin_id
+                                    );
+                                }
+                            } catch (Exception $e) {
+                                log_message('error', 'Failed to send notification when ocular marked complete: ' . $e->getMessage());
+                            }
+                        }
+                        break;
+                    case 'In Fabrication':
+                        // Fabrication complete - order can move to Ready for Installation
+                        $order_update['Status'] = 'Ready for Installation';
+                        break;
+                    case 'Installed':
+                        // Installation complete - order can move to Completed
+                        $order_update['Status'] = 'Completed';
+                        break;
+                }
+            } elseif ($is_reverting) {
+                // Reverting from Complete: Cascade backwards step-by-step
+                // When reverting a step, automatically revert all later steps that depend on it
+                $services_order = ['Order Placed', 'Ocular Visit', 'In Fabrication', 'Installed', 'Completed'];
+                $current_service_index = array_search($service, $services_order);
+                
+                // Get all appointments for this order to check dependencies
+                $all_appointments = [];
+                if ($order_id) {
+                    try {
+                        $this->db->where('OrderID', $order_id);
+                        $all_appointments = $this->db->get('appointments')->result();
+                        if (!$all_appointments) {
+                            $all_appointments = [];
+                        }
+                    } catch (Exception $e) {
+                        log_message('error', 'Failed to get appointments: ' . $e->getMessage());
+                        $all_appointments = [];
+                    }
+                }
+                
+                // Step 1: Revert all later steps that are complete (cascade backwards)
+                if ($current_service_index !== false && is_array($all_appointments)) {
                 $later_services = array_slice($services_order, $current_service_index + 1);
                 
                 foreach ($later_services as $later_service) {
                     // Find appointments for this later service
-                    foreach ($all_appointments as $apt) {
-                        if ($apt->Service === $later_service && $apt->Status === 'Complete') {
-                            // Revert this later step to 'In Progress' (or 'Cancelled' if that's what was selected)
-                            $revert_status = ($status === 'Cancelled') ? 'Cancelled' : 'In Progress';
-                            $this->db->where('AppointmentID', $apt->AppointmentID)
-                                     ->update('appointments', [
-                                         'Status' => $revert_status,
-                                         'Updated_Date' => date('Y-m-d H:i:s')
-                                     ]);
+                    if (is_array($all_appointments)) {
+                        foreach ($all_appointments as $apt) {
+                            if (isset($apt->Service) && isset($apt->Status) && isset($apt->AppointmentID) && 
+                                $apt->Service === $later_service && $apt->Status === 'Complete') {
+                                // Revert this later step to 'In Progress' (or 'Cancelled' if that's what was selected)
+                                $revert_status = (isset($status) && $status === 'Cancelled') ? 'Cancelled' : 'In Progress';
+                                try {
+                                    $this->db->where('AppointmentID', $apt->AppointmentID)
+                                             ->update('appointments', [
+                                                 'Status' => $revert_status,
+                                                 'Updated_Date' => date('Y-m-d H:i:s')
+                                             ]);
+                                } catch (Exception $e) {
+                                    log_message('error', 'Failed to revert appointment: ' . $e->getMessage());
+                                }
+                            }
                         }
                     }
                     
@@ -1295,7 +1386,7 @@ class AdminCon extends CI_Controller
                                                        ->row();
                         if ($fabrication_project && $fabrication_project->Status === 'Completed') {
                             // Revert fabrication project status
-                            $revert_project_status = ($status === 'Cancelled') ? 'Delayed' : 'In progress';
+                            $revert_project_status = (isset($status) && $status === 'Cancelled') ? 'Delayed' : 'In progress';
                             $this->db->where('Schedule_ID', $fabrication_project->Schedule_ID)
                                      ->update('projectschedule', [
                                          'Status' => $revert_project_status
@@ -1311,7 +1402,7 @@ class AdminCon extends CI_Controller
                     // Order Placed completion doesn't typically change order status from 'Approved'
                     // So reverting it shouldn't change order status either
                     break;
-                case 'Ocular Visit':
+                    case 'Ocular Visit':
                     // If reverting ocular visit, check if any later steps are still complete
                     $has_later_complete = $this->db->where('OrderID', $order_id)
                                                    ->where('AppointmentID !=', $appointment_id)
@@ -1319,8 +1410,18 @@ class AdminCon extends CI_Controller
                                                    ->where('Status', 'Complete')
                                                    ->get('appointments')
                                                    ->num_rows() > 0;
-                    if (!$has_later_complete && $current_order && $current_order->Status === 'In Fabrication') {
-                        $order_update['Status'] = 'Approved';
+                    if (!$has_later_complete && $current_order) {
+                        $current_status = $current_order->Status ?? null;
+                        if ($current_status === 'In Fabrication') {
+                            // Revert to Ocular Pending if it exists in enum, otherwise Approved
+                            $order_update['Status'] = 'Ocular Pending'; // Will fail if not in enum, but we'll handle that
+                        }
+                        
+                        // Clear OcularCompleted flag
+                        if ($this->db->field_exists('OcularCompleted', 'order')) {
+                            $order_update['OcularCompleted'] = 0;
+                            $order_update['OcularCompletedBy_ID'] = null;
+                        }
                     }
                     break;
                 case 'In Fabrication':
@@ -1376,23 +1477,125 @@ class AdminCon extends CI_Controller
                     }
                     break;
             }
-        }
-        
-        // Update order table if there are changes
-        if (!empty($order_update)) {
-            $this->db->where('OrderID', $order_id);
-            $this->db->update('`order`', $order_update);
-        }
-        
-        $this->db->trans_complete();
-        
-        if ($this->db->trans_status() === FALSE) {
-            echo json_encode(['success' => false, 'message' => 'Failed to update appointment']);
-        } else {
+            }
+            
+            // Update order table if there are changes
+            $old_status = ($current_order && isset($current_order->Status)) ? $current_order->Status : null;
+            $new_status = null;
+            $installation_date_set = false;
+            $scheduled_date_value = null;
+            
+            if (!empty($order_update) && $order_id) {
+                try {
+                    $this->db->where('OrderID', $order_id);
+                    $update_result = $this->db->update('`order`', $order_update);
+                    
+                    // Check for database errors immediately
+                    $db_error = $this->db->error();
+                    if (!empty($db_error['code'])) {
+                        $error_msg = $db_error['message'];
+                        log_message('error', 'Database error updating order in update_appointment_ajax: ' . $error_msg);
+                        
+                        // If status enum error, try to handle gracefully
+                        if (stripos($error_msg, 'enum') !== false || stripos($error_msg, 'data truncated') !== false) {
+                            // Remove the problematic Status field and try again
+                            if (isset($order_update['Status'])) {
+                                $bad_status = $order_update['Status'];
+                                unset($order_update['Status']);
+                                log_message('warning', "Removed invalid status '{$bad_status}' from order update");
+                                
+                                // Try update again without the Status field
+                                $this->db->where('OrderID', $order_id);
+                                $update_result = $this->db->update('`order`', $order_update);
+                                
+                                // Log that status update was skipped
+                                log_message('warning', "Order status update skipped - '{$bad_status}' not in enum. Please run migration script.");
+                            }
+                        }
+                    }
+                    
+                    if (!$update_result && empty($db_error['code'])) {
+                        log_message('error', 'Update returned false but no database error - possible no rows affected');
+                    }
+                    
+                    // Track status changes and delivery date
+                    if (isset($order_update['Status']) && !isset($db_error['code'])) {
+                        $new_status = $order_update['Status'];
+                    }
+                    if (isset($order_update['InstallationDate'])) {
+                        $installation_date_set = true;
+                        $scheduled_date_value = $order_update['InstallationDate'];
+                    } elseif (isset($order_update['EstimatedDelivery'])) {
+                        $installation_date_set = true;
+                        $scheduled_date_value = $order_update['EstimatedDelivery'];
+                    }
+                } catch (Exception $e) {
+                    log_message('error', 'Exception updating order in update_appointment_ajax: ' . $e->getMessage());
+                    log_message('error', 'Stack trace: ' . $e->getTraceAsString());
+                }
+            }
+            
+            $this->db->trans_complete();
+            
+            // Send notifications after successful transaction (only if transaction succeeded)
+            // Note: Notifications are sent but errors are caught to prevent breaking the appointment save
+            // Temporarily commented out to debug 500 error - uncomment after fixing
+            /*
+            if ($this->db->trans_status() !== FALSE && isset($current_order) && $current_order && !empty($current_order->Customer_ID)) {
+                try {
+                    $helper_path = APPPATH . 'helpers/notification_helper.php';
+                    if (file_exists($helper_path)) {
+                        require_once($helper_path);
+                        if (function_exists('send_order_notification') && function_exists('send_delivery_notification')) {
+                            $order_number = !empty($current_order->OrderNumber) ? $current_order->OrderNumber : 'GI' . str_pad($order_id, 3, '0', STR_PAD_LEFT);
+                            $admin_id = $this->session->userdata('user_id');
+                            if (!empty($new_status) && $old_status !== $new_status) {
+                                switch ($new_status) {
+                                    case 'In Fabrication':
+                                        send_order_notification($current_order->Customer_ID, $order_id, 'Order in Fabrication', "Your order #{$order_number} is now being fabricated.", 'fa-cog', $admin_id);
+                                        break;
+                                    case 'Ready for Installation':
+                                        send_order_notification($current_order->Customer_ID, $order_id, 'Order Ready for Installation', "Your order #{$order_number} is ready for installation!", 'fa-check-circle', $admin_id);
+                                        break;
+                                    case 'Completed':
+                                        send_order_notification($current_order->Customer_ID, $order_id, 'Order Completed', "Your order #{$order_number} has been completed.", 'fa-star', $admin_id);
+                                        break;
+                                }
+                            }
+                            if ($installation_date_set && !empty($scheduled_date_value)) {
+                                $formatted_date = date('F j, Y', strtotime($scheduled_date_value));
+                                $appointment_time = (!empty($time)) ? date('g:i A', strtotime($time)) : '';
+                                $date_time_text = $appointment_time ? " on {$formatted_date} at {$appointment_time}" : " on {$formatted_date}";
+                                send_delivery_notification($current_order->Customer_ID, $order_id, 'Installation Scheduled', "Your order #{$order_number} installation scheduled{$date_time_text}.", 'fa-calendar-check', $admin_id);
+                            }
+                        }
+                    }
+                } catch (Exception $e) {
+                    log_message('error', 'Notification error: ' . $e->getMessage());
+                }
+            }
+            */
+            
+            if ($this->db->trans_status() === FALSE) {
+                $error = $this->db->error();
+                log_message('error', 'Transaction failed in update_appointment_ajax: ' . json_encode($error));
+                echo json_encode([
+                    'success' => false, 
+                    'message' => 'Failed to update appointment: ' . ($error['message'] ?? 'Transaction failed')
+                ]);
+            } else {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Appointment updated successfully',
+                    'order_updated' => !empty($order_update)
+                ]);
+            }
+        } catch (Exception $e) {
+            log_message('error', 'Fatal error in update_appointment_ajax: ' . $e->getMessage());
+            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
             echo json_encode([
-                'success' => true,
-                'message' => 'Appointment updated successfully',
-                'order_updated' => !empty($order_update)
+                'success' => false,
+                'message' => 'Server error: ' . $e->getMessage()
             ]);
         }
     }
@@ -2988,6 +3191,7 @@ class AdminCon extends CI_Controller
                                        ->get('appointments')
                                        ->row();
         
+        $ocular_staff_id = null;
         if ($ocular_appointment) {
             $ocular_notes = $ocular_appointment->OcularNotes ?? '';
             $ocular_date = $ocular_appointment->AppointmentDate ? date('F j, Y', strtotime($ocular_appointment->AppointmentDate)) : 'N/A';
@@ -2995,6 +3199,11 @@ class AdminCon extends CI_Controller
             
             if (!empty($ocular_appointment->AssignedStaff)) {
                 $ocular_staff_name = $ocular_appointment->AssignedStaff;
+            }
+            
+            // Get ocular staff ID
+            if ($this->db->field_exists('AssignedStaff_ID', 'appointments')) {
+                $ocular_staff_id = $ocular_appointment->AssignedStaff_ID ?? null;
             }
         }
         
@@ -3066,6 +3275,7 @@ class AdminCon extends CI_Controller
                 'ocular_notes' => $ocular_notes,
                 'ocular_date' => $ocular_date,
                 'ocular_staff_name' => $ocular_staff_name,
+                'ocular_staff_id' => $ocular_staff_id,
                 'ocular_completed' => $ocular_completed,
                 'shape' => $order->GlassShape ?? 'N/A',
                 'dimension' => $order->Dimensions ?? 'N/A',
@@ -3450,11 +3660,59 @@ class AdminCon extends CI_Controller
         // Get admin ID
         $admin_id = $this->session->userdata('user_id');
         
+        log_message('error', "AdminCon::approve_order_admin - [BEFORE CALL] About to call admin_approve_order. Order ID: {$order_id_numeric}, Admin ID: {$admin_id}");
+        
         // Use Order_model function
         $result = $this->Order_model->admin_approve_order($order_id_numeric, $admin_id, $admin_notes);
         
         if ($result['success']) {
             $result['order_id'] = $order_id_clean;
+            
+            // Send notification to customer (guaranteed - call directly here as backup)
+            if (!empty($order->Customer_ID)) {
+                try {
+                    $this->load->helper('notification');
+                    if (function_exists('send_order_notification')) {
+                        // Get ocular appointment date if available
+                        $this->db->reset_query();
+                        $this->db->where('OrderID', $order_id_numeric);
+                        $this->db->where('Service', 'Ocular Visit');
+                        $ocular_appointment = $this->db->get('appointments')->row();
+                        
+                        $ocular_date = 'TBD - We will contact you to schedule';
+                        if ($ocular_appointment && !empty($ocular_appointment->AppointmentDate)) {
+                            $formatted_date = date('F j, Y', strtotime($ocular_appointment->AppointmentDate));
+                            $ocular_date = $formatted_date;
+                        }
+                        
+                        send_order_notification(
+                            $order->Customer_ID,
+                            $order_id_numeric,
+                            'Order Approved',
+                            "Your order #{$order_id_clean} has been approved and will move to ocular visit! Ocular visit scheduled for {$ocular_date}. We'll contact you soon with more details.",
+                            'fa-check-circle',
+                            $admin_id
+                        );
+                    }
+                } catch (Exception $e) {
+                    log_message('error', 'AdminCon::approve_order_admin - Notification error: ' . $e->getMessage());
+                }
+            }
+            
+            // Immediately sync approved orders to create Ocular Visit appointment
+            // This ensures the order goes to Ocular Visit appointments page (not fabrication queue yet)
+            // Wrap in try-catch to prevent breaking approval if sync fails
+            try {
+                $this->db->reset_query();
+                $this->sync_approved_orders_to_appointments();
+            } catch (Exception $e) {
+                log_message('error', 'AdminCon::approve_order_admin - Failed to sync appointments: ' . $e->getMessage());
+                // Don't fail the approval if sync fails, but log the error
+                // The sync will happen automatically when appointments page loads anyway
+            } catch (Error $e) {
+                log_message('error', 'AdminCon::approve_order_admin - Fatal error syncing appointments: ' . $e->getMessage());
+                // Don't fail the approval if sync fails
+            }
         }
         
         echo json_encode($result);
@@ -3525,7 +3783,11 @@ class AdminCon extends CI_Controller
         $status_map = [
             'Pending' => 'Pending',
             'Pending Review' => 'Ready to Approve',
+            'Pending Payment' => 'Pending Payment',
+            'Payment Verified' => 'Payment Verified',
+            'Paid' => 'Paid',
             'Approved' => 'Confirmed',
+            'Ocular Pending' => 'Ocular Pending',
             'Completed' => 'Completed',
             'Cancelled' => 'Canceled',
             'Disapproved' => 'Disapproved',
@@ -3686,8 +3948,9 @@ class AdminCon extends CI_Controller
 
     /**
      * Log activity to system_activity_log
+     * @param bool $show_as_notification - If false, this activity won't appear in notification feeds (default: false for internal admin actions)
      */
-    private function log_activity($action, $description, $role, $user_id = null, $user_name = null, $related_id = null, $related_type = null)
+    private function log_activity($action, $description, $role, $user_id = null, $user_name = null, $related_id = null, $related_type = null, $show_as_notification = false)
     {
         $data = [
             'Action' => $action,
@@ -3700,7 +3963,23 @@ class AdminCon extends CI_Controller
             'Timestamp' => date('Y-m-d H:i:s')
         ];
         
-        $this->db->insert('system_activity_log', $data);
+        // Add flag to indicate if this should show as notification (for external events like customer actions)
+        // Internal admin actions should not show as notifications
+        try {
+            if ($this->db->table_exists('system_activity_log') && $this->db->field_exists('ShowAsNotification', 'system_activity_log')) {
+                $data['ShowAsNotification'] = $show_as_notification ? 1 : 0;
+            }
+        } catch (Exception $e) {
+            // If field check fails, continue without the flag
+            log_message('debug', 'Could not check ShowAsNotification field: ' . $e->getMessage());
+        }
+        
+        try {
+            $this->db->insert('system_activity_log', $data);
+        } catch (Exception $e) {
+            // Log the error but don't break execution
+            log_message('error', 'Failed to log activity: ' . $e->getMessage());
+        }
     }
 
     // Notifications
@@ -3712,7 +3991,31 @@ class AdminCon extends CI_Controller
         // Check if system_activity_log table exists and fetch notifications
         if ($this->db->table_exists('system_activity_log')) {
             try {
+                // Filter out internal admin actions - only show notifications for external events
+                // Show only if ShowAsNotification flag is true, or if field doesn't exist (backward compatibility)
                 $this->db->order_by('Timestamp', 'DESC');
+                try {
+                    if ($this->db->table_exists('system_activity_log') && $this->db->field_exists('ShowAsNotification', 'system_activity_log')) {
+                        $this->db->where('ShowAsNotification', 1);
+                    } else {
+                        // Backward compatibility: filter out common internal admin actions
+                        $this->db->where_not_in('Action', [
+                            'Order Status Updated',
+                            'Staff Assigned',
+                            'Order Completed',
+                            'Payment Status Updated'
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    // If field check fails, use backward compatibility filter
+                    log_message('debug', 'Could not check ShowAsNotification field: ' . $e->getMessage());
+                    $this->db->where_not_in('Action', [
+                        'Order Status Updated',
+                        'Staff Assigned',
+                        'Order Completed',
+                        'Payment Status Updated'
+                    ]);
+                }
                 $notifications = $this->db->get('system_activity_log')->result();
                 
                 // Format notifications for display
@@ -3854,6 +4157,30 @@ class AdminCon extends CI_Controller
             // Count notifications from last 30 days
             $this->db->where('Timestamp >=', date('Y-m-d H:i:s', strtotime('-30 days')));
             
+            // Filter out internal admin actions
+            try {
+                if ($this->db->table_exists('system_activity_log') && $this->db->field_exists('ShowAsNotification', 'system_activity_log')) {
+                    $this->db->where('ShowAsNotification', 1);
+                } else {
+                    // Backward compatibility: filter out common internal admin actions
+                    $this->db->where_not_in('Action', [
+                        'Order Status Updated',
+                        'Staff Assigned',
+                        'Order Completed',
+                        'Payment Status Updated'
+                    ]);
+                }
+            } catch (Exception $e) {
+                // If field check fails, use backward compatibility filter
+                log_message('debug', 'Could not check ShowAsNotification field: ' . $e->getMessage());
+                $this->db->where_not_in('Action', [
+                    'Order Status Updated',
+                    'Staff Assigned',
+                    'Order Completed',
+                    'Payment Status Updated'
+                ]);
+            }
+            
             // If admin has viewed notifications before, only count newer ones
             if ($last_viewed) {
                 $this->db->where('Timestamp >', $last_viewed);
@@ -3912,14 +4239,16 @@ class AdminCon extends CI_Controller
             return;
         }
         
-        // Map approval for site-assessed orders to Ocular Pending
+        // Map approval for all orders (direct and site-assessed) to Ocular Pending
+        // Orders should go to Ocular Pending after approval, not directly to fabrication
         $current_status = $order->Status ?? 'Pending Review';
         $effective_status = $new_status;
         $order_type = null;
         if ($this->db->field_exists('OrderType', 'order')) {
             $order_type = $order->OrderType ?? null;
         }
-        if ($new_status === 'Approved' && in_array($order_type, ['site-assessment', 'site-assessed'], true)) {
+        // For both direct and site-assessed orders, after approval they should go to Ocular Pending
+        if ($new_status === 'Approved') {
             $effective_status = 'Ocular Pending';
         }
 
@@ -3934,13 +4263,58 @@ class AdminCon extends CI_Controller
         
         // Update order status
         $update_data = ['Status' => $effective_status];
-        if ($effective_status === 'Approved' && !$order->Approved_Date) {
-            $update_data['Approved_Date'] = date('Y-m-d H:i:s');
+        // Set Approved_Date when moving to Ocular Pending (after approval)
+        if ($effective_status === 'Ocular Pending') {
+            $admin_id = $this->session->userdata('user_id');
+            if (!$order->Approved_Date) {
+                $update_data['ApprovedBy_Admin_ID'] = $admin_id;
+                $update_data['Approved_Date'] = date('Y-m-d H:i:s');
+            }
         }
         
-        $this->db->where('OrderID', $order->OrderID)->update('`order`', $update_data);
+        // Log before update
+        log_message('info', "Updating order {$order_id_clean} (OrderID: {$order->OrderID}) from '{$current_status}' to '{$effective_status}'");
         
-        // Log status change
+        // Check if 'Ocular Pending' exists in the Status enum before trying to update
+        // If it doesn't exist, we'll get a database error
+        try {
+            $this->db->where('OrderID', $order->OrderID);
+            $result = $this->db->update('`order`', $update_data);
+            
+            // Check for database errors IMMEDIATELY after update
+            $db_error = $this->db->error();
+            if (!empty($db_error['code'])) {
+                $error_msg = $db_error['message'];
+                log_message('error', 'Database error updating order status: ' . $error_msg);
+                
+                // Check if it's an enum value error
+                if (stripos($error_msg, 'enum') !== false || stripos($error_msg, 'ocular') !== false || stripos($error_msg, 'data truncated') !== false) {
+                    log_message('error', "CRITICAL: Status value '{$effective_status}' is not in the database enum!");
+                    echo json_encode([
+                        'success' => false,
+                        'message' => "Database Error: The status '{$effective_status}' is not allowed. Please run the database migration script: database/scripts/add_ocular_pending_status.sql"
+                    ]);
+                    return;
+                }
+                
+                echo json_encode(['success' => false, 'message' => 'Database error: ' . $error_msg]);
+                return;
+            }
+            
+            if (!$result) {
+                log_message('error', 'Update returned false - no rows affected. OrderID: ' . $order->OrderID);
+                echo json_encode(['success' => false, 'message' => 'Failed to update order status - no rows affected']);
+                return;
+            }
+            
+            log_message('info', "Order status update successful - {$result} row(s) affected");
+        } catch (Exception $e) {
+            log_message('error', 'Exception updating order status: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'message' => 'Error updating order status: ' . $e->getMessage()]);
+            return;
+        }
+        
+        // Log status change (internal admin action - not shown as notification)
         $this->log_activity(
             'Order Status Updated',
             "Order {$order_id_clean} status changed from {$current_status} to {$effective_status}",
@@ -3948,8 +4322,51 @@ class AdminCon extends CI_Controller
             $this->session->userdata('user_id'),
             $this->session->userdata('user_name'),
             $order->OrderID,
-            'Order'
+            'Order',
+            false // Don't show as notification - internal admin action
         );
+        
+        // Send notifications to customer based on status change
+        if ($order->Customer_ID && $current_status !== $effective_status) {
+            $this->load->helper('notification');
+            $order_number = $order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT);
+            $admin_id = $this->session->userdata('user_id');
+            
+            switch ($effective_status) {
+                case 'In Fabrication':
+                    send_order_notification(
+                        $order->Customer_ID,
+                        $order->OrderID,
+                        'Order in Fabrication',
+                        "Your order #{$order_number} is now being fabricated. We'll notify you once it's ready for installation.",
+                        'fa-cog',
+                        $admin_id
+                    );
+                    break;
+                    
+                case 'Ready for Installation':
+                    send_order_notification(
+                        $order->Customer_ID,
+                        $order->OrderID,
+                        'Order Ready for Installation',
+                        "Your order #{$order_number} is ready for installation! We'll contact you soon to schedule the installation.",
+                        'fa-check-circle',
+                        $admin_id
+                    );
+                    break;
+                    
+                case 'Completed':
+                    send_order_notification(
+                        $order->Customer_ID,
+                        $order->OrderID,
+                        'Order Completed',
+                        "Your order #{$order_number} has been completed and installed. Thank you for choosing Glassify!",
+                        'fa-star',
+                        $admin_id
+                    );
+                    break;
+            }
+        }
         
         // Save admin notes if provided
         if ($notes) {
@@ -3960,9 +4377,9 @@ class AdminCon extends CI_Controller
             }
         }
         
-        // If moved to Approved or Ocular Pending stage, create ocular appointment if missing
+        // If moved to Ocular Pending stage, create ocular appointment if missing
         // IMPORTANT: Do NOT create fabrication appointment here - only after ocular is marked complete
-        if (($effective_status === 'Approved' || $effective_status === 'Ocular Pending') && $this->db->table_exists('appointments')) {
+        if ($effective_status === 'Ocular Pending' && $this->db->table_exists('appointments')) {
             $this->db->reset_query();
             $this->db->where('OrderID', $order->OrderID);
             if ($this->db->field_exists('Service', 'appointments')) {
@@ -4018,11 +4435,53 @@ class AdminCon extends CI_Controller
         
         // Do NOT create fabrication appointment here - it should only be created when ocular is marked complete
 
+        // Verify the update actually happened
+        $this->db->reset_query();
+        $this->db->select('Status, OrderNumber');
+        $updated_order = $this->db->where('OrderID', $order->OrderID)->get('`order`')->row();
+        
+        if (!$updated_order) {
+            log_message('error', "Could not verify order update - order not found: OrderID {$order->OrderID}");
+            echo json_encode([
+                'success' => false,
+                'message' => 'Order update may have failed - could not verify status change'
+            ]);
+            return;
+        }
+        
+        $actual_new_status = $updated_order->Status ?? null;
+        
+        log_message('info', "Order {$order_id_clean} status update verified: {$current_status} -> {$effective_status} (actual in DB: " . ($actual_new_status ?? 'NULL/EMPTY') . ")");
+        
+        // Check if status actually changed
+        if ($actual_new_status !== $effective_status) {
+            log_message('warning', "Status mismatch! Expected: {$effective_status}, Actual: " . ($actual_new_status ?? 'NULL/EMPTY'));
+            
+            // If status is NULL or empty, the enum value probably doesn't exist
+            if (empty($actual_new_status) && $effective_status === 'Ocular Pending') {
+                log_message('error', "CRITICAL: 'Ocular Pending' status is not in the database enum! Status field is empty.");
+                echo json_encode([
+                    'success' => false,
+                    'message' => "Database Error: The status 'Ocular Pending' is not in the database enum. Please run: database/scripts/add_ocular_pending_status.sql",
+                    'old_status' => $current_status ?: 'NULL',
+                    'new_status' => $actual_new_status ?? 'NULL',
+                    'expected_status' => $effective_status,
+                    'order_id' => $order_id_clean
+                ]);
+                return;
+            }
+        }
+        
         echo json_encode([
             'success' => true,
             'message' => $effective_status === 'Ocular Pending'
-                ? 'Order moved to ocular pending'
-                : 'Order status updated successfully'
+                ? 'Order approved and moved to ocular pending. Ocular visit appointment has been created.'
+                : 'Order status updated successfully',
+            'old_status' => $current_status ?: 'NULL',
+            'new_status' => $actual_new_status ?? 'NULL',
+            'expected_status' => $effective_status,
+            'order_id' => $order_id_clean,
+            'order_number' => $updated_order->OrderNumber ?? 'N/A'
         ]);
     }
     
@@ -4170,7 +4629,8 @@ class AdminCon extends CI_Controller
                 $this->session->userdata('user_id'),
                 $this->session->userdata('user_name'),
                 $order->OrderID,
-                'Order'
+                'Order',
+                false // Don't show as notification - internal admin action
             );
 
             echo json_encode(['success' => true, 'message' => 'Ocular staff assigned successfully']);
@@ -4197,7 +4657,8 @@ class AdminCon extends CI_Controller
                     $this->session->userdata('user_id'),
                     $this->session->userdata('user_name'),
                     $order->OrderID,
-                    'Order'
+                    'Order',
+                    false // Don't show as notification - internal admin action
                 );
                 
                 echo json_encode(['success' => true, 'message' => 'Staff assigned successfully']);
@@ -5195,8 +5656,79 @@ class AdminCon extends CI_Controller
             }
             
             // If fabrication status is "Completed", create installation appointment with date 2 days from now
+            // AND send notification to customer with installation date
             if ($fabrication_status === 'Completed') {
+                // Update order status to Ready for Installation
+                if ($this->db->field_exists('Status', 'order')) {
+                    $update_data['Status'] = 'Ready for Installation';
+                }
+                if ($this->db->field_exists('ActualFabricationEndDate', 'order')) {
+                    $update_data['ActualFabricationEndDate'] = date('Y-m-d');
+                }
+                
+                // Create installation appointment
                 $this->create_installation_appointment($order_id);
+                
+                // Send notification to customer with installation date and date change option
+                $this->db->reset_query();
+                $order = $this->db->where('OrderID', $order_id)->get('`order`')->row();
+                
+                if ($order && $order->Customer_ID) {
+                    try {
+                        $this->load->helper('notification');
+                        $order_number = $order->OrderNumber ?? 'GI' . str_pad($order_id, 3, '0', STR_PAD_LEFT);
+                        $admin_id = $this->session->userdata('user_id');
+                        
+                        // Get installation appointment date
+                        $this->db->reset_query();
+                        $this->db->where('OrderID', $order_id);
+                        $this->db->where('Service', 'Installed');
+                        $installation_appointment = $this->db->get('appointments')->row();
+                        
+                        $installation_date = 'TBD';
+                        $installation_time = '';
+                        $installation_date_raw = null;
+                        if ($installation_appointment) {
+                            if (!empty($installation_appointment->AppointmentDate)) {
+                                $installation_date_raw = $installation_appointment->AppointmentDate;
+                                $installation_date = date('F j, Y', strtotime($installation_appointment->AppointmentDate));
+                            }
+                            if (!empty($installation_appointment->AppointmentTime)) {
+                                $installation_time = date('g:i A', strtotime($installation_appointment->AppointmentTime));
+                            }
+                        }
+                        
+                        $date_time_text = $installation_date;
+                        if ($installation_time) {
+                            $date_time_text .= ' at ' . $installation_time;
+                        }
+                        
+                        // Prepare action data for date change request
+                        $action_data = [
+                            'type' => 'installation_date_change',
+                            'order_id' => $order_id,
+                            'current_date' => $installation_date_raw,
+                            'allowed_until' => date('Y-m-d', strtotime('+7 days'))
+                        ];
+                        
+                        // Use send_customer_notification directly to include action data
+                        if (function_exists('send_customer_notification')) {
+                            send_customer_notification(
+                                $order->Customer_ID,
+                                'Installation Scheduled',
+                                "Your order #{$order_number} fabrication is complete! Installation is scheduled for {$date_time_text}. You can request to change the date within the next 7 days if needed.",
+                                'Delivery',
+                                'fa-calendar-check',
+                                $order_id,
+                                'Order',
+                                $admin_id,
+                                json_encode($action_data)
+                            );
+                        }
+                    } catch (Exception $e) {
+                        log_message('error', 'Failed to send notification when fabrication completed: ' . $e->getMessage());
+                    }
+                }
             }
         }
         
@@ -5485,6 +6017,9 @@ class AdminCon extends CI_Controller
             return;
         }
         
+        // Get order details for notification
+        $order = $this->db->where('OrderID', $order_id)->get('`order`')->row();
+        
         // Update order status
         $this->db->where('OrderID', $order_id);
         $this->db->update('`order`', [
@@ -5495,6 +6030,8 @@ class AdminCon extends CI_Controller
         ]);
         
         // Create installation appointment with date 2 days from now
+        // Note: Notification is now sent in update_fabrication_progress() when FabricationStatus is set to "Completed"
+        // This ensures notification is sent when admin moves card to step 5 complete in kanban
         $this->create_installation_appointment($order_id);
         
         echo json_encode(['success' => true, 'message' => 'Fabrication marked as complete. Installation appointment created.']);
@@ -5593,6 +6130,307 @@ class AdminCon extends CI_Controller
     // ======================
     // QUOTATIONS AJAX METHODS
     // ======================
+    
+    /**
+     * Create quotation from appointment (Ocular Visit)
+     * Called from appointment details modal
+     */
+    public function create_quotation_from_appointment()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $appointment_id = $this->input->post('appointment_id');
+        $total_amount = $this->input->post('total_amount');
+        $notes = $this->input->post('notes') ?: '';
+        $expiry_date = $this->input->post('expiry_date') ?: null;
+        
+        if (!$appointment_id || !$total_amount) {
+            echo json_encode(['success' => false, 'message' => 'Appointment ID and Total Amount are required']);
+            return;
+        }
+        
+        // Get appointment and order details
+        $this->db->where('AppointmentID', $appointment_id);
+        $appointment = $this->db->get('appointments')->row();
+        
+        if (!$appointment || !$appointment->OrderID) {
+            echo json_encode(['success' => false, 'message' => 'Appointment or Order not found']);
+            return;
+        }
+        
+        // Get order details
+        $this->db->where('OrderID', $appointment->OrderID);
+        $order = $this->db->get('order')->row();
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found']);
+            return;
+        }
+        
+        // Generate quotation number
+        $this->db->select('MAX(CAST(SUBSTRING(QuotationNumber, 3) AS UNSIGNED)) as max_num');
+        $this->db->from('quotation');
+        $this->db->like('QuotationNumber', 'QT', 'after');
+        $result = $this->db->get()->row();
+        $next_num = ($result && $result->max_num) ? (int)$result->max_num + 1 : 1;
+        $quotation_number = 'QT' . str_pad($next_num, 3, '0', STR_PAD_LEFT);
+        
+        // Prepare quotation data
+        $quotation_data = [
+            'QuotationNumber' => $quotation_number,
+            'Customer_ID' => $order->Customer_ID,
+            'SalesRep_ID' => $order->SalesRep_ID ?? 1, // Default to admin if no sales rep
+            'TotalAmount' => (float)$total_amount,
+            'Notes' => $notes,
+            'Status' => 'Pending',
+            'CreatedDate' => date('Y-m-d H:i:s'),
+            'Created_Date' => date('Y-m-d H:i:s')
+        ];
+        
+        // Add fields that may exist in different table structures
+        if ($this->db->field_exists('OrderID', 'quotation')) {
+            $quotation_data['OrderID'] = $appointment->OrderID;
+        }
+        if ($this->db->field_exists('ConvertedToOrder_ID', 'quotation')) {
+            $quotation_data['ConvertedToOrder_ID'] = $appointment->OrderID;
+        }
+        if ($this->db->field_exists('Total_amount', 'quotation')) {
+            $quotation_data['Total_amount'] = (float)$total_amount;
+        }
+        if ($expiry_date && $this->db->field_exists('ExpiryDate', 'quotation')) {
+            $quotation_data['ExpiryDate'] = $expiry_date;
+        }
+        if ($this->db->field_exists('Quotation_num', 'quotation')) {
+            $quotation_data['Quotation_num'] = $quotation_number;
+        }
+        
+        // Insert quotation
+        if ($this->db->insert('quotation', $quotation_data)) {
+            $quotation_id = $this->db->insert_id();
+            
+            // Update appointment to mark quotation created
+            if ($this->db->field_exists('QuotationID', 'appointments')) {
+                $this->db->where('AppointmentID', $appointment_id);
+                $this->db->update('appointments', ['QuotationID' => $quotation_id]);
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Quotation created successfully',
+                'quotation_id' => $quotation_id,
+                'quotation_number' => $quotation_number
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to create quotation: ' . $this->db->error()['message']]);
+        }
+    }
+    
+    /**
+     * Generate quotation PDF and send via email
+     */
+    public function send_quotation_email()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $quotation_id = $this->input->post('quotation_id');
+        $appointment_id = $this->input->post('appointment_id');
+        
+        if (!$quotation_id) {
+            echo json_encode(['success' => false, 'message' => 'Quotation ID is required']);
+            return;
+        }
+        
+        // Get quotation details
+        $this->db->where('QuotationID', $quotation_id);
+        $quotation = $this->db->get('quotation')->row();
+        
+        if (!$quotation) {
+            echo json_encode(['success' => false, 'message' => 'Quotation not found']);
+            return;
+        }
+        
+        // Get customer email
+        $this->db->select('u.Email, u.First_Name, u.Last_Name');
+        $this->db->from('customer c');
+        $this->db->join('user u', 'u.UserID = c.UserID', 'left');
+        $this->db->where('c.Customer_ID', $quotation->Customer_ID);
+        $customer = $this->db->get()->row();
+        
+        if (!$customer || !$customer->Email) {
+            echo json_encode(['success' => false, 'message' => 'Customer email not found']);
+            return;
+        }
+        
+        // Generate PDF (we'll create a simple PDF generation)
+        $pdf_path = $this->generate_quotation_pdf($quotation_id);
+        
+        if (!$pdf_path) {
+            echo json_encode(['success' => false, 'message' => 'Failed to generate PDF']);
+            return;
+        }
+        
+        // Update quotation with PDF URL
+        if ($this->db->field_exists('Pdf_url', 'quotation')) {
+            $this->db->where('QuotationID', $quotation_id);
+            $this->db->update('quotation', ['Pdf_url' => $pdf_path]);
+        }
+        
+        // Send email with PDF attachment
+        $this->load->config('email');
+        $this->load->library('email');
+        
+        $this->email->initialize([
+            'protocol' => $this->config->item('protocol'),
+            'smtp_host' => $this->config->item('smtp_host'),
+            'smtp_user' => $this->config->item('smtp_user'),
+            'smtp_pass' => $this->config->item('smtp_pass'),
+            'smtp_port' => $this->config->item('smtp_port'),
+            'smtp_crypto' => $this->config->item('smtp_crypto'),
+            'mailtype' => 'html',
+            'charset' => 'utf-8'
+        ]);
+        
+        $customer_name = trim(($customer->First_Name ?? '') . ' ' . ($customer->Last_Name ?? ''));
+        $quotation_number = $quotation->QuotationNumber ?? 'QT' . str_pad($quotation_id, 3, '0', STR_PAD_LEFT);
+        $total_amount = $quotation->TotalAmount ?? $quotation->Total_amount ?? 0;
+        
+        $this->email->from('glassifytesting@gmail.com', 'Glassify - GlassWorth Builders');
+        $this->email->to($customer->Email);
+        $this->email->subject('Quotation #' . $quotation_number . ' - GlassWorth Builders');
+        $this->email->message("
+            <html>
+            <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
+                <h2 style='color: #083c5d;'>Quotation #{$quotation_number}</h2>
+                <p>Dear {$customer_name},</p>
+                <p>Thank you for your interest in our services. Please find attached your quotation.</p>
+                <p><strong>Quotation Number:</strong> {$quotation_number}</p>
+                <p><strong>Total Amount:</strong> ₱" . number_format($total_amount, 2) . "</p>
+                <p>Please review the attached quotation and contact us if you have any questions.</p>
+                <p>Best regards,<br>GlassWorth Builders Team</p>
+            </body>
+            </html>
+        ");
+        $this->email->attach($pdf_path);
+        
+        if ($this->email->send()) {
+            // Update quotation status
+            $this->db->where('QuotationID', $quotation_id);
+            $this->db->update('quotation', ['Status' => 'Approved']);
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Quotation sent successfully to ' . $customer->Email
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to send email: ' . $this->email->print_debugger()]);
+        }
+    }
+    
+    /**
+     * Generate quotation PDF
+     */
+    private function generate_quotation_pdf($quotation_id)
+    {
+        // Get quotation with all details
+        $this->db->where('q.QuotationID', $quotation_id);
+        $this->db->select('q.*, o.OrderNumber, o.DeliveryAddress, 
+                          CONCAT(u.First_Name, " ", u.Last_Name) as CustomerName,
+                          u.Email as CustomerEmail, u.PhoneNum as CustomerPhone');
+        $this->db->from('quotation q');
+        $this->db->join('order o', 'o.OrderID = q.OrderID OR o.OrderID = q.ConvertedToOrder_ID', 'left');
+        $this->db->join('customer c', 'c.Customer_ID = q.Customer_ID', 'left');
+        $this->db->join('user u', 'u.UserID = c.UserID', 'left');
+        $quotation = $this->db->get()->row();
+        
+        if (!$quotation) {
+            return false;
+        }
+        
+        // Create PDF directory if it doesn't exist
+        $pdf_dir = './uploads/quotations/';
+        if (!is_dir($pdf_dir)) {
+            mkdir($pdf_dir, 0755, true);
+        }
+        
+        // For now, we'll create a simple HTML file that can be converted to PDF
+        // In production, you'd use a library like TCPDF or DomPDF
+        $quotation_number = $quotation->QuotationNumber ?? 'QT' . str_pad($quotation_id, 3, '0', STR_PAD_LEFT);
+        $pdf_filename = 'quotation_' . $quotation_number . '_' . date('YmdHis') . '.html';
+        $pdf_path = $pdf_dir . $pdf_filename;
+        
+        $html_content = $this->load->view('admin_page/quotation_pdf_template', [
+            'quotation' => $quotation,
+            'quotation_number' => $quotation_number
+        ], true);
+        
+        file_put_contents($pdf_path, $html_content);
+        
+        // Return path (in production, convert HTML to actual PDF)
+        return $pdf_path;
+    }
+    
+    /**
+     * Proceed order to fabrication after quotation is sent
+     */
+    public function proceed_to_fabrication()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        $quotation_id = $this->input->post('quotation_id');
+        
+        if (!$order_id) {
+            echo json_encode(['success' => false, 'message' => 'Order ID is required']);
+            return;
+        }
+        
+        // Update order status to "In Fabrication"
+        $this->db->where('OrderID', $order_id);
+        $update_data = ['Status' => 'In Fabrication'];
+        
+        // Update quotation status if provided
+        if ($quotation_id) {
+            $this->db->where('QuotationID', $quotation_id);
+            $this->db->update('quotation', ['Status' => 'Converted to Order']);
+        }
+        
+        if ($this->db->update('order', $update_data)) {
+            // Log activity
+            if ($this->db->table_exists('system_activity_log')) {
+                $this->db->insert('system_activity_log', [
+                    'Action' => 'Order Moved to Fabrication',
+                    'Description' => "Order moved to fabrication after quotation sent. Order ID: {$order_id}",
+                    'Role' => 'Admin',
+                    'UserID' => $this->session->userdata('user_id'),
+                    'RelatedID' => $order_id,
+                    'RelatedType' => 'Order',
+                    'Timestamp' => date('Y-m-d H:i:s')
+                ]);
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Order moved to fabrication successfully'
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to update order status']);
+        }
+    }
     
     public function get_quotations_ajax()
     {

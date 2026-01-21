@@ -601,8 +601,12 @@ class Order_model extends CI_Model
     /**
      * Get all order items (purchases) for a customer
      * Joins order, order_items, and product tables
+     * 
+     * @param int $customer_id Customer ID
+     * @param string $filter Filter type: 'all', 'to_receive', 'completed', 'cancelled'
+     * @return array Order items
      */
-    public function get_customer_order_items($customer_id)
+    public function get_customer_order_items($customer_id, $filter = 'all')
     {
         $this->db->select('
             oi.OrderItemID,
@@ -636,6 +640,20 @@ class Order_model extends CI_Model
         $this->db->join('`order` o', 'o.OrderID = oi.OrderID', 'left');
         $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
         $this->db->where('o.Customer_ID', $customer_id);
+        
+        // Apply filter based on status
+        if ($filter === 'to_receive') {
+            // Ongoing orders: anything that's not completed, cancelled, or returned
+            $this->db->where_not_in('o.Status', ['Completed', 'Cancelled', 'Returned', 'Disapproved']);
+        } elseif ($filter === 'completed') {
+            // Only completed orders
+            $this->db->where('o.Status', 'Completed');
+        } elseif ($filter === 'cancelled') {
+            // Cancelled or disapproved orders
+            $this->db->where_in('o.Status', ['Cancelled', 'Disapproved', 'Returned']);
+        }
+        // 'all' - no additional filter
+        
         $this->db->order_by('o.OrderDate', 'DESC');
         
         return $this->db->get()->result();
@@ -1084,6 +1102,7 @@ class Order_model extends CI_Model
      */
     public function admin_approve_order($order_id, $admin_id, $admin_notes = '')
     {
+        log_message('error', "Order_model::admin_approve_order - [START] Function called. Order ID: {$order_id}, Admin ID: {$admin_id}");
         $this->db->trans_start();
 
         // Validate order exists and is in correct status
@@ -1094,16 +1113,17 @@ class Order_model extends CI_Model
         }
 
         // Check if order is in a status that can be approved
-        // In new workflow: Payment Verified -> Approved
-        $valid_statuses_for_approval = ['Payment Verified', 'Pending Payment']; // Allow both for migration
+        // In new workflow: Payment Verified/Pending Payment/Paid/Pending Review -> Ocular Pending (after approval)
+        $valid_statuses_for_approval = ['Payment Verified', 'Pending Payment', 'Paid', 'Pending Review', 'Awaiting Admin'];
         if (!in_array($order->Status, $valid_statuses_for_approval)) {
             $this->db->trans_rollback();
             return ['success' => false, 'message' => 'Order is not in a status that can be approved. Current status: ' . $order->Status];
         }
 
-        // Update order status to 'Approved' (after payment is verified)
+        // Update order status to 'Ocular Pending' (after payment is verified and order is approved)
+        // Orders go to Ocular Pending after approval, not directly to fabrication
         $update_data = [
-            'Status' => 'Approved',
+            'Status' => 'Ocular Pending',
             'ApprovedBy_Admin_ID' => $admin_id,
             'Approved_Date' => date('Y-m-d H:i:s')
         ];
@@ -1131,7 +1151,7 @@ class Order_model extends CI_Model
         if ($this->db->table_exists('system_activity_log')) {
             $this->db->insert('system_activity_log', [
                 'Action' => 'Order Approved by Admin',
-                'Description' => "Order {$order->OrderNumber} approved by Admin. Notes: " . ($admin_notes ?: 'None'),
+                'Description' => "Order {$order->OrderNumber} approved by Admin and moved to Ocular Pending. Notes: " . ($admin_notes ?: 'None'),
                 'Role' => 'Admin',
                 'UserID' => $admin_id,
                 'RelatedID' => $order_id,
@@ -1139,13 +1159,154 @@ class Order_model extends CI_Model
                 'Timestamp' => date('Y-m-d H:i:s')
             ]);
         }
+        
+        // Create ocular visit appointment if it doesn't exist
+        // This ensures the order appears in the ocular visit appointments page
+        if ($this->db->table_exists('appointments')) {
+            $this->db->reset_query();
+            $this->db->where('OrderID', $order_id);
+            if ($this->db->field_exists('Service', 'appointments')) {
+                $this->db->where('Service', 'Ocular Visit');
+            } elseif ($this->db->field_exists('AppointmentType', 'appointments')) {
+                $this->db->where('AppointmentType', 'Ocular');
+            }
+            $existing_appointment = $this->db->get('appointments')->row();
+            
+            if (!$existing_appointment) {
+                // Get client name
+                $client_name = '';
+                if (!empty($order->Customer_ID)) {
+                    $this->db->reset_query();
+                    $this->db->select('u.First_Name, u.Last_Name, u.Middle_Name');
+                    $this->db->from('customer c');
+                    $this->db->join('user u', 'u.UserID = c.UserID', 'left');
+                    $this->db->where('c.Customer_ID', $order->Customer_ID);
+                    $customer_user = $this->db->get()->row();
+                    if ($customer_user) {
+                        $client_name = trim(($customer_user->First_Name ?? '') . ' ' . ($customer_user->Middle_Name ?? '') . ' ' . ($customer_user->Last_Name ?? ''));
+                    }
+                }
+                
+                $appointment_data = ['OrderID' => $order_id];
+                if ($this->db->field_exists('Customer_ID', 'appointments')) {
+                    $appointment_data['Customer_ID'] = $order->Customer_ID ?? null;
+                }
+                if ($this->db->field_exists('Service', 'appointments')) {
+                    $appointment_data['Service'] = 'Ocular Visit';
+                }
+                if ($this->db->field_exists('Status', 'appointments')) {
+                    $appointment_data['Status'] = 'In Progress';
+                }
+                if ($this->db->field_exists('AppointmentType', 'appointments')) {
+                    $appointment_data['AppointmentType'] = 'Ocular';
+                }
+                if ($this->db->field_exists('ClientName', 'appointments')) {
+                    $appointment_data['ClientName'] = $client_name ?: 'N/A';
+                }
+                if ($this->db->field_exists('ProductName', 'appointments')) {
+                    $appointment_data['ProductName'] = $order->ProductName ?? null;
+                }
+                if ($this->db->field_exists('AppointmentDate', 'appointments')) {
+                    $appointment_data['AppointmentDate'] = date('Y-m-d');
+                }
+                if ($this->db->field_exists('AppointmentTime', 'appointments')) {
+                    $appointment_data['AppointmentTime'] = '10:00:00';
+                }
+                $this->db->reset_query();
+                $this->db->insert('appointments', $appointment_data);
+            }
+        }
 
         $this->db->trans_complete();
 
         if ($this->db->trans_status() === FALSE) {
+            log_message('error', "Order_model::admin_approve_order - Transaction failed for Order ID: {$order_id}");
             return ['success' => false, 'message' => 'Transaction failed'];
         }
 
+        // Re-fetch order to ensure we have latest data after transaction
+        // But keep original order object as fallback
+        $this->db->reset_query();
+        $order_after = $this->get_order($order_id);
+        if ($order_after) {
+            $order = $order_after; // Use re-fetched order if available
+        }
+        // If re-fetch fails, continue with original $order object
+
+        // Send notification to customer (fail-safe - don't break approval if notification fails)
+        // IMPORTANT: Send notification AFTER appointment is created so we can get the date
+        $customer_id = isset($order->Customer_ID) ? (int)$order->Customer_ID : 0;
+        log_message('error', "Order_model::admin_approve_order - [DEBUG] Transaction completed. Order ID: {$order_id}, Order Number: " . ($order->OrderNumber ?? 'N/A') . ", Customer_ID: {$customer_id}, Status: " . ($order->Status ?? 'N/A'));
+        
+        if ($customer_id > 0) {
+            try {
+                // Load helper
+                $this->load->helper('notification');
+                
+                // Verify helper loaded correctly
+                if (!function_exists('send_order_notification')) {
+                    log_message('error', 'Order_model::admin_approve_order - send_order_notification function not found after loading helper');
+                    // Try loading helper file directly as fallback
+                    $helper_path = APPPATH . 'helpers/notification_helper.php';
+                    if (file_exists($helper_path)) {
+                        require_once($helper_path);
+                        log_message('info', 'Order_model::admin_approve_order - Loaded notification helper directly');
+                    } else {
+                        log_message('error', 'Order_model::admin_approve_order - Notification helper file not found at: ' . $helper_path);
+                    }
+                }
+                
+                if (function_exists('send_order_notification')) {
+                    $order_number = $order->OrderNumber ?? 'GI' . str_pad($order_id, 3, '0', STR_PAD_LEFT);
+                    
+                    // Get ocular appointment date (should exist now since we just created it)
+                    $this->db->reset_query();
+                    $this->db->where('OrderID', $order_id);
+                    $this->db->where('Service', 'Ocular Visit');
+                    $ocular_appointment = $this->db->get('appointments')->row();
+                    
+                    $ocular_date = 'TBD';
+                    if ($ocular_appointment && !empty($ocular_appointment->AppointmentDate)) {
+                        $formatted_date = date('F j, Y', strtotime($ocular_appointment->AppointmentDate));
+                        $ocular_date = $formatted_date;
+                    } else {
+                        // If no date set yet, use a default message
+                        $ocular_date = 'TBD - We will contact you to schedule';
+                    }
+                    
+                    log_message('error', "Order_model::admin_approve_order - [DEBUG] Attempting to send notification to Customer ID: {$customer_id}, Order ID: {$order_id}");
+                    
+                    $notification_result = send_order_notification(
+                        $customer_id,
+                        $order_id,
+                        'Order Approved',
+                        "Your order #{$order_number} has been approved and will move to ocular visit! Ocular visit scheduled for {$ocular_date}. We'll contact you soon with more details.",
+                        'fa-check-circle',
+                        $admin_id
+                    );
+                    
+                    if ($notification_result) {
+                        log_message('error', "Order_model::admin_approve_order - [SUCCESS] Notification sent successfully. Notification ID: {$notification_result}");
+                    } else {
+                        log_message('error', "Order_model::admin_approve_order - [FAILED] Notification function returned false. Customer ID: {$customer_id}, Order ID: {$order_id}");
+                    }
+                } else {
+                    log_message('error', 'Order_model::admin_approve_order - send_order_notification function still not available after fallback load');
+                }
+            } catch (Exception $e) {
+                log_message('error', 'Order_model::admin_approve_order - Exception sending notification: ' . $e->getMessage());
+                log_message('error', 'Order_model::admin_approve_order - Stack trace: ' . $e->getTraceAsString());
+                // Don't fail the approval if notification fails
+            } catch (Error $e) {
+                log_message('error', 'Order_model::admin_approve_order - Fatal error sending notification: ' . $e->getMessage());
+                log_message('error', 'Order_model::admin_approve_order - Stack trace: ' . $e->getTraceAsString());
+                // Don't fail the approval if notification fails
+            }
+        } else {
+            log_message('error', "Order_model::admin_approve_order - [SKIP] Order ID {$order_id} has no Customer_ID (value: " . ($order->Customer_ID ?? 'NULL') . "), skipping notification. Order data: " . json_encode(['OrderID' => $order->OrderID ?? null, 'OrderNumber' => $order->OrderNumber ?? null, 'Customer_ID' => $order->Customer_ID ?? null, 'Status' => $order->Status ?? null]));
+        }
+
+        log_message('info', "Order_model::admin_approve_order - Function completed for Order ID: {$order_id}");
         return ['success' => true, 'message' => 'Order approved successfully.'];
     }
 
@@ -1283,6 +1444,28 @@ class Order_model extends CI_Model
 
         if ($this->db->trans_status() === FALSE) {
             return ['success' => false, 'message' => 'Transaction failed'];
+        }
+
+        // Send notification to customer (fail-safe - don't break disapproval if notification fails)
+        if ($order->Customer_ID) {
+            try {
+                $this->load->helper('notification');
+                if (function_exists('send_order_notification')) {
+                    $order_number = $order->OrderNumber ?? 'GI' . str_pad($order_id, 3, '0', STR_PAD_LEFT);
+                    $reason_text = !empty($disapproval_reason) ? " Reason: {$disapproval_reason}" : '';
+                    send_order_notification(
+                        $order->Customer_ID,
+                        $order_id,
+                        'Order Cancelled',
+                        "Your order #{$order_number} has been cancelled.{$reason_text}",
+                        'fa-times-circle',
+                        $admin_id
+                    );
+                }
+            } catch (Exception $e) {
+                log_message('error', 'Failed to send notification in admin_disapprove_order: ' . $e->getMessage());
+                // Don't fail the disapproval if notification fails
+            }
         }
 
         return ['success' => true, 'message' => 'Order disapproved successfully.'];

@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadStaffList();
     loadAppointments();
     initializeCalendar();
+    setupQuotationHandlers();
     
     // Event listeners
     if (applyFiltersBtn) {
@@ -1081,4 +1082,217 @@ document.addEventListener('DOMContentLoaded', function() {
             foundText.textContent = `(${count} found)`;
         }
     }
+    
+    // ======================
+    // QUOTATION HANDLERS
+    // ======================
+    function setupQuotationHandlers() {
+        const createQuotationBtn = document.getElementById('create-quotation-btn');
+        const sendQuotationBtn = document.getElementById('send-quotation-btn');
+        const proceedFabricationBtn = document.getElementById('proceed-fabrication-btn');
+        
+        if (createQuotationBtn) {
+            createQuotationBtn.addEventListener('click', handleCreateQuotation);
+        }
+        
+        if (sendQuotationBtn) {
+            sendQuotationBtn.addEventListener('click', handleSendQuotation);
+        }
+        
+        if (proceedFabricationBtn) {
+            proceedFabricationBtn.addEventListener('click', handleProceedFabrication);
+        }
+    }
+    
+    async function handleCreateQuotation() {
+        if (!currentAppointment) {
+            alert('No appointment selected');
+            return;
+        }
+        
+        const totalAmount = document.getElementById('quotation-total-amount')?.value;
+        const notes = document.getElementById('quotation-notes')?.value || '';
+        const expiryDate = document.getElementById('quotation-expiry-date')?.value || null;
+        
+        if (!totalAmount || parseFloat(totalAmount) <= 0) {
+            alert('Please enter a valid total amount');
+            return;
+        }
+        
+        const createBtn = document.getElementById('create-quotation-btn');
+        createBtn.disabled = true;
+        createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('appointment_id', currentAppointment.id);
+            formData.append('total_amount', totalAmount);
+            formData.append('notes', notes);
+            if (expiryDate) {
+                formData.append('expiry_date', expiryDate);
+            }
+            
+            const response = await fetch(createQuotationUrl, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showQuotationMessage('Quotation created successfully!', 'success');
+                updateQuotationStatus('Quotation #' + data.quotation_number + ' created', data.quotation_id);
+                document.getElementById('send-quotation-btn').style.display = 'block';
+                createBtn.style.display = 'none';
+            } else {
+                showQuotationMessage('Error: ' + (data.message || 'Failed to create quotation'), 'error');
+                createBtn.disabled = false;
+                createBtn.innerHTML = '<i class="fas fa-plus-circle"></i> Create Quotation';
+            }
+        } catch (error) {
+            console.error('Error creating quotation:', error);
+            showQuotationMessage('Error: ' + error.message, 'error');
+            createBtn.disabled = false;
+            createBtn.innerHTML = '<i class="fas fa-plus-circle"></i> Create Quotation';
+        }
+    }
+    
+    async function handleSendQuotation() {
+        if (!currentAppointment) {
+            alert('No appointment selected');
+            return;
+        }
+        
+        const quotationId = document.getElementById('quotation-status')?.dataset?.quotationId;
+        if (!quotationId) {
+            alert('Quotation not found. Please create quotation first.');
+            return;
+        }
+        
+        if (!confirm('Send quotation via email to customer?')) {
+            return;
+        }
+        
+        const sendBtn = document.getElementById('send-quotation-btn');
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('quotation_id', quotationId);
+            formData.append('appointment_id', currentAppointment.id);
+            
+            const response = await fetch(sendQuotationUrl, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showQuotationMessage('Quotation sent successfully to customer!', 'success');
+                document.getElementById('proceed-fabrication-btn').style.display = 'block';
+                sendBtn.style.display = 'none';
+            } else {
+                showQuotationMessage('Error: ' + (data.message || 'Failed to send quotation'), 'error');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Quotation via Email';
+            }
+        } catch (error) {
+            console.error('Error sending quotation:', error);
+            showQuotationMessage('Error: ' + error.message, 'error');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Quotation via Email';
+        }
+    }
+    
+    async function handleProceedFabrication() {
+        if (!currentAppointment) {
+            alert('No appointment selected');
+            return;
+        }
+        
+        const quotationId = document.getElementById('quotation-status')?.dataset?.quotationId;
+        const orderId = currentAppointment.order_id;
+        
+        if (!confirm('Proceed order to fabrication? This will move the order to the fabrication queue.')) {
+            return;
+        }
+        
+        const proceedBtn = document.getElementById('proceed-fabrication-btn');
+        proceedBtn.disabled = true;
+        proceedBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        
+        try {
+            const formData = new FormData();
+            formData.append('order_id', orderId);
+            if (quotationId) {
+                formData.append('quotation_id', quotationId);
+            }
+            
+            const response = await fetch(proceedFabricationUrl, {
+                method: 'POST',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showQuotationMessage('Order moved to fabrication successfully!', 'success');
+                proceedBtn.style.display = 'none';
+                setTimeout(() => {
+                    loadAppointments();
+                }, 1000);
+            } else {
+                showQuotationMessage('Error: ' + (data.message || 'Failed to proceed to fabrication'), 'error');
+                proceedBtn.disabled = false;
+                proceedBtn.innerHTML = '<i class="fas fa-cog"></i> Proceed to Fabrication';
+            }
+        } catch (error) {
+            console.error('Error proceeding to fabrication:', error);
+            showQuotationMessage('Error: ' + error.message, 'error');
+            proceedBtn.disabled = false;
+            proceedBtn.innerHTML = '<i class="fas fa-cog"></i> Proceed to Fabrication';
+        }
+    }
+    
+    function updateQuotationStatus(message, quotationId) {
+        const statusDiv = document.getElementById('quotation-status');
+        const statusText = document.getElementById('quotation-status-text');
+        if (statusDiv && statusText) {
+            statusText.textContent = message;
+            if (quotationId) {
+                statusDiv.dataset.quotationId = quotationId;
+            }
+            statusDiv.style.background = '#d4edda';
+            statusDiv.style.color = '#155724';
+        }
+    }
+    
+    function showQuotationMessage(message, type) {
+        const messageDiv = document.getElementById('quotation-message');
+        if (messageDiv) {
+            messageDiv.style.display = 'block';
+            messageDiv.style.padding = '10px';
+            messageDiv.style.borderRadius = '5px';
+            messageDiv.style.marginTop = '10px';
+            
+            if (type === 'success') {
+                messageDiv.style.background = '#d4edda';
+                messageDiv.style.color = '#155724';
+                messageDiv.style.border = '1px solid #c3e6cb';
+            } else {
+                messageDiv.style.background = '#f8d7da';
+                messageDiv.style.color = '#721c24';
+                messageDiv.style.border = '1px solid #f5c6cb';
+            }
+            
+            messageDiv.textContent = message;
+            
+            setTimeout(() => {
+                messageDiv.style.display = 'none';
+            }, 5000);
+        }
+    }
+    
 });

@@ -16,6 +16,9 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
   const updateAppointmentUrl = "<?php echo base_url('AdminCon/update_appointment_ajax'); ?>";
   const deleteAppointmentUrl = "<?php echo base_url('AdminCon/delete_appointment_ajax'); ?>";
   const getStaffListUrl = "<?php echo base_url('AdminCon/get_staff_list'); ?>";
+  const createQuotationUrl = "<?php echo base_url('AdminCon/create_quotation_from_appointment'); ?>";
+  const sendQuotationUrl = "<?php echo base_url('AdminCon/send_quotation_email'); ?>";
+  const proceedFabricationUrl = "<?php echo base_url('AdminCon/proceed_to_fabrication'); ?>";
   const appointmentType = "<?php echo $appointment_type; ?>";
 </script>
 
@@ -310,6 +313,48 @@ $page_title = $is_ocular ? 'Ocular / Site Assessment Appointments' : 'Installati
                 <i class="fas fa-file-pdf" style="margin-right: 5px;"></i>View uploaded receipt
               </a>
             </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Quotation Section (Ocular Appointments Only) -->
+      <div class="details-section" id="quotation-section" style="border-top: 2px solid #083c5d; padding-top: 20px; margin-top: 20px;">
+        <h4 class="section-title" style="color: #083c5d;">
+          <i class="fas fa-file-invoice-dollar" style="margin-right: 8px;"></i>Quotation
+        </h4>
+        <div class="info-grid">
+          <div class="info-item full-width">
+            <div id="quotation-status" style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+              <span id="quotation-status-text">No quotation created yet</span>
+            </div>
+          </div>
+          
+          <div class="info-item">
+            <span class="info-label">Total Amount (₱):</span>
+            <input type="number" id="quotation-total-amount" class="form-control editable" min="0" step="0.01" placeholder="0.00">
+          </div>
+          <div class="info-item">
+            <span class="info-label">Expiry Date:</span>
+            <input type="date" id="quotation-expiry-date" class="form-control editable">
+          </div>
+          <div class="info-item full-width">
+            <span class="info-label">Quotation Notes:</span>
+            <textarea id="quotation-notes" class="form-control editable" rows="4" placeholder="Enter quotation notes, terms, conditions..."></textarea>
+          </div>
+          
+          <div class="info-item full-width" style="margin-top: 15px;">
+            <div id="quotation-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn-primary" id="create-quotation-btn" style="flex: 1; min-width: 150px;">
+                <i class="fas fa-plus-circle" style="margin-right: 5px;"></i>Create Quotation
+              </button>
+              <button class="btn-success" id="send-quotation-btn" style="flex: 1; min-width: 150px; display: none;">
+                <i class="fas fa-paper-plane" style="margin-right: 5px;"></i>Send Quotation via Email
+              </button>
+              <button class="btn-warning" id="proceed-fabrication-btn" style="flex: 1; min-width: 150px; display: none;">
+                <i class="fas fa-cog" style="margin-right: 5px;"></i>Proceed to Fabrication
+              </button>
+            </div>
+            <div id="quotation-message" style="margin-top: 10px; display: none;"></div>
           </div>
         </div>
       </div>
