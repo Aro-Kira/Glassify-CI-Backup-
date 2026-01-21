@@ -31,9 +31,10 @@ $is_logged_in = $this->session->userdata('is_logged_in') && !$force_guest;
 $user_role = $this->session->userdata('user_role');
 $is_customer = $is_logged_in && $user_role === 'Customer';
 
-// Get cart and wishlist counts if customer is logged in
+// Get cart, wishlist, and notification counts if customer is logged in
 $cart_count = 0;
 $wishlist_count = 0;
+$notification_count = 0;
 if ($is_customer) {
     $customer_id = $this->session->userdata('customer_id');
     if ($customer_id) {
@@ -46,6 +47,13 @@ if ($is_customer) {
         // Access models through CI instance
         $cart_count = $CI->Cart_model->get_cart_count($customer_id);
         $wishlist_count = $CI->Wishlist_model->get_wishlist_count($customer_id);
+        
+        // Get unread notification count
+        if ($CI->db->table_exists('customer_notifications')) {
+            $CI->db->where('Customer_ID', $customer_id);
+            $CI->db->where('Status', 'Unread');
+            $notification_count = $CI->db->count_all_results('customer_notifications');
+        }
     }
 }
 ?>
@@ -120,7 +128,17 @@ if ($is_customer) {
             </div>
         </a>
 
-
+        <?php if ($is_customer): ?>
+            <!-- ========== NOTIFICATION ICON (CUSTOMER ONLY) ========== -->
+            <a href="<?php echo base_url('notifications'); ?>" class="icon-link">
+                <div class="icon-wrapper">
+                    <i class="far fa-bell" style="font-size: 28px;"></i>
+                    <span class="icon-badge" id="notification-count" style="display: <?= $notification_count > 0 ? 'flex' : 'none' ?>;">
+                        <?= $notification_count > 99 ? '99+' : $notification_count ?>
+                    </span>
+                </div>
+            </a>
+        <?php endif; ?>
 
         <!-- ========== PROFILE / LOGIN ICON (ALWAYS LAST) ========== -->
         <div class="header-dropdown" style="display: inline-block; position: relative;">
