@@ -243,6 +243,16 @@ function renderDynamicCustomizationFields(fields, tagPrices, container, tagImage
           handleMirrorsConditionals('frameType', frameTypeValue);
         }
       }
+      
+      // Initialize conditional logic for Awning windows (rows/columns visibility)
+      const sizeConfigContainer = document.querySelector('[data-field-id="sizeConfiguration"]');
+      if (sizeConfigContainer) {
+        const activeSizeConfig = sizeConfigContainer.querySelector('.option-card.active');
+        if (activeSizeConfig) {
+          const sizeConfigValue = activeSizeConfig.dataset.value || activeSizeConfig.textContent.trim();
+          handleAwningConditionals('sizeConfiguration', sizeConfigValue);
+        }
+      }
     }, 350);
   }, 300);
 }
@@ -349,14 +359,15 @@ if (typeof document !== 'undefined') {
 function createFieldElement(field, tagPrices, tagImages = {}) {
   const fieldGroup = document.createElement('div');
   fieldGroup.className = getFieldGroupClass(field.type, field.id);
+  fieldGroup.dataset.fieldId = field.id; // Set data-field-id for all field types
   
-  // Handle conditional fields (for mirrors: Frame Color/Edge Finish)
+  // Handle conditional fields (for mirrors: Frame Color/Edge Finish, and awning: rows/columns)
   if (field.conditional && field.dependsOn) {
     fieldGroup.dataset.conditionalField = 'true';
     fieldGroup.dataset.dependsOn = field.dependsOn;
     fieldGroup.dataset.showWhen = field.showWhen || '';
-    // Initially hide conditional fields - they'll be shown by handleMirrorsConditionals
-    if (field.id === 'frameColor' || field.id === 'edgeFinish') {
+    // Initially hide conditional fields - they'll be shown by conditional handlers
+    if (field.id === 'frameColor' || field.id === 'edgeFinish' || field.id === 'panelRows' || field.id === 'panelColumns') {
       fieldGroup.style.display = 'none';
     }
   }
@@ -520,6 +531,9 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
       
       // Handle Mirrors conditional logic (Frame Color/Edge Finish based on Frame Type)
       handleMirrorsConditionals(field.id, option);
+      
+      // Handle Awning windows conditional logic (rows/columns visibility)
+      handleAwningConditionals(field.id, option);
       
       // Trigger price recalculation
       if (typeof window !== 'undefined' && typeof window.updateRealTimePriceDisplay === 'function') {
@@ -731,8 +745,35 @@ function renderNumberField(field, container) {
     });
   }
   
+  // For panel rows/columns fields, show/hide based on size configuration
+  if (field.id === 'panelRows' || field.id === 'panelColumns') {
+    container.style.display = 'none'; // Hide by default
+    container.dataset.conditionalField = 'true';
+    container.dataset.dependsOn = 'sizeConfiguration';
+    container.dataset.showWhen = 'Multiple panels';
+    
+    // Set default value
+    input.value = field.id === 'panelRows' ? '1' : '1';
+    selectedCustomizationValues[field.id] = 1;
+    
+    // Check initial size configuration selection
+    const sizeConfigContainer = document.querySelector('[data-field-id="sizeConfiguration"]');
+    if (sizeConfigContainer) {
+      const activeSizeConfig = sizeConfigContainer.querySelector('.option-card.active');
+      if (activeSizeConfig) {
+        const sizeConfigValue = activeSizeConfig.dataset.value || activeSizeConfig.textContent.trim();
+        handleAwningConditionals('sizeConfiguration', sizeConfigValue);
+      }
+    }
+  }
+  
   input.addEventListener('input', () => {
-    updateKonvaFromField(field.id, parseFloat(input.value) || 0, true);
+    const value = parseFloat(input.value) || (field.id === 'panelRows' || field.id === 'panelColumns' ? 1 : 0);
+    selectedCustomizationValues[field.id] = value;
+    if (typeof window !== 'undefined') {
+      window.selectedCustomizationValues = selectedCustomizationValues;
+    }
+    updateKonvaFromField(field.id, value, true);
   });
 
   inputGroup.appendChild(input);
@@ -1732,7 +1773,60 @@ function handleWindowsSlidingConditionals(changedFieldId, selectedValue) {
 }
 
 /**
+ * Handle conditional logic for Awning windows fields
+ * Rows and Columns fields show when Size Configuration = "Multiple panels"
+ */
+function handleAwningConditionals(changedFieldId, selectedValue) {
+  if (changedFieldId === 'sizeConfiguration') {
+    const rowsContainer = document.querySelector('[data-field-id="panelRows"]');
+    const columnsContainer = document.querySelector('[data-field-id="panelColumns"]');
+    
+    const isMultiplePanels = (selectedValue || '').toLowerCase().includes('multiple');
+    
+    // Show/hide rows field - rowsContainer is the fieldGroup (field-section) itself
+    if (rowsContainer) {
+      if (isMultiplePanels) {
+        rowsContainer.style.display = '';
+      } else {
+        rowsContainer.style.display = 'none';
+        // Reset value when hidden
+        const input = rowsContainer.querySelector('input[type="number"]');
+        if (input) {
+          input.value = '1';
+          selectedCustomizationValues['panelRows'] = 1;
+        }
+      }
+    }
+    
+    // Show/hide columns field - columnsContainer is the fieldGroup (field-section) itself
+    if (columnsContainer) {
+      if (isMultiplePanels) {
+        columnsContainer.style.display = '';
+      } else {
+        columnsContainer.style.display = 'none';
+        // Reset value when hidden
+        const input = columnsContainer.querySelector('input[type="number"]');
+        if (input) {
+          input.value = '1';
+          selectedCustomizationValues['panelColumns'] = 1;
+        }
+      }
+    }
+    
+    // Update Konva visualization
+    if (typeof window !== 'undefined' && typeof window.updateKonvaFromField === 'function') {
+      const rows = isMultiplePanels ? (selectedCustomizationValues['panelRows'] || 1) : 1;
+      const cols = isMultiplePanels ? (selectedCustomizationValues['panelColumns'] || 1) : 1;
+      updateKonvaFromField('panelRows', rows, true);
+      updateKonvaFromField('panelColumns', cols, true);
+    }
+  }
+}
+
+/**
  * Update Screen tags field availability based on Track System
+ * Note: Both 2-track and 3-track systems support screens.
+ * 3-track systems are specifically designed with a dedicated track for the screen.
  */
 function updateScreenAvailability() {
   const trackSystemContainer = document.querySelector('[data-field-id="trackSystem"]');
@@ -1740,64 +1834,21 @@ function updateScreenAvailability() {
   
   if (!trackSystemContainer || !screenContainer) return;
   
-  const activeTrackOption = trackSystemContainer.querySelector('.option-card.active');
-  if (!activeTrackOption) return;
-  
-  const selectedTrack = activeTrackOption.dataset.value || activeTrackOption.textContent.trim();
   const screenOptions = screenContainer.querySelectorAll('.option-card');
   
   if (screenOptions.length > 0) {
-    if (selectedTrack === '3 Tracks') {
-      // Disable "With Screen" option for 3 Tracks
-      screenOptions.forEach(option => {
-        const optionValue = option.dataset.value || option.textContent.trim();
-        if (optionValue === 'With Screen') {
-          option.style.opacity = '0.5';
-          option.style.pointerEvents = 'none';
-          option.classList.add('disabled');
-          // If "With Screen" was selected, switch to "Without Screen"
-          if (option.classList.contains('active')) {
-            option.classList.remove('active');
-            const withoutScreenOption = Array.from(screenOptions).find(opt => {
-              const val = opt.dataset.value || opt.textContent.trim();
-              return val === 'Without Screen';
-            });
-            if (withoutScreenOption) {
-              withoutScreenOption.classList.add('active');
-              selectedCustomizationValues['screen'] = 'Without Screen';
-            }
-          }
-        } else {
-          // Enable "Without Screen" option
-          option.style.opacity = '';
-          option.style.pointerEvents = '';
-          option.classList.remove('disabled');
-        }
-      });
-      
-      // Show message
-      let messageEl = screenContainer.querySelector('.conditional-message');
-      if (!messageEl) {
-        messageEl = document.createElement('div');
-        messageEl.className = 'conditional-message';
-        messageEl.style.color = '#999';
-        messageEl.style.fontSize = '12px';
-        messageEl.style.marginTop = '5px';
-        messageEl.style.textAlign = 'center';
-        screenContainer.appendChild(messageEl);
-      }
-      messageEl.textContent = 'Screen not available for 3 Tracks';
-    } else {
-      // Enable all screen options for 2 Tracks
-      screenOptions.forEach(option => {
-        option.style.opacity = '';
-        option.style.pointerEvents = '';
-        option.classList.remove('disabled');
-      });
-      const messageEl = screenContainer.querySelector('.conditional-message');
-      if (messageEl) {
-        messageEl.remove();
-      }
+    // Enable all screen options for both 2-track and 3-track systems
+    // 3-track systems have a dedicated third track for the screen
+    screenOptions.forEach(option => {
+      option.style.opacity = '';
+      option.style.pointerEvents = '';
+      option.classList.remove('disabled');
+    });
+    
+    // Remove any conditional message if it exists
+    const messageEl = screenContainer.querySelector('.conditional-message');
+    if (messageEl) {
+      messageEl.remove();
     }
   }
 }
@@ -1851,16 +1902,19 @@ function updateKonvaFromField(fieldId, value, isActive) {
   // Map field IDs to Konva parameters
   const fieldMapping = {
     'glassType': 'glassType',
-    'frameColor': 'frameType',
-    'frameFinishColor': 'frameType', // Product catalog field name
+    'glassColor': 'glassColor',
+    // Frame color/material should remain available to the comprehensive renderer as `frameColor`.
+    // We still update the legacy `currentFrameType` so the old renderer path remains compatible.
+    'frameColor': 'frameColor',
+    'frameFinishColor': 'frameColor', // Product catalog field name
     'thickness': 'thickness',
+    'glassThickness': 'thickness',
     'screen': 'screen',
     'size': 'dimensions',
     'handleType': 'handle',
     'lockType': 'lock',
     'softClose': 'softClose',
     'layout': 'layout',
-    'glassThickness': 'thickness',
     'finish': 'finish',
     'hardwareColor': 'hardwareColor',
     'shape': 'shape',
@@ -1877,6 +1931,12 @@ function updateKonvaFromField(fieldId, value, isActive) {
     'NumberOfPanels': 'numberOfPanels',
     'panelCount': 'numberOfPanels',
     'PanelCount': 'numberOfPanels',
+    'panelRows': 'panelRows',
+    'PanelRows': 'panelRows',
+    'panelColumns': 'panelColumns',
+    'PanelColumns': 'panelColumns',
+    'sizeConfiguration': 'sizeConfiguration',
+    'SizeConfiguration': 'sizeConfiguration',
     'operation': 'operation',
     'Operation': 'operation',
     'configuration': 'configuration',
@@ -1904,15 +1964,59 @@ function updateKonvaFromField(fieldId, value, isActive) {
   };
 
   const konvaParam = fieldMapping[fieldId];
-  if (!konvaParam) return;
+  
+  // Always store the value in selectedCustomizationValues, even if not in mapping
+  // This ensures all fields are available for the comprehensive renderer
+  if (isActive) {
+    selectedCustomizationValues[fieldId] = value;
+  } else {
+    if (selectedCustomizationValues[fieldId] === value) {
+      delete selectedCustomizationValues[fieldId];
+    }
+  }
+  
+  // Update global state
+  if (typeof window !== 'undefined') {
+    window.selectedCustomizationValues = selectedCustomizationValues;
+  }
+  
+  // Special handling for awning window panel configuration fields
+  // These fields need to trigger re-render to update the panel grid visualization
+  if (fieldId === 'panelRows' || fieldId === 'panelColumns' || fieldId === 'sizeConfiguration') {
+    // Always trigger re-render for these fields to update the panel grid
+    if (typeof window !== 'undefined' && typeof window.renderCustomState === 'function') {
+      setTimeout(() => {
+        window.renderCustomState();
+      }, 50);
+    }
+    // Continue to also process through normal flow if there's a mapping
+    if (!konvaParam) {
+      return;
+    }
+  }
+  
+  // If no konvaParam mapping, still trigger re-render for comprehensive renderer
+  if (!konvaParam) {
+    // Trigger re-render to update Konva with new customization values
+    if (typeof window !== 'undefined' && typeof window.renderCustomState === 'function') {
+      setTimeout(() => {
+        window.renderCustomState();
+      }, 50);
+    }
+    return;
+  }
 
   // Store selected value
   // For tag fields (single-select), store as single value
+  // For number fields, store as single value
   // For other fields that might support multi-select, use array
-  const isTagField = document.querySelector(`[data-field-id="${fieldId}"]`) !== null;
+  const fieldElement = document.querySelector(`[data-field-id="${fieldId}"]`);
+  const isTagField = fieldElement !== null;
+  const isNumberField = fieldElement && fieldElement.querySelector('input[type="number"]') !== null;
+  const isCheckboxField = fieldElement && fieldElement.querySelector('input[type="checkbox"]') !== null;
   
-  if (isTagField) {
-    // Single-select: store only the selected value
+  if (isTagField || isNumberField) {
+    // Single-select (tags) or number fields: store as single value
     if (isActive) {
       selectedCustomizationValues[fieldId] = value;
     } else {
@@ -1921,7 +2025,7 @@ function updateKonvaFromField(fieldId, value, isActive) {
         delete selectedCustomizationValues[fieldId];
       }
     }
-  } else {
+  } else if (isCheckboxField) {
     // Multi-select: use array (for checkboxes, etc.)
     if (!selectedCustomizationValues[fieldId]) {
       selectedCustomizationValues[fieldId] = [];
@@ -1934,6 +2038,15 @@ function updateKonvaFromField(fieldId, value, isActive) {
     } else {
       selectedCustomizationValues[fieldId] = selectedCustomizationValues[fieldId].filter(v => v !== value);
     }
+  } else {
+    // Fallback: store as single value for unknown field types
+    if (isActive) {
+      selectedCustomizationValues[fieldId] = value;
+    } else {
+      if (selectedCustomizationValues[fieldId] === value) {
+        delete selectedCustomizationValues[fieldId];
+      }
+    }
   }
 
   // Update global state (accessing variables from 2d_customization.js)
@@ -1945,18 +2058,32 @@ function updateKonvaFromField(fieldId, value, isActive) {
       if (window.currentGlassType !== undefined) {
         window.currentGlassType = normalizedValue;
       }
-    } else if (konvaParam === 'frameType') {
-      // Map frame color/material to frame type (synced with presets)
-      const normalizedValue = value.toLowerCase().replace(/\s+/g, '-');
-      const mappedFrame = normalizedValue;
+    } else if (konvaParam === 'glassColor') {
+      // Store glass color for comprehensive renderer
+      // The comprehensive renderer uses glassColor along with glassType to determine visual style
+      // No need to update a global variable, just ensure it's in selectedCustomizationValues
+      // The renderCustomState function will pass it to the comprehensive renderer
+    } else if (konvaParam === 'frameColor') {
+      // Frame Color/Material: keep the human-readable string for the comprehensive renderer,
+      // but also update legacy `currentFrameType` (used by the older renderer paths).
+      const normalizedValue = (value || '').toString().toLowerCase().trim().replace(/\s+/g, '-');
       if (window.currentFrameType !== undefined) {
-        window.currentFrameType = mappedFrame;
+        window.currentFrameType = normalizedValue;
       }
     } else if (konvaParam === 'thickness') {
-      const thicknessValue = value + 'mm';
+      // Handle both thickness and glassThickness fields
+      let thicknessValue = value;
+      // If value doesn't already include 'mm', add it
+      if (!thicknessValue.includes('mm') && !thicknessValue.includes('cm') && !thicknessValue.includes('in')) {
+        thicknessValue = thicknessValue + 'mm';
+      }
       if (window.currentThickness !== undefined) {
         window.currentThickness = thicknessValue;
       }
+    } else if (konvaParam === 'screen') {
+      // Screen field - store in selectedCustomizationValues for comprehensive renderer
+      // The comprehensive renderer will use this to draw screen pattern overlay
+      // No need to update a global variable, just ensure it's in selectedCustomizationValues
     } else if (konvaParam === 'edgeWork') {
       const edgeValue = value.toLowerCase().replace(/\s+/g, '-');
       if (window.currentEdgeWork !== undefined) {
@@ -2547,6 +2674,28 @@ function syncStateFromActiveSelections() {
     }
   }
   
+  // Sync glass color
+  const glassColorContainer = document.querySelector('[data-field-id="glassColor"]');
+  if (glassColorContainer) {
+    const activeCard = glassColorContainer.querySelector('.option-card.active');
+    if (activeCard) {
+      const value = activeCard.dataset.value || activeCard.textContent.trim();
+      console.log('[Sync] Found active glass color:', value);
+      selectedCustomizationValues['glassColor'] = value;
+    }
+  }
+  
+  // Sync screen
+  const screenContainer = document.querySelector('[data-field-id="screen"]');
+  if (screenContainer) {
+    const activeCard = screenContainer.querySelector('.option-card.active');
+    if (activeCard) {
+      const value = activeCard.dataset.value || activeCard.textContent.trim();
+      console.log('[Sync] Found active screen:', value);
+      selectedCustomizationValues['screen'] = value;
+    }
+  }
+  
   // Sync frame type/color - search for multiple possible field IDs
   const frameFieldIds = ['frameColor', 'frameType', 'frameFinishColor', 'frame'];
   let frameContainer = null;
@@ -2635,6 +2784,9 @@ function syncStateFromActiveSelections() {
   console.log('[Sync] State sync complete. Current values:', {
     shape: window.currentShape,
     glassType: window.currentGlassType,
+    glassColor: selectedCustomizationValues['glassColor'],
+    glassThickness: selectedCustomizationValues['glassThickness'] || selectedCustomizationValues['thickness'],
+    screen: selectedCustomizationValues['screen'],
     frameType: window.currentFrameType,
     thickness: window.currentThickness,
     edgeWork: window.currentEdgeWork

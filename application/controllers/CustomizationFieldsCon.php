@@ -367,6 +367,13 @@ class CustomizationFieldsCon extends CI_Controller
      */
     private function getDefaultFields($fieldKey)
     {
+        // Preferred: load defaults from the JSON file used across the app
+        // This keeps admin + customer defaults in sync even when DB has no entry yet.
+        $jsonDefaults = $this->loadJsonDefaults();
+        if (is_array($jsonDefaults) && isset($jsonDefaults[$fieldKey]) && is_array($jsonDefaults[$fieldKey])) {
+            return $jsonDefaults[$fieldKey];
+        }
+
         // Load generated defaults from the config file (preferred method)
         $defaultsFile = APPPATH . 'config/customization_defaults.php';
         if (file_exists($defaultsFile)) {
@@ -460,6 +467,12 @@ class CustomizationFieldsCon extends CI_Controller
     {
         $stepNamesKey = $fieldKey . '_stepNames';
 
+        // Preferred: load defaults from the JSON file used across the app
+        $jsonDefaults = $this->loadJsonDefaults();
+        if (is_array($jsonDefaults) && isset($jsonDefaults[$stepNamesKey]) && is_array($jsonDefaults[$stepNamesKey])) {
+            return $jsonDefaults[$stepNamesKey];
+        }
+
         // Load generated defaults from the config file
         $defaultsFile = APPPATH . 'config/customization_defaults.php';
         if (file_exists($defaultsFile)) {
@@ -468,6 +481,40 @@ class CustomizationFieldsCon extends CI_Controller
         }
 
         return null;
+    }
+
+    /**
+     * Load JSON defaults from assets/data/default-customization-fields.json
+     * Returns associative array or null on failure.
+     */
+    private function loadJsonDefaults()
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        // FCPATH points to the project root (where index.php lives)
+        $jsonPath = FCPATH . 'assets/data/default-customization-fields.json';
+        if (!file_exists($jsonPath)) {
+            $cached = null;
+            return $cached;
+        }
+
+        $raw = @file_get_contents($jsonPath);
+        if ($raw === false || $raw === '') {
+            $cached = null;
+            return $cached;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            $cached = null;
+            return $cached;
+        }
+
+        $cached = $decoded;
+        return $cached;
     }
 
     /**

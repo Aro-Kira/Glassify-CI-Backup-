@@ -1,0 +1,1111 @@
+{
+  "Windows_Sliding": [
+    {
+      "type": "tags",
+      "label": "Number of Panels",
+      "id": "numberOfPanels",
+      "options": ["2 Panels", "4 Panels"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Transom Type (Top / Bottom Fixed Panel)",
+      "id": "transomType",
+      "options": ["None", "Fixed Transom Head (Fixed glass at top)", "Fixed Transom Sill (Fixed glass at bottom)"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Track System (Sliding Rail Count)",
+      "id": "trackSystem",
+      "options": ["2 Tracks", "3 Tracks"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Panel Configuration",
+      "id": "panelConfiguration",
+      "options": ["S | S (Sliding | Sliding)", "F | S (Fixed | Sliding)", "S | S | S | S (All Sliding)", "F | S | S | F (Fixed | Sliding | Sliding | Fixed)"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Frame Color",
+      "id": "frameColor",
+      "options": ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Ordinary", "Tempered", "Reflective"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Glass Color",
+      "id": "glassColor",
+      "options": ["Clear", "Bronze", "Frosted", "Smoked"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Glass Thickness",
+      "id": "glassThickness",
+      "options": ["6mm", "8mm", "10mm", "12mm"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Lock Type",
+      "id": "lockType",
+      "options": ["Center Lok 904 Big", "Flushlok #12", "Durable Flushlok", "New Auto Flushlock"],
+      "stepNumber": 4
+    },
+    {
+      "type": "tags",
+      "label": "Roller Type",
+      "id": "rollerType",
+      "options": ["Single Panel Roller", "Blue Single Roller", "Blue Double Roller"],
+      "stepNumber": 4
+    },
+    {
+      "type": "tags",
+      "label": "Screen",
+      "id": "screen",
+      "options": ["With Screen", "Without Screen"],
+      "stepNumber": 4
+    }
+  ],
+  "Windows_Sliding_stepNames": {
+    "1": "Window Type",
+    "2": "Sliding System & Size",
+    "3": "Frame & Glass",
+    "4": "Hardware & Accessories"
+  },
+  "Windows_Awning": [
+    {
+      "type": "tags",
+      "label": "Series",
+      "id": "series",
+      "options": ["38 Series", "50 Series", "60 Series", "85 Series", "75 Series"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Ordinary", "Tempered", "Reflective"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Color",
+      "id": "glassColor",
+      "options": ["Clear", "Bronze", "Frosted", "Smoked"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Frame Color/Material",
+      "id": "frameColor",
+      "options": ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Operation",
+      "id": "operation",
+      "options": ["Awning (crank-out)", "Awning (push-out)"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Size Configuration",
+      "id": "sizeConfiguration",
+      "options": ["Single panel", "Multiple panels"],
+      "stepNumber": 2
+    },
+    {
+      "type": "number",
+      "label": "Rows",
+      "id": "panelRows",
+      "min": 1,
+      "step": 1,
+      "stepNumber": 2,
+      "conditional": true,
+      "dependsOn": "sizeConfiguration",
+      "showWhen": "Multiple panels"
+    },
+    {
+      "type": "number",
+      "label": "Columns",
+      "id": "panelColumns",
+      "min": 1,
+      "step": 1,
+      "stepNumber": 2,
+      "conditional": true,
+      "dependsOn": "sizeConfiguration",
+      "showWhen": "Multiple panels"
+    },
+    {
+      "type": "tags",
+      "label": "Opening Direction",
+      "id": "openingDirection",
+      "options": ["Top-hinged"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Thickness (mm)",
+      "id": "thickness",
+      "options": ["6mm", "8mm", "10mm", "12mm"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Screen",
+      "id": "screen",
+      "options": ["With Screen", "Without Screen"],
+      "stepNumber": 2
+    }
+  ],
+  "Windows_Awning_stepNames": {
+    "1": "Basic Options",
+    "2": "Configuration & Details"
+  },
+  "Windows_Casement": [
+    {
+      "type": "tags",
+      "label": "Series",
+      "id": "series",
+      "options": ["38 Series", "50 Series", "60 Series", "85 Series", "75 Series"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Ordinary", "Tempered", "Reflective"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Color",
+      "id": "glassColor",
+      "options": ["Clear", "Bronze", "Frosted", "Smoked"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Frame Color/Material",
+      "id": "frameColor",
+      "options": ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Operation",
+      "id": "operation",
+      "options": ["Casement (hinge side configurable)"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Number of Panels",
+      "id": "numberOfPanels",
+      "options": ["Single panel", "Multiple panels"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Hinge Side",
+      "id": "hingeSide",
+      "options": ["Left-hinged", "Right-hinged"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Configuration",
+      "id": "configuration",
+      "options": ["Two casement windows with fixed transom", "Custom configurations"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Transom Options",
+      "id": "transomOptions",
+      "options": ["Different transom sizes", "Shapes", "Mullion options"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Thickness (mm)",
+      "id": "thickness",
+      "options": ["6mm", "8mm", "10mm", "12mm"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Screen",
+      "id": "screen",
+      "options": ["With Screen", "Without Screen"],
+      "stepNumber": 3
+    }
+  ],
+  "Windows_Casement_stepNames": {
+    "1": "Basic Options",
+    "2": "Panel Configuration",
+    "3": "Advanced Options"
+  },
+  "Windows_Fixed Glass": [
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Clear", "Tinted", "Frosted", "Low-E", "Reflective coatings", "Safety glass", "Laminated"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Frame Color/Material",
+      "id": "frameColor",
+      "options": ["White", "Black", "Dark Grey/Black", "Brown", "Silver", "Bronze", "Custom colors"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Configuration",
+      "id": "configuration",
+      "options": ["Fixed corner glass", "Various angles (90°, 135°, custom)", "Standard fixed"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Usage",
+      "id": "usage",
+      "options": ["Structural/architectural feature (non-operable)", "Standard fixed"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Installation Method",
+      "id": "installationMethod",
+      "options": ["Various integration methods", "Standard mounting"],
+      "stepNumber": 2
+    },
+    {
+      "type": "number",
+      "label": "Thickness (mm)",
+      "id": "thickness",
+      "min": 1,
+      "step": 0.1,
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Screen",
+      "id": "screen",
+      "options": ["With Screen", "Without Screen"],
+      "stepNumber": 2
+    }
+  ],
+  "Windows_Fixed Glass_stepNames": {
+    "1": "Basic Options",
+    "2": "Installation & Details"
+  },
+  "Series_Presets": {
+    "900 Series": {
+      "numberOfPanels": ["2 Panels"],
+      "transomType": ["None"],
+      "trackSystem": ["2 Tracks"],
+      "screenOption": ["Without Screen"],
+      "panelConfiguration": ["S | S (Sliding | Sliding)"],
+      "frameColor": ["Powder Coated White"],
+      "glassType": ["Ordinary"],
+      "glassColor": ["Clear"],
+      "glassThickness": ["6mm"],
+      "lockType": ["Center Lok 904 Big"],
+      "rollerType": ["Single Panel Roller"],
+      "screen": ["Without Screen"]
+    },
+    "798 Series": {
+      "numberOfPanels": ["2 Panels"],
+      "transomType": ["None"],
+      "trackSystem": ["2 Tracks"],
+      "screenOption": ["Without Screen"],
+      "panelConfiguration": ["S | S (Sliding | Sliding)"],
+      "frameColor": ["Powder Coated White"],
+      "glassType": ["Ordinary"],
+      "glassColor": ["Clear"],
+      "glassThickness": ["6mm"],
+      "lockType": ["Enter Lock 908"],
+      "rollerType": ["Single Roller ORD"],
+      "screen": ["Without Screen"]
+    }
+  },
+  "Doors_Sliding": [
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Clear", "Tinted", "Frosted", "Low-E", "Tempered", "Laminated", "Laminated safety glass"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Frame Material/Color",
+      "id": "frameColor",
+      "options": ["Aluminum", "Black", "White", "Bronze", "Brown (wood-look)", "Silver", "Custom colors"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Panel Count",
+      "id": "panelCount",
+      "options": ["2-panel", "3-panel", "4-panel", "More panels"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Operation",
+      "id": "operation",
+      "options": ["Sliding (single)", "Sliding (double)", "Sliding (multi-track)"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Panel Configuration",
+      "id": "panelConfiguration",
+      "options": ["Central sliding panels with fixed outer panels", "All sliding", "2 sliding + 2 fixed", "2 sliding only", "3 sliding", "Custom"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Handle Type",
+      "id": "handleType",
+      "options": ["Various pull handles", "Knob handles", "Square handles", "Bar-style", "Round", "Square matte black"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Hardware Finish",
+      "id": "hardwareFinish",
+      "options": ["Chrome/Stainless Steel", "Polished Chrome/Stainless Steel", "Black Matte", "Gold", "Brushed Nickel", "Bronze"],
+      "stepNumber": 3
+    },
+    {
+      "type": "checkbox",
+      "label": "Soft-close",
+      "id": "softClose",
+      "stepNumber": 3
+    }
+  ],
+  "Doors_Sliding_stepNames": {
+    "1": "Basic Options",
+    "2": "Operation & Configuration",
+    "3": "Hardware & Features"
+  },
+  "Doors_Swing Door": [
+    {
+      "type": "tags",
+      "label": "Series",
+      "id": "series",
+      "options": ["68 Series", "ED & FD100"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Ordinary", "Tempered", "Reflective"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Color",
+      "id": "glassColor",
+      "options": ["Clear", "Bronze", "Frosted", "Smoked"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Frame Color/Material",
+      "id": "frameColor",
+      "options": ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Thickness (mm)",
+      "id": "thickness",
+      "options": ["6mm", "8mm", "10mm", "12mm"],
+      "stepNumber": 2
+    }
+  ],
+  "Doors_Swing Door_stepNames": {
+    "1": "Basic Options",
+    "2": "Configuration & Details"
+  },
+  "Doors_Bi-fold Door": [
+    {
+      "type": "tags",
+      "label": "Series",
+      "id": "series",
+      "options": ["45 Series", "75 Series"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Ordinary", "Tempered", "Reflective"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Color",
+      "id": "glassColor",
+      "options": ["Clear", "Bronze", "Frosted", "Smoked"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Frame Color/Material",
+      "id": "frameColor",
+      "options": ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Thickness (mm)",
+      "id": "thickness",
+      "options": ["6mm", "8mm", "10mm", "12mm"],
+      "stepNumber": 2
+    }
+  ],
+  "Doors_Bi-fold Door_stepNames": {
+    "1": "Basic Options",
+    "2": "Configuration & Details"
+  },
+  "Doors_Frameless": [
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Clear", "Tinted", "Frosted", "Laminated", "Laminated safety glass"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Door Type",
+      "id": "doorType",
+      "options": ["Single swing", "Double swing", "Single French door", "Double French doors"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Door Swing",
+      "id": "doorSwing",
+      "options": ["Left swing", "Right swing", "Left-hinged", "Right-hinged"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Fixed Panels",
+      "id": "fixedPanels",
+      "options": ["With fixed side/transom panels", "Without fixed panels", "0 fixed panels", "1 fixed panel", "2 fixed panels", "More fixed panels", "With fixed side panel (left or right)", "With fixed transom", "Both"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Configuration",
+      "id": "configuration",
+      "options": ["With fixed side panel (left or right)", "With fixed transom", "Both", "Single swing door", "Double swing door"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Handle Style",
+      "id": "handleType",
+      "options": ["Various pull handle designs", "Various pull handles", "Decorative handles"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Hardware Finish",
+      "id": "hardwareFinish",
+      "options": ["Polished Chrome/Stainless Steel", "Matte Black", "Brushed Nickel", "Gold", "Chrome/Stainless Steel"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Grid Pattern",
+      "id": "gridPattern",
+      "options": ["Internal grids", "External grids", "Colonial", "Prairie", "Custom grid designs", "French type grid"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Glass Treatment",
+      "id": "glassTreatment",
+      "options": ["Frosted stripes (horizontal/vertical)", "Custom patterns", "Colors", "Frosted sticker (customizable patterns, opacity, colors)"],
+      "stepNumber": 4
+    },
+    {
+      "type": "tags",
+      "label": "Installation",
+      "id": "installation",
+      "options": ["Patch fittings (minimalist hardware)", "Standard"],
+      "stepNumber": 4
+    },
+    {
+      "type": "tags",
+      "label": "Hardware",
+      "id": "hardware",
+      "options": ["Push/pull handles", "Locks", "Closers", "Multi-point locks"],
+      "stepNumber": 4
+    },
+    {
+      "type": "checkbox",
+      "label": "Soft-close",
+      "id": "softClose",
+      "stepNumber": 4
+    }
+  ],
+  "Doors_Frameless_stepNames": {
+    "1": "Basic Options",
+    "2": "Panel Configuration",
+    "3": "Design & Hardware",
+    "4": "Glass Treatment & Installation"
+  },
+  "Doors_Patch Fitting": [
+    {
+      "type": "tags",
+      "label": "Series",
+      "id": "series",
+      "options": ["Frameless Fixed Glass", "Frameless Door"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Tempered", "Reflective"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Color",
+      "id": "glassColor",
+      "options": ["Clear", "Bronze", "Frosted", "Smoked"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Frame Color/Material",
+      "id": "frameColor",
+      "options": ["Stainless Mirror Finish"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Thickness (mm)",
+      "id": "thickness",
+      "options": ["10mm-12mm"],
+      "stepNumber": 2
+    }
+  ],
+  "Doors_Patch Fitting_stepNames": {
+    "1": "Basic Options",
+    "2": "Configuration & Details"
+  },
+  "Partitions_Frameless Glass": [
+    {
+      "type": "tags",
+      "label": "Layout",
+      "id": "layout",
+      "options": ["L-shape", "Straight", "U-shape", "L-type", "Neo-angle", "Square", "Bay", "Other corner layouts"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Clear", "Frosted", "Tinted", "Frosted (full or partial)", "Clear with frosted sticker", "Fully frosted"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Finish",
+      "id": "finish",
+      "options": ["Clear", "Frosted", "Patterned"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Configuration",
+      "id": "configuration",
+      "options": ["Single partition", "Multiple partitions", "2 fixed panels", "3 fixed panels", "Custom configurations"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Hardware Color",
+      "id": "hardwareColor",
+      "options": ["Black", "Silver", "Gold", "White", "Bronze", "Chrome/Stainless Steel", "Black Matte", "Brushed Nickel", "Stainless Steel"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Mounting Hardware",
+      "id": "mountingHardware",
+      "options": ["Stainless Fixed Bracket", "Gold U-Channel", "Analok U-Channel (anodized aluminum)", "Stainless U-Channel", "Other bracket types", "Standard mounting"],
+      "stepNumber": 2
+    },
+    {
+      "type": "number",
+      "label": "Glass Thickness (mm)",
+      "id": "glassThickness",
+      "min": 1,
+      "step": 0.1,
+      "stepNumber": 2
+    }
+  ],
+  "Partitions_Frameless Glass_stepNames": {
+    "1": "Basic Options",
+    "2": "Configuration & Hardware"
+  },
+  "Partitions_Shower Enclosure": [
+    {
+      "type": "tags",
+      "label": "Series",
+      "id": "series",
+      "options": ["Arched Fixed Frameless Shower Partition", "Fixed Frameless with Curved Corner Shower Partition", "Fixed Frameless Shower Partition", "Fixed with Swing Shower Enclosure", "Fixed with Sliding Shower Enclosure", "Fixed Framed Shower Partition", "Swing Door Shower Enclosure", "Corner Swing Shower Enclosure", "Corner Sliding Shower Enclosure", "Corner Double Sliding Shower Enclosure", "Bay Swing Shower Enclosure", "2 Fixed and 1 Sliding Shower Enclosure", "2 Fixed and 1 Swing Shower Enclosure"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Layout",
+      "id": "layout",
+      "options": ["L-shape", "Straight", "U-shape", "L-type", "Neo-angle", "Square", "Bay", "Other corner layouts"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Configuration",
+      "id": "configuration",
+      "options": ["Fixed and swing", "Swing with small fixed glass", "Single sliding door", "Double sliding doors", "Sliding with fixed panels", "Single sliding", "Double sliding", "With fixed panels", "2 fixed panels", "3 fixed panels", "Custom configurations"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Tempered"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Color",
+      "id": "glassColor",
+      "options": ["Clear", "Clear with Frosted Sticker (Middle Portion)", "10mm Frosted Tempered"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Hardware Finish",
+      "id": "hardwareFinish",
+      "options": ["Mirror/Stainless Hardware", "Matte Black Hardware"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Treatment",
+      "id": "glassTreatment",
+      "options": ["Frosted sticker (customizable patterns, opacity, colors)", "Clear", "Custom patterns", "Heights (top clear, bottom frosted)", "Colors"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Glass Thickness (mm)",
+      "id": "glassThickness",
+      "options": ["10mm"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Handle Style",
+      "id": "handleStyle",
+      "options": ["Various pull handle designs", "Various pull handles", "Knob handles", "Square handles", "Square matte black", "Round", "Bar-style"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Door Swing",
+      "id": "doorSwing",
+      "options": ["Left-hinged", "Right-hinged", "Left swing", "Right swing"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Mounting",
+      "id": "mounting",
+      "options": ["Standard mounting", "Custom mounting methods"],
+      "stepNumber": 3
+    }
+  ],
+  "Partitions_Shower Enclosure_stepNames": {
+    "1": "Basic Options",
+    "2": "Glass Treatment",
+    "3": "Hardware & Installation"
+  },
+  "Partitions_Fixed Glass": [
+    {
+      "type": "tags",
+      "label": "Layout",
+      "id": "layout",
+      "options": ["L-shape", "Straight", "U-shape"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Clear", "Frosted", "Tinted"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Finish",
+      "id": "finish",
+      "options": ["Clear", "Frosted", "Patterned"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Configuration",
+      "id": "configuration",
+      "options": ["Single partition", "Multiple partitions", "2 fixed panels", "3 fixed panels", "Custom configurations"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Mounting Hardware",
+      "id": "mountingHardware",
+      "options": ["Stainless Fixed Bracket", "Gold U-Channel", "Analok U-Channel (anodized aluminum)", "Stainless U-Channel", "Other bracket types", "Standard mounting"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Hardware Finish",
+      "id": "hardwareColor",
+      "options": ["Stainless Steel", "Black", "Gold", "Silver", "Bronze", "Analok (dark/bronze finish)", "Chrome/Stainless Steel"],
+      "stepNumber": 2
+    },
+    {
+      "type": "number",
+      "label": "Glass Thickness (mm)",
+      "id": "glassThickness",
+      "min": 1,
+      "step": 0.1,
+      "stepNumber": 2
+    }
+  ],
+  "Partitions_Fixed Glass_stepNames": {
+    "1": "Basic Options",
+    "2": "Configuration & Hardware"
+  },
+  "Specialty_Mirrors": [
+    {
+      "type": "tags",
+      "label": "Series",
+      "id": "series",
+      "options": ["Rectangle/Square Framed Mirror", "Rectangle/Square Frameless Mirror", "Oval Framed Mirror", "Oval Frameless Mirror", "Arched Framed Mirror", "Arched Frameless Mirror"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Shape",
+      "id": "shape",
+      "options": ["Round", "Rectangle", "Oval", "Circle", "Square", "Rectangular with rounded edges", "Rectangular with arched top", "Custom shapes"],
+      "stepNumber": 1
+    },
+    {
+      "type": "number",
+      "label": "Corner Radius (in)",
+      "id": "cornerRadius",
+      "min": 0,
+      "step": 0.1,
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Frame Type",
+      "id": "frameType",
+      "options": ["Frameless", "Framed"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Frame Material/Color",
+      "id": "frameColor",
+      "options": ["White", "Black", "Gold", "Machine Polished Edges", "Beveled Edge"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Copper Free and Lead Free Mirror"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Thickness (mm)",
+      "id": "thickness",
+      "options": ["6mm"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Tint/Finish",
+      "id": "tintFinish",
+      "options": ["Bronze tint/color", "Grey tint (smoked)", "Colored glass"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Orientation",
+      "id": "orientation",
+      "options": ["Vertical", "Horizontal", "Vertical/Full-body"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Style",
+      "id": "style",
+      "options": ["French Type (grid/paneled design)"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Grid Pattern",
+      "id": "gridPattern",
+      "options": ["French window style grid"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Arrangement",
+      "id": "arrangement",
+      "options": ["Can be displayed as triptych", "Individually"],
+      "stepNumber": 3
+    },
+    {
+      "type": "tags",
+      "label": "Lighting",
+      "id": "lighting",
+      "options": ["Integrated LED lighting", "Backlighting", "Front lighting", "Integrated LED options"],
+      "stepNumber": 4
+    },
+    {
+      "type": "tags",
+      "label": "LED Color/Temperature",
+      "id": "ledColorTemperature",
+      "options": ["Warm white", "Cool white", "Tunable white", "RGB"],
+      "stepNumber": 4
+    },
+    {
+      "type": "tags",
+      "label": "Control",
+      "id": "control",
+      "options": ["Touch sensor button", "Dimmer", "Defogger"],
+      "stepNumber": 4
+    },
+    {
+      "type": "tags",
+      "label": "Additional Features",
+      "id": "additionalFeatures",
+      "options": ["Defogger", "Dimmer"],
+      "stepNumber": 4
+    },
+    {
+      "type": "tags",
+      "label": "Mounting Method",
+      "id": "mountingMethod",
+      "options": ["Wall-mounted", "Stand", "Adhesive", "Leaning", "Wall-mounted (often fixed above vanity)", "Fixed wall mount", "Integrated hanger", "Rope hanger", "Chain"],
+      "stepNumber": 5
+    },
+    {
+      "type": "tags",
+      "label": "Quantity",
+      "id": "quantity",
+      "options": ["Available in sets (3 sets, or individually)"],
+      "stepNumber": 5
+    }
+  ],
+  "Specialty_Mirrors_stepNames": {
+    "1": "Basic Options",
+    "2": "Frame & Glass",
+    "3": "Style & Appearance",
+    "4": "Lighting & Features",
+    "5": "Mounting & Quantity"
+  },
+  "Specialty_Top Glass": [
+    {
+      "type": "tags",
+      "label": "Shape",
+      "id": "shape",
+      "options": ["Round", "Rectangle", "Oval", "Square", "Custom shapes"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Edge Finish",
+      "id": "edgeFinish",
+      "options": ["Beveled", "Polished", "Raw", "Beveled edge", "Flat polished edge", "Pencil edge"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Mounting Method",
+      "id": "mountingMethod",
+      "options": ["Wall-mounted", "Stand", "Adhesive"],
+      "stepNumber": 2
+    }
+  ],
+  "Specialty_Top Glass_stepNames": {
+    "1": "Basic Options",
+    "2": "Details & Installation"
+  },
+  "Specialty_Glass Board": [
+    {
+      "type": "tags",
+      "label": "Shape",
+      "id": "shape",
+      "options": ["Round", "Rectangle", "Oval", "Square", "Custom shapes"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Edge Finish",
+      "id": "edgeFinish",
+      "options": ["Beveled", "Polished", "Raw", "Beveled edge", "Flat polished edge", "Pencil edge"],
+      "stepNumber": 1
+    },
+    {
+      "type": "number",
+      "label": "Corner Radius (in)",
+      "id": "cornerRadius",
+      "min": 0,
+      "step": 0.1,
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Mounting Method",
+      "id": "mountingMethod",
+      "options": ["Wall-mounted", "Stand", "Adhesive"],
+      "stepNumber": 2
+    }
+  ],
+  "Specialty_Glass Board_stepNames": {
+    "1": "Basic Options",
+    "2": "Details & Installation"
+  },
+  "Commercial_Storefront": [
+    {
+      "type": "tags",
+      "label": "Glass Type",
+      "id": "glassType",
+      "options": ["Clear", "Tinted", "Frosted", "Laminated safety glass"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Safety Glass Type",
+      "id": "safetyGlassType",
+      "options": ["Tempered", "Laminated", "Bulletproof", "Laminated safety glass"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Handrail Type",
+      "id": "handrailType",
+      "options": ["Stainless steel", "Aluminum", "Glass"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Mounting System",
+      "id": "mountingSystem",
+      "options": ["Clamp", "Bolt", "Adhesive", "Patch fittings (minimalist hardware)"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Hardware Finish",
+      "id": "hardwareFinish",
+      "options": ["Polished Chrome/Stainless Steel", "Matte Black", "Brushed Nickel", "Gold"],
+      "stepNumber": 2
+    }
+  ],
+  "Commercial_Storefront_stepNames": {
+    "1": "Basic Options",
+    "2": "Hardware & Installation"
+  },
+  "Commercial_Glass Balcony": [
+    {
+      "type": "tags",
+      "label": "Safety Glass Type",
+      "id": "safetyGlassType",
+      "options": ["Tempered", "Laminated", "Bulletproof"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Handrail Type",
+      "id": "handrailType",
+      "options": ["Stainless steel", "Aluminum", "Glass"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Mounting System",
+      "id": "mountingSystem",
+      "options": ["Clamp", "Bolt", "Adhesive"],
+      "stepNumber": 1
+    }
+  ],
+  "Commercial_Glass Balcony_stepNames": {
+    "1": "Basic Options"
+  },
+  "Commercial_Stair Railings": [
+    {
+      "type": "tags",
+      "label": "Safety Glass Type",
+      "id": "safetyGlassType",
+      "options": ["Tempered", "Laminated", "Bulletproof"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Handrail Type",
+      "id": "handrailType",
+      "options": ["Stainless steel", "Aluminum", "Glass"],
+      "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Mounting System",
+      "id": "mountingSystem",
+      "options": ["Clamp", "Bolt", "Adhesive"],
+      "stepNumber": 1
+    }
+  ],
+  "Commercial_Stair Railings_stepNames": {
+    "1": "Basic Options"
+  }
+}

@@ -80,63 +80,85 @@ function convertToMm(value, unit) {
 
 
 // --- KONVA.JS VISUALIZATION LOGIC ---
+// Default configuration values per KONVA_DEFAULT_OPTIONS_REFERENCE.md
 
 const KONVA_CONTAINER_ID = 'konva-container';
 const konvaWrapper = document.getElementById(KONVA_CONTAINER_ID);
 const STAGE_SIZE = konvaWrapper.offsetWidth;
 
-const PADDING = 40;
-const DRAWING_SIZE = STAGE_SIZE - PADDING * 2;
-const DIM_OFFSET = 15;
+// Canvas Layout Constants - per KONVA_DEFAULT_OPTIONS_REFERENCE.md
+const PADDING = 40; // Padding around drawing area (pixels)
+const DRAWING_SIZE = STAGE_SIZE - PADDING * 2; // Available drawing area
+const DIM_OFFSET = 15; // Offset for dimension lines from glass panel
 
 // --- VISUAL CONFIGURATION ---
-// Synced with customization_fields_presets_summary.md
-// These objects are extended dynamically with custom visual configs from admin
+// Default glass type visual styles. These are SYSTEM DEFAULTS and will NOT be overridden by database configs.
+// Synced with KONVA_DEFAULT_OPTIONS_REFERENCE.md
 let glassStyles = {
-    // Preset glass types
-    'clear': { fill: '#E0F2F1', opacity: 0.9 },
-    'tinted': { fill: '#546E7A', opacity: 0.7 },
-    'laminated': { fill: '#CFD8DC', opacity: 0.95 },
-    // Additional glass types
-    'tempered': { fill: '#E0F2F1', opacity: 0.9 },
-    'double': { fill: '#B2DFDB', opacity: 0.9 },
-    'low-e': { fill: '#Dcedc8', opacity: 0.85 },
-    'frosted': { fill: '#FFFFFF', opacity: 0.95 },
-    'patterned': { fill: '#E8E8E8', opacity: 0.9 },
-    // Windows-specific glass types from customization defaults
-    'ultra clear': { fill: 'rgba(255, 255, 255, 0.1)', opacity: 0.9 },
-    'bronze': { fill: 'rgba(205, 127, 50, 0.4)', opacity: 0.7 },
-    'light green': { fill: 'rgba(144, 238, 144, 0.4)', opacity: 0.7 },
-    'dark gray': { fill: 'rgba(105, 105, 105, 0.5)', opacity: 0.6 },
-    'copperfree mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9 },
-    'euro gray': { fill: 'rgba(169, 169, 169, 0.5)', opacity: 0.7 },
-    'ford blue': { fill: 'rgba(70, 130, 180, 0.5)', opacity: 0.7 },
-    'reflective: clear': { fill: 'rgba(255, 255, 255, 0.6)', opacity: 0.9 },
-    'reflective: gray': { fill: 'rgba(169, 169, 169, 0.6)', opacity: 0.8 },
-    'reflective: light blue': { fill: 'rgba(173, 216, 230, 0.6)', opacity: 0.8 },
-    'reflective: dark blue': { fill: 'rgba(0, 0, 139, 0.6)', opacity: 0.8 },
-    'reflective: light green': { fill: 'rgba(50, 205, 50, 0.6)', opacity: 0.8 },
-    'reflective: dark green': { fill: 'rgba(0, 100, 0, 0.6)', opacity: 0.8 },
-    'reflective: light bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.8 },
-    'tempered: clear': { fill: 'rgba(255, 255, 255, 0.2)', opacity: 0.9 },
-    'tempered: bronze': { fill: 'rgba(205, 127, 50, 0.3)', opacity: 0.8 },
-    // Updated Windows glass options (Frame & Glass step)
-    'frosted/smoked': { fill: 'rgba(220, 220, 220, 0.7)', opacity: 0.8 },
-    'ordinary': { fill: '#E0F2F1', opacity: 0.9 },
-    'reflective': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85 },
-    // Mirror-specific tint options
-    'mirror-clear': { fill: 'rgba(224, 242, 241, 0.9)', opacity: 0.95 },
-    'mirror-bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.7 },
-    'mirror-grey': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6 },
-    'mirror-grey-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6 },
-    'mirror-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6 },
-    'mirror-black': { fill: 'rgba(38, 50, 56, 0.7)', opacity: 0.8 }
+    // Standard Glass Types
+    'clear': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
+    'tinted': { fill: '#546E7A', opacity: 0.7, isDefault: true },
+    'laminated': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
+    'tempered': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
+    'double': { fill: '#B2DFDB', opacity: 0.9, isDefault: true },
+    'low-e': { fill: '#Dcedc8', opacity: 0.85, isDefault: true },
+    'Low-E': { fill: '#Dcedc8', opacity: 0.85, isDefault: true },
+    'frosted': { fill: '#98dfffff', opacity: 0.95, isDefault: true },
+    'Frosted': { fill: '#8ec8ffff', opacity: 0.95, isDefault: true },
+    'fully frosted': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
+    'Fully frosted': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
+    'smoked': { fill: '#808080', opacity: 0.7, isDefault: true },
+    'frosted (full or partial)': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
+    'Frosted (full or partial)': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
+    'patterned': { fill: '#E8E8E8', opacity: 0.9, isDefault: true },
+    'safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
+    'Safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
+    'reflective coatings': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85, isDefault: true },
+    'Reflective coatings': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85, isDefault: true },
+    'laminated safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
+    'Laminated safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
+    'clear with frosted sticker': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
+    'Clear with frosted sticker': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
+    '10mm Frosted Tempered': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
+    'bulletproof': { fill: '#CFD8DC', opacity: 0.98, isDefault: true },
+    'Bulletproof': { fill: '#CFD8DC', opacity: 0.98, isDefault: true },
+    // Windows-Specific Glass Types
+    'ultra clear': { fill: 'rgba(255, 255, 255, 0.1)', opacity: 0.9, isDefault: true },
+    'bronze': { fill: 'rgba(205, 127, 50, 0.4)', opacity: 0.7, isDefault: true },
+    'light green': { fill: 'rgba(144, 238, 144, 0.4)', opacity: 0.7, isDefault: true },
+    'dark gray': { fill: 'rgba(105, 105, 105, 0.5)', opacity: 0.6, isDefault: true },
+    'copperfree mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9, isDefault: true },
+    'euro gray': { fill: 'rgba(169, 169, 169, 0.5)', opacity: 0.7, isDefault: true },
+    'ford blue': { fill: 'rgba(70, 130, 180, 0.5)', opacity: 0.7, isDefault: true },
+    'ordinary': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
+    'reflective': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85, isDefault: true },
+    // Reflective Glass Variants
+    'reflective: clear': { fill: 'rgba(255, 255, 255, 0.6)', opacity: 0.9, isDefault: true },
+    'reflective: gray': { fill: 'rgba(169, 169, 169, 0.6)', opacity: 0.8, isDefault: true },
+    'reflective: light blue': { fill: 'rgba(173, 216, 230, 0.6)', opacity: 0.8, isDefault: true },
+    'reflective: dark blue': { fill: 'rgba(0, 0, 139, 0.6)', opacity: 0.8, isDefault: true },
+    'reflective: light green': { fill: 'rgba(50, 205, 50, 0.6)', opacity: 0.8, isDefault: true },
+    'reflective: dark green': { fill: 'rgba(0, 100, 0, 0.6)', opacity: 0.8, isDefault: true },
+    'reflective: light bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.8, isDefault: true },
+    // Tempered Glass Variants
+    'tempered: clear': { fill: 'rgba(255, 255, 255, 0.2)', opacity: 0.9, isDefault: true },
+    'tempered: bronze': { fill: 'rgba(205, 127, 50, 0.3)', opacity: 0.8, isDefault: true },
+    // Mirror-Specific Tint Options
+    'mirror-clear': { fill: 'rgba(224, 242, 241, 0.9)', opacity: 0.95, isDefault: true },
+    'mirror-bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.7, isDefault: true },
+    'mirror-grey': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6, isDefault: true },
+    'mirror-grey-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6, isDefault: true },
+    'mirror-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6, isDefault: true },
+    'mirror-black': { fill: 'rgba(38, 50, 56, 0.7)', opacity: 0.8, isDefault: true },
+    // Mirror type from JSON
+    'copper free and lead free mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9, isDefault: true },
+    'Copper Free and Lead Free Mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9, isDefault: true }
 };
 
-// DEFAULT frame styles - these are FALLBACKS only
-// Admin-configured visual styles will OVERRIDE these when loadDynamicVisualConfigs() runs
+// DEFAULT frame styles - these are SYSTEM DEFAULTS and will NOT be overridden by database configs
+// Synced with KONVA_DEFAULT_OPTIONS_REFERENCE.md
 let frameStyles = {
-    // Preset frame colors/materials (will be overwritten by admin configs)
+    // Standard Frame Colors
     'white': { color: '#FFFFFF', width: 4, isDefault: true },
     'black': { color: '#000000', width: 4, isDefault: true },
     'silver': { color: '#C0C0C0', width: 3, isDefault: true },
@@ -149,24 +171,37 @@ let frameStyles = {
     'brushed-nickel': { color: '#A8A9AD', width: 3, isDefault: true },
     'stainless-steel': { color: '#C9CCD1', width: 3, isDefault: true },
     'custom-color': { color: '#888888', width: 4, isDefault: true },
-    // Legacy frame types (mapped from old system)
+    // Legacy Frame Types
     'vinyl': { color: '#333333', width: 4, isDefault: true },
     'frameless': { color: 'transparent', width: 0, isDefault: true },
-    // Windows-specific frame colors from customization defaults
+    // Windows-Specific Frame Colors
+    'powder coated white': { color: '#F8F8F8', width: 4, isDefault: true },
+    'Powder Coated White': { color: '#F8F8F8', width: 4, isDefault: true },
+    'analok': { color: '#F5F5DC', width: 4, isDefault: true },
+    'Analok': { color: '#F5F5DC', width: 4, isDefault: true },
+    'matte gray': { color: '#6B6B6B', width: 4, isDefault: true },
+    'Matte Gray': { color: '#6B6B6B', width: 4, isDefault: true },
+    'matte black': { color: '#1A1A1A', width: 4, isDefault: true },
+    'Matte Black': { color: '#1A1A1A', width: 4, isDefault: true },
+    'wood finish': { color: '#8B4513', width: 4, isDefault: true },
+    'Wood Finish': { color: '#8B4513', width: 4, isDefault: true },
     'hanalok': { color: '#F5F5DC', width: 4, isDefault: true },
     'gray': { color: '#808080', width: 4, isDefault: true },
     'grey': { color: '#808080', width: 4, isDefault: true },
-    'wood finish': { color: '#8B4513', width: 4, isDefault: true },
-    // Updated Windows frame colors (Frame & Glass step)
-    'powder coated white': { color: '#F8F8F8', width: 4, isDefault: true },
-    'analok': { color: '#F5F5DC', width: 4, isDefault: true },
-    'matte gray': { color: '#6B6B6B', width: 4, isDefault: true },
-    'matte black': { color: '#1A1A1A', width: 4, isDefault: true },
-    // Mirror-specific frame types
+    'Dark Grey/Black': { color: '#2C2C2C', width: 4, isDefault: true },
+    'dark grey/black': { color: '#2C2C2C', width: 4, isDefault: true },
+    'Brown (wood-look)': { color: '#8B4513', width: 4, isDefault: true },
+    'brown (wood-look)': { color: '#8B4513', width: 4, isDefault: true },
+    'Stainless Mirror Finish': { color: '#D4D4D4', width: 3, isDefault: true },
+    'stainless mirror finish': { color: '#D4D4D4', width: 3, isDefault: true },
+    'Analok (dark/bronze finish)': { color: '#8B4513', width: 4, isDefault: true },
+    'analok (dark/bronze finish)': { color: '#8B4513', width: 4, isDefault: true },
+    'Custom colors': { color: '#888888', width: 4, isDefault: true },
+    'custom colors': { color: '#888888', width: 4, isDefault: true },
+    // Mirror-Specific Frame Types
     'standard-frame': { color: '#333333', width: 6, isDefault: true },
     'thin-frame': { color: '#333333', width: 3, isDefault: true },
-    'grid-frame': { color: '#333333', width: 4, isDefault: true },
-    'custom-color': { color: '#888888', width: 4, isDefault: true }
+    'grid-frame': { color: '#333333', width: 4, isDefault: true }
 };
 
 /**
@@ -233,28 +268,39 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
             const fieldIdLower = fieldId.toLowerCase();
             const effectType = (config.effectType || 'fill').toLowerCase();
             
-            // Check if this is a glass-related field (expanded detection)
-            const isGlassField = fieldIdLower.includes('glass') || 
-                                 fieldIdLower.includes('tint') || 
-                                 fieldIdLower.includes('finish') ||
-                                 fieldIdLower.includes('type') ||
-                                 fieldIdLower.includes('material') ||
-                                 effectType === 'fill' ||
-                                 effectType === 'gradient' ||
-                                 effectType === 'pattern' ||
-                                 effectType === 'overlay';
-            
-            // Check if this is a frame-related field (expanded detection)
+            // Check if this is a frame-related field FIRST (has priority over glass)
+            // This prevents frameColor from being treated as glass
             const isFrameField = fieldIdLower.includes('frame') || 
-                                 fieldIdLower.includes('color') || 
-                                 fieldIdLower.includes('edge') || 
+                                 (fieldIdLower.includes('color') && !fieldIdLower.includes('glass')) || 
+                                 fieldIdLower.includes('edge') ||
                                  fieldIdLower.includes('border') ||
                                  fieldIdLower.includes('stroke') ||
                                  effectType === 'frame' ||
                                  effectType === 'edge';
             
+            // Check if this is a glass-related field (expanded detection)
+            // NOTE: Exclude frame-related fields to prevent conflicts
+            const isGlassField = !isFrameField && (
+                                 fieldIdLower.includes('glass') || 
+                                 fieldIdLower.includes('tint') || 
+                                 fieldIdLower.includes('finish') ||
+                                 (fieldIdLower.includes('type') && !fieldIdLower.includes('frame')) ||
+                                 fieldIdLower.includes('material') ||
+                                 effectType === 'fill' ||
+                                 effectType === 'gradient' ||
+                                 effectType === 'pattern' ||
+                                 effectType === 'overlay'
+                                 );
+            
             if (isGlassField) {
-                // Add/update glass style with full config
+                // Check if this style already exists as a default - if so, preserve it and skip database override
+                const existingStyle = glassStyles[normalizedTagName];
+                if (existingStyle && existingStyle.isDefault === true) {
+                    console.log(`[Konva] ⏭️ Skipping database override for default glass style "${normalizedTagName}" - preserving system default`);
+                    return; // Skip this tag, preserve default
+                }
+                
+                // Only add/update if it's a new style (not a default)
                 glassStyles[normalizedTagName] = {
                     fill: config.fill || '#E0F2F1',
                     opacity: config.opacity !== undefined ? config.opacity : 0.9,
@@ -267,21 +313,32 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
                     shadowBlur: config.shadowBlur,
                     shadowOffset: config.shadowOffset,
                     shadowColor: config.shadowColor,
-                    shadowOpacity: config.shadowOpacity
+                    shadowOpacity: config.shadowOpacity,
+                    isDefault: false // Mark as database config
                 };
                 glassConfigsAdded++;
                 console.log(`[Konva] ✅ GLASS style added for "${normalizedTagName}": fill=${config.fill}, opacity=${config.opacity}`);
             }
             
             if (isFrameField) {
-                // For frame colors, use the stroke color as the primary frame color
-                // Fall back to fill color if stroke is not set
-                const frameColor = config.stroke || config.fill || '#333333';
+                // Check if this style already exists as a default - if so, preserve it and skip database override
+                const existingStyle = frameStyles[normalizedTagName];
+                if (existingStyle && existingStyle.isDefault === true) {
+                    console.log(`[Konva] ⏭️ Skipping database override for default frame style "${normalizedTagName}" - preserving system default`);
+                    return; // Skip this tag, preserve default
+                }
                 
-                // Add/update frame style with full config
+                // For frame colors, support multiple config formats:
+                // 1. Direct format: { color: "#FFF", width: 4 }
+                // 2. Konva format: { stroke: "#FFF", strokeWidth: 4 }
+                // 3. Legacy format: { fill: "#FFF" } (for backward compatibility)
+                const frameColor = config.color || config.stroke || config.fill || '#333333';
+                const frameWidth = config.width !== undefined ? config.width : (config.strokeWidth !== undefined ? config.strokeWidth : 4);
+                
+                // Only add/update if it's a new style (not a default)
                 frameStyles[normalizedTagName] = {
                     color: frameColor,
-                    width: config.strokeWidth || 4,
+                    width: frameWidth,
                     // Extended properties
                     edgeStyle: config.edgeStyle || 'solid',
                     cornerRadius: config.cornerRadius || 0,
@@ -292,13 +349,15 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
                     // Store original config for reference
                     fill: config.fill,
                     stroke: config.stroke,
-                    opacity: config.opacity
+                    opacity: config.opacity,
+                    isDefault: false // Mark as database config
                 };
                 frameConfigsAdded++;
-                console.log(`[Konva] ✅ FRAME style added for "${normalizedTagName}": color=${frameColor}, width=${config.strokeWidth}`);
+                console.log(`[Konva] ✅ FRAME style added for "${normalizedTagName}": color=${frameColor}, width=${frameWidth}`);
             }
             
             // Also add by original tag name variants for flexible lookups
+            // Only add variants if the style was actually added (not skipped as default)
             const tagVariants = [
                 tagName.toLowerCase(),
                 tagName.toLowerCase().replace(/\s+/g, '-'),
@@ -308,11 +367,18 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
             
             tagVariants.forEach(variant => {
                 if (variant !== normalizedTagName) {
-                    if (isFrameField && frameStyles[normalizedTagName]) {
-                        frameStyles[variant] = frameStyles[normalizedTagName];
+                    // Only add variants if the main style was added (not a default that was skipped)
+                    if (isFrameField && frameStyles[normalizedTagName] && !frameStyles[normalizedTagName].isDefault) {
+                        // Check if variant is also a default - if so, don't override
+                        if (!frameStyles[variant] || !frameStyles[variant].isDefault) {
+                            frameStyles[variant] = { ...frameStyles[normalizedTagName] };
+                        }
                     }
-                    if (isGlassField && glassStyles[normalizedTagName]) {
-                        glassStyles[variant] = glassStyles[normalizedTagName];
+                    if (isGlassField && glassStyles[normalizedTagName] && !glassStyles[normalizedTagName].isDefault) {
+                        // Check if variant is also a default - if so, don't override
+                        if (!glassStyles[variant] || !glassStyles[variant].isDefault) {
+                            glassStyles[variant] = { ...glassStyles[normalizedTagName] };
+                        }
                     }
                 }
             });
@@ -385,11 +451,16 @@ function applyAdvancedVisualEffects(shape, config) {
     }
     
     // Apply shadow if configured
+    // Defaults per KONVA_DEFAULT_OPTIONS_REFERENCE.md: shadowColor: #000000, shadowBlur: 10, shadowOffset: { x: 5, y: 5 }, shadowOpacity: 0.3
     if ((effectType === 'shadow' || config.shadowBlur) && config.shadowBlur > 0) {
         shape.shadowColor(config.shadowColor || '#000000');
         shape.shadowBlur(config.shadowBlur || 10);
-        shape.shadowOffset({ x: config.shadowOffset || 5, y: config.shadowOffset || 5 });
-        shape.shadowOpacity(config.shadowOpacity || 0.3);
+        // shadowOffset can be a number or an object { x, y }
+        const shadowOffset = config.shadowOffset || { x: 5, y: 5 };
+        const offsetX = typeof shadowOffset === 'object' ? shadowOffset.x : shadowOffset;
+        const offsetY = typeof shadowOffset === 'object' ? shadowOffset.y : shadowOffset;
+        shape.shadowOffset({ x: offsetX, y: offsetY });
+        shape.shadowOpacity(config.shadowOpacity !== undefined ? config.shadowOpacity : 0.3);
     }
     
     // Apply edge style if configured
@@ -519,14 +590,14 @@ if (typeof window !== 'undefined') {
             return;
         }
         
-        if (window.selectedProduct && window.selectedProduct.tagVisualConfigs) {
+       /*  if (window.selectedProduct && window.selectedProduct.tagVisualConfigs) {
             const configCount = Object.keys(window.selectedProduct.tagVisualConfigs).length;
             if (configCount > 0) {
                 console.log(`[Konva] Auto-loading ${configCount} visual config field(s) from product data`);
                 loadDynamicVisualConfigs(window.selectedProduct.tagVisualConfigs);
                 visualConfigsLoaded = true;
             }
-        }
+        } */
     };
     
     // Try at multiple intervals to catch different loading scenarios
@@ -890,36 +961,27 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 });
                 layer.add(glassRect);
 
-                // Add handle/opening indicator (circle "O") in center
-                const handleX = panelX + panelWidth / 2;
-                const handleY = mainSectionY + mainSectionHeight / 2;
-
-                const handleCircle = new Konva.Circle({
-                    x: handleX,
-                    y: handleY,
-                    radius: 8,
-                    fill: 'transparent',
-                    stroke: '#FFFFFF',
-                    strokeWidth: 2,
-                    listening: false,
-                });
-                layer.add(handleCircle);
-                
-                // Add "S" label for Sliding
-                const slidingLabel = new Konva.Text({
-                    x: panelX + panelWidth / 2,
-                    y: handleY,
-                    text: 'S',
-                    fontSize: Math.max(12, Math.min(16, mainSectionHeight / 3)),
-                    fontFamily: 'Montserrat, Arial',
-                    fontStyle: 'bold',
-                    fill: '#FFFFFF',
-                    align: 'center',
-                    offsetX: 8,
-                    offsetY: 8,
-                    listening: false,
-                });
-                layer.add(slidingLabel);
+                // Add "S" label for Sliding - only show when no transom is selected
+                if (!hasTransom) {
+                    const handleX = panelX + panelWidth / 2;
+                    const handleY = mainSectionY + mainSectionHeight / 2;
+                    const slidingLabelFontSize = Math.max(12, Math.min(16, mainSectionHeight / 3));
+                    const slidingLabel = new Konva.Text({
+                        x: panelX + panelWidth / 2,
+                        y: handleY,
+                        text: 'S',
+                        fontSize: slidingLabelFontSize,
+                        fontFamily: 'Montserrat, Arial',
+                        fontStyle: 'bold',
+                        fill: '#333333',
+                        align: 'center',
+                        verticalAlign: 'middle',
+                        offsetX: slidingLabelFontSize * 0.35,
+                        offsetY: slidingLabelFontSize * 0.5,
+                        listening: false,
+                    });
+                    layer.add(slidingLabel);
+                }
             } else {
                 // Draw fixed panel in main section (if configuration specifies)
                 const fixedRect = new Konva.Rect({
@@ -1027,20 +1089,6 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 });
                 layer.add(glassRect);
 
-                // Add handle/opening indicator (circle "O") in center
-                const handleX = panelX + panelWidth / 2;
-                const handleY = panelY + panelHeight / 2;
-
-                const handleCircle = new Konva.Circle({
-                    x: handleX,
-                    y: handleY,
-                    radius: 8,
-                    fill: 'transparent',
-                    stroke: '#FFFFFF',
-                    strokeWidth: 2,
-                    listening: false,
-                });
-                layer.add(handleCircle);
             }
             
             // Add panel divider (vertical line between panels)
@@ -1070,9 +1118,10 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     layer.add(outerFrame);
     
     // Draw dimensions (same as single panel)
+    // Dimension line defaults per KONVA_DEFAULT_OPTIONS_REFERENCE.md
     const dimColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-dark').trim() || '#333';
-    const DIM_EXTENSION = 20;
-    const DIM_LINE_OFFSET = 15;
+    const DIM_EXTENSION = 20; // Extension line length (pixels)
+    const DIM_LINE_OFFSET = 15; // Distance from glass to dimension line
     
     // Width dimension (top)
     layer.add(new Konva.Line({ 
@@ -1386,9 +1435,12 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
 
     // Check for separate frame color in customization values (for mirrors)
     let frameColor = null;
+    let frameColorValue = null;
     if (customizationValues.frameColor || customizationValues.FrameColor) {
-        const colorValue = (customizationValues.frameColor || customizationValues.FrameColor).toLowerCase();
+        frameColorValue = (customizationValues.frameColor || customizationValues.FrameColor);
+        const colorValue = frameColorValue.toLowerCase();
         frameColor = normalizeFrameColor(colorValue);
+        console.log(`[Konva] Frame color from customizationValues: "${frameColorValue}" -> normalized: "${frameColor}"`);
     }
 
     // Styles - with fallback color handling
@@ -1433,8 +1485,50 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
     }
     
     // Override frame color if frameColor is specified separately (for mirrors)
+    // Also try to get color directly from frameStyles if normalizeFrameColor returned null
+    if (frameColorValue && !frameColor) {
+        // If normalizeFrameColor returned null, try to find it directly in frameStyles
+        const normalizedColorKey = frameColorValue.toLowerCase().replace(/\s+/g, '-');
+        const spacedColorKey = normalizedColorKey.replace(/-/g, ' ');
+        if (frameStyles[normalizedColorKey] && frameStyles[normalizedColorKey].color) {
+            frameColor = frameStyles[normalizedColorKey].color;
+            console.log(`[Konva] Found frame color in frameStyles using key "${normalizedColorKey}": ${frameColor}`);
+        } else if (frameStyles[spacedColorKey] && frameStyles[spacedColorKey].color) {
+            frameColor = frameStyles[spacedColorKey].color;
+            console.log(`[Konva] Found frame color in frameStyles using key "${spacedColorKey}": ${frameColor}`);
+        } else {
+            // Try to extract color from the frameColorValue name
+            const colorName = frameColorValue.toLowerCase();
+            const commonColors = {
+                'gold': '#FFD700',
+                'silver': '#C0C0C0',
+                'bronze': '#CD7F32',
+                'black': '#000000',
+                'white': '#FFFFFF',
+                'rose': '#B76E79',
+                'chrome': '#E8E8E8',
+                'nickel': '#A8A9AD',
+                'stainless': '#C9CCD1',
+                'wood': '#795548',
+                'brown': '#8B4513',
+                'gray': '#808080',
+                'grey': '#808080'
+            };
+            for (const [key, color] of Object.entries(commonColors)) {
+                if (colorName.includes(key)) {
+                    frameColor = color;
+                    console.log(`[Konva] Extracted frame color from name "${frameColorValue}": ${frameColor}`);
+                    break;
+                }
+            }
+        }
+    }
+    
     if (frameColor && fStyle) {
         fStyle = { ...fStyle, color: frameColor };
+        console.log(`[Konva] Applied frame color: ${frameColor}, width: ${fStyle.width}`);
+    } else if (frameColorValue) {
+        console.warn(`[Konva] Frame color value "${frameColorValue}" found but could not be normalized. Using frameType: ${normalizedFrameType}`);
     }
 
     // Draw glass shape based on preset shapes
@@ -2328,6 +2422,12 @@ function normalizeFrameColor(frameColor) {
     const normalized = frameColor.toLowerCase().replace(/\s+/g, '-');
     
     const colorMap = {
+        // Windows-specific frame colors (synced with KONVA_DEFAULT_OPTIONS_REFERENCE.md)
+        'powder-coated-white': '#F8F8F8',
+        'analok': '#F5F5DC',
+        'matte-gray': '#6B6B6B',
+        'matte-black': '#1A1A1A',
+        'wood-finish': '#8B4513',
         'gold': '#FFD700',
         'silver': '#C0C0C0',
         'rose-gold': '#B76E79',
@@ -2354,8 +2454,16 @@ function normalizeFrameColor(frameColor) {
     }
     
     // If frame color exists in frameStyles, use its color
-    if (typeof frameStyles !== 'undefined' && frameStyles[normalized] && frameStyles[normalized].color) {
-        return frameStyles[normalized].color;
+    if (typeof frameStyles !== 'undefined') {
+        // Try the normalized key first (e.g. "matte-black")
+        if (frameStyles[normalized] && frameStyles[normalized].color) {
+            return frameStyles[normalized].color;
+        }
+        // Also try a de-hyphenated key (e.g. "matte black") since many defaults use spaces
+        const spacedKey = normalized.replace(/-/g, ' ');
+        if (frameStyles[spacedKey] && frameStyles[spacedKey].color) {
+            return frameStyles[spacedKey].color;
+        }
     }
     
     return null;
@@ -2388,6 +2496,12 @@ function normalizeFrameType(frameType) {
         'vinyl': 'vinyl',
         'frameless': 'frameless',
         'none': 'frameless',
+        // Windows-specific frame colors (UI uses title-cased labels; state uses hyphenated)
+        'powder-coated-white': 'powder coated white',
+        'analok': 'analok',
+        'matte-gray': 'matte gray',
+        'matte-black': 'matte black',
+        'wood-finish': 'wood finish',
         // Mirror-specific frame types
         'standard-frame': 'standard-frame',
         'standard': 'standard-frame',
@@ -2486,29 +2600,94 @@ function renderCustomState() {
     }
     // If unit is 'in', no conversion needed
     
-    // 1. Draw the visual representation
-    // Pass original values and units for labels, but use converted inches for visual size
-    // Get corner radius from customizationValues if available, otherwise use currentCornerRadius
-    const cornerRadiusValue = (window.selectedCustomizationValues?.cornerRadius || 
-                                window.selectedCustomizationValues?.CornerRadius || 
-                                currentCornerRadius);
+    // Get customization values
+    const customizationValues = window.selectedCustomizationValues || {};
     
-    renderWindow(
-        widthIn, // Converted to inches for visual size
-        heightIn, // Converted to inches for visual size
-        widthUnit, // Width unit for width label
-        currentShape,
-        currentGlassType,
-        currentThickness,
-        currentEdgeWork,
-        currentFrameType,
-        currentDimensions.width.value, // Original width value for label
-        currentDimensions.height.value, // Original height value for label
-        heightUnit, // Height unit for height label
-        cornerRadiusValue // Corner radius in inches (can be number or object)
-    );
+    // Get product data
+    const productData = window.selectedProduct || {};
+    
+    // Check if we should use comprehensive renderer
+    // Use comprehensive renderer if:
+    // 1. Product has a category (Windows, Doors, Partitions, Specialty, Commercial)
+    // 2. OR customization values contain product-specific fields
+    const shouldUseComprehensive = 
+        (productData.category && (
+            productData.category.includes('Windows') ||
+            productData.category.includes('Doors') ||
+            productData.category.includes('Partitions') ||
+            productData.category.includes('Specialty') ||
+            productData.category.includes('Commercial') ||
+            productData.category.includes('Glass Partitions & Enclosures') ||
+            productData.category.includes('Mirrors & Specialty Glass') ||
+            productData.category.includes('Commercial & Exterior')
+        )) ||
+        customizationValues.numberOfPanels ||
+        customizationValues.panelCount ||
+        customizationValues.trackSystem ||
+        customizationValues.doorType ||
+        customizationValues.layout ||
+        customizationValues.handrailType;
 
-    // 2. NEW: Update the estimated price immediately
+    if (shouldUseComprehensive && typeof Comprehensive2DRenderer !== 'undefined') {
+        // Use comprehensive renderer
+        const dimensions = {
+            width: widthIn,
+            height: heightIn,
+            unit: 'in'
+        };
+
+        // Prepare product info
+        const productInfo = {
+            category: productData.category || '',
+            productType: productData.subcategory || productData.type || productData.name || '',
+            originalWidth: currentDimensions.width.value,
+            originalHeight: currentDimensions.height.value,
+            widthUnit: widthUnit,
+            heightUnit: heightUnit,
+            customizationValues: {
+                ...customizationValues,
+                // Include legacy fields for compatibility
+                shape: currentShape,
+                glassType: currentGlassType,
+                thickness: currentThickness,
+                edgeWork: currentEdgeWork,
+                // Prefer explicit selection from customization UI; fallback to legacy `currentFrameType`
+                frameColor: (customizationValues.frameColor || customizationValues.FrameColor) ? (customizationValues.frameColor || customizationValues.FrameColor) : currentFrameType,
+                cornerRadius: customizationValues.cornerRadius || customizationValues.CornerRadius || currentCornerRadius
+            }
+        };
+
+        // Render with comprehensive renderer
+        Comprehensive2DRenderer.renderProduct2D(productInfo, dimensions, layer);
+    } else {
+        // Fall back to existing renderWindow function
+        // Get corner radius from customizationValues if available, otherwise use currentCornerRadius
+        const cornerRadiusValue = (window.selectedCustomizationValues?.cornerRadius || 
+                                    window.selectedCustomizationValues?.CornerRadius || 
+                                    currentCornerRadius);
+        
+        // Use frameColor from customizationValues if available, otherwise use currentFrameType
+        const frameTypeToUse = (customizationValues.frameColor || customizationValues.FrameColor) 
+            ? (customizationValues.frameColor || customizationValues.FrameColor) 
+            : currentFrameType;
+        
+        renderWindow(
+            widthIn, // Converted to inches for visual size
+            heightIn, // Converted to inches for visual size
+            widthUnit, // Width unit for width label
+            currentShape,
+            currentGlassType,
+            currentThickness,
+            currentEdgeWork,
+            frameTypeToUse, // Use frameColor from customizationValues if available
+            currentDimensions.width.value, // Original width value for label
+            currentDimensions.height.value, // Original height value for label
+            heightUnit, // Height unit for height label
+            cornerRadiusValue // Corner radius in inches (can be number or object)
+        );
+    }
+
+    // 2. Update the estimated price immediately
     updateRealTimePriceDisplay();
 }
 
@@ -2526,7 +2705,7 @@ function renderStandardState(width, height) {
     );
 }
 
-// Export for use in dynamic_customization.js
+// Export for use in dynamic_customization.js and comprehensive renderer
 window.renderStandardState = renderStandardState;
 window.renderWindow = renderWindow;
 window.renderCustomState = renderCustomState;
@@ -2536,6 +2715,14 @@ window.extractPanelCount = extractPanelCount;
 window.normalizeGlassType = normalizeGlassType;
 window.normalizeFrameType = normalizeFrameType;
 window.normalizeFrameColor = normalizeFrameColor;
+
+// Export global variables for comprehensive renderer
+window.glassStyles = glassStyles;
+window.frameStyles = frameStyles;
+window.STAGE_SIZE = STAGE_SIZE;
+window.DRAWING_SIZE = DRAWING_SIZE;
+window.PADDING = PADDING;
+window.layer = layer;
 window.normalizeShape = normalizeShape;
 window.isRoundShape = isRoundShape;
 window.lockDimensionsForRoundShape = lockDimensionsForRoundShape;
