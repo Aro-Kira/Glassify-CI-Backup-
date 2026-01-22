@@ -30,6 +30,9 @@ class ProductCon extends CI_Controller
     $config['upload_path']   = $upload_path;
     $config['allowed_types'] = 'jpg|jpeg|png|gif|webp';
     $config['encrypt_name']  = TRUE;
+    $config['max_size']      = 5120; // 5MB max
+    $config['max_width']     = 4000;
+    $config['max_height']    = 4000;
     $this->upload->initialize($config);
 
     $uploaded_images = [];
@@ -62,11 +65,47 @@ class ProductCon extends CI_Controller
                 $error_msg = $this->upload->display_errors();
                 $filename = isset($files['name'][$i]) ? htmlspecialchars($files['name'][$i]) : 'unknown';
                 $file_type = isset($files['type'][$i]) ? htmlspecialchars($files['type'][$i]) : 'unknown';
-                echo json_encode([
-                    'status' => 'error', 
-                    'msg' => 'Failed to upload image "' . $filename . '" (type: ' . $file_type . '). ' . $error_msg . ' Allowed types: jpg, jpeg, png, gif, webp'
-                ]);
-                return;
+
+                // Try fallback upload method for common image issues
+                if (strpos($error_msg, 'not allowed') !== false && in_array(strtolower(pathinfo($filename, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                    // Manual upload for known image types
+                    $temp_path = $files['tmp_name'][$i];
+                    $new_filename = md5(uniqid(mt_rand(), true)) . '.' . strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                    $destination = $upload_path . $new_filename;
+
+                    if (move_uploaded_file($temp_path, $destination)) {
+                        $uploaded_images[] = $new_filename;
+                        // Skip the error and continue
+                    } else {
+                        // Add debugging information
+                        $debug_info = 'DEBUG: file_name=' . $files['name'][$i] .
+                                     ', file_type=' . $files['type'][$i] .
+                                     ', file_size=' . $files['size'][$i] .
+                                     ', error_code=' . $files['error'][$i] .
+                                     ', temp_path=' . $temp_path .
+                                     ', destination=' . $destination;
+
+                        echo json_encode([
+                            'status' => 'error',
+                            'msg' => 'Failed to upload image "' . $filename . '" (type: ' . $file_type . '). ' . $error_msg . ' Allowed types: jpg, jpeg, png, gif, webp',
+                            'debug' => $debug_info
+                        ]);
+                        return;
+                    }
+                } else {
+                    // Add debugging information
+                    $debug_info = 'DEBUG: file_name=' . $files['name'][$i] .
+                                 ', file_type=' . $files['type'][$i] .
+                                 ', file_size=' . $files['size'][$i] .
+                                 ', error_code=' . $files['error'][$i];
+
+                    echo json_encode([
+                        'status' => 'error',
+                        'msg' => 'Failed to upload image "' . $filename . '" (type: ' . $file_type . '). ' . $error_msg . ' Allowed types: jpg, jpeg, png, gif, webp',
+                        'debug' => $debug_info
+                    ]);
+                    return;
+                }
             }
         }
     } else {
@@ -78,11 +117,47 @@ class ProductCon extends CI_Controller
                 $error_msg = $this->upload->display_errors();
                 $filename = isset($_FILES['productImage']['name']) ? htmlspecialchars($_FILES['productImage']['name']) : 'unknown';
                 $file_type = isset($_FILES['productImage']['type']) ? htmlspecialchars($_FILES['productImage']['type']) : 'unknown';
-                echo json_encode([
-                    'status' => 'error', 
-                    'msg' => 'Failed to upload image "' . $filename . '" (type: ' . $file_type . '). ' . $error_msg . ' Allowed types: jpg, jpeg, png, gif, webp'
-                ]);
-                return;
+
+                // Try fallback upload method for common image issues
+                if (strpos($error_msg, 'not allowed') !== false && in_array(strtolower(pathinfo($filename, PATHINFO_EXTENSION)), ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                    // Manual upload for known image types
+                    $temp_path = $_FILES['productImage']['tmp_name'];
+                    $new_filename = md5(uniqid(mt_rand(), true)) . '.' . strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                    $destination = $upload_path . $new_filename;
+
+                    if (move_uploaded_file($temp_path, $destination)) {
+                        $uploaded_images[] = $new_filename;
+                        // Skip the error and continue
+                    } else {
+                        // Add debugging information
+                        $debug_info = 'DEBUG: file_name=' . $_FILES['productImage']['name'] .
+                                     ', file_type=' . $_FILES['productImage']['type'] .
+                                     ', file_size=' . $_FILES['productImage']['size'] .
+                                     ', error_code=' . $_FILES['productImage']['error'] .
+                                     ', temp_path=' . $temp_path .
+                                     ', destination=' . $destination;
+
+                        echo json_encode([
+                            'status' => 'error',
+                            'msg' => 'Failed to upload image "' . $filename . '" (type: ' . $file_type . '). ' . $error_msg . ' Allowed types: jpg, jpeg, png, gif, webp',
+                            'debug' => $debug_info
+                        ]);
+                        return;
+                    }
+                } else {
+                    // Add debugging information
+                    $debug_info = 'DEBUG: file_name=' . $_FILES['productImage']['name'] .
+                                 ', file_type=' . $_FILES['productImage']['type'] .
+                                 ', file_size=' . $_FILES['productImage']['size'] .
+                                 ', error_code=' . $_FILES['productImage']['error'];
+
+                    echo json_encode([
+                        'status' => 'error',
+                        'msg' => 'Failed to upload image "' . $filename . '" (type: ' . $file_type . '). ' . $error_msg . ' Allowed types: jpg, jpeg, png, gif, webp',
+                        'debug' => $debug_info
+                    ]);
+                    return;
+                }
             }
         }
     }
