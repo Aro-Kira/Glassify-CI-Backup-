@@ -6464,7 +6464,32 @@ function setupProductPopups() {
     if (selectedCategory && selectedSubcategory) {
       // Pass current product's stored series and customization data
       const productCustomization = window.currentEditingProduct?.Customization || {};
-      const storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+      let storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+
+      // Fallback for existing products: check saved series in customizationFields
+      if (!storedSeries) {
+        // Build field key to check for saved series
+        let fieldKey;
+        if (selectedCategory === "Windows") {
+          fieldKey = `Windows_${selectedSubcategory}`;
+        } else if (selectedCategory === "Doors") {
+          fieldKey = `Doors_${selectedSubcategory}`;
+        } else if (selectedCategory === "Glass Partitions & Enclosures") {
+          fieldKey = `Partitions_${selectedSubcategory}`;
+        } else if (selectedCategory === "Mirrors & Specialty Glass") {
+          fieldKey = `Specialty_${selectedSubcategory}`;
+        } else if (selectedCategory === "Commercial & Exterior") {
+          fieldKey = `Commercial_${selectedSubcategory}`;
+        } else {
+          fieldKey = selectedSubcategory;
+        }
+
+        const savedSeriesKey = `${fieldKey}_selectedSeries`;
+        storedSeries = customizationFields[savedSeriesKey] || null;
+      }
+
+      // Set global variable for series selection in Manage Customization Fields
+      selectedCustomizationSeries = storedSeries;
       showManageCustomizationFields(selectedCategory, selectedSubcategory, productCustomization, storedSeries);
     }
   });
@@ -6477,7 +6502,32 @@ function setupProductPopups() {
     if (selectedCategory && selectedSubcategory) {
       // Pass current product's stored series and customization data
       const productCustomization = window.currentEditingProduct?.Customization || {};
-      const storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+      let storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+
+      // Fallback for existing products: check saved series in customizationFields
+      if (!storedSeries) {
+        // Build field key to check for saved series
+        let fieldKey;
+        if (selectedCategory === "Windows") {
+          fieldKey = `Windows_${selectedSubcategory}`;
+        } else if (selectedCategory === "Doors") {
+          fieldKey = `Doors_${selectedSubcategory}`;
+        } else if (selectedCategory === "Glass Partitions & Enclosures") {
+          fieldKey = `Partitions_${selectedSubcategory}`;
+        } else if (selectedCategory === "Mirrors & Specialty Glass") {
+          fieldKey = `Specialty_${selectedSubcategory}`;
+        } else if (selectedCategory === "Commercial & Exterior") {
+          fieldKey = `Commercial_${selectedSubcategory}`;
+        } else {
+          fieldKey = selectedSubcategory;
+        }
+
+        const savedSeriesKey = `${fieldKey}_selectedSeries`;
+        storedSeries = customizationFields[savedSeriesKey] || null;
+      }
+
+      // Set global variable for series selection in Manage Customization Fields
+      selectedCustomizationSeries = storedSeries;
       showManageCustomizationFields(selectedCategory, selectedSubcategory, productCustomization, storedSeries);
     }
   });
@@ -6850,7 +6900,33 @@ function populateEditForm(product) {
   window.currentEditingProduct = product;
 
   // Set global selectedCustomizationSeries for Manage Customization Fields
-  selectedCustomizationSeries = product?.SelectedCustomizationSeries || null;
+  let initialSeries = product?.SelectedCustomizationSeries || null;
+
+  // Fallback for existing products: check saved series in customizationFields
+  if (!initialSeries && product?.Category && product?.Subcategory) {
+    // Build field key to check for saved series
+    let fieldKey;
+    const category = product.Category;
+    const subcategory = product.Subcategory;
+    if (category === "Windows") {
+      fieldKey = `Windows_${subcategory}`;
+    } else if (category === "Doors") {
+      fieldKey = `Doors_${subcategory}`;
+    } else if (category === "Glass Partitions & Enclosures") {
+      fieldKey = `Partitions_${subcategory}`;
+    } else if (category === "Mirrors & Specialty Glass") {
+      fieldKey = `Specialty_${subcategory}`;
+    } else if (category === "Commercial & Exterior") {
+      fieldKey = `Commercial_${subcategory}`;
+    } else {
+      fieldKey = subcategory;
+    }
+
+    const savedSeriesKey = `${fieldKey}_selectedSeries`;
+    initialSeries = customizationFields[savedSeriesKey] || null;
+  }
+
+  selectedCustomizationSeries = initialSeries;
 
   // Clear previous data
   clearImages('edit');
@@ -7572,7 +7648,30 @@ function setupEditPopupHandlers() {
         if (selectedCategory && selectedSubcategory) {
           // Pass current product's stored series and customization data
           const productCustomization = window.currentEditingProduct?.Customization || {};
-          const storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+          let storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+
+          // Fallback for existing products: check saved series in customizationFields
+          if (!storedSeries) {
+            // Build field key to check for saved series
+            let fieldKey;
+            if (selectedCategory === "Windows") {
+              fieldKey = `Windows_${selectedSubcategory}`;
+            } else if (selectedCategory === "Doors") {
+              fieldKey = `Doors_${selectedSubcategory}`;
+            } else if (selectedCategory === "Glass Partitions & Enclosures") {
+              fieldKey = `Partitions_${selectedSubcategory}`;
+            } else if (selectedCategory === "Mirrors & Specialty Glass") {
+              fieldKey = `Specialty_${selectedSubcategory}`;
+            } else if (selectedCategory === "Commercial & Exterior") {
+              fieldKey = `Commercial_${selectedSubcategory}`;
+            } else {
+              fieldKey = selectedSubcategory;
+            }
+
+            const savedSeriesKey = `${fieldKey}_selectedSeries`;
+            storedSeries = customizationFields[savedSeriesKey] || null;
+          }
+
           // Set global variable for series selection in Manage Customization Fields
           selectedCustomizationSeries = storedSeries;
           showManageCustomizationFields(selectedCategory, selectedSubcategory, productCustomization, storedSeries);
@@ -7616,7 +7715,32 @@ function setupEditPopupHandlers() {
     if (selectedCategory && selectedSubcategory) {
       // Pass current product's stored series and customization data
       const productCustomization = window.currentEditingProduct?.Customization || {};
-      const storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+      let storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+
+      // Fallback for existing products: check saved series in customizationFields
+      if (!storedSeries) {
+        // Build field key to check for saved series
+        let fieldKey;
+        if (selectedCategory === "Windows") {
+          fieldKey = `Windows_${selectedSubcategory}`;
+        } else if (selectedCategory === "Doors") {
+          fieldKey = `Doors_${selectedSubcategory}`;
+        } else if (selectedCategory === "Glass Partitions & Enclosures") {
+          fieldKey = `Partitions_${selectedSubcategory}`;
+        } else if (selectedCategory === "Mirrors & Specialty Glass") {
+          fieldKey = `Specialty_${selectedSubcategory}`;
+        } else if (selectedCategory === "Commercial & Exterior") {
+          fieldKey = `Commercial_${selectedSubcategory}`;
+        } else {
+          fieldKey = selectedSubcategory;
+        }
+
+        const savedSeriesKey = `${fieldKey}_selectedSeries`;
+        storedSeries = customizationFields[savedSeriesKey] || null;
+      }
+
+      // Set global variable for series selection in Manage Customization Fields
+      selectedCustomizationSeries = storedSeries;
       showManageCustomizationFields(selectedCategory, selectedSubcategory, productCustomization, storedSeries);
     } else {
       showToast("Please ensure category and subcategory are set.", 'error');
