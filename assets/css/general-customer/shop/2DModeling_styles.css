@@ -344,6 +344,34 @@ h1 {
     font-size: 1.3rem;
 }
 
+/* Estimated Price Breakdown (always visible) */
+.estimated-price-breakdown {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e8e8e8;
+}
+
+.estimated-price-breakdown .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 0.85rem;
+    border-bottom: 1px dashed #eee;
+}
+
+.estimated-price-breakdown .breakdown-row:last-child {
+    border-bottom: none;
+}
+
+.estimated-price-breakdown .breakdown-row span:first-child {
+    color: #666;
+}
+
+.estimated-price-breakdown .breakdown-row span:last-child {
+    font-weight: 600;
+    color: var(--accent-green);
+}
+
 /* Price Breakdown Section */
 .price-breakdown {
     border-top: 1px solid #ddd;

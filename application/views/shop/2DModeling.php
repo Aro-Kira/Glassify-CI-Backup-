@@ -203,6 +203,21 @@
                     <span class="price-label">Estimated Price</span>
                     <span class="price-value" id="total-price">₱0.00</span>
                 </div>
+                <!-- Estimated Price Breakdown (always visible) -->
+                <div class="estimated-price-breakdown" id="estimated-price-breakdown">
+                    <!-- Dimension row (always shown) -->
+                    <div class="breakdown-row" data-field-id="dimension">
+                        <span>Dimension:</span>
+                        <span id="estimated-dimension">-</span>
+                    </div>
+                    <!-- Base Area Cost (always shown) -->
+                    <div class="breakdown-row" data-field-id="baseArea">
+                        <span>Base Area Cost:</span>
+                        <span id="estimated-cost-area">₱0.00</span>
+                    </div>
+                    <!-- Dynamic fields will be inserted here -->
+                    <div id="estimated-dynamic-breakdown-rows"></div>
+                </div>
                 <div class="price-breakdown" id="price-breakdown">
                     <div class="breakdown-toggle" id="breakdown-toggle">
                         <span>View Price Breakdown</span>
@@ -211,29 +226,17 @@
                         </svg>
                     </div>
                     <div class="breakdown-details hidden-step" id="breakdown-details">
-                        <div class="breakdown-row">
+                        <!-- Base Area Cost (always shown) -->
+                        <div class="breakdown-row" data-field-id="baseArea">
                             <span>Base Area Cost:</span>
                             <span id="cost-area">₱0.00</span>
                         </div>
-                        <div class="breakdown-row">
-                            <span>Shape (<span id="label-shape">Rectangle</span>):</span>
-                            <span id="cost-shape">+₱0.00</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>Glass Type (<span id="label-type">Tempered</span>):</span>
-                            <span id="cost-type">+₱0.00</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>Thickness (<span id="label-thickness">5mm</span>):</span>
-                            <span id="cost-thickness">+₱0.00</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>Frame (<span id="label-frame">Vinyl</span>):</span>
-                            <span id="cost-frame">+₱0.00</span>
-                        </div>
-                        <div class="breakdown-row">
-                            <span>Edge Work (<span id="label-edge">Flat Polish</span>):</span>
-                            <span id="cost-edge">+₱0.00</span>
+                        <!-- Dynamic fields will be inserted here -->
+                        <div id="dynamic-breakdown-rows"></div>
+                        <!-- Total (always shown at bottom) -->
+                        <div class="breakdown-row breakdown-total" id="breakdown-total-row" style="display: none;">
+                            <span style="font-weight: bold;">Total:</span>
+                            <span id="cost-total" style="font-weight: bold; color: #ee4d2d;">₱0.00</span>
                         </div>
                     </div>
                 </div>
@@ -423,50 +426,19 @@
                     <div class="summary-header">
                         Price Breakdown
                     </div>
-                    <div class="summary-content">
-                        <div class="summary-row">
-                            <span class="spec-label">Shape:</span>
-                            <span class="spec-value">
-                                <span id="sum-shape">Rectangle</span>
-                                <span class="price-addon" id="sum-shape-price"></span>
-                            </span>
-                        </div>
+                    <div class="summary-content" id="summary-content">
+                        <!-- Dimension row (always shown) -->
                         <div class="summary-row">
                             <span class="spec-label">Dimension:</span>
                             <span class="spec-value">
                                 <span id="sum-dim">45" x 35"</span>
-                                <span class="price-addon" id="sum-dim-price"></span>
+                                <span class="price-addon" id="sum-dim-price">Base: ₱0.00</span>
                             </span>
                         </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Type:</span>
-                            <span class="spec-value">
-                                <span id="sum-type">Tempered</span>
-                                <span class="price-addon" id="sum-type-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Thickness:</span>
-                            <span class="spec-value">
-                                <span id="sum-thick">5mm</span>
-                                <span class="price-addon" id="sum-thick-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Edge Work:</span>
-                            <span class="spec-value">
-                                <span id="sum-edge">Flat Polish</span>
-                                <span class="price-addon" id="sum-edge-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
-                            <span class="spec-label">Frame Type:</span>
-                            <span class="spec-value">
-                                <span id="sum-frame">Vinyl</span>
-                                <span class="price-addon" id="sum-frame-price"></span>
-                            </span>
-                        </div>
-                        <div class="summary-row">
+                        <!-- Dynamic fields will be inserted here -->
+                        <div id="dynamic-summary-rows"></div>
+                        <!-- Engraving row (if applicable) -->
+                        <div class="summary-row" id="summary-engraving-row" style="display: none;">
                             <span class="spec-label">Engraving:</span>
                             <span class="spec-value" id="sum-engrave">None</span>
                         </div>

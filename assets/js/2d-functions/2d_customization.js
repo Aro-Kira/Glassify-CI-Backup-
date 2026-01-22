@@ -3803,9 +3803,22 @@ function getSelectedValueForField(fieldId) {
         'edgeFinish': currentEdgeWork
     };
     
-    // Also try to get from active option card in DOM
+    // Also try to get from DOM based on field type
     const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
     if (fieldContainer) {
+        // Check for checkbox fields
+        const checkbox = fieldContainer.querySelector('input[type="checkbox"]');
+        if (checkbox) {
+            return checkbox.checked ? true : null;
+        }
+        
+        // Check for number fields
+        const numberInput = fieldContainer.querySelector('input[type="number"]');
+        if (numberInput && numberInput.value) {
+            return numberInput.value;
+        }
+        
+        // Check for tag fields (option cards)
         const activeCard = fieldContainer.querySelector('.option-card.active');
         if (activeCard && activeCard.dataset.value) {
             return activeCard.dataset.value;
@@ -3854,57 +3867,111 @@ function calculateTotal() {
     
     // Get product to access customization fields
     const product = getSelectedProduct();
-    if (product && product.tagPrices) {
-        // Iterate through all fields that have tag prices in database
-        for (const fieldId in product.tagPrices) {
-            const selectedValue = getSelectedValueForField(fieldId);
-            if (selectedValue) {
-                const optionPrice = getPriceFromDatabase(fieldId, selectedValue);
-                // Include all prices (including 0 and negative values)
-                totalFieldPrices += optionPrice;
-                priceBreakdown.fieldPrices[fieldId] = {
-                    option: selectedValue,
-                    price: optionPrice
-                };
-            }
-        }
-    }
     
-    // Also check all active option-cards in the DOM to ensure we catch any selections
-    // This ensures we get selections even if selectedCustomizationValues isn't updated
+    // First, check all active option-cards in the DOM (most reliable source)
+    // This ensures we catch all selections regardless of whether they have prices
     const allFieldContainers = document.querySelectorAll('[data-field-id]');
+    const processedFieldIds = new Set();
+    
     allFieldContainers.forEach(container => {
         const fieldId = container.dataset.fieldId;
+        if (!fieldId) return;
+        
         const activeCard = container.querySelector('.option-card.active');
-        if (activeCard && activeCard.dataset.value) {
-            const optionValue = activeCard.dataset.value;
-            // Check if we already processed this field
-            if (!priceBreakdown.fieldPrices[fieldId]) {
+        if (activeCard) {
+            const optionValue = activeCard.dataset.value || activeCard.textContent.trim();
+            if (optionValue) {
                 const optionPrice = getPriceFromDatabase(fieldId, optionValue);
                 totalFieldPrices += optionPrice;
                 priceBreakdown.fieldPrices[fieldId] = {
                     option: optionValue,
                     price: optionPrice
                 };
+                processedFieldIds.add(fieldId);
                 console.log(`Added price for ${fieldId}.${optionValue}: ${optionPrice}`);
-            } else {
-                // Update if the option changed
-                const currentOption = priceBreakdown.fieldPrices[fieldId].option;
-                if (currentOption !== optionValue) {
-                    // Remove old price
-                    totalFieldPrices -= priceBreakdown.fieldPrices[fieldId].price;
-                    // Add new price
-                    const optionPrice = getPriceFromDatabase(fieldId, optionValue);
-                    totalFieldPrices += optionPrice;
-                    priceBreakdown.fieldPrices[fieldId] = {
-                        option: optionValue,
-                        price: optionPrice
-                    };
-                    console.log(`Updated price for ${fieldId}: ${currentOption} -> ${optionValue}, price: ${optionPrice}`);
-                }
             }
         }
     });
+    
+    // Second, check product.tagPrices for fields that might not be in DOM yet
+    // or for fields that have prices but weren't captured above
+    if (product && product.tagPrices) {
+        for (const fieldId in product.tagPrices) {
+            // Skip if already processed from DOM
+            if (processedFieldIds.has(fieldId)) {
+                // Update if option changed
+                const selectedValue = getSelectedValueForField(fieldId);
+                const currentData = priceBreakdown.fieldPrices[fieldId];
+                if (currentData && currentData.option !== selectedValue && selectedValue) {
+                    // Remove old price
+                    totalFieldPrices -= currentData.price;
+                    // Add new price
+                    const optionPrice = getPriceFromDatabase(fieldId, selectedValue);
+                    totalFieldPrices += optionPrice;
+                    priceBreakdown.fieldPrices[fieldId] = {
+                        option: selectedValue,
+                        price: optionPrice
+                    };
+                    console.log(`Updated price for ${fieldId}: ${currentData.option} -> ${selectedValue}, price: ${optionPrice}`);
+                }
+                continue;
+            }
+            
+            // Process fields not yet captured
+            const selectedValue = getSelectedValueForField(fieldId);
+            if (selectedValue) {
+                const optionPrice = getPriceFromDatabase(fieldId, selectedValue);
+                totalFieldPrices += optionPrice;
+                priceBreakdown.fieldPrices[fieldId] = {
+                    option: selectedValue,
+                    price: optionPrice
+                };
+                processedFieldIds.add(fieldId);
+                console.log(`Added price for ${fieldId}.${selectedValue}: ${optionPrice}`);
+            }
+        }
+    }
+    
+    // Third, check all customization fields from configuration to ensure we capture
+    // fields that might not have prices but are still selected
+    if (product && product.customizationFields && Array.isArray(product.customizationFields)) {
+        product.customizationFields.forEach(field => {
+            const fieldId = field.id;
+            if (!fieldId || processedFieldIds.has(fieldId)) return;
+            
+            // Check DOM for this field
+            const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
+            if (fieldContainer) {
+                const activeCard = fieldContainer.querySelector('.option-card.active');
+                if (activeCard) {
+                    const optionValue = activeCard.dataset.value || activeCard.textContent.trim();
+                    if (optionValue) {
+                        const optionPrice = getPriceFromDatabase(fieldId, optionValue);
+                        totalFieldPrices += optionPrice;
+                        priceBreakdown.fieldPrices[fieldId] = {
+                            option: optionValue,
+                            price: optionPrice
+                        };
+                        processedFieldIds.add(fieldId);
+                        console.log(`Added price for ${fieldId}.${optionValue} (from config): ${optionPrice}`);
+                    }
+                }
+            } else {
+                // Field not in DOM yet, check selectedCustomizationValues
+                const selectedValue = getSelectedValueForField(fieldId);
+                if (selectedValue) {
+                    const optionPrice = getPriceFromDatabase(fieldId, selectedValue);
+                    totalFieldPrices += optionPrice;
+                    priceBreakdown.fieldPrices[fieldId] = {
+                        option: selectedValue,
+                        price: optionPrice
+                    };
+                    processedFieldIds.add(fieldId);
+                    console.log(`Added price for ${fieldId}.${selectedValue} (from values): ${optionPrice}`);
+                }
+            }
+        });
+    }
     
     // 4. Calculate total: base area cost + all field option prices
     let total = baseAreaCost + totalFieldPrices;
@@ -3959,90 +4026,407 @@ function updatePriceBreakdown() {
         return;
     }
     
-    // Update base area cost
+    // Get product data to determine which fields to show
+    const selectedProduct = getSelectedProduct();
+    if (!selectedProduct) {
+        console.warn('Product data not available for dynamic breakdown');
+        // Fallback: still update base area cost
+        const costArea = document.getElementById('cost-area');
+        if (costArea) costArea.textContent = formatPrice(priceBreakdown.baseArea);
+        const estimatedCostArea = document.getElementById('estimated-cost-area');
+        if (estimatedCostArea) estimatedCostArea.textContent = formatPrice(priceBreakdown.baseArea);
+        return;
+    }
+    
+    // Get customization fields configuration
+    const customizationFields = selectedProduct.customizationFields || [];
+    
+    // Update dimensions in estimated price section
+    const estimatedDimension = document.getElementById('estimated-dimension');
+    if (estimatedDimension && currentDimensions) {
+        const widthValue = currentDimensions.width.value || 0;
+        const heightValue = currentDimensions.height.value || 0;
+        const widthUnit = currentDimensions.width.unit || 'in';
+        const heightUnit = currentDimensions.height.unit || 'in';
+        estimatedDimension.textContent = `${widthValue}${widthUnit} × ${heightValue}${heightUnit}`;
+    }
+    
+    // Update base area cost in both sections
     const costArea = document.getElementById('cost-area');
     if (costArea) costArea.textContent = formatPrice(priceBreakdown.baseArea);
-
-    // Field ID to HTML element mapping (for legacy fields and common dynamic fields)
-    const fieldMappings = {
-        'shape': { labelId: 'label-shape', costId: 'cost-shape', displayName: 'Shape' },
-        'glassType': { labelId: 'label-type', costId: 'cost-type', displayName: 'Glass Type' },
-        'thickness': { labelId: 'label-thickness', costId: 'cost-thickness', displayName: 'Thickness' },
-        'frameType': { labelId: 'label-frame', costId: 'cost-frame', displayName: 'Frame' },
-        'edgeWork': { labelId: 'label-edge', costId: 'cost-edge', displayName: 'Edge Work' },
-        'frameColor': { labelId: 'label-frame', costId: 'cost-frame', displayName: 'Frame' },
-        'edgeFinish': { labelId: 'label-edge', costId: 'cost-edge', displayName: 'Edge Work' },
-        'mountingMethod': { labelId: 'label-edge', costId: 'cost-edge', displayName: 'Mounting Method' } // Fallback mapping
-    };
-
-    // Update each field that has a price from database
-    for (const fieldId in priceBreakdown.fieldPrices) {
-        const fieldData = priceBreakdown.fieldPrices[fieldId];
-        const mapping = fieldMappings[fieldId];
-        
-        if (mapping) {
-            // Update legacy fields with specific HTML IDs
-            const labelEl = document.getElementById(mapping.labelId);
-            const costEl = document.getElementById(mapping.costId);
-            
-            if (labelEl) {
-                // Capitalize first letter of option name, handle camelCase
-                let optionName = fieldData.option;
-                // Convert camelCase to Title Case (e.g., "flatPolish" -> "Flat Polish")
-                optionName = optionName.replace(/([A-Z])/g, ' $1').trim();
-                optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1);
-                labelEl.textContent = optionName;
+    const estimatedCostArea = document.getElementById('estimated-cost-area');
+    if (estimatedCostArea) estimatedCostArea.textContent = formatPrice(priceBreakdown.baseArea);
+    
+    // Get containers for dynamic rows (both sections)
+    const dynamicContainer = document.getElementById('dynamic-breakdown-rows');
+    const estimatedDynamicContainer = document.getElementById('estimated-dynamic-breakdown-rows');
+    
+    // Debug: Check if containers exist
+    console.log('🔍 updatePriceBreakdown - dynamicContainer:', !!dynamicContainer);
+    console.log('🔍 updatePriceBreakdown - estimatedDynamicContainer:', !!estimatedDynamicContainer);
+    console.log('🔍 updatePriceBreakdown - priceBreakdown.fieldPrices:', priceBreakdown.fieldPrices);
+    console.log('🔍 updatePriceBreakdown - customizationFields count:', customizationFields.length);
+    
+    // Don't return early - continue even if one container is missing
+    if (!dynamicContainer && !estimatedDynamicContainer) {
+        console.warn('Both breakdown containers not found');
+        return;
+    }
+    
+    // Clear existing dynamic rows in both sections
+    if (dynamicContainer) {
+        dynamicContainer.innerHTML = '';
+    }
+    if (estimatedDynamicContainer) {
+        estimatedDynamicContainer.innerHTML = '';
+    }
+    
+    // Create a map of field IDs to field configurations for quick lookup
+    const fieldConfigMap = {};
+    if (Array.isArray(customizationFields) && customizationFields.length > 0) {
+        customizationFields.forEach(field => {
+            if (field.id) {
+                fieldConfigMap[field.id] = field;
             }
-            
-            if (costEl) {
-                if (fieldData.price > 0) {
-                    costEl.textContent = '+' + formatPrice(fieldData.price);
-                } else if (fieldData.price < 0) {
-                    costEl.textContent = formatPrice(fieldData.price); // Negative prices show as-is
+        });
+    }
+    
+    // Get ALL fields from customization configuration, sorted by stepNumber
+    // This ensures we show all fields defined for this product, not just those with prices
+    let sortedFields = [];
+    if (Array.isArray(customizationFields) && customizationFields.length > 0) {
+        sortedFields = customizationFields
+            .filter(field => field.id) // Only include fields with IDs
+            .sort((a, b) => {
+                const stepA = a.stepNumber || a.step || 999;
+                const stepB = b.stepNumber || b.step || 999;
+                if (stepA !== stepB) return stepA - stepB;
+                // If same step, maintain original order
+                return customizationFields.indexOf(a) - customizationFields.indexOf(b);
+            });
+    }
+    
+    // Also include any fields in priceBreakdown that might not be in customizationFields
+    // (for backward compatibility with legacy fields)
+    if (priceBreakdown.fieldPrices) {
+        Object.keys(priceBreakdown.fieldPrices).forEach(fieldId => {
+            if (!fieldConfigMap[fieldId]) {
+                // Add as a field object for rendering
+                sortedFields.push({
+                    id: fieldId,
+                    label: getFieldDisplayName(fieldId),
+                    stepNumber: 999 // Put legacy fields at the end
+                });
+            }
+        });
+    }
+    
+    console.log('🔍 updatePriceBreakdown - sortedFields count:', sortedFields.length);
+    
+    // Render each field from the customization configuration
+    let renderedCount = 0;
+    sortedFields.forEach(field => {
+        const fieldId = field.id;
+        if (!fieldId) return;
+        
+        // Get field configuration
+        const fieldConfig = fieldConfigMap[fieldId] || field;
+        const fieldType = fieldConfig.type || 'tags'; // Default to tags if not specified
+        
+        // Get selected value for this field - check multiple sources
+        let selectedValue = getSelectedValueForField(fieldId);
+        
+        // Also check DOM directly based on field type
+        let optionValueFromDOM = null;
+        const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
+        
+        if (fieldContainer) {
+            if (fieldType === 'checkbox') {
+                // For checkbox fields, check if checkbox is checked
+                const checkbox = fieldContainer.querySelector('input[type="checkbox"]');
+                if (checkbox && checkbox.checked) {
+                    optionValueFromDOM = 'Yes'; // Or use field label
+                    if (!selectedValue) {
+                        selectedValue = true; // Store as boolean for checkbox
+                    }
                 } else {
-                    // Price is 0 - determine appropriate text based on field type
-                    if (fieldId === 'glassType' || fieldId === 'thickness') {
-                        costEl.textContent = 'Standard';
-                    } else {
-                        costEl.textContent = 'Included';
+                    // Checkbox not checked - skip this field
+                    return;
+                }
+            } else if (fieldType === 'number') {
+                // For number fields, get the input value
+                const numberInput = fieldContainer.querySelector('input[type="number"]');
+                if (numberInput && numberInput.value && parseFloat(numberInput.value) > 0) {
+                    optionValueFromDOM = numberInput.value;
+                    if (!selectedValue) {
+                        selectedValue = optionValueFromDOM;
+                    }
+                } else {
+                    // Number field has no value - skip it
+                    return;
+                }
+            } else {
+                // For tags/other fields, check active option cards
+                const activeCard = fieldContainer.querySelector('.option-card.active');
+                if (activeCard) {
+                    optionValueFromDOM = activeCard.dataset.value || activeCard.textContent.trim();
+                    if (optionValueFromDOM && !selectedValue) {
+                        selectedValue = optionValueFromDOM;
+                    }
+                }
+            }
+        }
+        
+        // Get price data if available
+        const fieldData = priceBreakdown.fieldPrices && priceBreakdown.fieldPrices[fieldId];
+        
+        // Determine option name and price
+        let optionName = '';
+        let priceText = '';
+        
+        if (fieldType === 'checkbox') {
+            // For checkbox, show "Yes" or field label if checked
+            if (selectedValue || optionValueFromDOM) {
+                optionName = fieldConfig.label || fieldId;
+                priceText = 'Included';
+                
+                // Check if checkbox has a price
+                if (fieldData && fieldData.price !== undefined) {
+                    const numPrice = parseFloat(fieldData.price) || 0;
+                    if (numPrice > 0) {
+                        priceText = '+' + formatPrice(numPrice);
+                    } else if (numPrice < 0) {
+                        priceText = formatPrice(numPrice);
+                    }
+                } else {
+                    // Try to get price from database
+                    const product = getSelectedProduct();
+                    if (product && product.tagPrices && product.tagPrices[fieldId]) {
+                        // Checkbox prices might be stored as "Yes" or fieldId itself
+                        const price = product.tagPrices[fieldId]['Yes'] || 
+                                     product.tagPrices[fieldId][fieldId] ||
+                                     product.tagPrices[fieldId][fieldConfig.label];
+                        if (price !== undefined && price !== null) {
+                            const numPrice = parseFloat(price) || 0;
+                            if (numPrice > 0) {
+                                priceText = '+' + formatPrice(numPrice);
+                            } else if (numPrice < 0) {
+                                priceText = formatPrice(numPrice);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Checkbox not checked - skip
+                return;
+            }
+        } else if (fieldType === 'number') {
+            // For number fields, show the value with unit if applicable
+            if (selectedValue || optionValueFromDOM) {
+                const numValue = selectedValue || optionValueFromDOM;
+                optionName = numValue;
+                
+                // Add unit if field has one (e.g., "in" for corner radius)
+                if (fieldId === 'cornerRadius' || fieldId === 'cornerRadiusIn') {
+                    optionName = numValue + 'in';
+                } else if (fieldId === 'thickness' || fieldId.includes('Thickness')) {
+                    optionName = numValue + 'mm';
+                }
+                
+                priceText = 'Included';
+                
+                // Check if number field has a price
+                if (fieldData && fieldData.price !== undefined) {
+                    const numPrice = parseFloat(fieldData.price) || 0;
+                    if (numPrice > 0) {
+                        priceText = '+' + formatPrice(numPrice);
+                    } else if (numPrice < 0) {
+                        priceText = formatPrice(numPrice);
+                    }
+                }
+            } else {
+                // Number field has no value - skip
+                return;
+            }
+        } else if (fieldData && fieldData.option) {
+            // Use data from priceBreakdown (has price info) - for tags fields
+            optionName = fieldData.option;
+            if (fieldData.price > 0) {
+                priceText = '+' + formatPrice(fieldData.price);
+            } else if (fieldData.price < 0) {
+                priceText = formatPrice(fieldData.price);
+            } else {
+                if (fieldId === 'glassType' || fieldId === 'thickness') {
+                    priceText = 'Standard';
+                } else {
+                    priceText = 'Included';
+                }
+            }
+        } else if (selectedValue || optionValueFromDOM) {
+            // Field is selected but no price data yet - still show it
+            optionName = selectedValue || optionValueFromDOM;
+            priceText = 'Included'; // Default to included if no price
+            
+            // Try to get price from database if available
+            const product = getSelectedProduct();
+            if (product && product.tagPrices && product.tagPrices[fieldId] && optionName) {
+                const price = product.tagPrices[fieldId][optionName];
+                if (price !== undefined && price !== null) {
+                    const numPrice = parseFloat(price) || 0;
+                    if (numPrice > 0) {
+                        priceText = '+' + formatPrice(numPrice);
+                    } else if (numPrice < 0) {
+                        priceText = formatPrice(numPrice);
                     }
                 }
             }
         } else {
-            // This is a dynamic field not in legacy mapping - try to find it in DOM
-            const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
-            if (fieldContainer) {
-                // For dynamic fields, we might need to update a custom breakdown row
-                // For now, log it for debugging
-                console.log(`Dynamic field ${fieldId} with option ${fieldData.option} has price:`, fieldData.price);
-            }
+            // Field is not selected - skip it (only show selected fields)
+            console.log(`⏭️ Skipping field ${fieldId} - no selected value`);
+            return;
         }
-    }
-    
-    // Helper function to get display name for a field
-    function getFieldDisplayName(fieldId) {
-        // Try to get from active option card
-        const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
-        if (fieldContainer) {
-            const activeCard = fieldContainer.querySelector('.option-card.active');
-            if (activeCard) {
-                const label = activeCard.closest('.field-section, .type-section, .thickness-section, .edge-section, .frame-section')?.querySelector('.section-label');
-                if (label) {
-                    return label.textContent.trim();
+        
+        // If we have an option name, render the row in both sections
+        if (optionName) {
+            const fieldConfigForDisplay = fieldConfigMap[fieldId] || field;
+            const displayName = fieldConfigForDisplay ? (fieldConfigForDisplay.label || fieldId) : getFieldDisplayName(fieldId);
+            
+            // Format option name - handle various formats (skip for checkbox and number fields that already have proper formatting)
+            if (fieldType !== 'checkbox' && fieldType !== 'number') {
+                // Preserve the original option name from database/selection, but format it nicely
+                // Remove camelCase conversion and keep original format from options
+                optionName = String(optionName);
+                
+                // Only format if it looks like camelCase or lowercase
+                if (/^[a-z]/.test(optionName) || /[a-z][A-Z]/.test(optionName)) {
+                    optionName = optionName.replace(/([A-Z])/g, ' $1').trim();
+                    optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1);
                 }
+                
+                // Capitalize first letter of each word
+                optionName = optionName.split(' ').map(word => {
+                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                }).join(' ');
+            }
+            
+            // Helper function to create a breakdown row
+            const createBreakdownRow = () => {
+                const row = document.createElement('div');
+                row.className = 'breakdown-row';
+                row.dataset.fieldId = fieldId;
+                
+                // For checkbox, show just the label without option name in parentheses
+                if (fieldType === 'checkbox') {
+                    row.innerHTML = `
+                        <span>${escapeHtml(displayName)}:</span>
+                        <span class="price-value">${priceText}</span>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <span>${escapeHtml(displayName)} (<span class="option-name">${escapeHtml(optionName)}</span>):</span>
+                        <span class="price-value">${priceText}</span>
+                    `;
+                }
+                return row;
+            };
+            
+            // Add to Price Breakdown section (collapsible)
+            if (dynamicContainer) {
+                const row = createBreakdownRow();
+                dynamicContainer.appendChild(row);
+            }
+            
+            // Add to Estimated Price section (always visible)
+            if (estimatedDynamicContainer) {
+                const estimatedRow = createBreakdownRow();
+                estimatedDynamicContainer.appendChild(estimatedRow);
+                renderedCount++;
+            }
+            
+            console.log(`✅ Rendering field: ${fieldId} = ${optionName} (${priceText})`);
+        } else {
+            console.log(`❌ Skipping field: ${fieldId} - no option name (selectedValue: ${selectedValue}, optionValueFromDOM: ${optionValueFromDOM}, fieldData:`, fieldData, ')');
+        }
+    });
+    
+    console.log(`📊 Total fields rendered in estimated section: ${renderedCount}`);
+    
+    // Show/hide total row
+    const totalRow = document.getElementById('breakdown-total-row');
+    if (totalRow) {
+        const totalEl = document.getElementById('cost-total');
+        if (totalEl) {
+            totalEl.textContent = formatPrice(priceBreakdown.total);
+        }
+        totalRow.style.display = 'flex';
+    }
+}
+
+// Helper function to get display name for a field (fallback)
+function getFieldDisplayName(fieldId) {
+    // Try to get from active option card in DOM
+    const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
+    if (fieldContainer) {
+        const activeCard = fieldContainer.querySelector('.option-card.active');
+        if (activeCard) {
+            const label = activeCard.closest('.field-section, .type-section, .thickness-section, .edge-section, .frame-section')?.querySelector('.section-label');
+            if (label) {
+                return label.textContent.trim();
             }
         }
-        return fieldMappings[fieldId]?.displayName || fieldId;
     }
     
-    // Update fields that might not be in the legacy mapping
-    for (const fieldId in priceBreakdown.fieldPrices) {
-        if (!fieldMappings[fieldId]) {
-            // This is a dynamic field - we might need to create or update a breakdown row
-            // For now, we'll log it - in the future, we could dynamically add rows
-            console.log(`Dynamic field ${fieldId} has price:`, priceBreakdown.fieldPrices[fieldId]);
-        }
-    }
+    // Fallback to common field name mappings based on CUSTOMIZATION_REFERENCE.md
+    const commonNames = {
+        'shape': 'Shape',
+        'glassType': 'Glass Type',
+        'thickness': 'Thickness',
+        'frameType': 'Frame Type',
+        'frameColor': 'Frame Color',
+        'edgeWork': 'Edge Work',
+        'edgeFinish': 'Edge Finish',
+        'mountingMethod': 'Mounting Method',
+        'tintFinish': 'Tint/Finish',
+        'tint': 'Tint/Finish',
+        'cornerRadius': 'Corner Radius',
+        'orientation': 'Orientation',
+        'lighting': 'Lighting',
+        'ledColor': 'LED Color/Temperature',
+        'control': 'Control',
+        'glassColor': 'Glass Color',
+        'operation': 'Operation',
+        'handleType': 'Handle Type',
+        'hardwareFinish': 'Hardware Finish',
+        'softClose': 'Soft-close',
+        'screen': 'Screen',
+        'lockType': 'Lock Type',
+        'rollerType': 'Roller Type',
+        'numberOfPanels': 'Number of Panels',
+        'panelCount': 'Panel Count',
+        'trackSystem': 'Track System',
+        'panelConfiguration': 'Panel Configuration',
+        'transomType': 'Transom Type',
+        'openingDirection': 'Opening Direction',
+        'hingeSide': 'Hinge Side',
+        'configuration': 'Configuration',
+        'layout': 'Layout',
+        'finish': 'Finish',
+        'glassTreatment': 'Glass Treatment',
+        'handleStyle': 'Handle Style',
+        'doorSwing': 'Door Swing',
+        'mounting': 'Mounting',
+        'hardware': 'Hardware'
+    };
+    
+    return commonNames[fieldId] || fieldId.replace(/([A-Z])/g, ' $1').trim();
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    if (text == null) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // Toggle price breakdown visibility
@@ -4072,6 +4456,161 @@ function getKonvaImageData(pixelRatio = 3) {
 let currentDesignImageData = null;
 
 // --- SUMMARY VIEW LOGIC ---
+
+// Update summary price breakdown dynamically
+function updateSummaryPriceBreakdown() {
+    const selectedProduct = getSelectedProduct();
+    if (!selectedProduct) {
+        console.warn('Product data not available for dynamic summary breakdown');
+        return;
+    }
+    
+    const customizationFields = selectedProduct.customizationFields || [];
+    const dynamicSummaryContainer = document.getElementById('dynamic-summary-rows');
+    
+    if (!dynamicSummaryContainer) {
+        console.warn('Dynamic summary container not found');
+        return;
+    }
+    
+    // Clear existing dynamic rows
+    dynamicSummaryContainer.innerHTML = '';
+    
+    // Create field config map
+    const fieldConfigMap = {};
+    if (Array.isArray(customizationFields) && customizationFields.length > 0) {
+        customizationFields.forEach(field => {
+            if (field.id) {
+                fieldConfigMap[field.id] = field;
+            }
+        });
+    }
+    
+    // Get ALL fields from customization configuration, sorted by stepNumber
+    // This ensures we show all fields defined for this product, not just those with prices
+    let sortedFields = [];
+    if (Array.isArray(customizationFields) && customizationFields.length > 0) {
+        sortedFields = customizationFields
+            .filter(field => field.id) // Only include fields with IDs
+            .sort((a, b) => {
+                const stepA = a.stepNumber || a.step || 999;
+                const stepB = b.stepNumber || b.step || 999;
+                if (stepA !== stepB) return stepA - stepB;
+                return customizationFields.indexOf(a) - customizationFields.indexOf(b);
+            });
+    }
+    
+    // Also include any fields in priceBreakdown that might not be in customizationFields
+    // (for backward compatibility with legacy fields)
+    if (priceBreakdown.fieldPrices) {
+        Object.keys(priceBreakdown.fieldPrices).forEach(fieldId => {
+            if (!fieldConfigMap[fieldId]) {
+                // Add as a field object for rendering
+                sortedFields.push({
+                    id: fieldId,
+                    label: getFieldDisplayName(fieldId),
+                    stepNumber: 999 // Put legacy fields at the end
+                });
+            }
+        });
+    }
+    
+    // Render each field from the customization configuration
+    sortedFields.forEach(field => {
+        const fieldId = field.id;
+        if (!fieldId) return;
+        
+        // Get selected value for this field - check multiple sources
+        let selectedValue = getSelectedValueForField(fieldId);
+        
+        // Also check DOM directly for active option cards (most reliable)
+        let optionValueFromDOM = null;
+        const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
+        if (fieldContainer) {
+            const activeCard = fieldContainer.querySelector('.option-card.active');
+            if (activeCard) {
+                optionValueFromDOM = activeCard.dataset.value || activeCard.textContent.trim();
+                if (optionValueFromDOM && !selectedValue) {
+                    selectedValue = optionValueFromDOM;
+                }
+            }
+        }
+        
+        // Get price data if available
+        const fieldData = priceBreakdown.fieldPrices && priceBreakdown.fieldPrices[fieldId];
+        
+        // Determine option name and price
+        let optionName = '';
+        let priceText = '';
+        
+        if (fieldData && fieldData.option) {
+            // Use data from priceBreakdown (has price info)
+            optionName = fieldData.option;
+            if (fieldData.price > 0) {
+                priceText = '+' + formatPrice(fieldData.price);
+            } else if (fieldData.price < 0) {
+                priceText = formatPrice(fieldData.price);
+            } else {
+                if (fieldId === 'glassType' || fieldId === 'thickness') {
+                    priceText = 'Standard';
+                } else {
+                    priceText = 'Included';
+                }
+            }
+        } else if (selectedValue || optionValueFromDOM) {
+            // Field is selected but no price data yet - still show it
+            optionName = selectedValue || optionValueFromDOM;
+            priceText = 'Included'; // Default to included if no price
+            
+            // Try to get price from database if available
+            const product = getSelectedProduct();
+            if (product && product.tagPrices && product.tagPrices[fieldId] && optionName) {
+                const price = product.tagPrices[fieldId][optionName];
+                if (price !== undefined && price !== null) {
+                    const numPrice = parseFloat(price) || 0;
+                    if (numPrice > 0) {
+                        priceText = '+' + formatPrice(numPrice);
+                    } else if (numPrice < 0) {
+                        priceText = formatPrice(numPrice);
+                    }
+                }
+            }
+        } else {
+            // Field is not selected - skip it (only show selected fields)
+            return;
+        }
+        
+        // If we have an option name, render the row
+        if (optionName) {
+            const fieldConfig = fieldConfigMap[fieldId];
+            const displayName = fieldConfig ? (fieldConfig.label || fieldId) : getFieldDisplayName(fieldId);
+            
+            // Format option name - handle various formats
+            optionName = String(optionName).replace(/([A-Z])/g, ' $1').trim();
+            optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1);
+            
+            const row = document.createElement('div');
+            row.className = 'summary-row';
+            row.dataset.fieldId = fieldId;
+            row.innerHTML = `
+                <span class="spec-label">${escapeHtml(displayName)}:</span>
+                <span class="spec-value">
+                    <span>${escapeHtml(optionName)}</span>
+                    <span class="price-addon">${priceText}</span>
+                </span>
+            `;
+            
+            dynamicSummaryContainer.appendChild(row);
+        }
+    });
+    
+    // Update total
+    const totalEl = document.getElementById('sum-total');
+    if (totalEl) {
+        const totalPrice = calculateTotal();
+        totalEl.textContent = formatPrice(totalPrice);
+    }
+}
 
 function showOrderSummary() {
     // Hide testimonials section when finalize order is clicked
@@ -4105,27 +4644,10 @@ function showOrderSummary() {
         designPreviewImg.src = currentDesignImageData;
     }
 
-    // 4. Update Summary Data with price breakdown
-    // Guard: pricingDatabase.prices may be missing (e.g. dynamic/ tagPrices-only products)
-    const fallbackLabel = (val) => ({ label: (val || 'N/A').toString().replace(/-/g, ' '), desc: '-' });
-    const prices = pricingDatabase && pricingDatabase.prices ? pricingDatabase.prices : null;
-    const shapeData = (prices && prices.shapes && prices.shapes[currentShape]) ? prices.shapes[currentShape] : fallbackLabel(currentShape);
-    const typeData = (prices && prices.glassTypes && prices.glassTypes[currentGlassType]) ? prices.glassTypes[currentGlassType] : fallbackLabel(currentGlassType);
-    const thickData = (prices && prices.thickness && prices.thickness[currentThickness]) ? prices.thickness[currentThickness] : fallbackLabel(currentThickness);
-    const frameData = (prices && prices.frames && prices.frames[currentFrameType]) ? prices.frames[currentFrameType] : fallbackLabel(currentFrameType);
-    const edgeData = (prices && prices.edges && prices.edges[currentEdgeWork]) ? prices.edges[currentEdgeWork] : fallbackLabel(currentEdgeWork);
-
-    // Shape
-    const sumShapeEl = document.getElementById('sum-shape');
-    if (sumShapeEl) sumShapeEl.textContent = shapeData.label;
-    const sumShapePrice = document.getElementById('sum-shape-price');
-    if (sumShapePrice) {
-        sumShapePrice.textContent = priceBreakdown.shapeAddon > 0 
-            ? '+' + formatPrice(priceBreakdown.shapeAddon) 
-            : shapeData.desc;
-    }
-
-    // Dimensions
+    // 4. Update Summary Data with dynamic price breakdown
+    updateSummaryPriceBreakdown();
+    
+    // Dimensions (always shown)
     const sumDimEl = document.getElementById('sum-dim');
     if (sumDimEl && currentDimensions) {
         sumDimEl.textContent = `${currentDimensions.width.value}${currentDimensions.width.unit} × ${currentDimensions.height.value}${currentDimensions.height.unit}`;
@@ -4135,55 +4657,21 @@ function showOrderSummary() {
         sumDimPrice.textContent = 'Base: ' + formatPrice(priceBreakdown.baseArea);
     }
 
-    // Glass Type
-    const sumTypeEl = document.getElementById('sum-type');
-    if (sumTypeEl) sumTypeEl.textContent = typeData.label;
-    const sumTypePrice = document.getElementById('sum-type-price');
-    if (sumTypePrice) {
-        sumTypePrice.textContent = priceBreakdown.typeAddon > 0 
-            ? '+' + formatPrice(priceBreakdown.typeAddon)
-            : typeData.desc;
-    }
-
-    // Thickness
-    const sumThickEl = document.getElementById('sum-thick');
-    if (sumThickEl) sumThickEl.textContent = thickData.label;
-    const sumThickPrice = document.getElementById('sum-thick-price');
-    if (sumThickPrice) {
-        if (priceBreakdown.thicknessAddon !== 0) {
-            sumThickPrice.textContent = (priceBreakdown.thicknessAddon > 0 ? '+' : '') + formatPrice(priceBreakdown.thicknessAddon);
-        } else {
-            sumThickPrice.textContent = thickData.desc;
-        }
-    }
-
-    // Edge Work
-    const sumEdgeEl = document.getElementById('sum-edge');
-    if (sumEdgeEl) sumEdgeEl.textContent = edgeData.label;
-    const sumEdgePrice = document.getElementById('sum-edge-price');
-    if (sumEdgePrice) {
-        sumEdgePrice.textContent = priceBreakdown.edgeAddon > 0 
-            ? '+' + formatPrice(priceBreakdown.edgeAddon)
-            : edgeData.desc;
-    }
-
-    // Frame Type
-    const sumFrameEl = document.getElementById('sum-frame');
-    if (sumFrameEl) sumFrameEl.textContent = frameData.label;
-    const sumFramePrice = document.getElementById('sum-frame-price');
-    if (sumFramePrice) {
-        sumFramePrice.textContent = priceBreakdown.frameAddon > 0 
-            ? '+' + formatPrice(priceBreakdown.frameAddon)
-            : frameData.desc;
-    }
-
     // Engraving - Check both custom step-3 and standard wrapper
     let engravingInput = document.querySelector('#step-3 .engraving-section input');
     if (!engravingInput || !engravingInput.value) {
         engravingInput = document.querySelector('#standard-wrapper .engraving-section input');
     }
     const engravingText = engravingInput ? engravingInput.value : '';
-    document.getElementById('sum-engrave').textContent = engravingText || 'None';
+    const engravingRow = document.getElementById('summary-engraving-row');
+    const sumEngraveEl = document.getElementById('sum-engrave');
+    if (engravingText && engravingText.trim()) {
+        if (sumEngraveEl) sumEngraveEl.textContent = engravingText;
+        if (engravingRow) engravingRow.style.display = 'flex';
+    } else {
+        if (sumEngraveEl) sumEngraveEl.textContent = 'None';
+        if (engravingRow) engravingRow.style.display = 'none';
+    }
 
     // 5. Update Total Price
     const totalPrice = calculateTotal();
