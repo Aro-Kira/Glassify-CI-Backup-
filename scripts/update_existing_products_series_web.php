@@ -50,22 +50,35 @@ foreach ($products as $product) {
         continue;
     }
 
-    // Try to infer series from customization data
-    $detectedSeries = null;
+      // Try to infer series from customization data
+      $detectedSeries = null;
 
-    // Check for thickness field which often indicates series
-    if (isset($customization['thickness'])) {
+      // Check for thickness field which often indicates series
+      if (isset($customization['thickness'])) {
         $thickness = $customization['thickness'];
 
         if (is_numeric($thickness)) {
-            $thicknessNum = floatval($thickness);
+          $thicknessNum = floatval($thickness);
 
-            // YC series detection (common in glass industry)
-            if ($thicknessNum >= 3 && $thicknessNum <= 12) {
-                $detectedSeries = 'YC-' . $thicknessNum . 'mm Series';
-            }
+          // YC series detection (common in glass industry)
+          if ($thicknessNum >= 3 && $thicknessNum <= 12) {
+            $detectedSeries = 'YC-' . $thicknessNum . 'mm Series';
+          }
         }
-    }
+      }
+
+      // Additional detection based on other common fields
+      if (!$detectedSeries) {
+        // Check for frame style or other series indicators
+        if (isset($customization['frameColor']) && is_array($customization['frameColor'])) {
+          // If frameColor has multiple options, might indicate a specific series
+          $frameColors = $customization['frameColor'];
+          if (count($frameColors) > 0) {
+            // Could add more sophisticated detection here
+            $detectedSeries = 'Custom Series'; // Fallback for now
+          }
+        }
+      }
 
     // If we detected a series, update the product
     if ($detectedSeries) {
