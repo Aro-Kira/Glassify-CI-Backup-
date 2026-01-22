@@ -227,6 +227,12 @@ class ProductCon extends CI_Controller
         $data['Customization'] = $customization;
     }
 
+    // Add selected customization series if provided
+    $selectedSeries = $this->input->post('selectedCustomizationSeries', true);
+    if ($selectedSeries) {
+        $data['SelectedCustomizationSeries'] = $selectedSeries;
+    }
+
     // Insert product
     if ($this->Product_model->insert_product($data)) {
         $product_id = $this->db->insert_id();
@@ -516,6 +522,12 @@ public function update_product($id)
         // Add customization data if provided (from Customize Build tab)
         if ($customization) {
             $data['Customization'] = $customization;
+        }
+
+        // Add selected customization series if provided
+        $selectedSeries = $this->input->post('selectedCustomizationSeries', true);
+        if ($selectedSeries) {
+            $data['SelectedCustomizationSeries'] = $selectedSeries;
         }
         // Admin can now edit materials (functionality transferred from Inventory Officer)
         // Handle multiple materials from JSON for Admin (optional - can update other fields without materials)
@@ -893,7 +905,7 @@ public function update_product($id)
         if (!empty($product->Customization)) {
             $customization = json_decode($product->Customization, true);
         }
-        
+
         // Ensure empty arrays are returned as objects {} not []
         // This is critical for JavaScript to handle them as objects with string keys
         echo json_encode([
@@ -910,6 +922,7 @@ public function update_product($id)
                 'PriceMax' => $product->PriceMax,
                 'ImageUrl' => $images,
                 'Customization' => $customization,
+                'SelectedCustomizationSeries' => $product->SelectedCustomizationSeries,
                 'tagPrices' => empty($tag_prices) ? new stdClass() : $tag_prices,
                 'tagImages' => empty($tag_images) ? new stdClass() : $tag_images,
                 'tagVisualConfigs' => empty($tag_visual_configs) ? new stdClass() : $tag_visual_configs,

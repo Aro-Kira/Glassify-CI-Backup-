@@ -587,9 +587,8 @@ async function updateWindowsCasementFields() {
     const currentFields = customizationFields[fieldKey];
     let needsUpdate = false;
     
-    // Expected new field IDs (in order): transomType, panelConfiguration, dimensions, frameColor, glassColor, glassType, thickness
-    // Note: dimensions replaces the old width, height, h1 fields
-    const expectedFieldIds = ['transomType', 'panelConfiguration', 'dimensions', 'frameColor', 'glassColor', 'glassType', 'thickness'];
+    // Expected new field IDs (in order): transomType, panelConfiguration, frameColor, glassColor, glassType, thickness
+    const expectedFieldIds = ['transomType', 'panelConfiguration', 'frameColor', 'glassColor', 'glassType', 'thickness'];
     const currentFieldIds = currentFields ? currentFields.map(f => f.id) : [];
     
     // Check if structure matches - must have all expected fields in correct order
@@ -1459,7 +1458,7 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
  * @param {string} category - Selected category
  * @param {string} subcategory - Selected subcategory
  */
-function showManageCustomizationFields(category, subcategory) {
+function showManageCustomizationFields(category, subcategory, productCustomization = {}, storedSeries = null) {
   // Build field key
   let fieldKey;
   if (category === "Windows") {
@@ -1504,9 +1503,9 @@ function showManageCustomizationFields(category, subcategory) {
       <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
         Category: <strong>${category}</strong> | Subcategory: <strong>${subcategory}</strong>
       </p>
-      <p style="color: #d9534f; font-size: 12px; margin-bottom: 15px; padding: 8px; background: #ffe0e0; border-radius: 4px;">
+      <div id="minFieldsWarning" style="color: #d9534f; font-size: 12px; margin-bottom: 15px; padding: 8px; background: #ffe0e0; border-radius: 4px; display: none;">
         <i class="fas fa-info-circle"></i> <strong>Note:</strong> A minimum of 2 fields per step is required.
-      </p>
+      </div>
       
       <!-- Series Selection Mode - Available for ALL categories and subcategories -->
       <div style="margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
@@ -1535,6 +1534,11 @@ function showManageCustomizationFields(category, subcategory) {
         <div id="newSeriesContainer" style="display: none !important; margin-top: 15px;">
           <label for="newSeriesNameInput" style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">New Series Name:</label>
           <input type="text" id="newSeriesNameInput" class="input-text" placeholder="e.g., YC-38 Series" style="width: 100%; padding: 8px;">
+        </div>
+
+        <div id="validationWarning" style="margin-top: 10px; padding: 8px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; font-size: 12px; color: #721c24; display: none;">
+          <i class="fas fa-exclamation-triangle" style="margin-right: 5px;"></i>
+          <strong>Required:</strong> <span id="validationMessage"></span>
         </div>
       </div>
       
@@ -1612,7 +1616,55 @@ function showManageCustomizationFields(category, subcategory) {
       workingSeriesPresets[series] = JSON.parse(JSON.stringify(seriesPresets[series]));
     }
   });
-  
+
+  // Determine which series the product is using based on its customization data
+  let productSelectedSeries = null;
+
+  if (Object.keys(productCustomization).length > 0 && Object.keys(workingSeriesPresets).length > 0) {
+    // Compare product customization data with series presets to find the best match
+    let bestMatchSeries = null;
+    let bestMatchScore = 0;
+
+    Object.keys(workingSeriesPresets).forEach(seriesName => {
+      const seriesPreset = workingSeriesPresets[seriesName];
+      let matchScore = 0;
+      let totalFields = 0;
+
+      // Compare each field in the series preset with the product's customization
+      Object.keys(seriesPreset).forEach(fieldId => {
+        totalFields++;
+        const presetValue = seriesPreset[fieldId];
+        const productValue = productCustomization[fieldId];
+
+        // Check if values match (handle arrays and other types)
+        if (Array.isArray(presetValue) && Array.isArray(productValue)) {
+          // For arrays, check if they have the same elements (order doesn't matter)
+          const presetSorted = JSON.stringify(presetValue.sort());
+          const productSorted = JSON.stringify(productValue.sort());
+          if (presetSorted === productSorted) {
+            matchScore++;
+          }
+        } else if (presetValue === productValue) {
+          matchScore++;
+        }
+      });
+
+      // Calculate match percentage
+      const matchPercentage = totalFields > 0 ? (matchScore / totalFields) : 0;
+
+      // If this series has a better match and at least 50% of fields match, consider it
+      if (matchPercentage > bestMatchScore && matchPercentage >= 0.5) {
+        bestMatchScore = matchPercentage;
+        bestMatchSeries = seriesName;
+      }
+    });
+
+    if (bestMatchSeries) {
+      productSelectedSeries = bestMatchSeries;
+      console.log(`Product uses series "${productSelectedSeries}" (match score: ${(bestMatchScore * 100).toFixed(1)}%)`);
+    }
+  }
+
   // Track dragged item index (shared across all items)
   let draggedIndex = null;
   
@@ -1741,9 +1793,34 @@ function showManageCustomizationFields(category, subcategory) {
     document.addEventListener('keydown', escapeHandler);
   }
   
+  function checkMinimumFieldsRequirement() {
+    const minFieldsWarning = document.getElementById("minFieldsWarning");
+
+    if (!minFieldsWarning) return;
+
+    // Group fields by step number
+    const fieldsByStep = {};
+    workingFields.forEach(field => {
+      const step = field.stepNumber || 1;
+      if (!fieldsByStep[step]) {
+        fieldsByStep[step] = [];
+      }
+      fieldsByStep[step].push(field);
+    });
+
+    // Check if any step has fewer than 2 fields
+    const hasInvalidStep = Object.values(fieldsByStep).some(fields => fields.length < 2);
+
+    // Show/hide warning
+    minFieldsWarning.style.display = hasInvalidStep ? "block" : "none";
+  }
+
   function renderFieldsManager() {
     window.currentWorkingFields = workingFields; // Update global reference
     const container = document.getElementById("fieldsManagerContainer");
+
+    // Check minimum fields per step requirement
+    checkMinimumFieldsRequirement();
     if (!container) return;
     
     container.innerHTML = "";
@@ -2178,6 +2255,16 @@ function showManageCustomizationFields(category, subcategory) {
     option.textContent = series;
     manageSeriesSelect.appendChild(option);
   });
+
+  // If we have a stored series that's not in availableSeries, add it
+  if (storedSeries && !availableSeries.includes(storedSeries) &&
+      !availableSeries.find(s => s.toLowerCase() === storedSeries.toLowerCase())) {
+    const option = document.createElement("option");
+    option.value = storedSeries;
+    option.textContent = storedSeries;
+    manageSeriesSelect.appendChild(option);
+    availableSeries.push(storedSeries); // Add to availableSeries so the selection logic works
+  }
   
   // If no series exist yet, show message but still allow creating new ones
   if (availableSeries.length === 0) {
@@ -2192,27 +2279,52 @@ function showManageCustomizationFields(category, subcategory) {
   let currentMode = null;
   let selectedSeriesName = savedSeries || null; // Initialize with saved series if available (for continuing edits)
   let filteredFields = [];
-  
-  // Restore saved series selection if it exists (so admin can continue editing)
-  // This only applies to "Manage Customization Fields" - allows admin to continue editing a previously saved series
-  if (savedSeries && availableSeries.includes(savedSeries)) {
-    // Set the dropdown to the saved series
-    manageSeriesSelect.value = savedSeries;
-    // Auto-select "Use Existing Series" radio
-    useExistingRadio.checked = true;
-    currentMode = "existing";
-    // Show series selector container
-    seriesSelectorContainer.style.display = "block";
-    newSeriesContainer.style.display = "none";
-    // Show delete button if series is selected
-    const deleteSeriesBtn = document.getElementById("deleteSeriesBtn");
-    if (deleteSeriesBtn) {
-      deleteSeriesBtn.style.display = "block";
+
+  // Determine which series to show: prioritize stored series from product, then current session selection
+  let seriesToShow = storedSeries || selectedCustomizationSeries;
+
+  // Only pre-select a series if it was explicitly stored with this product
+  if (seriesToShow && typeof seriesToShow === 'string' && seriesToShow.trim() !== '') {
+    // Check case-insensitively in case of capitalization differences
+    let matchingSeries = availableSeries.find(s => s.toLowerCase() === seriesToShow.toLowerCase());
+
+    // If not found in available series, add it to the dropdown
+    if (!matchingSeries) {
+      const option = document.createElement("option");
+      option.value = seriesToShow;
+      option.textContent = seriesToShow;
+      manageSeriesSelect.appendChild(option);
+      availableSeries.push(seriesToShow);
+      matchingSeries = seriesToShow;
     }
-    // Show fields for the saved series
-    setTimeout(() => {
-      showFieldsForMode();
-    }, 100);
+
+    if (matchingSeries) {
+      // Set the dropdown to the stored series
+      manageSeriesSelect.value = matchingSeries;
+      // Auto-select "Use Existing Series" radio
+      useExistingRadio.checked = true;
+      currentMode = "existing";
+      selectedSeriesName = matchingSeries; // Update selectedSeriesName
+      // Show series selector container
+      seriesSelectorContainer.style.display = "block";
+      newSeriesContainer.style.display = "none";
+      // Show delete button if series is selected
+      const deleteSeriesBtn = document.getElementById("deleteSeriesBtn");
+      if (deleteSeriesBtn) {
+        deleteSeriesBtn.style.display = "block";
+      }
+      // Show fields for the selected series
+      setTimeout(() => {
+        showFieldsForMode();
+      }, 100);
+    }
+  } else {
+    // No stored series - leave unselected
+    useExistingRadio.checked = false;
+    seriesSelectorContainer.style.display = "none";
+    newSeriesContainer.style.display = "none";
+    fieldsContainer.style.display = "none";
+    fieldActionsContainer.style.display = "none";
   }
   
   // Function to show fields based on mode
@@ -2298,8 +2410,8 @@ function showManageCustomizationFields(category, subcategory) {
       fieldActionsContainer.style.cssText = "display: flex; gap: 10px; margin-top: 15px;";
     };
     
-    // If saved series exists, show fields for it after showFieldsForMode is defined
-    if (savedSeries && availableSeries.includes(savedSeries)) {
+    // If a series is determined (either from product data or saved settings), show fields for it after showFieldsForMode is defined
+    if (seriesToShow && availableSeries.includes(seriesToShow)) {
       setTimeout(() => {
         showFieldsForMode();
       }, 100);
@@ -2313,19 +2425,25 @@ function showManageCustomizationFields(category, subcategory) {
         newSeriesContainer.style.display = "none";
         manageSeriesSelect.disabled = false;
         newSeriesNameInput.value = "";
-        
+
+        // Hide validation warning when user makes a selection
+        const validationWarning = document.getElementById("validationWarning");
+        if (validationWarning) {
+          validationWarning.style.display = "none";
+        }
+
         // Hide delete button until a series is selected
         const deleteSeriesBtn = document.getElementById("deleteSeriesBtn");
         if (deleteSeriesBtn) {
           deleteSeriesBtn.style.display = "none";
         }
-        
+
       // Hide fields until series is selected
       fieldsContainer.style.display = "none";
       fieldActionsContainer.style.display = "none";
     }
   });
-  
+
   // Create New Series handler
   createNewRadio.addEventListener("change", () => {
       if (createNewRadio.checked) {
@@ -2334,7 +2452,13 @@ function showManageCustomizationFields(category, subcategory) {
         manageSeriesSelect.disabled = true;
         manageSeriesSelect.value = "";
         selectedSeriesName = null;
-        
+
+        // Hide validation warning when user makes a selection
+        const validationWarning = document.getElementById("validationWarning");
+        if (validationWarning) {
+          validationWarning.style.display = "none";
+        }
+
         // Hide delete button when creating new series
         if (deleteSeriesBtn) {
           deleteSeriesBtn.style.display = "none";
@@ -2351,11 +2475,21 @@ function showManageCustomizationFields(category, subcategory) {
   
   // Show/hide new series input based on value
   newSeriesNameInput.addEventListener("input", () => {
-      if (newSeriesNameInput.value.trim()) {
+      const seriesName = newSeriesNameInput.value.trim();
+      // Update global variable for product save
+      selectedCustomizationSeries = seriesName || null;
+
+      // Hide validation warning when user types
+      const validationWarning = document.getElementById("validationWarning");
+      if (validationWarning) {
+        validationWarning.style.display = "none";
+      }
+
+      if (seriesName) {
         newSeriesContainer.style.display = "block";
       } else {
-      newSeriesContainer.style.display = "none";
-    }
+        newSeriesContainer.style.display = "none";
+      }
   });
   
   // Also check on focus - show the container when user starts typing
@@ -2375,12 +2509,27 @@ function showManageCustomizationFields(category, subcategory) {
     if (newSeriesContainer && !newSeriesNameInput.value.trim()) {
       newSeriesContainer.style.display = "none";
     }
+
+    // Hide validation warning on modal open
+    const validationWarning = document.getElementById("validationWarning");
+    if (validationWarning) {
+      validationWarning.style.display = "none";
+    }
   }, 100);
   
   // Series selection handler
   const deleteSeriesBtn = document.getElementById("deleteSeriesBtn");
   manageSeriesSelect.addEventListener("change", () => {
       selectedSeriesName = manageSeriesSelect.value;
+      // Update global variable for product save
+      selectedCustomizationSeries = selectedSeriesName;
+
+      // Hide validation warning when user makes a selection
+      const validationWarning = document.getElementById("validationWarning");
+      if (validationWarning) {
+        validationWarning.style.display = "none";
+      }
+
       if (selectedSeriesName) {
         // Show delete button when a series is selected
         if (deleteSeriesBtn) {
@@ -2534,11 +2683,53 @@ function showManageCustomizationFields(category, subcategory) {
   // Save button
   document.getElementById("saveCustomizationFieldsBtn").onclick = async () => {
     try {
+      // Validation: Check if series is properly configured
+      const useExistingRadio = document.getElementById("useExistingSeries");
+      const createNewRadio = document.getElementById("createNewSeries");
+      const manageSeriesSelect = document.getElementById("manageSeriesSelect");
+      const newSeriesNameInput = document.getElementById("newSeriesNameInput");
+
+      let hasValidSeriesSelection = false;
+
+      if (useExistingRadio && useExistingRadio.checked) {
+        // Check if existing series is selected
+        if (manageSeriesSelect && manageSeriesSelect.value) {
+          hasValidSeriesSelection = true;
+        }
+      } else if (createNewRadio && createNewRadio.checked) {
+        // Check if new series name is provided
+        if (newSeriesNameInput && newSeriesNameInput.value.trim()) {
+          hasValidSeriesSelection = true;
+        }
+      }
+
+      if (!hasValidSeriesSelection) {
+        const validationWarning = document.getElementById("validationWarning");
+        const validationMessage = document.getElementById("validationMessage");
+
+        if (useExistingRadio && useExistingRadio.checked) {
+          validationMessage.textContent = "Please select an existing series from the dropdown.";
+        } else if (createNewRadio && createNewRadio.checked) {
+          validationMessage.textContent = "Please enter a name for the new series.";
+        } else {
+          validationMessage.textContent = "Please select 'Use Existing Series' or 'Create New Series'.";
+        }
+
+        if (validationWarning) {
+          validationWarning.style.display = "block";
+        }
+        return;
+      } else {
+        // Hide validation warning if series selection becomes valid
+        const validationWarning = document.getElementById("validationWarning");
+        if (validationWarning) {
+          validationWarning.style.display = "none";
+        }
+      }
       // Save series presets if creating new series
       // Available for ALL categories and subcategories
       // Series are segregated by subcategory: Series_Presets[subcategory][seriesName]
-      const createNewRadio = document.getElementById("createNewSeries");
-      const newSeriesNameInput = document.getElementById("newSeriesNameInput");
+      // createNewRadio and newSeriesNameInput already declared above for validation
       
       if (createNewRadio && createNewRadio.checked && newSeriesNameInput && newSeriesNameInput.value.trim()) {
         const newSeriesName = newSeriesNameInput.value.trim();
@@ -2612,18 +2803,16 @@ function showManageCustomizationFields(category, subcategory) {
       
       // Save the selected series for this subcategory
       const savedSeriesKey = `${fieldKey}_selectedSeries`;
-      const manageSeriesSelectForSave = document.getElementById("manageSeriesSelect");
-      const createNewRadioForSave = document.getElementById("createNewSeries");
-      const newSeriesNameInputForSave = document.getElementById("newSeriesNameInput");
-      
+
+      // Use the variables already declared above for validation
       // Determine which series was selected/created
       let selectedSeriesToSave = null;
-      if (createNewRadioForSave && createNewRadioForSave.checked && newSeriesNameInputForSave && newSeriesNameInputForSave.value.trim()) {
+      if (createNewRadio && createNewRadio.checked && newSeriesNameInput && newSeriesNameInput.value.trim()) {
         // New series was created
-        selectedSeriesToSave = newSeriesNameInputForSave.value.trim();
-      } else if (manageSeriesSelectForSave && manageSeriesSelectForSave.value) {
+        selectedSeriesToSave = newSeriesNameInput.value.trim();
+      } else if (manageSeriesSelect && manageSeriesSelect.value) {
         // Existing series was selected
-        selectedSeriesToSave = manageSeriesSelectForSave.value;
+        selectedSeriesToSave = manageSeriesSelect.value;
       }
       
       // Save the selected series
@@ -2764,7 +2953,6 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
           <option value="tags" ${existingField?.type === 'tags' ? 'selected' : ''}>Tags (Multiple Selection)</option>
           <option value="checkbox" ${existingField?.type === 'checkbox' ? 'selected' : ''}>Checkbox (Yes/No)</option>
           <option value="number" ${existingField?.type === 'number' ? 'selected' : ''}>Number Input</option>
-          <option value="dimensions" ${existingField?.type === 'dimensions' ? 'selected' : ''}>Dimensions (Width, Height, h1)</option>
           <option value="color" ${existingField?.type === 'color' ? 'selected' : ''}>Color Picker</option>
         </select>
       </div>
@@ -2815,19 +3003,6 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
         fieldOptionsGroup.style.display = fieldType === "tags" ? "block" : "none";
         fieldNumberGroup.style.display = fieldType === "number" ? "block" : "none";
         
-        // For dimensions type, show info message
-        if (fieldType === "dimensions") {
-          if (!document.getElementById("dimensionsInfo")) {
-            const infoDiv = document.createElement("div");
-            infoDiv.id = "dimensionsInfo";
-            infoDiv.style.cssText = "margin-top: 10px; padding: 10px; background: #e8f4f8; border-radius: 4px; color: #005b82; font-size: 12px;";
-            infoDiv.innerHTML = '<i class="fas fa-info-circle"></i> Dimensions field will display Width, Height, and h1 (conditional) input fields to customers in one row.';
-            fieldTypeSelect.parentElement.appendChild(infoDiv);
-          }
-        } else {
-          const infoDiv = document.getElementById("dimensionsInfo");
-          if (infoDiv) infoDiv.remove();
-        }
       });
       
       // Trigger change event to show/hide appropriate fields on load
@@ -3170,115 +3345,6 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
         });
         break;
         
-      case "dimensions":
-        // Dimensions field - renders Width, Height, and h1 in one row
-        const dimensionsContainer = document.createElement("div");
-        dimensionsContainer.className = "dimensions-container";
-        dimensionsContainer.style.cssText = "display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;";
-        
-        // Width input
-        const widthGroup = document.createElement("div");
-        widthGroup.style.cssText = "flex: 1; min-width: 120px;";
-        const widthLabel = document.createElement("label");
-        widthLabel.textContent = "Width";
-        widthLabel.setAttribute("for", `${prefix}width`);
-        widthLabel.style.cssText = "display: block; margin-bottom: 6px; font-size: 13px; color: #333;";
-        const widthInput = document.createElement("input");
-        widthInput.type = "number";
-        widthInput.id = `${prefix}width`;
-        widthInput.name = "width";
-        widthInput.className = "input-text";
-        widthInput.min = 0;
-        widthInput.step = 0.1;
-        widthInput.placeholder = "0";
-        widthGroup.appendChild(widthLabel);
-        widthGroup.appendChild(widthInput);
-        
-        // Height input
-        const heightGroup = document.createElement("div");
-        heightGroup.style.cssText = "flex: 1; min-width: 120px;";
-        const heightLabel = document.createElement("label");
-        heightLabel.textContent = "Height";
-        heightLabel.setAttribute("for", `${prefix}height`);
-        heightLabel.style.cssText = "display: block; margin-bottom: 6px; font-size: 13px; color: #333;";
-        const heightInput = document.createElement("input");
-        heightInput.type = "number";
-        heightInput.id = `${prefix}height`;
-        heightInput.name = "height";
-        heightInput.className = "input-text";
-        heightInput.min = 0;
-        heightInput.step = 0.1;
-        heightInput.placeholder = "0";
-        heightGroup.appendChild(heightLabel);
-        heightGroup.appendChild(heightInput);
-        
-        dimensionsContainer.appendChild(widthGroup);
-        dimensionsContainer.appendChild(heightGroup);
-        
-        // h1 input (conditional)
-        if (field.h1Conditional && field.h1Conditional.dependsOn) {
-          const h1Group = document.createElement("div");
-          h1Group.id = `${prefix}h1Group`;
-          h1Group.className = "h1-dimension-group";
-          h1Group.style.cssText = "flex: 1; min-width: 120px; display: none;"; // Hidden by default
-          const h1Label = document.createElement("label");
-          h1Label.textContent = "h1";
-          h1Label.setAttribute("for", `${prefix}h1`);
-          h1Label.style.cssText = "display: block; margin-bottom: 6px; font-size: 13px; color: #333;";
-          const h1Input = document.createElement("input");
-          h1Input.type = "number";
-          h1Input.id = `${prefix}h1`;
-          h1Input.name = "h1";
-          h1Input.className = "input-text";
-          h1Input.min = 0;
-          h1Input.step = 0.1;
-          h1Input.placeholder = "0";
-          h1Group.appendChild(h1Label);
-          h1Group.appendChild(h1Input);
-          dimensionsContainer.appendChild(h1Group);
-          
-          // Add event listener to show/hide h1 based on dependency
-          const dependsOnField = field.h1Conditional.dependsOn;
-          const showWhen = field.h1Conditional.showWhen || [];
-          
-          // Function to check if h1 should be shown
-          const checkH1Visibility = () => {
-            const dependsOnInput = document.getElementById(`${prefix}${dependsOnField}`);
-            if (!dependsOnInput) return;
-            
-            let shouldShow = false;
-            if (dependsOnInput.type === "hidden") {
-              // It's a tags field
-              const selectedValues = JSON.parse(dependsOnInput.value || "[]");
-              shouldShow = showWhen.some(val => selectedValues.includes(val));
-            } else {
-              // It's a regular input
-              const value = dependsOnInput.value;
-              shouldShow = showWhen.includes(value);
-            }
-            
-            h1Group.style.display = shouldShow ? "block" : "none";
-          };
-          
-          // Check on page load
-          setTimeout(checkH1Visibility, 100);
-          
-          // Check when dependency changes
-          const dependsOnInput = document.getElementById(`${prefix}${dependsOnField}`);
-          if (dependsOnInput) {
-            if (dependsOnInput.type === "hidden") {
-              // For tags, listen to changes in the hidden input
-              dependsOnInput.addEventListener("change", checkH1Visibility);
-            } else {
-              dependsOnInput.addEventListener("change", checkH1Visibility);
-              dependsOnInput.addEventListener("input", checkH1Visibility);
-            }
-          }
-        }
-        
-        formGroup.appendChild(dimensionsContainer);
-        container.appendChild(formGroup);
-        break;
     }
     
     // Append input/elements based on field type
@@ -3289,9 +3355,6 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
       // For checkbox, input is already before label
       formGroup.appendChild(label);
       container.appendChild(formGroup);
-    } else if (field.type === "dimensions") {
-      // Dimensions are already appended in the case above
-      // formGroup is already appended to container at line 3201
     } else {
       // For other types (color, number), append the input
       if (input) {
@@ -5209,6 +5272,9 @@ function populateCustomizationFields(prefix = "", data = {}) {
 // -------------------- STANDARD SERIES MANAGEMENT --------------------
 let standardSeries = []; // Store series with measurements: [{ id, name, measurements: [{ id, width, height, price }] }]
 
+// Track selected series for product customization (from Manage Customization Fields modal)
+let selectedCustomizationSeries = null;
+
 /**
  * Add a new series
  */
@@ -5469,7 +5535,7 @@ function addDirectOrderOptionToSeries(seriesId) {
     const manageFieldsBtn = modal.querySelector("#directOrderOptionManageFieldsBtn");
     if (manageFieldsBtn) {
       manageFieldsBtn.addEventListener("click", () => {
-        showManageCustomizationFields(category, subcategory);
+        showManageCustomizationFields(category, subcategory, {}, null);
       });
     }
   }
@@ -5808,7 +5874,7 @@ function editMeasurement(seriesId, measurementId) {
     const manageFieldsBtn = modal.querySelector("#editDirectOrderOptionManageFieldsBtn");
     if (manageFieldsBtn) {
       manageFieldsBtn.addEventListener("click", () => {
-        showManageCustomizationFields(category, subcategory);
+        showManageCustomizationFields(category, subcategory, {}, null);
       });
     }
   }
@@ -6275,7 +6341,7 @@ function setupProductPopups() {
     const selectedCategory = addCategorySelect ? addCategorySelect.value : "";
     const selectedSubcategory = addSubcategorySelect ? addSubcategorySelect.value : "";
     if (selectedCategory && selectedSubcategory) {
-      showManageCustomizationFields(selectedCategory, selectedSubcategory);
+      showManageCustomizationFields(selectedCategory, selectedSubcategory, {}, null);
     }
   });
   
@@ -6318,7 +6384,10 @@ function setupProductPopups() {
     const selectedCategory = editCategorySelect ? editCategorySelect.value : "";
     const selectedSubcategory = editSubcategorySelect ? editSubcategorySelect.value : "";
     if (selectedCategory && selectedSubcategory) {
-      showManageCustomizationFields(selectedCategory, selectedSubcategory);
+      // Pass current product's stored series and customization data
+      const productCustomization = window.currentEditingProduct?.Customization || {};
+      const storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+      showManageCustomizationFields(selectedCategory, selectedSubcategory, productCustomization, storedSeries);
     }
   });
   
@@ -6328,7 +6397,10 @@ function setupProductPopups() {
     const selectedCategory = editCategorySelect ? editCategorySelect.value : "";
     const selectedSubcategory = editSubcategorySelect ? editSubcategorySelect.value : "";
     if (selectedCategory && selectedSubcategory) {
-      showManageCustomizationFields(selectedCategory, selectedSubcategory);
+      // Pass current product's stored series and customization data
+      const productCustomization = window.currentEditingProduct?.Customization || {};
+      const storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+      showManageCustomizationFields(selectedCategory, selectedSubcategory, productCustomization, storedSeries);
     }
   });
 
@@ -6468,7 +6540,10 @@ function setupProductPopups() {
       if (addSubcategorySelect) addSubcategorySelect.value = "";
       if (addSubcategoryGroup) addSubcategoryGroup.style.display = "none";
       if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
-      
+
+      // Clear selected customization series (forgotten when popup is cancelled)
+      selectedCustomizationSeries = null;
+
       const manageGroup = document.getElementById("manageCustomizationGroup");
       const seriesGroup = document.getElementById("seriesGroup");
       const seriesSelect = document.getElementById("productSeries");
@@ -6604,7 +6679,7 @@ function setupProductPopups() {
     // Collect data from BOTH tabs:
     // 1. Customize Build tab - customization fields (tags, checkboxes, numbers, etc.)
     const customizationData = collectCustomizationData("");
-    
+
     // 2. Standard tab - standard series with measurements
     // (standardSeries is already stored in global variable)
 
@@ -6616,9 +6691,16 @@ function setupProductPopups() {
     formData.append("orderType", orderType);
     formData.append("priceMin", priceMin);
     formData.append("priceMax", priceMax);
-    
+
     // Save Customize Build data (customization fields)
     formData.append("customization", JSON.stringify(customizationData));
+    // Save selected customization series
+    if (selectedCustomizationSeries) {
+      formData.append("selectedCustomizationSeries", selectedCustomizationSeries);
+      console.log("Add Product: Saving selected customization series:", selectedCustomizationSeries);
+    } else {
+      console.log("Add Product: No selected customization series to save");
+    }
     // Save tag prices (from Customize Build)
     formData.append("tagPrices", JSON.stringify(tagPrices));
     
@@ -6691,6 +6773,8 @@ function setupProductPopups() {
         if (data.status === "success") {
           // Product was saved successfully, discard the backup
           customizationFieldsBackup = null;
+          // Clear selected series after successful save
+          selectedCustomizationSeries = null;
           showToast("Product saved successfully!", 'success');
           setTimeout(() => {
             location.reload();
@@ -6899,6 +6983,11 @@ function populateEditForm(product) {
                     // Show subcategory group
                     if (editSubcategoryGroup) editSubcategoryGroup.style.display = "block";
                     
+                    // Generate customization fields first, then handle series selection
+                    if (editCustomizationContainer) {
+                      generateCustomizationFields(product.Subcategory, editCustomizationContainer, "edit", actualCategory);
+                    }
+
                     // Show Series dropdown for Windows subcategories
                     const editSeriesGroup = document.getElementById("editSeriesGroup");
                     const editSeriesSelect = document.getElementById("editProductSeries");
@@ -6906,16 +6995,36 @@ function populateEditForm(product) {
                       editSeriesGroup.style.display = "block";
                       // Populate series options based on selected subcategory
                       populateSeriesOptions(product.Subcategory, editSeriesSelect);
-                      // Try to get series from customization fields if available
-                      // For now, set to None - can be enhanced later to read from saved data
-                      editSeriesSelect.value = "";
+
+                      // Set series selection after customization fields are loaded
+                      const setEditSeriesSelection = () => {
+                        const fieldKey = `Windows_${product.Subcategory}`;
+                        const savedSeriesKey = `${fieldKey}_selectedSeries`;
+                        const savedSeries = customizationFields[savedSeriesKey];
+
+                        if (savedSeries) {
+                          // Set the series value
+                          editSeriesSelect.value = savedSeries;
+                          console.log(`[Edit Product] Series loaded: ${savedSeries} for ${fieldKey}`);
+                        } else {
+                          // If no series saved, try again in a moment (fields might still be loading)
+                          setTimeout(() => {
+                            const retrySeries = customizationFields[savedSeriesKey];
+                            if (retrySeries) {
+                              editSeriesSelect.value = retrySeries;
+                              console.log(`[Edit Product] Series loaded on retry: ${retrySeries} for ${fieldKey}`);
+                            } else {
+                              editSeriesSelect.value = "";
+                              console.warn(`[Edit Product] No series found for ${fieldKey} even after retry`);
+                            }
+                          }, 1000);
+                        }
+                      };
+
+                      // Try immediately, then retry after a delay to ensure customization fields are loaded
+                      setTimeout(setEditSeriesSelection, 100);
                     } else if (editSeriesGroup) {
                       editSeriesGroup.style.display = "none";
-                    }
-                    
-                    // Generate customization fields
-                    if (editCustomizationContainer) {
-                      generateCustomizationFields(product.Subcategory, editCustomizationContainer, "edit", actualCategory);
                     }
                     
                     // Show manage customization button for Customize Build tab
@@ -7435,7 +7544,10 @@ function setupEditPopupHandlers() {
         }
         
         if (selectedCategory && selectedSubcategory) {
-          showManageCustomizationFields(selectedCategory, selectedSubcategory);
+          // Pass current product's stored series and customization data
+          const productCustomization = window.currentEditingProduct?.Customization || {};
+          const storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+          showManageCustomizationFields(selectedCategory, selectedSubcategory, productCustomization, storedSeries);
         } else {
           showToast("Please ensure category and subcategory are set.", 'error');
         }
@@ -7474,7 +7586,10 @@ function setupEditPopupHandlers() {
     }
     
     if (selectedCategory && selectedSubcategory) {
-      showManageCustomizationFields(selectedCategory, selectedSubcategory);
+      // Pass current product's stored series and customization data
+      const productCustomization = window.currentEditingProduct?.Customization || {};
+      const storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+      showManageCustomizationFields(selectedCategory, selectedSubcategory, productCustomization, storedSeries);
     } else {
       showToast("Please ensure category and subcategory are set.", 'error');
     }
@@ -7641,7 +7756,7 @@ function setupEditPopupHandlers() {
     // Collect data from BOTH tabs:
     // 1. Customize Build tab - customization fields (tags, checkboxes, numbers, etc.)
     const customizationData = collectCustomizationData("edit");
-    
+
     // 2. Standard tab - standard series with measurements
     // (standardSeries is already stored in global variable)
 
@@ -7654,9 +7769,16 @@ function setupEditPopupHandlers() {
     formData.append("orderType", orderType);
     formData.append("priceMin", priceMin);
     formData.append("priceMax", priceMax);
-    
+
     // Save Customize Build data (customization fields)
     formData.append("customization", JSON.stringify(customizationData));
+    // Save selected customization series
+    if (selectedCustomizationSeries) {
+      formData.append("selectedCustomizationSeries", selectedCustomizationSeries);
+      console.log("Edit Product: Saving selected customization series:", selectedCustomizationSeries);
+    } else {
+      console.log("Edit Product: No selected customization series to save");
+    }
     // Save tag prices (from Customize Build)
     formData.append("tagPrices", JSON.stringify(tagPrices));
     
@@ -7716,6 +7838,8 @@ function setupEditPopupHandlers() {
       .then(res => res.json())
       .then(data => {
         if (data.status === "updated") {
+          // Clear selected series after successful save
+          selectedCustomizationSeries = null;
           showToast("Product updated successfully!", 'success');
           setTimeout(() => location.reload(), 1000);
         } else {

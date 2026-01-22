@@ -477,19 +477,21 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
       // EXACT SAME LOGIC AS 2d_customization.js
       // Find the section (fieldGroup) - matches pattern: this.closest('.type-section')
       const section = this.closest('.type-section, .thickness-section, .edge-section, .frame-section, .field-section, div[class$="-section"]');
-      
+
       if (section) {
         // Remove active from all siblings in this section (EXACT pattern from 2d_customization.js)
         section.querySelectorAll('.option-card').forEach(sib => sib.classList.remove('active'));
         // Add active to clicked card
         this.classList.add('active');
       }
-      
+
       // Update selected value in global object
       selectedCustomizationValues[field.id] = option;
       if (typeof window !== 'undefined') {
         window.selectedCustomizationValues = selectedCustomizationValues;
       }
+
+      console.log(`Tag clicked: field="${field.id}", option="${option}"`);
       
       // Update price if needed
       if (tagPrices && tagPrices[field.id]) {
@@ -511,6 +513,7 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
       }
       
       // Update visualization
+      console.log(`Updating Konva visualization: field="${field.id}", option="${option}"`);
       updateKonvaFromField(field.id, option, true);
       
       // If shape field changed, check corner radius visibility immediately
@@ -2098,6 +2101,8 @@ function getFieldGroupClass(type, fieldId) {
  * Updates Konva visualization based on field changes
  */
 function updateKonvaFromField(fieldId, value, isActive) {
+  console.log(`updateKonvaFromField called: fieldId="${fieldId}", value="${value}", isActive=${isActive}`);
+
   // Map field IDs to Konva parameters
   const fieldMapping = {
     'glassType': 'glassType',

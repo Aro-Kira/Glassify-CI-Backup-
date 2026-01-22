@@ -305,5 +305,14 @@ SET FOREIGN_KEY_CHECKS=1;
 -- WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order' AND COLUMN_NAME = 'Status';
 
 -- ============================================================================
+-- 4. ADD SelectedCustomizationSeries COLUMN TO PRODUCT TABLE
+-- ============================================================================
+-- Purpose: Store the series selected in Manage Customization Fields for each product
+-- Added: 2026-01-23
+
+ALTER TABLE `product`
+ADD COLUMN `SelectedCustomizationSeries` VARCHAR(255) DEFAULT NULL COMMENT 'Series selected in Manage Customization Fields modal' AFTER `Customization`;
+
+-- ============================================================================
 -- END
 -- ============================================================================
