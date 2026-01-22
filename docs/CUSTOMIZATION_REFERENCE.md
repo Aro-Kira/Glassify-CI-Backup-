@@ -56,7 +56,7 @@ This reference lists every main category, its supported subcategories, and the d
 | Step 2 (2) | Frame Color | `tags` | Hanalok \| Black \| White \| Gray \| Wood Finish |
 | Step 2 (2) | Glass Color | `tags` | Clear \| Bronze \| Frosted/Smoked |
 | Step 2 (2) | Glass Type | `tags` | Ordinary \| Tempered \| Reflective |
-| Step 2 (2) | Thickness | `tags` | 6mm \| 8mm |
+| Step 2 (2) | Thickness | `tags` | 6mm \| 8mm \| 10mm \| 12mm |
 
 **Notes:**
 - Thickness options vary by series: 38 Series (6mm), 50 Series (6mm-8mm), 60/85/75 Series (6mm, 8mm, 10mm, 12mm)

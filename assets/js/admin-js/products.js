@@ -720,7 +720,12 @@ async function loadCustomizationFields() {
   }
 
   // 2) localStorage cache (fill missing only; never override DB)
-  const saved = localStorage.getItem(CUSTOMIZATION_FIELDS_STORAGE_KEY);
+  let saved = null;
+  try {
+    saved = localStorage.getItem(CUSTOMIZATION_FIELDS_STORAGE_KEY);
+  } catch (e) {
+    console.warn('localStorage access blocked by browser (Tracking Prevention):', e.message);
+  }
   if (saved) {
     try {
       const savedFields = JSON.parse(saved);
@@ -2652,7 +2657,11 @@ function showManageCustomizationFields(category, subcategory) {
       });
       
       // Save to localStorage first
-      localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
+      try {
+        localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
+      } catch (e) {
+        console.warn('localStorage access blocked by browser (Tracking Prevention):', e.message);
+      }
       
       // Save to database and wait for completion
       const saveSuccess = await saveCustomizationFieldsToDatabase(fieldKey, workingFields, category, subcategory);
@@ -3649,7 +3658,11 @@ function saveSelectedTagsAsDefaults(prefix) {
     if (Object.keys(selectedTags).length > 0) {
       customizationFields[selectedTagsKey] = selectedTags;
       // Save to localStorage
-      localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
+      try {
+        localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
+      } catch (e) {
+        console.warn('localStorage access blocked by browser (Tracking Prevention):', e.message);
+      }
     }
   } catch (e) {
     console.error('Error saving selected tags as defaults:', e);
@@ -6512,7 +6525,11 @@ function setupProductPopups() {
         customizationFields = JSON.parse(JSON.stringify(customizationFieldsBackup));
         
         // Update localStorage to reflect the restored state
-        localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
+        try {
+          localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
+        } catch (e) {
+          console.warn('localStorage access blocked by browser (Tracking Prevention):', e.message);
+        }
         // Clear the backup
         customizationFieldsBackup = null;
         console.log('Restored customizationFields from backup because Add New Product popup was closed without saving. No selections were saved.');

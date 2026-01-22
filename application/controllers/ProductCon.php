@@ -18,7 +18,10 @@ class ProductCon extends CI_Controller
 
     // ---------------- ADD PRODUCT ----------------
     public function add_product()
-{
+    {
+        // Set JSON header for all responses from this method
+        header('Content-Type: application/json');
+
     $this->load->library('upload');
 
     // Create folder if it doesn't exist
@@ -359,7 +362,9 @@ class ProductCon extends CI_Controller
             // The fields are managed via the "Manage Customization Fields" modal and saved via API
             // So we don't need to save them here - they're already in the database
         }
-        
+
+        // Set proper JSON header
+        header('Content-Type: application/json');
         echo json_encode(['status' => 'success']);
     } else {
         echo json_encode(['status' => 'error']);
