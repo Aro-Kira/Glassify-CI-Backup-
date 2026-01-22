@@ -2244,8 +2244,16 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
     // Set the series selection with a small delay to ensure DOM is ready
     setTimeout(() => {
       if (matchingSeries) {
+        console.log(`Setting series: ${matchingSeries}`);
+        console.log(`Dropdown element:`, manageSeriesSelect);
+        console.log(`Current options:`, manageSeriesSelect ? Array.from(manageSeriesSelect.options).map(o => o.value) : 'no options');
+
         // Set the dropdown to the series
         manageSeriesSelect.value = matchingSeries;
+        console.log(`Dropdown value set to: ${manageSeriesSelect.value}`);
+
+        // Trigger change event to ensure UI updates
+        manageSeriesSelect.dispatchEvent(new Event('change', { bubbles: true }));
 
         // Auto-select "Use Existing Series" radio
         useExistingRadio.checked = true;
@@ -2760,9 +2768,12 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
       if (selectedSeriesToSave) {
         customizationFields[savedSeriesKey] = selectedSeriesToSave;
         console.log('Saved selected series for', fieldKey, ':', selectedSeriesToSave);
+        // Set global variable to persist selection for add new product
+        selectedCustomizationSeries = selectedSeriesToSave;
       } else {
         // Clear saved series if none selected
         delete customizationFields[savedSeriesKey];
+        selectedCustomizationSeries = null;
       }
       
       // Save series presets (including deletions) for ALL subcategories
@@ -6633,38 +6644,12 @@ function setupProductPopups() {
       
       // Restore customizationFields from backup if popup is closed without saving
       // This reverts any changes made in "Manage Customization Fields" that weren't saved in "Add New Product"
-      // The saved series will remain for "Manage Customization Fields" but won't auto-apply in "Add New Product" next time
+      // The saved series and fields will be completely removed - admin will need to select/make a new one for future add product sessions
       if (customizationFieldsBackup !== null) {
-        // Get the current category and subcategory
-        const currentCategory = addCategorySelect ? addCategorySelect.value : "";
-        const currentSubcategory = addSubcategorySelect ? addSubcategorySelect.value : "";
-        
-        // Build field key
-        let fieldKey = null;
-        if (currentCategory && currentSubcategory) {
-          if (currentCategory === "Windows") {
-            fieldKey = `Windows_${currentSubcategory}`;
-          } else if (currentCategory === "Doors") {
-            fieldKey = `Doors_${currentSubcategory}`;
-          } else if (currentCategory === "Glass Partitions & Enclosures") {
-            fieldKey = `Partitions_${currentSubcategory}`;
-          } else if (currentCategory === "Mirrors & Specialty Glass") {
-            fieldKey = `Specialty_${currentSubcategory}`;
-          } else if (currentCategory === "Commercial & Exterior") {
-            fieldKey = `Commercial_${currentSubcategory}`;
-          } else {
-            fieldKey = currentSubcategory;
-          }
-        }
-        
-        // Preserve the saved series from backup (for "Manage Customization Fields")
-        const savedSeriesKey = fieldKey ? `${fieldKey}_selectedSeries` : null;
-        const preservedSeries = savedSeriesKey && customizationFieldsBackup[savedSeriesKey] ? customizationFieldsBackup[savedSeriesKey] : null;
-        
         // Restore all customizationFields to the state before opening the popup
         // This ensures no selections made in Add New Product are saved if popup is closed without saving
         customizationFields = JSON.parse(JSON.stringify(customizationFieldsBackup));
-        
+
         // Update localStorage to reflect the restored state
         try {
           localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
@@ -6673,7 +6658,7 @@ function setupProductPopups() {
         }
         // Clear the backup
         customizationFieldsBackup = null;
-        console.log('Restored customizationFields from backup because Add New Product popup was closed without saving. No selections were saved.');
+        console.log('Restored customizationFields from backup because Add New Product popup was closed without saving. All selections were removed.');
       }
     })
   );
@@ -6863,7 +6848,10 @@ function setupProductPopups() {
 function populateEditForm(product) {
   // Store product data globally for access by manage customization button
   window.currentEditingProduct = product;
-  
+
+  // Set global selectedCustomizationSeries for Manage Customization Fields
+  selectedCustomizationSeries = product?.SelectedCustomizationSeries || null;
+
   // Clear previous data
   clearImages('edit');
   tagPrices = {};
@@ -7585,6 +7573,8 @@ function setupEditPopupHandlers() {
           // Pass current product's stored series and customization data
           const productCustomization = window.currentEditingProduct?.Customization || {};
           const storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
+          // Set global variable for series selection in Manage Customization Fields
+          selectedCustomizationSeries = storedSeries;
           showManageCustomizationFields(selectedCategory, selectedSubcategory, productCustomization, storedSeries);
         } else {
           showToast("Please ensure category and subcategory are set.", 'error');
