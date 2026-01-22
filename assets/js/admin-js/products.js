@@ -1460,11 +1460,6 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
  * @param {string} subcategory - Selected subcategory
  */
 function showManageCustomizationFields(category, subcategory, productCustomization = {}, storedSeries = null) {
-  console.log("=== MODAL OPENED ===");
-  console.log("Category:", category);
-  console.log("Subcategory:", subcategory);
-  console.log("Stored series passed:", storedSeries);
-  console.log("Product customization:", productCustomization);
   // Build field key
   let fieldKey;
   if (category === "Windows") {
@@ -2231,12 +2226,6 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
   // Determine which series to show: prioritize stored series from product, then current session selection
   let seriesToShow = storedSeries || selectedCustomizationSeries;
 
-  console.log("=== SERIES SELECTION DEBUG ===");
-  console.log("storedSeries:", storedSeries);
-  console.log("selectedCustomizationSeries:", selectedCustomizationSeries);
-  console.log("seriesToShow:", seriesToShow);
-  console.log("availableSeries:", availableSeries);
-
   // Only pre-select a series if it was explicitly stored with this product or from current session
   if (seriesToShow && typeof seriesToShow === 'string' && seriesToShow.trim() !== '') {
     // Check case-insensitively in case of capitalization differences
@@ -2255,17 +2244,8 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
     // Set the series selection with a small delay to ensure DOM is ready
     setTimeout(() => {
       if (matchingSeries) {
-        console.log(`✅ Setting dropdown value to: ${matchingSeries}`);
-        console.log(`manageSeriesSelect exists:`, !!manageSeriesSelect);
-        if (manageSeriesSelect) {
-          console.log(`manageSeriesSelect options count:`, manageSeriesSelect.options.length);
-          Array.from(manageSeriesSelect.options).forEach((opt, i) => {
-            console.log(`Option ${i}: value="${opt.value}" text="${opt.text}"`);
-          });
-        }
         // Set the dropdown to the series
         manageSeriesSelect.value = matchingSeries;
-        console.log(`Dropdown value after setting: ${manageSeriesSelect.value}`);
 
         // Auto-select "Use Existing Series" radio
         useExistingRadio.checked = true;
@@ -6883,11 +6863,6 @@ function setupProductPopups() {
 function populateEditForm(product) {
   // Store product data globally for access by manage customization button
   window.currentEditingProduct = product;
-
-  console.log("=== EDIT PRODUCT LOADED ===");
-  console.log("Product:", product);
-  console.log("SelectedCustomizationSeries:", product?.SelectedCustomizationSeries);
-  console.log("Customization:", product?.Customization);
   
   // Clear previous data
   clearImages('edit');
