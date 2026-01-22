@@ -2667,8 +2667,7 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
       // Save series presets if creating new series
       // Available for ALL categories and subcategories
       // Series are segregated by subcategory: Series_Presets[subcategory][seriesName]
-      const createNewRadio = document.getElementById("createNewSeries");
-      const newSeriesNameInput = document.getElementById("newSeriesNameInput");
+      // createNewRadio and newSeriesNameInput already declared above for validation
       
       if (createNewRadio && createNewRadio.checked && newSeriesNameInput && newSeriesNameInput.value.trim()) {
         const newSeriesName = newSeriesNameInput.value.trim();
@@ -2742,18 +2741,15 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
       
       // Save the selected series for this subcategory
       const savedSeriesKey = `${fieldKey}_selectedSeries`;
-      const manageSeriesSelectForSave = document.getElementById("manageSeriesSelect");
-      const createNewRadioForSave = document.getElementById("createNewSeries");
-      const newSeriesNameInputForSave = document.getElementById("newSeriesNameInput");
-      
-      // Determine which series was selected/created
+
+      // Determine which series was selected/created (use variables declared above)
       let selectedSeriesToSave = null;
-      if (createNewRadioForSave && createNewRadioForSave.checked && newSeriesNameInputForSave && newSeriesNameInputForSave.value.trim()) {
+      if (createNewRadio && createNewRadio.checked && newSeriesNameInput && newSeriesNameInput.value.trim()) {
         // New series was created
-        selectedSeriesToSave = newSeriesNameInputForSave.value.trim();
-      } else if (manageSeriesSelectForSave && manageSeriesSelectForSave.value) {
+        selectedSeriesToSave = newSeriesNameInput.value.trim();
+      } else if (manageSeriesSelect && manageSeriesSelect.value) {
         // Existing series was selected
-        selectedSeriesToSave = manageSeriesSelectForSave.value;
+        selectedSeriesToSave = manageSeriesSelect.value;
       }
       
       // Save the selected series
