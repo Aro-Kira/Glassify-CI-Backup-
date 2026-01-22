@@ -1568,10 +1568,24 @@ public function booking()
                 'Payment_Date' => date('Y-m-d H:i:s')
             ]);
             
+            // Get order details to check if payment amount >= order total
+            $this->load->model('Order_model');
+            $order = $this->Order_model->get_order($order_id);
+            $payment = $this->db->where('OrderID', $order_id)->get('payment')->row();
+            
+            // Check if payment amount meets or exceeds order total (for direct products)
+            $payment_amount = $payment ? (float)($payment->Amount ?? 0) : 0;
+            $order_total = $order ? (float)($order->TotalAmount ?? 0) : 0;
+            $order_type = strtolower(trim($order->OrderType ?? ''));
+            
+            // For direct products: if payment amount >= order total, automatically mark as Paid
+            $is_direct_product = ($order_type === 'direct' || empty($order_type));
+            $is_fully_paid = $is_direct_product && $payment_amount >= $order_total;
+            
             // Update order status
             $this->db->where('OrderID', $order_id)->update('`order`', [
                 'PaymentStatus' => 'Paid',
-                'Status' => 'Pending Payment' // Will be changed to "Paid" after admin verification
+                'Status' => $is_fully_paid ? 'Paid' : 'Pending Payment' // Auto-mark as Paid if full payment received
             ]);
             
             // Clear cart only after payment is successful
@@ -1633,14 +1647,30 @@ public function booking()
             if ($result['success'] && $result['status'] === 'succeeded') {
                 // Payment verified - update database
                 $this->load->database();
+                
+                // Get order details to check if payment amount >= order total
+                $this->load->model('Order_model');
+                $order = $this->Order_model->get_order($order_id);
+                $payment = $this->db->where('OrderID', $order_id)->get('payment')->row();
+                
+                // Check if payment amount meets or exceeds order total (for direct products)
+                $payment_amount = $payment ? (float)($payment->Amount ?? 0) : 0;
+                $order_total = $order ? (float)($order->TotalAmount ?? 0) : 0;
+                $order_type = strtolower(trim($order->OrderType ?? ''));
+                
+                // For direct products: if payment amount >= order total, automatically mark as Paid
+                $is_direct_product = ($order_type === 'direct' || empty($order_type));
+                $is_fully_paid = $is_direct_product && $payment_amount >= $order_total;
+                
                 $this->db->where('OrderID', $order_id)->update('payment', [
                     'Status' => 'Paid',
                     'Payment_Date' => date('Y-m-d H:i:s')
                 ]);
                 
+                // If fully paid, mark order status accordingly; otherwise wait for admin verification
                 $this->db->where('OrderID', $order_id)->update('`order`', [
                     'PaymentStatus' => 'Paid',
-                    'Status' => 'Pending Payment' // Will be verified by admin
+                    'Status' => $is_fully_paid ? 'Paid' : 'Pending Payment' // Auto-mark as Paid if full payment received
                 ]);
                 
                 // Clear cart only after payment is verified
@@ -1763,15 +1793,236 @@ public function booking()
         // Ensure customer_id is an integer
         $customer_id = (int)$customer_id;
 
+        // Get filter parameter (all, to_receive, completed, cancelled)
+        $filter = $this->input->get('filter') ?: 'all';
+        $valid_filters = ['all', 'to_receive', 'completed', 'cancelled'];
+        if (!in_array($filter, $valid_filters)) {
+            $filter = 'all';
+        }
+        $data['current_filter'] = $filter;
+
         // Load Order model
         $this->load->model('Order_model');
 
-        // Get customer's order items (purchases) from database
-        $data['order_items'] = $this->Order_model->get_customer_order_items($customer_id);
+        // Get customer's order items (purchases) from database with filter
+        $data['order_items'] = $this->Order_model->get_customer_order_items($customer_id, $filter);
 
         $this->load->view('includes/header', $data);
         $this->load->view('shop/list_product', $data);
         $this->load->view('includes/footer');
+    }
+
+    // ===================== CUSTOMER NOTIFICATIONS =====================
+    public function notifications()
+    {
+        $data['title'] = "Glassify - Notifications";
+
+        // Check if user is logged in and is a customer
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            redirect('login');
+            return;
+        }
+        
+        $customer_id = $this->session->userdata('customer_id');
+        if (!$customer_id) {
+            redirect('login');
+            return;
+        }
+        
+        // Set cache control headers for customer pages
+        $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
+        $this->output->set_header('Pragma: no-cache');
+        $this->output->set_header('Expires: 0');
+
+        // Ensure customer_id is an integer
+        $customer_id = (int)$customer_id;
+
+        // Check if customer_notifications table exists
+        if ($this->db->table_exists('customer_notifications')) {
+            // Get customer's notifications
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->order_by('Created_Date', 'DESC');
+            $notifications = $this->db->get('customer_notifications')->result();
+            
+            // Format notifications for display
+            $data['notifications'] = [];
+            foreach ($notifications as $notif) {
+                $data['notifications'][] = (object)[
+                    'NotificationID' => $notif->NotificationID,
+                    'Title' => $notif->Title ?? 'Notification',
+                    'Message' => $notif->Message ?? '',
+                    'Icon' => $notif->Icon ?? 'fa-info-circle',
+                    'Type' => $notif->Type ?? 'General',
+                    'Status' => strtolower($notif->Status ?? 'read'),
+                    'Created_Date' => $notif->Created_Date ?? date('Y-m-d H:i:s'),
+                    'RelatedID' => $notif->RelatedID ?? null,
+                    'RelatedType' => $notif->RelatedType ?? null,
+                    'ActionData' => isset($notif->ActionData) && !empty($notif->ActionData) ? $notif->ActionData : null
+                ];
+            }
+        } else {
+            // Table doesn't exist yet - show empty state
+            $data['notifications'] = [];
+        }
+
+        $this->load->view('includes/header', $data);
+        $this->load->view('shop/notifications', $data);
+        $this->load->view('includes/footer');
+    }
+
+    // Get unread notification count (AJAX endpoint)
+    public function get_notification_count_ajax()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+            return;
+        }
+        
+        $customer_id = (int)$this->session->userdata('customer_id');
+        
+        if ($this->db->table_exists('customer_notifications')) {
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->where('Status', 'Unread');
+            $count = $this->db->count_all_results('customer_notifications');
+            
+            // Limit to 99, show 99+ if more
+            if ($count > 99) {
+                $display_count = '99+';
+            } else {
+                $display_count = $count;
+            }
+            
+            echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
+        } else {
+            echo json_encode(['status' => 'error', 'count' => 0]);
+        }
+    }
+
+    // Request installation date change
+    public function request_installation_date_change()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+            return;
+        }
+        
+        $order_id = $this->input->post('order_id');
+        $new_date = $this->input->post('new_date');
+        
+        if (!$order_id || !$new_date) {
+            echo json_encode(['success' => false, 'message' => 'Order ID and new date are required']);
+            return;
+        }
+        
+        // Get customer ID
+        $customer_id = (int)$this->session->userdata('customer_id');
+        
+        // Verify order belongs to customer
+        $this->db->where('OrderID', $order_id);
+        $this->db->where('Customer_ID', $customer_id);
+        $order = $this->db->get('`order`')->row();
+        
+        if (!$order) {
+            echo json_encode(['success' => false, 'message' => 'Order not found or does not belong to you']);
+            return;
+        }
+        
+        // Get installation appointment
+        $this->db->where('OrderID', $order_id);
+        $this->db->where('Service', 'Installed');
+        $installation_appointment = $this->db->get('appointments')->row();
+        
+        if (!$installation_appointment) {
+            echo json_encode(['success' => false, 'message' => 'Installation appointment not found']);
+            return;
+        }
+        
+        // Validate date is within 7 days of original date
+        $original_date = $installation_appointment->AppointmentDate;
+        if ($original_date) {
+            $original_timestamp = strtotime($original_date);
+            $new_timestamp = strtotime($new_date);
+            $allowed_until = $original_timestamp + (7 * 24 * 60 * 60); // 7 days in seconds
+            
+            if ($new_timestamp > $allowed_until) {
+                echo json_encode(['success' => false, 'message' => 'Date must be within 7 days of original installation date']);
+                return;
+            }
+            
+            if ($new_timestamp < time()) {
+                echo json_encode(['success' => false, 'message' => 'New date cannot be in the past']);
+                return;
+            }
+        }
+        
+        // Update installation appointment date
+        $this->db->where('AppointmentID', $installation_appointment->AppointmentID);
+        $update_result = $this->db->update('appointments', [
+            'AppointmentDate' => $new_date,
+            'Updated_Date' => date('Y-m-d H:i:s')
+        ]);
+        
+        // Update order's InstallationDate if field exists
+        if ($this->db->field_exists('InstallationDate', 'order')) {
+            $this->db->where('OrderID', $order_id);
+            $this->db->update('`order`', ['InstallationDate' => $new_date]);
+        }
+        
+        if ($update_result) {
+            // Send notification to admin about date change request
+            $this->load->helper('notification');
+            $order_number = $order->OrderNumber ?? 'GI' . str_pad($order_id, 3, '0', STR_PAD_LEFT);
+            
+            // Get customer name
+            $this->db->select('u.First_Name, u.Last_Name');
+            $this->db->from('customer c');
+            $this->db->join('user u', 'u.UserID = c.UserID', 'left');
+            $this->db->where('c.Customer_ID', $customer_id);
+            $customer_user = $this->db->get()->row();
+            $customer_name = trim(($customer_user->First_Name ?? '') . ' ' . ($customer_user->Last_Name ?? ''));
+            
+            // Note: This would typically notify admin, but for now we'll just log it
+            log_message('info', "Customer {$customer_name} (ID: {$customer_id}) requested installation date change for order #{$order_number} to {$new_date}");
+            
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Date change request submitted successfully! We will contact you to confirm the new date.'
+            ]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to update installation date']);
+        }
+    }
+
+    // Mark all notifications as read
+    public function mark_notifications_read()
+    {
+        header('Content-Type: application/json');
+        
+        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+            echo json_encode(['status' => 'error', 'message' => 'Not logged in']);
+            return;
+        }
+        
+        $customer_id = (int)$this->session->userdata('customer_id');
+        
+        if ($this->db->table_exists('customer_notifications')) {
+            // Mark all unread notifications as read
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->where('Status', 'Unread');
+            $this->db->update('customer_notifications', [
+                'Status' => 'Read',
+                'Read_Date' => date('Y-m-d H:i:s')
+            ]);
+            
+            echo json_encode(['status' => 'success', 'message' => 'Notifications marked as read']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Notifications table does not exist']);
+        }
     }
 
     // ===================== GET BOOKED DATES =====================
