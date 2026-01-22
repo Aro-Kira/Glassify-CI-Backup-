@@ -222,12 +222,29 @@ return array (
     ),
     5 => 
     array (
-      'type' => 'number',
+      'type' => 'tags',
       'label' => 'Thickness (mm)',
-      'id' => 'thicknessMm',
+      'id' => 'thickness',
       'stepNumber' => 2,
-      'min' => 1.0,
-      'step' => 0.1,
+      'options' => 
+      array (
+        0 => '6mm',
+        1 => '8mm',
+        2 => '10mm',
+        3 => '12mm',
+      ),
+    ),
+    6 => 
+    array (
+      'type' => 'tags',
+      'label' => 'Screen',
+      'id' => 'screen',
+      'stepNumber' => 2,
+      'options' => 
+      array (
+        0 => 'With Screen',
+        1 => 'Without Screen',
+      ),
     ),
   ),
   'Windows_Casement' => 

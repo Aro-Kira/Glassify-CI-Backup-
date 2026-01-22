@@ -1396,8 +1396,9 @@ function checkCornerRadiusVisibility(container) {
 
 /**
  * Handle conditional logic for Mirrors fields
- * Frame Color shows when Frame Type = "Framed"
- * Edge Finish shows when Frame Type = "Frameless"
+ * Frame Color field shows different options based on Frame Type:
+ * - Framed: White, Black, Gold
+ * - Frameless: Machine Polished Edges, Beveled Edge
  */
 function handleMirrorsConditionals(changedFieldId, selectedValue) {
   if (changedFieldId === 'frameType') {
@@ -1405,7 +1406,6 @@ function handleMirrorsConditionals(changedFieldId, selectedValue) {
     const edgeFinishContainer = document.querySelector('[data-field-id="edgeFinish"]');
     
     // Check for "Standard Frame" (the actual option value) - per CUSTOMIZATION_REFERENCE.md
-    // Frame Color only appears when Frame Type = "Standard Frame" (not "Frameless")
     const normalizedValue = (selectedValue || '').toLowerCase().trim();
     const isStandardFrame = normalizedValue === 'standard frame' || 
                            normalizedValue === 'standard-frame' || 
@@ -1413,35 +1413,67 @@ function handleMirrorsConditionals(changedFieldId, selectedValue) {
                            (selectedValue && selectedValue.toLowerCase().includes('standard') && selectedValue.toLowerCase().includes('frame'));
     const isFrameless = normalizedValue === 'frameless';
     
-    // Show/hide Frame Color based on Frame Type
-    // Frame Color only appears when Frame Type = "Standard Frame"
+    // Filter frameColor options based on Frame Type
+    // If frameless: Only show "Machine Polished Edges" and "Beveled Edge"
+    // If framed: Only show "White", "Black", "Gold"
     if (frameColorContainer) {
-      // Try multiple selectors to find the parent section
-      let fieldSection = frameColorContainer.closest('.field-section, .type-section, .frame-section');
-      if (!fieldSection) {
-        // If not found, try parent element
-        fieldSection = frameColorContainer.parentElement;
+      const tagContainer = frameColorContainer.querySelector('.tag-container, [id$="Container"]');
+      if (tagContainer) {
+        const allOptionCards = tagContainer.querySelectorAll('.option-card');
+        const frameOptions = ['white', 'black', 'gold'];
+        const edgeOptions = ['machine polished edges', 'beveled edge'];
+        
+        allOptionCards.forEach(card => {
+          const optionValue = (card.dataset.value || card.textContent || '').trim();
+          const normalizedOption = optionValue.toLowerCase().replace(/\s+/g, ' ');
+          
+          if (isFrameless) {
+            // Show only edge options, hide frame options
+            const isEdgeOption = edgeOptions.some(opt => {
+              const normalizedOpt = opt.toLowerCase();
+              return normalizedOption === normalizedOpt || 
+                     normalizedOption.includes('polished') || 
+                     normalizedOption.includes('beveled');
+            });
+            card.style.display = isEdgeOption ? '' : 'none';
+            
+            // Clear selection if it's a frame option
+            if (!isEdgeOption && card.classList.contains('active')) {
+              card.classList.remove('active');
+              delete selectedCustomizationValues['frameColor'];
+            }
+          } else if (isStandardFrame) {
+            // Show only frame options, hide edge options
+            const isFrameOption = frameOptions.some(opt => {
+              const normalizedOpt = opt.toLowerCase();
+              return normalizedOption === normalizedOpt || 
+                     normalizedOption.startsWith(normalizedOpt);
+            });
+            card.style.display = isFrameOption ? '' : 'none';
+            
+            // Clear selection if it's an edge option
+            if (!isFrameOption && card.classList.contains('active')) {
+              card.classList.remove('active');
+              delete selectedCustomizationValues['frameColor'];
+            }
+          } else {
+            // If frameType is not set, show all options (default state)
+            card.style.display = '';
+          }
+        });
       }
       
+      // Show the field section (don't hide it, just filter options)
+      let fieldSection = frameColorContainer.closest('.field-section, .type-section, .frame-section');
+      if (!fieldSection) {
+        fieldSection = frameColorContainer.parentElement;
+      }
       if (fieldSection) {
-        if (isStandardFrame) {
-          fieldSection.style.display = '';
-        } else {
-          fieldSection.style.display = 'none';
-          // Clear selection when hidden
-          const activeCard = frameColorContainer.querySelector('.option-card.active');
-          if (activeCard) {
-            activeCard.classList.remove('active');
-            delete selectedCustomizationValues['frameColor'];
-          }
-        }
-      } else {
-        // Fallback: hide the container directly
-        frameColorContainer.style.display = isStandardFrame ? '' : 'none';
+        fieldSection.style.display = '';
       }
     }
     
-    // Show/hide Edge Finish based on Frame Type
+    // Show/hide Edge Finish based on Frame Type (if it exists as separate field)
     // Edge Finish only appears when Frame Type = "Frameless"
     if (edgeFinishContainer) {
       // Try multiple selectors to find the parent section
@@ -2077,8 +2109,16 @@ function updateKonvaFromField(fieldId, value, isActive) {
       if (!thicknessValue.includes('mm') && !thicknessValue.includes('cm') && !thicknessValue.includes('in')) {
         thicknessValue = thicknessValue + 'mm';
       }
+      // Update both window.currentThickness and selectedCustomizationValues
       if (window.currentThickness !== undefined) {
         window.currentThickness = thicknessValue;
+      }
+      // Ensure selectedCustomizationValues also has the normalized value
+      if (isActive) {
+        selectedCustomizationValues[fieldId] = thicknessValue;
+        if (typeof window !== 'undefined') {
+          window.selectedCustomizationValues = selectedCustomizationValues;
+        }
       }
     } else if (konvaParam === 'screen') {
       // Screen field - store in selectedCustomizationValues for comprehensive renderer

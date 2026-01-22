@@ -208,7 +208,7 @@ const generatedCustomizationDefaults = {
         {
             "type": "tags",
             "label": "Thickness (mm)",
-            "id": "thicknessMm",
+            "id": "thickness",
             "stepNumber": 2,
             "options": [
                 "6mm",
@@ -218,10 +218,14 @@ const generatedCustomizationDefaults = {
             ]
         },
         {
-            "type": "checkbox",
+            "type": "tags",
             "label": "Screen",
             "id": "screen",
-            "stepNumber": 2
+            "stepNumber": 2,
+            "options": [
+                "With Screen",
+                "Without Screen"
+            ]
         }
     ],
     "Windows_Casement": [

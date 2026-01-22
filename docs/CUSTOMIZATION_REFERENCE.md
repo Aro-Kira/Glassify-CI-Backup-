@@ -37,7 +37,6 @@ This reference lists every main category, its supported subcategories, and the d
 | Step 1 (1) | Glass Color | `tags` | Clear \| Bronze \| Frosted \| Smoked |
 | Step 1 (1) | Frame Color/Material | `tags` | Powder Coated White \| Analok \| Matte Gray \| Matte Black \| Wood Finish |
 | Step 1 (1) | Operation | `tags` | Awning (crank-out) \| Awning (push-out) |
-| Step 2 (2) | Size Configuration | `tags` | Single panel \| Multiple panels |
 | Step 2 (2) | Opening Direction | `tags` | Top-hinged |
 | Step 2 (2) | Thickness (mm) | `tags` | 6mm \| 8mm \| 10mm \| 12mm |
 | Step 2 (2) | Screen | `tags` | With Screen \| Without Screen |
@@ -102,7 +101,6 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Basic Options (1) | Series | `tags` | 68 Series \\| ED & FD100 |
 | Basic Options (1) | Glass Type | `tags` | Ordinary \\| Tempered \\| Reflective |
 | Basic Options (1) | Glass Color | `tags` | Clear \\| Bronze \\| Frosted/Smoked |
 | Basic Options (1) | Frame Color/Material | `tags` | Powder Coated White \\| Analok \\| Matte Gray \\| Matte Black \\| Wood Finish |
@@ -113,7 +111,6 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Basic Options (1) | Series | `tags` | 45 Series \\| 75 Series |
 | Basic Options (1) | Glass Type | `tags` | Ordinary \\| Tempered \\| Reflective |
 | Basic Options (1) | Glass Color | `tags` | Clear \\| Bronze \\| Frosted/Smoked |
 | Basic Options (1) | Frame Color/Material | `tags` | Powder Coated White \\| Analok \\| Matte Gray \\| Matte Black \\| Wood Finish |
@@ -142,7 +139,6 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Basic Options (1) | Series | `tags` | Frameless Fixed Glass \\| Frameless Door |
 | Basic Options (1) | Glass Type | `tags` | Tempered \\| Reflective |
 | Basic Options (1) | Glass Color | `tags` | Clear \\| Bronze \\| Frosted/Smoked |
 | Basic Options (1) | Frame Color/Material | `tags` | Stainless Mirror Finish |
@@ -158,30 +154,29 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Basic Options (1) | Layout | `tags` | L-shape \\| Straight \\| U-shape \\| L-type \\| Neo-angle \\| Square \\| Bay \\| Other corner layouts |
-| Basic Options (1) | Glass Type | `tags` | Clear \\| Frosted \\| Tinted \\| Frosted (full or partial) \\| Clear with frosted sticker \\| Fully frosted |
-| Basic Options (1) | Finish | `tags` | Clear \\| Frosted \\| Patterned |
-| Configuration & Hardware (2) | Configuration | `tags` | Single partition \\| Multiple partitions \\| 2 fixed panels \\| 3 fixed panels \\| Custom configurations |
-| Configuration & Hardware (2) | Hardware Color | `tags` | Black \\| Silver \\| Gold \\| White \\| Bronze \\| Chrome/Stainless Steel \\| Black Matte \\| Brushed Nickel \\| Stainless Steel |
-| Configuration & Hardware (2) | Mounting Hardware | `tags` | Stainless Fixed Bracket \\| Gold U-Channel \\| Analok U-Channel (anodized aluminum) \\| Stainless U-Channel \\| Other bracket types \\| Standard mounting |
-| Configuration & Hardware (2) | Glass Thickness (mm) | `number` | min 1 · step 0.1 |
+| Step 1 (1) | Layout | `tags` | L-shape \| Straight \| U-shape \| L-type \| Neo-angle \| Square \| Bay \| Other corner layouts |
+| Step 1 (1) | Glass Type | `tags` | Clear \| Frosted \| Tinted \| Frosted (full or partial) \| Clear with frosted sticker \| Fully frosted |
+| Step 1 (1) | Finish | `tags` | Clear \| Frosted \| Patterned |
+| Step 2 (2) | Configuration | `tags` | Single partition \| Multiple partitions \| 2 fixed panels \| 3 fixed panels \| Custom configurations |
+| Step 2 (2) | Hardware Color | `tags` | Black \| Silver \| Gold \| White \| Bronze \| Chrome/Stainless Steel \| Black Matte \| Brushed Nickel \| Stainless Steel |
+| Step 2 (2) | Mounting Hardware | `tags` | Stainless Fixed Bracket \| Gold U-Channel \| Analok U-Channel (anodized aluminum) \| Stainless U-Channel \| Other bracket types \| Standard mounting |
+| Step 2 (2) | Glass Thickness (mm) | `number` | min 1 · step 0.1 |
 
 ### Shower Enclosure
 **Step names:** Basic Options · Glass Treatment · Hardware & Installation
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Basic Options (1) | Series | `tags` | Arched Fixed Frameless Shower Partition \\| Fixed Frameless with Curved Corner Shower Partition \\| Fixed Frameless Shower Partition \\| Fixed with Swing Shower Enclosure \\| Fixed with Sliding Shower Enclosure \\| Fixed Framed Shower Partition \\| Swing Door Shower Enclosure \\| Corner Swing Shower Enclosure \\| Corner Sliding Shower Enclosure \\| Corner Double Sliding Shower Enclosure \\| Bay Swing Shower Enclosure \\| 2 Fixed and 1 Sliding Shower Enclosure \\| 2 Fixed and 1 Swing Shower Enclosure |
-| Basic Options (1) | Layout | `tags` | L-shape \\| Straight \\| U-shape \\| L-type \\| Neo-angle \\| Square \\| Bay \\| Other corner layouts |
-| Basic Options (1) | Configuration | `tags` | Fixed and swing \\| Swing with small fixed glass \\| Single sliding door \\| Double sliding doors \\| Sliding with fixed panels \\| Single sliding \\| Double sliding \\| With fixed panels \\| 2 fixed panels \\| 3 fixed panels \\| Custom configurations |
-| Basic Options (1) | Glass Type | `tags` | Tempered |
-| Basic Options (1) | Glass Color | `tags` | Clear \\| Clear with Frosted Sticker (Middle Portion) \\| 10mm Frosted Tempered |
-| Basic Options (1) | Hardware Finish | `tags` | Mirror/Stainless Hardware \\| Matte Black Hardware |
-| Glass Treatment (2) | Glass Treatment | `tags` | Frosted sticker (customizable patterns, opacity, colors) \\| Clear \\| Custom patterns \\| Heights (top clear, bottom frosted) \\| Colors |
-| Glass Treatment (2) | Glass Thickness (mm) | `tags` | 10mm |
-| Hardware & Installation (3) | Handle Style | `tags` | Various pull handle designs \\| Various pull handles \\| Knob handles \\| Square handles \\| Square matte black \\| Round \\| Bar-style |
-| Hardware & Installation (3) | Door Swing | `tags` | Left-hinged \\| Right-hinged \\| Left swing \\| Right swing |
-| Hardware & Installation (3) | Mounting | `tags` | Standard mounting \\| Custom mounting methods |
+| Step 1 (1) | Layout | `tags` | L-shape \| Straight \| U-shape \| L-type \| Neo-angle \| Square \| Bay \| Other corner layouts |
+| Step 1 (1) | Configuration | `tags` | Fixed and swing \| Swing with small fixed glass \| Single sliding door \| Double sliding doors \| Sliding with fixed panels \| Single sliding \| Double sliding \| With fixed panels \| 2 fixed panels \| 3 fixed panels \| Custom configurations |
+| Step 1 (1) | Glass Type | `tags` | Tempered |
+| Step 1 (1) | Glass Color | `tags` | Clear \| Clear with Frosted Sticker (Middle Portion) \| 10mm Frosted Tempered |
+| Step 1 (1) | Hardware Finish | `tags` | Mirror/Stainless Hardware \| Matte Black Hardware |
+| Step 2 (2) | Glass Treatment | `tags` | Frosted sticker (customizable patterns, opacity, colors) \| Clear \| Custom patterns \| Heights (top clear, bottom frosted) \| Colors |
+| Step 2 (2) | Glass Thickness (mm) | `tags` | 10mm |
+| Step 3 (3) | Handle Style | `tags` | Various pull handle designs \| Various pull handles \| Knob handles \| Square handles \| Square matte black \| Round \| Bar-style |
+| Step 3 (3) | Door Swing | `tags` | Left-hinged \| Right-hinged \| Left swing \| Right swing |
+| Step 3 (3) | Mounting | `tags` | Standard mounting \| Custom mounting methods |
 
 ### Fixed Glass
 **Step names:** Basic Options · Configuration & Hardware
@@ -225,6 +220,7 @@ This reference lists every main category, its supported subcategories, and the d
   - Frameless Mirrors (Rectangle/Square, Oval, Arched): Machine Polished Edges, Beveled Edge
 - Glass Type and Thickness are fixed values (Copper Free and Lead Free Mirror, 6mm)
 - Corner radius only appears when Shape = Square, Rectangle
+- Corner radius is specified in inches (e.g., R 10.0in) and can be applied to specific corners (e.g., top corners rounded while bottom corners remain sharp at 90-degree angles)
 
 ### Top Glass
 **Step names:** Basic Options · Details & Installation

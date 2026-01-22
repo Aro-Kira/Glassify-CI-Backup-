@@ -49,7 +49,7 @@ let dimensionsLocked = false; // Lock state for equalizing height and width
 // CUSTOM STATE VARIABLES
 let currentShape = 'rectangle';
 let currentGlassType = 'tempered';
-let currentThickness = '5mm';
+let currentThickness = '6mm';
 let currentEdgeWork = 'flat-polish';
 let currentFrameType = 'vinyl';
 // Corner radius in inches (applies to rectangle/square only)
@@ -1328,9 +1328,16 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     }
     
     // Annotations
-    const formatEdge = edgeWork.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    // Get frameColor from customizationValues (for sliding windows)
+    let frameColorValue = customizationValues.frameColor || customizationValues.FrameColor || frameType || '';
+    if (Array.isArray(frameColorValue)) {
+        frameColorValue = frameColorValue[0] || '';
+    }
+    const formatFrame = frameColorValue ? String(frameColorValue) : '';
     const formatThickness = thickness.replace(/mm+$/g, '') + 'mm';
-    const annotationText = `Thickness: ${formatThickness}  |  Edge: ${formatEdge}`;
+    const annotationText = formatFrame ? 
+        `Thickness: ${formatThickness}  |  Frame: ${formatFrame}` : 
+        `Thickness: ${formatThickness}`;
     
     layer.add(new Konva.Text({
         x: offsetX + totalWidth / 2,
@@ -1827,7 +1834,7 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
     // Draw corner radius annotations (if applicable)
     drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, windowWidth, windowHeight, normalizedShape);
     
-    // Annotations - Reference format: "Thickness: 5mm" and "Edge: Polished"
+    // Annotations - Reference format: "Thickness: 6mm" and "Edge: Polished"
     const formatEdge = edgeWork.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     const formatThickness = thickness.replace(/mm+$/g, '') + 'mm'; // Ensure mm format
     
@@ -2649,7 +2656,8 @@ function renderCustomState() {
                 // Include legacy fields for compatibility
                 shape: currentShape,
                 glassType: currentGlassType,
-                thickness: currentThickness,
+                // Prefer explicit selection from customization UI; fallback to legacy `currentThickness`
+                thickness: customizationValues.thickness || customizationValues.Thickness || window.currentThickness || currentThickness,
                 edgeWork: currentEdgeWork,
                 // Prefer explicit selection from customization UI; fallback to legacy `currentFrameType`
                 frameColor: (customizationValues.frameColor || customizationValues.FrameColor) ? (customizationValues.frameColor || customizationValues.FrameColor) : currentFrameType,
@@ -2699,7 +2707,7 @@ function renderStandardState(width, height) {
         'in', // Standard uses inches
         'rectangle', // Force Rectangle
         'tempered', // Force Standard Glass
-        '5mm',      // Force Standard Thickness
+        '6mm',      // Force Standard Thickness
         'flat-polish', // Force Standard Edge
         'vinyl'     // Force Standard Frame
     );

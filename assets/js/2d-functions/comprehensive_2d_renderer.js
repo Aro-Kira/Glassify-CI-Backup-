@@ -489,13 +489,17 @@ function renderWindowsSliding(productData, dimensions, layer, renderContext) {
                               originalHeight, heightUnit, renderContext);
     }
     
-    // Draw annotations (thickness, edge work)
-    if (glassThickness || customizationValues.edgeWork) {
+    // Draw annotations (thickness, frame color)
+    if (glassThickness || frameColor) {
         const formatThickness = glassThickness || '6mm';
-        const formatEdge = (customizationValues.edgeWork || '').split('-').map(word => 
-            word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || '';
-        const annotationText = formatEdge ? 
-            `Thickness: ${formatThickness}  |  Edge: ${formatEdge}` : 
+        // Handle frameColor as string or array (tags field can be either)
+        let frameColorValue = frameColor;
+        if (Array.isArray(frameColorValue)) {
+            frameColorValue = frameColorValue[0] || '';
+        }
+        const formatFrame = frameColorValue ? String(frameColorValue) : '';
+        const annotationText = formatFrame ? 
+            `Thickness: ${formatThickness}  |  Frame: ${formatFrame}` : 
             `Thickness: ${formatThickness}`;
         
         layer.add(new Konva.Text({
@@ -690,16 +694,20 @@ function renderWindowsAwning(productData, dimensions, layer, renderContext) {
     drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight, 
                        originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
 
-    // Draw annotations (thickness, edge work)
-    if (thickness || customizationValues.edgeWork) {
+    // Draw annotations (thickness, frame color)
+    if (thickness || frameColor) {
         // Normalize thickness so values like 6 or '6' or '6mm' become '6mm'
         let formatThickness = (thickness === undefined || thickness === null) ? '6mm' : String(thickness);
         formatThickness = formatThickness.replace(/mm$/i, '');
         formatThickness = `${formatThickness}mm`;
-        const formatEdge = (customizationValues.edgeWork || '').split('-').map(word => 
-            word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || '';
-        const annotationText = formatEdge ? 
-            `Thickness: ${formatThickness}  |  Edge: ${formatEdge}` : 
+        // Handle frameColor as string or array (tags field can be either)
+        let frameColorValue = frameColor;
+        if (Array.isArray(frameColorValue)) {
+            frameColorValue = frameColorValue[0] || '';
+        }
+        const formatFrame = frameColorValue ? String(frameColorValue) : '';
+        const annotationText = formatFrame ? 
+            `Thickness: ${formatThickness}  |  Frame: ${formatFrame}` : 
             `Thickness: ${formatThickness}`;
         
         layer.add(new Konva.Text({
@@ -1834,8 +1842,36 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
             listening: false,
         });
     } else {
-        // Rectangle/Square
-        const cornerRadiusPx = cornerRadius ? (cornerRadius * (totalWidth / width)) : 0;
+        // Rectangle/Square - Support individual corner radius values
+        let cornerRadiusPx = 0;
+        let cornerRadiusArray = null;
+        
+        // Check if cornerRadius is an object with individual corners
+        const cornerRadiusData = customizationValues.cornerRadius || customizationValues.CornerRadius || cornerRadius;
+        
+        if (typeof cornerRadiusData === 'object' && cornerRadiusData !== null && !Array.isArray(cornerRadiusData)) {
+            // Individual corner radius values from object (stored in inches)
+            const pxPerInX = width > 0 ? (totalWidth / width) : 0;
+            const pxPerInY = height > 0 ? (totalHeight / height) : 0;
+            const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
+            
+            const topLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topLeft || 0)) * (pxPerIn || 0));
+            const topRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topRight || 0)) * (pxPerIn || 0));
+            const bottomRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomRight || 0)) * (pxPerIn || 0));
+            const bottomLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomLeft || 0)) * (pxPerIn || 0));
+            
+            cornerRadiusArray = [topLeft, topRight, bottomRight, bottomLeft];
+        } else {
+            // Single value (linked mode) - convert to array format
+            const safeCornerRadiusIn = Math.max(0, parseFloat(cornerRadiusData) || 0);
+            const pxPerInX = width > 0 ? (totalWidth / width) : 0;
+            const pxPerInY = height > 0 ? (totalHeight / height) : 0;
+            const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
+            cornerRadiusPx = Math.min(minRadius, safeCornerRadiusIn * (pxPerIn || 0));
+            cornerRadiusArray = [cornerRadiusPx, cornerRadiusPx, cornerRadiusPx, cornerRadiusPx];
+        }
+        
+        const hasCornerRadius = cornerRadiusArray && cornerRadiusArray.some(radius => radius > 0);
         mirrorShape = new Konva.Rect({
             x: offsetX,
             y: offsetY,
@@ -1845,7 +1881,7 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
             opacity: gStyle.opacity,
             stroke: isFrameless ? 'transparent' : fStyle.color,
             strokeWidth: isFrameless ? 0 : fStyle.width,
-            cornerRadius: cornerRadiusPx,
+            cornerRadius: hasCornerRadius ? cornerRadiusArray : 0,
             listening: false,
         });
     }
@@ -1877,15 +1913,49 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
     drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight,
                        originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
 
-    // Draw annotations (thickness, edge work)
-    if (thickness || customizationValues.edgeWork) {
-        const formatThickness = thickness || '6mm';
-        const formatEdge = (customizationValues.edgeWork || '').split('-').map(word => 
-            word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || '';
-        const annotationText = formatEdge ? 
-            `Thickness: ${formatThickness}  |  Edge: ${formatEdge}` : 
-            `Thickness: ${formatThickness}`;
+    // Draw annotations (thickness, edge/frame based on frame type)
+    const formatThickness = thickness || '6mm';
+    let annotationParts = [`Thickness: ${formatThickness}`];
+    
+    if (isFrameless) {
+        // For frameless mirrors, show edge finish
+        // Check frameColor first (since edge options are stored there when frameless)
+        // Then check edgeFinish/edgeWork as fallback
+        let edgeFinish = '';
+        const frameColorValue = (frameColor || '').toLowerCase();
+        const edgeOptions = ['machine polished edges', 'beveled edge'];
         
+        // Check if frameColor contains an edge finish option
+        const isEdgeInFrameColor = frameColor && (
+            frameColorValue.includes('polished') || 
+            frameColorValue.includes('beveled') ||
+            edgeOptions.some(opt => frameColorValue === opt.toLowerCase() || frameColorValue.includes(opt.toLowerCase()))
+        );
+        
+        if (isEdgeInFrameColor) {
+            edgeFinish = frameColor;
+        } else {
+            edgeFinish = customizationValues.edgeFinish || customizationValues.edgeWork || '';
+        }
+        
+        if (edgeFinish) {
+            const formatEdge = edgeFinish.split('-').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || edgeFinish;
+            annotationParts.push(`Edge: ${formatEdge}`);
+        }
+    } else {
+        // For framed mirrors, show frame color
+        // Only show frame color if it's not an edge option
+        const frameColorValue = (frameColor || '').toLowerCase();
+        const isEdgeOption = frameColorValue.includes('polished') || frameColorValue.includes('beveled');
+        
+        if (frameColor && !isEdgeOption) {
+            annotationParts.push(`Frame: ${frameColor}`);
+        }
+    }
+    
+    if (annotationParts.length > 0) {
+        const annotationText = annotationParts.join('  |  ');
         layer.add(new Konva.Text({
             x: offsetX + totalWidth / 2,
             y: offsetY + totalHeight + 15,
@@ -1898,6 +1968,190 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
             offsetX: (annotationText.length * 6) / 2,
             listening: false,
         }));
+    }
+    
+    // Draw corner radius annotations for rectangle/square shapes
+    if (shape.toLowerCase().includes('rectangle') || shape.toLowerCase().includes('square')) {
+        drawCornerRadiusAnnotationsForMirrors(customizationValues, offsetX, offsetY, totalWidth, totalHeight, shape, layer);
+    }
+}
+
+/**
+ * Draw corner radius annotations on the Konva canvas for mirrors
+ * Shows radius values and labels at each corner
+ */
+function drawCornerRadiusAnnotationsForMirrors(customizationValues, offsetX, offsetY, windowWidth, windowHeight, shape, layer) {
+    if (!customizationValues || !layer) return;
+    
+    // Only show for rectangle/square shapes
+    const rectangleShapes = ['rectangle', 'square'];
+    const normalizedShapeLower = shape.toLowerCase();
+    const isRectangleShape = rectangleShapes.includes(shape) || 
+                             normalizedShapeLower.includes('rectangle') || 
+                             normalizedShapeLower.includes('square');
+    if (!isRectangleShape) return;
+    
+    // Get corner radius data
+    const cornerRadiusData = customizationValues.cornerRadius || customizationValues.CornerRadius || customizationValues.cornerRadiusIn;
+    const cornerRadiusUnit = customizationValues.cornerRadius_unit || customizationValues.CornerRadius_unit || 'in';
+    
+    if (!cornerRadiusData) return;
+    
+    // Helper function to convert from inches to display unit
+    function convertFromInches(value, unit) {
+        switch(unit) {
+            case 'cm': return value * 2.54;
+            case 'mm': return value * 25.4;
+            default: return value; // inches
+        }
+    }
+    
+    // Get the actual values in the selected unit
+    let cornerValues = {};
+    let isLinked = true;
+    
+    if (typeof cornerRadiusData === 'object' && cornerRadiusData !== null && !Array.isArray(cornerRadiusData)) {
+        // Individual corner values (stored in inches, need to convert to display unit)
+        isLinked = false;
+        cornerValues = {
+            topLeft: convertFromInches(cornerRadiusData.topLeft || 0, cornerRadiusUnit),
+            topRight: convertFromInches(cornerRadiusData.topRight || 0, cornerRadiusUnit),
+            bottomRight: convertFromInches(cornerRadiusData.bottomRight || 0, cornerRadiusUnit),
+            bottomLeft: convertFromInches(cornerRadiusData.bottomLeft || 0, cornerRadiusUnit)
+        };
+    } else {
+        // Single value (linked mode, stored in inches)
+        const valueIn = parseFloat(cornerRadiusData) || 0;
+        const value = convertFromInches(valueIn, cornerRadiusUnit);
+        cornerValues = {
+            topLeft: value,
+            topRight: value,
+            bottomRight: value,
+            bottomLeft: value
+        };
+    }
+    
+    // Only draw if at least one corner has a radius > 0
+    const hasRadius = Object.values(cornerValues).some(v => v > 0);
+    if (!hasRadius) return;
+    
+    const radiusColor = '#666666';
+    const radiusLabelSize = 10;
+    const radiusOffset = 12; // Distance from corner
+    
+    // Draw corner radius indicators at each corner
+    const corners = [
+        { key: 'topLeft', x: offsetX, y: offsetY, labelX: offsetX + radiusOffset, labelY: offsetY + radiusOffset },
+        { key: 'topRight', x: offsetX + windowWidth, y: offsetY, labelX: offsetX + windowWidth - radiusOffset, labelY: offsetY + radiusOffset },
+        { key: 'bottomRight', x: offsetX + windowWidth, y: offsetY + windowHeight, labelX: offsetX + windowWidth - radiusOffset, labelY: offsetY + windowHeight - radiusOffset },
+        { key: 'bottomLeft', x: offsetX, y: offsetY + windowHeight, labelX: offsetX + radiusOffset, labelY: offsetY + windowHeight - radiusOffset }
+    ];
+    
+    corners.forEach(corner => {
+        const radiusValue = cornerValues[corner.key];
+        if (radiusValue > 0) {
+            // Calculate label position outside the shape
+            let labelX, labelY, arcX, arcY;
+            const outsideOffset = 26;
+            const labelNudge = 6;
+            
+            if (corner.key === 'topLeft') {
+                labelX = offsetX - outsideOffset - labelNudge;
+                labelY = offsetY - outsideOffset - labelNudge;
+                arcX = offsetX;
+                arcY = offsetY;
+            } else if (corner.key === 'topRight') {
+                labelX = offsetX + windowWidth + outsideOffset + labelNudge;
+                labelY = offsetY - outsideOffset - labelNudge;
+                arcX = offsetX + windowWidth;
+                arcY = offsetY;
+            } else if (corner.key === 'bottomRight') {
+                labelX = offsetX + windowWidth + outsideOffset + labelNudge;
+                labelY = offsetY + windowHeight + outsideOffset + labelNudge;
+                arcX = offsetX + windowWidth;
+                arcY = offsetY + windowHeight;
+            } else { // bottomLeft
+                labelX = offsetX - outsideOffset - labelNudge;
+                labelY = offsetY + windowHeight + outsideOffset + labelNudge;
+                arcX = offsetX;
+                arcY = offsetY + windowHeight;
+            }
+            
+            // Draw arc indicator at corner (visual representation of radius)
+            const arcSize = Math.min(20, Math.max(8, radiusValue * 1.5)); // Visual arc size
+            let arcRotation = 0;
+            if (corner.key === 'topLeft') arcRotation = 180;
+            else if (corner.key === 'topRight') arcRotation = 270;
+            else if (corner.key === 'bottomRight') arcRotation = 0;
+            else arcRotation = 90; // bottomLeft
+            
+            const arc = new Konva.Arc({
+                x: arcX,
+                y: arcY,
+                innerRadius: 0,
+                outerRadius: arcSize,
+                angle: 90,
+                rotation: arcRotation,
+                stroke: radiusColor,
+                strokeWidth: 1.5,
+                fill: 'transparent',
+                listening: false
+            });
+            layer.add(arc);
+            
+            // Draw dashed line from corner to label
+            layer.add(new Konva.Line({
+                points: [arcX, arcY, labelX, labelY],
+                stroke: radiusColor,
+                strokeWidth: 1,
+                dash: [4, 3],
+                listening: false
+            }));
+            
+            // Draw radius label with "R" prefix
+            const labelText = `R ${radiusValue.toFixed(1)}${cornerRadiusUnit}`;
+            const radiusLabel = new Konva.Text({
+                x: labelX,
+                y: labelY,
+                text: labelText,
+                fontSize: radiusLabelSize,
+                fontFamily: 'Montserrat, Arial',
+                fontStyle: 'normal',
+                fill: radiusColor,
+                align: 'left',
+                offsetX: corner.key.includes('Right') ? (labelText.length * 5) : 0,
+                offsetY: corner.key.includes('Bottom') ? -6 : 6,
+                listening: false
+            });
+            layer.add(radiusLabel);
+        }
+    });
+    
+    // If all corners have the same value (linked), also show a summary label in the center
+    if (isLinked && cornerValues.topLeft > 0) {
+        const allSame = cornerValues.topLeft === cornerValues.topRight && 
+                       cornerValues.topRight === cornerValues.bottomRight &&
+                       cornerValues.bottomRight === cornerValues.bottomLeft;
+        
+        if (allSame) {
+            const centerX = offsetX + windowWidth / 2;
+            const centerY = offsetY + windowHeight / 2;
+            const labelText = `Corner Radius: ${cornerValues.topLeft.toFixed(1)}${cornerRadiusUnit}`;
+            
+            layer.add(new Konva.Text({
+                x: centerX,
+                y: centerY,
+                text: labelText,
+                fontSize: 10,
+                fontFamily: 'Montserrat, Arial',
+                fontStyle: 'normal',
+                fill: '#888888',
+                align: 'center',
+                offsetX: (labelText.length * 5) / 2,
+                offsetY: 6,
+                listening: false
+            }));
+        }
     }
 }
 
