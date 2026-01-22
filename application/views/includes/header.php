@@ -132,7 +132,7 @@ if ($is_customer) {
             <!-- ========== NOTIFICATION ICON (CUSTOMER ONLY) ========== -->
             <a href="<?php echo base_url('notifications'); ?>" class="icon-link">
                 <div class="icon-wrapper">
-                    <i class="far fa-bell" style="font-size: 28px;"></i>
+                    <i class="far fa-bell" style="font-size: 28px; color: white;"></i>
                     <span class="icon-badge" id="notification-count" style="display: <?= $notification_count > 0 ? 'flex' : 'none' ?>;">
                         <?= $notification_count > 99 ? '99+' : $notification_count ?>
                     </span>

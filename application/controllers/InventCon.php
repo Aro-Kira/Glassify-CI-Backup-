@@ -415,24 +415,31 @@ class InventCon extends CI_Controller
      */
     public function get_notification_count_ajax()
     {
+        // Set JSON header first to prevent HTML output
         header('Content-Type: application/json');
         
-        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Inventory Officer') {
-            echo json_encode(['status' => 'error', 'count' => 0]);
-            return;
+        try {
+            if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Inventory Officer') {
+                echo json_encode(['status' => 'error', 'count' => 0]);
+                return;
+            }
+            
+            $this->load->model('Inventory_model');
+            $this->db->where('Status', 'Unread');
+            $count = $this->db->count_all_results('inventory_notifications');
+            
+            // Limit to 99, show 99+ if more
+            if ($count > 99) {
+                $display_count = '99+';
+            } else {
+                $display_count = $count;
+            }
+            
+            echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
+        } catch (Exception $e) {
+            // Ensure JSON is always returned, even on error
+            log_message('error', 'Error in get_notification_count_ajax: ' . $e->getMessage());
+            echo json_encode(['status' => 'error', 'count' => 0, 'message' => 'An error occurred']);
         }
-        
-        $this->load->model('Inventory_model');
-        $this->db->where('Status', 'Unread');
-        $count = $this->db->count_all_results('inventory_notifications');
-        
-        // Limit to 99, show 99+ if more
-        if ($count > 99) {
-            $display_count = '99+';
-        } else {
-            $display_count = $count;
-        }
-        
-        echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
     }
 }

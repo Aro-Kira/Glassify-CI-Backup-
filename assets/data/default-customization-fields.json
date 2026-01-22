@@ -178,86 +178,61 @@
   "Windows_Casement": [
     {
       "type": "tags",
-      "label": "Series",
-      "id": "series",
-      "options": ["38 Series", "50 Series", "60 Series", "85 Series", "75 Series"],
+      "label": "Transom Type",
+      "id": "transomType",
+      "options": ["Casement w/FTH", "Casement w/FTS", "None"],
       "stepNumber": 1
+    },
+    {
+      "type": "tags",
+      "label": "Panel Configuration",
+      "id": "panelConfiguration",
+      "options": ["1", "2", "3", "4", "5", "6"],
+      "stepNumber": 1
+    },
+    {
+      "type": "dimensions",
+      "label": "Dimensions",
+      "id": "dimensions",
+      "stepNumber": 1,
+      "fields": ["width", "height", "h1"],
+      "h1Conditional": {
+        "dependsOn": "transomType",
+        "showWhen": ["Casement w/FTH", "Casement w/FTS"]
+      }
+    },
+    {
+      "type": "tags",
+      "label": "Frame Color",
+      "id": "frameColor",
+      "options": ["Hanalok", "Black", "White", "Gray", "Wood Finish"],
+      "stepNumber": 2
+    },
+    {
+      "type": "tags",
+      "label": "Glass Color",
+      "id": "glassColor",
+      "options": ["Clear", "Bronze", "Frosted/Smoked"],
+      "stepNumber": 2
     },
     {
       "type": "tags",
       "label": "Glass Type",
       "id": "glassType",
       "options": ["Ordinary", "Tempered", "Reflective"],
-      "stepNumber": 1
-    },
-    {
-      "type": "tags",
-      "label": "Glass Color",
-      "id": "glassColor",
-      "options": ["Clear", "Bronze", "Frosted", "Smoked"],
-      "stepNumber": 1
-    },
-    {
-      "type": "tags",
-      "label": "Frame Color/Material",
-      "id": "frameColor",
-      "options": ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"],
-      "stepNumber": 1
-    },
-    {
-      "type": "tags",
-      "label": "Operation",
-      "id": "operation",
-      "options": ["Casement (hinge side configurable)"],
-      "stepNumber": 1
-    },
-    {
-      "type": "tags",
-      "label": "Number of Panels",
-      "id": "numberOfPanels",
-      "options": ["Single panel", "Multiple panels"],
       "stepNumber": 2
     },
     {
       "type": "tags",
-      "label": "Hinge Side",
-      "id": "hingeSide",
-      "options": ["Left-hinged", "Right-hinged"],
-      "stepNumber": 2
-    },
-    {
-      "type": "tags",
-      "label": "Configuration",
-      "id": "configuration",
-      "options": ["Two casement windows with fixed transom", "Custom configurations"],
-      "stepNumber": 2
-    },
-    {
-      "type": "tags",
-      "label": "Transom Options",
-      "id": "transomOptions",
-      "options": ["Different transom sizes", "Shapes", "Mullion options"],
-      "stepNumber": 3
-    },
-    {
-      "type": "tags",
-      "label": "Thickness (mm)",
+      "label": "Thickness",
       "id": "thickness",
       "options": ["6mm", "8mm", "10mm", "12mm"],
-      "stepNumber": 3
-    },
-    {
-      "type": "tags",
-      "label": "Screen",
-      "id": "screen",
-      "options": ["With Screen", "Without Screen"],
-      "stepNumber": 3
+      "stepNumber": 2
     }
   ],
   "Windows_Casement_stepNames": {
-    "1": "Basic Options",
-    "2": "Panel Configuration",
-    "3": "Advanced Options"
+    "1": "Transom Type & Dimensions",
+    "2": "Frame & Glass"
   },
   "Windows_Fixed Glass": [
     {
@@ -343,6 +318,46 @@
       "lockType": ["Enter Lock 908"],
       "rollerType": ["Single Roller ORD"],
       "screen": ["Without Screen"]
+    },
+    "YC-38 Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm"]
+    },
+    "YC-50 Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm", "8mm"]
+    },
+    "60-DMX Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm", "8mm", "10mm", "12mm"]
+    },
+    "85 Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm", "8mm", "10mm", "12mm"]
+    },
+    "75 Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm", "8mm", "10mm", "12mm"]
     }
   },
   "Doors_Sliding": [

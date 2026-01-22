@@ -310,17 +310,6 @@
           </select>
         </div>
 
-        <!-- Series Selection (appears after subcategory is selected, only for Windows subcategories) -->
-        <div class="form-group" id="seriesGroup" style="display: none;">
-          <label for="productSeries">Series <span style="color: #999; font-weight: normal;">(Optional)</span></label>
-          <select id="productSeries" class="input-text">
-            <option value="" disabled selected>Select series</option>
-            <option value="798 Series">798 Series</option>
-            <option value="900 Series">900 Series</option>
-          </select>
-          <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Select a series to auto-fill customization fields, or choose None to configure manually</small>
-        </div>
-
         <!-- Customization Content (Removed tab) -->
         <div id="customizeTabContent" class="tab-content active">
           <!-- Manage Customization Fields Button (shown when subcategory is selected) -->
@@ -457,17 +446,6 @@
             <option value="" disabled selected>Select subcategory</option>
           </select>
           <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Subcategory cannot be edited</small>
-        </div>
-
-        <!-- Series Selection (appears after subcategory is selected, only for Windows subcategories) -->
-        <div class="form-group" id="editSeriesGroup" style="display: none;">
-          <label for="editProductSeries">Series <span style="color: #999; font-weight: normal;">(Optional)</span></label>
-          <select id="editProductSeries" class="input-text">
-            <option value="" disabled selected>Select series</option>
-            <option value="798 Series">798 Series</option>
-            <option value="900 Series">900 Series</option>
-          </select>
-          <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Select a series to auto-fill customization fields, or choose None to configure manually</small>
         </div>
 
         <!-- Customization Content (Removed tab) -->

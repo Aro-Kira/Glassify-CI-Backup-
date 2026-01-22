@@ -17,10 +17,9 @@ This reference lists every main category, its supported subcategories, and the d
 | Step 1 (1) | Transom Type (Top / Bottom Fixed Panel) | `tags` | None \| Fixed Transom Head (Fixed glass at top) \| Fixed Transom Sill (Fixed glass at bottom) |
 | Step 2 (2) | Track System (Sliding Rail Count) | `tags` | 2 Tracks \| 3 Tracks |
 | Step 2 (2) | Panel Configuration | `tags` | S | S (Sliding | Sliding) \| F | S (Fixed | Sliding) \| S | S | S | S (All Sliding) \| F | S | S | F (Fixed | Sliding | Sliding | Fixed) |
-| Step 3 (3) | Frame Color | `tags` | Powder Coated White \| Analok \| Matte Gray \| Matte Black \| Wood Finish |
-| Step 3 (3) | Glass Type | `tags` | Ordinary \| Tempered \| Reflective |
-| Step 3 (3) | Glass Color | `tags` | Clear \| Bronze \| Frosted \| Smoked |
-| Step 3 (3) | Glass Thickness | `tags` | 6mm \| 8mm \| 10mm \| 12mm |
+| Step 3 (3) | Frame Color | `tags` | Hanalok \| White \| Black \| Gray \| Wood Finish |
+| Step 3 (3) | Glass Type | `tags` | Clear \| Ultra Clear \| Bronze \| Light Green \| Dark Gray \| Copperfree Mirror \| Euro Gray \| Ford Blue \| Reflective: Clear \| Reflective: Gray \| Reflective: Light Blue \| Reflective: Dark Blue \| Reflective: Light Green \| Reflective: Dark Green \| Reflective: Light Bronze \| Tempered: Clear \| Tempered: Bronze |
+| Step 3 (3) | Glass Thickness | `tags` | 6mm |
 | Step 4 (4) | Lock Type | `tags` | Center Lok 904 Big \| Flushlok #12 \| Durable Flushlok \| New Auto Flushlock |
 | Step 4 (4) | Roller Type | `tags` | Single Panel Roller \| Blue Single Roller \| Blue Double Roller |
 | Step 4 (4) | Screen | `tags` | With Screen \| Without Screen |
@@ -51,16 +50,13 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Step 1 (1) | Glass Type | `tags` | Ordinary \| Tempered \| Reflective |
-| Step 1 (1) | Glass Color | `tags` | Clear \| Bronze \| Frosted \| Smoked |
-| Step 1 (1) | Frame Color/Material | `tags` | Powder Coated White \| Analok \| Matte Gray \| Matte Black \| Wood Finish |
-| Step 1 (1) | Operation | `tags` | Casement (hinge side configurable) |
-| Step 2 (2) | Number of Panels | `tags` | Single panel \| Multiple panels |
-| Step 2 (2) | Hinge Side | `tags` | Left-hinged \| Right-hinged |
-| Step 2 (2) | Configuration | `tags` | Two casement windows with fixed transom \| Custom configurations |
-| Step 3 (3) | Transom Options | `tags` | Different transom sizes \| Shapes \| Mullion options |
-| Step 3 (3) | Thickness (mm) | `tags` | 6mm \| 8mm \| 10mm \| 12mm |
-| Step 3 (3) | Screen | `tags` | With Screen \| Without Screen |
+| Step 1 (1) | Transom Type | `tags` | Casement w/FTH \| Casement w/FTS \| None |
+| Step 1 (1) | Panel Configuration | `tags` | 1 \| 2 \| 3 \| 4 \| 5 \| 6 |
+| Step 1 (1) | Dimensions | `dimensions` |  |
+| Step 2 (2) | Frame Color | `tags` | Hanalok \| Black \| White \| Gray \| Wood Finish |
+| Step 2 (2) | Glass Color | `tags` | Clear \| Bronze \| Frosted/Smoked |
+| Step 2 (2) | Glass Type | `tags` | Ordinary \| Tempered \| Reflective |
+| Step 2 (2) | Thickness | `tags` | 6mm \| 8mm |
 
 **Notes:**
 - Thickness options vary by series: 38 Series (6mm), 50 Series (6mm-8mm), 60/85/75 Series (6mm, 8mm, 10mm, 12mm)
@@ -227,11 +223,10 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Basic Options (1) | Shape | `tags` | Round \\| Rectangle \\| Oval \\| Square \\| Custom shapes |
-| Basic Options (1) | Edge Finish | `tags` | Beveled \\| Polished \\| Raw \\| Beveled edge \\| Flat polished edge \\| Pencil edge |
-| Details & Installation (2) | Mounting Method | `tags` | Wall-mounted \\| Stand \\| Adhesive |
-**Notes:**
-- Corner radius only appears when Shape = Square, Rectangle
+| Step 1 (1) | Shape | `tags` | Round \| Rectangle \| Oval \| Square \| Custom shapes |
+| Step 1 (1) | Edge Finish | `tags` | Beveled \| Polished \| Raw \| Beveled edge \| Flat polished edge \| Pencil edge |
+| Step 2 (2) | Corner Radius (in) | `number` | min 0 · step 0.1 |
+| Step 2 (2) | Mounting Method | `tags` | Wall-mounted \| Stand \| Adhesive |
 
 ### Glass Board
 **Step names:** Basic Options · Details & Installation

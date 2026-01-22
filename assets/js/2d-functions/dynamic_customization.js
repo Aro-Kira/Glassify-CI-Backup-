@@ -388,6 +388,9 @@ function createFieldElement(field, tagPrices, tagImages = {}) {
     case 'number':
       renderNumberField(field, fieldGroup);
       break;
+    case 'dimensions':
+      renderDimensionsField(field, fieldGroup);
+      break;
     case 'color':
       renderColorField(field, fieldGroup);
       break;
@@ -778,6 +781,170 @@ function renderNumberField(field, container) {
 
   inputGroup.appendChild(input);
   container.appendChild(inputGroup);
+}
+
+/**
+ * Renders a dimensions field (Width, Height, h1 in one row)
+ */
+function renderDimensionsField(field, container) {
+  const dimensionsContainer = document.createElement('div');
+  dimensionsContainer.className = 'dimensions-field-container';
+  dimensionsContainer.style.cssText = 'display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 15px;';
+  
+  // Width input
+  const widthGroup = document.createElement('div');
+  widthGroup.style.cssText = 'flex: 1; min-width: 120px;';
+  const widthLabel = document.createElement('label');
+  widthLabel.textContent = 'Width';
+  widthLabel.setAttribute('for', 'width');
+  widthLabel.style.cssText = 'display: block; margin-bottom: 6px; font-size: 13px; color: #333; font-weight: 500;';
+  const widthInput = document.createElement('input');
+  widthInput.type = 'number';
+  widthInput.id = 'width';
+  widthInput.name = 'width';
+  widthInput.className = 'dimension-input';
+  widthInput.min = 0;
+  widthInput.step = 0.1;
+  widthInput.placeholder = '0';
+  widthInput.style.cssText = 'width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;';
+  widthGroup.appendChild(widthLabel);
+  widthGroup.appendChild(widthInput);
+  
+  // Height input
+  const heightGroup = document.createElement('div');
+  heightGroup.style.cssText = 'flex: 1; min-width: 120px;';
+  const heightLabel = document.createElement('label');
+  heightLabel.textContent = 'Height';
+  heightLabel.setAttribute('for', 'height');
+  heightLabel.style.cssText = 'display: block; margin-bottom: 6px; font-size: 13px; color: #333; font-weight: 500;';
+  const heightInput = document.createElement('input');
+  heightInput.type = 'number';
+  heightInput.id = 'height';
+  heightInput.name = 'height';
+  heightInput.className = 'dimension-input';
+  heightInput.min = 0;
+  heightInput.step = 0.1;
+  heightInput.placeholder = '0';
+  heightInput.style.cssText = 'width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;';
+  heightGroup.appendChild(heightLabel);
+  heightGroup.appendChild(heightInput);
+  
+  dimensionsContainer.appendChild(widthGroup);
+  dimensionsContainer.appendChild(heightGroup);
+  
+  // h1 input (conditional)
+  if (field.h1Conditional && field.h1Conditional.dependsOn) {
+    const h1Group = document.createElement('div');
+    h1Group.id = 'h1Group';
+    h1Group.className = 'h1-dimension-group';
+    h1Group.style.cssText = 'flex: 1; min-width: 120px; display: none;'; // Hidden by default
+    const h1Label = document.createElement('label');
+    h1Label.textContent = 'h1';
+    h1Label.setAttribute('for', 'h1');
+    h1Label.style.cssText = 'display: block; margin-bottom: 6px; font-size: 13px; color: #333; font-weight: 500;';
+    const h1Input = document.createElement('input');
+    h1Input.type = 'number';
+    h1Input.id = 'h1';
+    h1Input.name = 'h1';
+    h1Input.className = 'dimension-input';
+    h1Input.min = 0;
+    h1Input.step = 0.1;
+    h1Input.placeholder = '0';
+    h1Input.style.cssText = 'width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;';
+    h1Group.appendChild(h1Label);
+    h1Group.appendChild(h1Input);
+    dimensionsContainer.appendChild(h1Group);
+    
+    // Function to check if h1 should be shown
+    const checkH1Visibility = () => {
+      const dependsOnField = field.h1Conditional.dependsOn;
+      const showWhen = field.h1Conditional.showWhen || [];
+      
+      // Find the dependency field (could be tags or other input)
+      const dependsOnContainer = document.querySelector(`[data-field-id="${dependsOnField}"]`);
+      if (!dependsOnContainer) return;
+      
+      let shouldShow = false;
+      
+      // Check if it's a tags field
+      const activeTags = dependsOnContainer.querySelectorAll('.option-card.active');
+      if (activeTags.length > 0) {
+        activeTags.forEach(tag => {
+          const tagValue = tag.dataset.value || tag.textContent.trim();
+          if (showWhen.includes(tagValue)) {
+            shouldShow = true;
+          }
+        });
+      }
+      
+      h1Group.style.display = shouldShow ? 'block' : 'none';
+    };
+    
+    // Check on page load
+    setTimeout(checkH1Visibility, 100);
+    
+    // Listen for changes in the dependency field
+    const dependsOnContainer = document.querySelector(`[data-field-id="${field.h1Conditional.dependsOn}"]`);
+    if (dependsOnContainer) {
+      dependsOnContainer.addEventListener('click', (e) => {
+        if (e.target.closest('.option-card')) {
+          setTimeout(checkH1Visibility, 50);
+        }
+      });
+    }
+    
+    // Also listen to customization field change events
+    document.addEventListener('customizationFieldChanged', (e) => {
+      if (e.detail.fieldId === field.h1Conditional.dependsOn) {
+        checkH1Visibility();
+      }
+    });
+  }
+  
+  // Add event listeners to update dimensions and trigger price recalculation
+  [widthInput, heightInput].forEach(input => {
+    input.addEventListener('input', () => {
+      // Update global dimensions
+      if (typeof window.currentDimensions !== 'undefined') {
+        const fieldName = input.name;
+        if (window.currentDimensions[fieldName]) {
+          window.currentDimensions[fieldName].value = parseFloat(input.value) || 0;
+        } else {
+          window.currentDimensions[fieldName] = { value: parseFloat(input.value) || 0, unit: 'in' };
+        }
+      }
+      
+      // Trigger price recalculation
+      if (typeof updatePriceDisplay === 'function') {
+        updatePriceDisplay();
+      }
+      
+      // Trigger 2D preview update
+      if (typeof renderCustomState === 'function') {
+        setTimeout(() => renderCustomState(), 100);
+      }
+    });
+  });
+  
+  // Also listen to h1 input if it exists
+  const h1Input = dimensionsContainer.querySelector('#h1');
+  if (h1Input) {
+    h1Input.addEventListener('input', () => {
+      if (typeof window.currentDimensions !== 'undefined') {
+        window.currentDimensions.h1 = { value: parseFloat(h1Input.value) || 0, unit: 'in' };
+      }
+      
+      if (typeof updatePriceDisplay === 'function') {
+        updatePriceDisplay();
+      }
+      
+      if (typeof renderCustomState === 'function') {
+        setTimeout(() => renderCustomState(), 100);
+      }
+    });
+  }
+  
+  container.appendChild(dimensionsContainer);
 }
 
 /**

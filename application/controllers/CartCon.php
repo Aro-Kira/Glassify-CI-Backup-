@@ -834,11 +834,27 @@ class CartCon extends CI_Controller
                 
                 if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
                     if (strpos($first_image, 'http') === 0) {
+                        // External URL - can't check existence
                         $image_url = $first_image;
                     } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
-                        $image_url = base_url($first_image);
+                        // Check if file exists
+                        $file_path = FCPATH . $first_image;
+                        if (file_exists($file_path)) {
+                            $image_url = base_url($first_image);
+                        } else {
+                            // File doesn't exist, use placeholder
+                            $image_url = $placeholder_svg;
+                        }
                     } else {
-                        $image_url = base_url('uploads/products/' . basename($first_image));
+                        // Treat as filename in uploads/products/
+                        $filename = basename($first_image);
+                        $file_path = FCPATH . 'uploads/products/' . $filename;
+                        if (file_exists($file_path)) {
+                            $image_url = base_url('uploads/products/' . $filename);
+                        } else {
+                            // File doesn't exist, use placeholder
+                            $image_url = $placeholder_svg;
+                        }
                     }
                 }
             }
@@ -1003,11 +1019,27 @@ class CartCon extends CI_Controller
                 
                 if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
                     if (strpos($first_image, 'http') === 0) {
+                        // External URL - can't check existence
                         $image_url = $first_image;
                     } else if (strpos($first_image, 'assets/') === 0 || strpos($first_image, 'uploads/') === 0) {
-                        $image_url = base_url($first_image);
+                        // Check if file exists
+                        $file_path = FCPATH . $first_image;
+                        if (file_exists($file_path)) {
+                            $image_url = base_url($first_image);
+                        } else {
+                            // File doesn't exist, use placeholder
+                            $image_url = $placeholder_svg;
+                        }
                     } else {
-                        $image_url = base_url('uploads/products/' . basename($first_image));
+                        // Treat as filename in uploads/products/
+                        $filename = basename($first_image);
+                        $file_path = FCPATH . 'uploads/products/' . $filename;
+                        if (file_exists($file_path)) {
+                            $image_url = base_url('uploads/products/' . $filename);
+                        } else {
+                            // File doesn't exist, use placeholder
+                            $image_url = $placeholder_svg;
+                        }
                     }
                 }
             }

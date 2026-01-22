@@ -7,6 +7,30 @@
 <section class="your-order">
     <h3>My Purchases</h3>
 
+    <!-- Tabs Navigation -->
+    <div class="purchase-tabs">
+        <a href="<?= base_url('my_purchases?filter=all') ?>" 
+           class="tab-link <?= (isset($current_filter) && $current_filter === 'all') ? 'active' : '' ?>" 
+           data-filter="all">
+            All
+        </a>
+        <a href="<?= base_url('my_purchases?filter=to_receive') ?>" 
+           class="tab-link <?= (isset($current_filter) && $current_filter === 'to_receive') ? 'active' : '' ?>" 
+           data-filter="to_receive">
+            To Receive
+        </a>
+        <a href="<?= base_url('my_purchases?filter=completed') ?>" 
+           class="tab-link <?= (isset($current_filter) && $current_filter === 'completed') ? 'active' : '' ?>" 
+           data-filter="completed">
+            Complete
+        </a>
+        <a href="<?= base_url('my_purchases?filter=cancelled') ?>" 
+           class="tab-link <?= (isset($current_filter) && $current_filter === 'cancelled') ? 'active' : '' ?>" 
+           data-filter="cancelled">
+            Cancelled
+        </a>
+    </div>
+
     <div class="order-content">
         <table class="purchase-table">
             <thead>
@@ -65,8 +89,36 @@
                             <td class="subtotal-col">₱<?= number_format(($item->EstimatePrice ?? 0) * ($item->Quantity ?? 1), 2) ?></td>
 
                             <td>
-                                <a href="<?= base_url('track_order?order=' . ($item->OrderID ?? '')) ?>" class="delivered-badge">
-                                    Delivered on <?= date("M j", strtotime($item->DeliveryDate ?? $item->OrderDate ?? 'now')) ?>
+                                <?php
+                                $order_status = strtolower($item->OrderStatus ?? '');
+                                $badge_class = 'delivered-badge';
+                                $badge_text = 'Delivered';
+                                
+                                // Determine badge style and text based on order status
+                                if (in_array($order_status, ['completed'])) {
+                                    $badge_class = 'delivered-badge approved-badge';
+                                    $badge_text = 'Delivered on ' . date("M j", strtotime($item->DeliveryDate ?? $item->OrderDate ?? 'now'));
+                                } elseif (in_array($order_status, ['cancelled', 'disapproved', 'returned'])) {
+                                    $badge_class = 'cancelled-badge';
+                                    $badge_text = ucfirst($order_status);
+                                } elseif (in_array($order_status, ['pending review', 'awaiting admin', 'ready to approve', 'pending payment', 'paid', 'payment verified'])) {
+                                    $badge_class = 'pending-badge';
+                                    $badge_text = 'In Process';
+                                } elseif (in_array($order_status, ['approved', 'ocular pending'])) {
+                                    $badge_class = 'approved-badge';
+                                    $badge_text = 'Approved';
+                                } elseif (in_array($order_status, ['in fabrication'])) {
+                                    $badge_class = 'fabrication-badge';
+                                    $badge_text = 'In Fabrication';
+                                } elseif (in_array($order_status, ['ready for installation'])) {
+                                    $badge_class = 'ready-badge';
+                                    $badge_text = 'Ready for Delivery';
+                                } else {
+                                    $badge_text = 'Delivered on ' . date("M j", strtotime($item->DeliveryDate ?? $item->OrderDate ?? 'now'));
+                                }
+                                ?>
+                                <a href="<?= base_url('track_order?order=' . ($item->OrderID ?? '')) ?>" class="<?= $badge_class ?>">
+                                    <?= $badge_text ?>
                                     <span class="arrow">▸</span>
                                 </a>
                             </td>

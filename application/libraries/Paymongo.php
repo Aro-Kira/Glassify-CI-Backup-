@@ -13,10 +13,23 @@ class Paymongo
     
     public function __construct()
     {
-        // PayMongo Sandbox Keys
-        // Note: These should be moved to config file for production
-        $this->secret_key = getenv('PAYMONGO_SECRET_KEY') ?: 'sk_test_YOUR_SECRET_KEY_HERE';
-        $this->public_key = getenv('PAYMONGO_PUBLIC_KEY') ?: 'pk_test_H9zcEdXmDXCSjKbFkA9VBcBh';
+        // Load PayMongo config
+        $CI =& get_instance();
+        $CI->config->load('paymongo', true);
+        
+        // Get keys from config (with fallback to environment variables)
+        $this->secret_key = $CI->config->item('paymongo_secret_key', 'paymongo');
+        $this->public_key = $CI->config->item('paymongo_public_key', 'paymongo');
+        $api_base = $CI->config->item('paymongo_api_base', 'paymongo');
+        
+        if ($api_base) {
+            $this->api_base = $api_base;
+        }
+        
+        // Validate that keys are set (not placeholders)
+        if (strpos($this->secret_key, 'YOUR_SECRET_KEY_HERE') !== false) {
+            log_message('error', 'PayMongo: Secret key is not configured! Please set it in application/config/paymongo.php');
+        }
     }
     
     /**
@@ -30,8 +43,16 @@ class Paymongo
      */
     private function make_request($endpoint, $method = 'GET', $data = null, $use_secret_key = true)
     {
-        $url = $this->api_base . $endpoint;
+        // Validate API key before making request
         $key = $use_secret_key ? $this->secret_key : $this->public_key;
+        if (empty($key) || strpos($key, 'YOUR_SECRET_KEY_HERE') !== false || strpos($key, 'YOUR_PUBLIC_KEY_HERE') !== false) {
+            $key_type = $use_secret_key ? 'Secret' : 'Public';
+            $error_msg = "PayMongo {$key_type} Key is not configured. Please set it in application/config/paymongo.php";
+            log_message('error', $error_msg);
+            return ['success' => false, 'error' => $error_msg];
+        }
+        
+        $url = $this->api_base . $endpoint;
         
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);

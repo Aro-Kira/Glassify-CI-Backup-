@@ -133,6 +133,75 @@ body {
   padding-bottom: 8px;
 }
 
+/* Purchase Tabs */
+.purchase-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 25px;
+  border-bottom: 2px solid #e0e0e0;
+  background: #fff;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+}
+
+.purchase-tabs .tab-link {
+  flex: 1;
+  padding: 15px 20px;
+  text-align: center;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95em;
+  color: #666;
+  background: #f9f9f9;
+  border: none;
+  border-right: 1px solid #e0e0e0;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.purchase-tabs .tab-link:last-child {
+  border-right: none;
+}
+
+.purchase-tabs .tab-link:hover {
+  background: #f0f0f0;
+  color: #0f2b46;
+}
+
+.purchase-tabs .tab-link.active {
+  background: #0f2b46;
+  color: #fff;
+  border-bottom: 3px solid #f4b400;
+}
+
+.purchase-tabs .tab-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #f4b400;
+}
+
+/* Responsive tabs */
+@media (max-width: 768px) {
+  .purchase-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .purchase-tabs .tab-link {
+    flex: 1 1 calc(50% - 1px);
+    padding: 12px 10px;
+    font-size: 0.85em;
+  }
+  
+  .purchase-tabs .tab-link:nth-child(2) {
+    border-right: none;
+  }
+}
+
 /* Flex Layout */
 .order-content {
   display: flex;

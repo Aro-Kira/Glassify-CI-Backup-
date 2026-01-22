@@ -1427,7 +1427,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                 });
                 
-                const data = await response.json();
+                // Read response as text first (can only read once)
+                const responseText = await response.text();
+                
+                // Check if response is ok
+                if (!response.ok) {
+                    console.error('HTTP Error:', response.status, response.statusText, responseText);
+                    alert('Error updating status: ' + response.status + ' ' + response.statusText);
+                    return;
+                }
+                
+                // Try to parse as JSON
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('JSON Parse Error:', parseError);
+                    console.error('Response text:', responseText);
+                    alert('Error: Server returned invalid response. Please check the console for details.');
+                    return;
+                }
+                
                 if (data.success) {
                     alert('Order status updated successfully');
                     const modal = document.getElementById('updateStatusModal');
@@ -1441,7 +1461,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } catch (error) {
                 console.error('Error updating status:', error);
-                alert('Error updating order status');
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    orderId: orderId,
+                    status: statusSelect.value
+                });
+                alert('Error updating order status: ' + (error.message || 'Unknown error occurred. Please check the console for details.'));
             }
         });
     }

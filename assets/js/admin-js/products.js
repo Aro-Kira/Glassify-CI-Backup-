@@ -566,6 +566,130 @@ const CUSTOMIZATION_FIELDS_STORAGE_KEY = 'glassify_customization_fields';
 // 1) Database (latest source of truth)
 // 2) localStorage (offline cache; should not override DB)
 // 3) JSON defaults (fill missing keys only)
+/**
+ * Fix field types for Windows_Casement if they're incorrect
+ * Ensures Thickness is tags (not number) and Screen is tags (not checkbox)
+ */
+/**
+ * Update Windows_Casement fields to new structure from JSON
+ * This ensures the database is updated with the new field definitions
+ */
+async function updateWindowsCasementFields() {
+  const fieldKey = 'Windows_Casement';
+  
+  // Load the new structure from JSON defaults
+  const defaultFields = await getDefaultCustomizationFields();
+  
+  if (defaultFields[fieldKey] && Array.isArray(defaultFields[fieldKey]) && defaultFields[fieldKey].length > 0) {
+    const newFields = JSON.parse(JSON.stringify(defaultFields[fieldKey])); // Deep copy
+    
+    // Check if current fields match the new structure
+    const currentFields = customizationFields[fieldKey];
+    let needsUpdate = false;
+    
+    // Expected new field IDs (in order): transomType, panelConfiguration, dimensions, frameColor, glassColor, glassType, thickness
+    // Note: dimensions replaces the old width, height, h1 fields
+    const expectedFieldIds = ['transomType', 'panelConfiguration', 'dimensions', 'frameColor', 'glassColor', 'glassType', 'thickness'];
+    const currentFieldIds = currentFields ? currentFields.map(f => f.id) : [];
+    
+    // Check if structure matches - must have all expected fields in correct order
+    const hasAllFields = expectedFieldIds.every(id => currentFieldIds.includes(id));
+    const hasCorrectOrder = JSON.stringify(currentFieldIds) === JSON.stringify(expectedFieldIds);
+    
+    if (!hasAllFields || !hasCorrectOrder) {
+      needsUpdate = true;
+      console.log('🔄 Windows_Casement structure mismatch detected. Updating...');
+      console.log('Current field IDs:', currentFieldIds);
+      console.log('Expected field IDs:', expectedFieldIds);
+    } else {
+      // Check if any field properties changed
+      for (let i = 0; i < newFields.length; i++) {
+        const newField = newFields[i];
+        const currentField = currentFields ? currentFields.find(f => f.id === newField.id) : null;
+        
+        if (!currentField) {
+          needsUpdate = true;
+          break;
+        }
+        
+        // Compare key properties
+        if (currentField.label !== newField.label ||
+            JSON.stringify(currentField.options || []) !== JSON.stringify(newField.options || []) ||
+            currentField.stepNumber !== newField.stepNumber ||
+            currentField.type !== newField.type) {
+          needsUpdate = true;
+          console.log(`🔄 Field ${newField.id} changed:`, { 
+            label: { current: currentField.label, new: newField.label },
+            options: { current: currentField.options, new: newField.options },
+            stepNumber: { current: currentField.stepNumber, new: newField.stepNumber },
+            type: { current: currentField.type, new: newField.type }
+          });
+          break;
+        }
+      }
+    }
+    
+    if (needsUpdate) {
+      console.log('📝 Updating Windows_Casement fields to new structure...');
+      
+      // Update in memory
+      customizationFields[fieldKey] = newFields;
+      
+      // Update step names if available
+      const stepNamesKey = `${fieldKey}_stepNames`;
+      if (defaultFields[stepNamesKey]) {
+        customizationFields[stepNamesKey] = defaultFields[stepNamesKey];
+      }
+      
+      // Save to database
+      const saved = await saveCustomizationFieldsToDatabase(fieldKey, newFields, 'Windows', 'Casement');
+      if (saved) {
+        console.log('✅ Windows_Casement fields updated and saved to database');
+      } else {
+        console.warn('⚠️ Windows_Casement fields updated in memory but database save may have failed');
+      }
+      
+      // Clear localStorage cache to force reload
+      try {
+        localStorage.removeItem(CUSTOMIZATION_FIELDS_STORAGE_KEY);
+        console.log('🗑️ Cleared localStorage cache');
+      } catch (e) {
+        console.warn('Could not clear localStorage:', e);
+      }
+      
+      // Reload fields from database to ensure consistency
+      setTimeout(async () => {
+        try {
+          const response = await fetch(base_url + 'customizationFields/getAll', { cache: 'no-cache' });
+          const result = await response.json();
+          if (result.status === 'success' && result.configs && result.configs[fieldKey]) {
+            customizationFields[fieldKey] = result.configs[fieldKey].fields || newFields;
+            console.log('🔄 Reloaded Windows_Casement fields from database');
+          }
+        } catch (e) {
+          console.error('Error reloading fields:', e);
+        }
+      }, 500);
+    } else {
+      console.log('✅ Windows_Casement fields already up to date');
+    }
+  } else {
+    console.warn('⚠️ Could not load Windows_Casement fields from JSON defaults');
+  }
+}
+
+/**
+ * Legacy function - kept for backward compatibility
+ * Now calls updateWindowsCasementFields
+ */
+function fixWindowsCasementFieldTypes() {
+  // This function is now replaced by updateWindowsCasementFields
+  // But we'll call it to maintain compatibility
+  updateWindowsCasementFields().catch(e => {
+    console.error('Error updating Windows_Casement fields:', e);
+  });
+}
+
 async function loadCustomizationFields() {
   // 1) Database (source of truth)
   if (typeof base_url !== 'undefined') {
@@ -577,8 +701,18 @@ async function loadCustomizationFields() {
         for (const [fieldKey, config] of Object.entries(result.configs)) {
           // DB should override anything already in memory
           customizationFields[fieldKey] = config.fields || [];
+          
+          // Also load selectedTags if they exist in the config
+          if (config.selectedTags) {
+            customizationFields[`${fieldKey}_selectedTags`] = config.selectedTags;
+          }
         }
         console.log('Customization fields loaded from database');
+        
+        // Update Windows_Casement fields to new structure if needed
+        updateWindowsCasementFields().catch(e => {
+          console.error('Error updating Windows_Casement fields:', e);
+        });
       }
     } catch (e) {
       console.error("Error loading customization fields from database:", e);
@@ -605,6 +739,11 @@ async function loadCustomizationFields() {
   try {
     await initializeDefaultCustomizationFields();
     console.log('Customization fields defaults loaded from JSON (fill-missing)');
+    
+    // Update Windows_Casement fields to new structure after loading defaults (in case DB didn't have it)
+    updateWindowsCasementFields().catch(e => {
+      console.error('Error updating Windows_Casement fields:', e);
+    });
   } catch (e) {
     console.error('Error loading customization fields from JSON defaults:', e);
   }
@@ -615,6 +754,12 @@ async function loadCustomizationFields() {
   } catch (e) {
     console.error('Error caching customization fields to localStorage:', e);
   }
+  
+  // Force update Windows_Casement fields to new structure (after all loading is done)
+  // This ensures the database is updated even if it has old data
+  updateWindowsCasementFields().catch(e => {
+    console.error('Error updating Windows_Casement fields:', e);
+  });
 }
 
 // Save customization fields to localStorage and database
@@ -853,6 +998,54 @@ function populateCategories(orderType, categorySelect) {
 }
 
 /**
+ * Subcategory to Series mapping
+ * Maps each subcategory to its available series options
+ * Works for all categories: Windows, Doors, Glass Partitions, Commercial, etc.
+ */
+const subcategorySeries = {
+  "Casement": ["None", "YC-38 Series", "YC-50 Series", "60-DMX Series", "85 Series", "75 Series"],
+  "Sliding": ["None", "798 Series", "900 Series"],
+  "Awning": ["None", "798 Series", "900 Series"], // Add appropriate series if needed
+  "Fixed Glass": [] // No series options for Fixed Glass
+};
+
+/**
+ * Populates series dropdown based on selected subcategory
+ * @param {string} subcategory - Selected subcategory
+ * @param {HTMLElement} seriesSelect - Series select element
+ */
+function populateSeriesOptions(subcategory, seriesSelect) {
+  if (!seriesSelect || !seriesSelect.tagName || seriesSelect.tagName !== 'SELECT') {
+    console.warn('populateSeriesOptions: seriesSelect is null or invalid');
+    return;
+  }
+
+  try {
+    // Clear existing options and set placeholder
+    seriesSelect.innerHTML = '<option value="" disabled selected>Select series</option>';
+    
+    if (subcategory && subcategorySeries[subcategory] && subcategorySeries[subcategory].length > 0) {
+      subcategorySeries[subcategory].forEach(series => {
+        const option = document.createElement("option");
+        option.value = series;
+        option.textContent = series;
+        seriesSelect.appendChild(option);
+      });
+    }
+    
+    // Always add "None" option at the end if it's not already in the list
+    if (subcategory && subcategorySeries[subcategory] && !subcategorySeries[subcategory].includes("None")) {
+      const noneOption = document.createElement("option");
+      noneOption.value = "None";
+      noneOption.textContent = "None";
+      seriesSelect.appendChild(noneOption);
+    }
+  } catch (error) {
+    console.error('Error in populateSeriesOptions:', error, { subcategory });
+  }
+}
+
+/**
  * Populates subcategory dropdown based on selected category and order type
  * @param {string} category - Selected category
  * @param {HTMLElement} subcategorySelect - Subcategory select element
@@ -905,39 +1098,16 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
 // The getDefaultCustomizationFields() function now loads from that JSON file
 
 /**
-    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"], stepNumber: 1 },
-    { type: "tags", label: "Operation", id: "operation", options: ["Casement (hinge side configurable)"], stepNumber: 1 },
-    // Step 2: Panel Configuration
-    { type: "tags", label: "Number of Panels", id: "numberOfPanels", options: ["Single panel", "Multiple panels"], stepNumber: 2 },
-    { type: "tags", label: "Hinge Side", id: "hingeSide", options: ["Left-hinged", "Right-hinged"], stepNumber: 2 },
-    { type: "tags", label: "Configuration", id: "configuration", options: ["Two casement windows with fixed transom", "Custom configurations"], stepNumber: 2 },
-    // Step 3: Advanced Options
-    { type: "tags", label: "Transom Options", id: "transomOptions", options: ["Different transom sizes", "Shapes", "Mullion options"], stepNumber: 3 },
-    { type: "tags", label: "Thickness (mm)", id: "thickness", options: ["6mm", "8mm", "10mm", "12mm"], stepNumber: 3 },
-    { type: "checkbox", label: "Screen", id: "screen", stepNumber: 3 }
-  ],
-  "Windows_Casement_stepNames": {
-    "1": "Basic Options",
-    "2": "Panel Configuration",
-    "3": "Advanced Options"
-  },
-  "Windows_Fixed Glass": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Clear", "Tinted", "Frosted", "Low-E", "Reflective coatings", "Safety glass", "Laminated"], stepNumber: 1 },
-    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["White", "Black", "Dark Grey/Black", "Brown", "Silver", "Bronze", "Custom colors"], stepNumber: 1 },
-    { type: "tags", label: "Configuration", id: "configuration", options: ["Fixed corner glass", "Various angles (90°, 135°, custom)", "Standard fixed"], stepNumber: 1 },
-    // Step 2: Installation & Details
-    { type: "tags", label: "Usage", id: "usage", options: ["Structural/architectural feature (non-operable)", "Standard fixed"], stepNumber: 2 },
-    { type: "tags", label: "Installation Method", id: "installationMethod", options: ["Various integration methods", "Standard mounting"], stepNumber: 2 },
-    { type: "number", label: "Thickness (mm)", id: "thickness", min: 1, step: 0.1, stepNumber: 2 },
-    { type: "checkbox", label: "Screen", id: "screen", stepNumber: 2 }
-  ],
-  "Windows_Fixed Glass_stepNames": {
-    "1": "Basic Options",
-    "2": "Installation & Details"
-  },
+ * Windows_Casement field definitions are now loaded from assets/data/default-customization-fields.json
+ * Structure:
+ * Step 1: Transom Type, Panel Configuration, Width, Height, h1 (conditional)
+ * Step 2: Frame Color, Glass Color, Glass Type, Thickness
+ * 
+ * Series Presets are defined below for auto-filling when a series is selected
+ */
   // Series Presets - Auto-fill configurations for each series
-  "Series_Presets": {
+// Note: These presets are merged with the JSON file data when loaded
+const Series_Presets = {
     "900 Series": {
       "numberOfPanels": ["2 Panels"],
       "transomType": ["None"],
@@ -963,43 +1133,108 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
       "lockType": ["Enter Lock 908"],
       "rollerType": ["Single Roller ORD"],
       "screen": ["Without Screen"]
+    },
+    // Casement Series Presets
+    // Thickness options vary by series:
+    // YC-38 Series: 6mm only
+    // YC-50 Series: 6mm-8mm
+    // 60-DMX/85/75 Series: 6mm, 8mm, 10mm, 12mm
+    "YC-38 Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm"]
+    },
+    "YC-50 Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm", "8mm"]
+    },
+    "60-DMX Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm", "8mm", "10mm", "12mm"]
+    },
+    "85 Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm", "8mm", "10mm", "12mm"]
+    },
+    "75 Series": {
+      "transomType": ["None"],
+      "panelConfiguration": ["1"],
+      "frameColor": ["Hanalok"],
+      "glassColor": ["Clear"],
+      "glassType": ["Ordinary"],
+      "thickness": ["6mm", "8mm", "10mm", "12mm"]
     }
-  },
-  // Doors subcategories - Enhanced with catalog options
-  "Doors_Sliding": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Clear", "Tinted", "Frosted", "Low-E", "Tempered", "Laminated", "Laminated safety glass"], stepNumber: 1 },
-    { type: "tags", label: "Frame Material/Color", id: "frameColor", options: ["Aluminum", "Black", "White", "Bronze", "Brown (wood-look)", "Silver", "Custom colors"], stepNumber: 1 },
-    { type: "tags", label: "Panel Count", id: "panelCount", options: ["2-panel", "3-panel", "4-panel", "More panels"], stepNumber: 1 },
-    // Step 2: Operation & Configuration
-    { type: "tags", label: "Operation", id: "operation", options: ["Sliding (single)", "Sliding (double)", "Sliding (multi-track)"], stepNumber: 2 },
-    { type: "tags", label: "Panel Configuration", id: "panelConfiguration", options: ["Central sliding panels with fixed outer panels", "All sliding", "2 sliding + 2 fixed", "2 sliding only", "3 sliding", "Custom"], stepNumber: 2 },
-    // Step 3: Hardware & Features
-    { type: "tags", label: "Handle Type", id: "handleType", options: ["Various pull handles", "Knob handles", "Square handles", "Bar-style", "Round", "Square matte black"], stepNumber: 3 },
-    { type: "tags", label: "Hardware Finish", id: "hardwareFinish", options: ["Chrome/Stainless Steel", "Polished Chrome/Stainless Steel", "Black Matte", "Gold", "Brushed Nickel", "Bronze"], stepNumber: 3 },
-    { type: "checkbox", label: "Soft-close", id: "softClose", stepNumber: 3 }
-  ],
-  "Doors_Sliding_stepNames": {
-    "1": "Basic Options",
-    "2": "Operation & Configuration",
-    "3": "Hardware & Features"
-  },
-  "Doors_Swing Door": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Series", id: "series", options: ["68 Series", "ED & FD100"], stepNumber: 1 },
-    { type: "tags", label: "Glass Type", id: "glassType", options: ["Ordinary", "Tempered", "Reflective"], stepNumber: 1 },
-    { type: "tags", label: "Glass Color", id: "glassColor", options: ["Clear", "Bronze", "Frosted/Smoked"], stepNumber: 1 },
-    { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"], stepNumber: 1 },
-    // Step 2: Configuration & Details
-    { type: "tags", label: "Thickness (mm)", id: "thickness", options: ["6mm", "8mm", "10mm", "12mm"], stepNumber: 2 }
-  ],
-  "Doors_Swing Door_stepNames": {
-    "1": "Basic Options",
-    "2": "Configuration & Details"
-  },
-  "Doors_Bi-fold Door": [
-    // Step 1: Basic Options
-    { type: "tags", label: "Series", id: "series", options: ["45 Series", "75 Series"], stepNumber: 1 },
+};
+
+// Note: All field definitions (Windows_Casement, Doors_Sliding, etc.) are now loaded from assets/data/default-customization-fields.json
+// The Series_Presets above are merged with the JSON data when customizationFields are loaded
+
+/**
+ * Populates subcategory dropdown based on selected category and order type
+ * @param {string} category - Selected main category
+ * @param {HTMLElement} subcategorySelect - Subcategory select element
+ * @param {string} orderType - Selected order type (optional, for filtering)
+ */
+function populateSubcategories(category, subcategorySelect, orderType = null) {
+  // Defensive check - ensure element exists and is valid
+  if (!subcategorySelect || !subcategorySelect.nodeType || subcategorySelect.nodeType !== 1) {
+    console.warn('populateSubcategories: subcategorySelect is null or invalid');
+    return;
+  }
+  
+  try {
+    // Clear existing options and set placeholder with selected attribute
+    subcategorySelect.innerHTML = '<option value="" disabled selected>Select subcategory</option>';
+    
+    if (category && categorySubcategories[category]) {
+      let subcategories = categorySubcategories[category];
+      
+      // Filter subcategories based on order type if category has order-type-specific subcategories
+      if (orderType && orderTypeSubcategories[category] && orderTypeSubcategories[category][orderType]) {
+        subcategories = orderTypeSubcategories[category][orderType];
+      }
+      
+      subcategories.forEach(subcat => {
+        const option = document.createElement("option");
+        option.value = subcat;
+        option.textContent = subcat;
+        subcategorySelect.appendChild(option);
+      });
+      
+      // Show subcategory group if subcategories exist
+      const subcategoryGroup = document.getElementById("subcategoryGroup");
+      if (subcategoryGroup) {
+        subcategoryGroup.style.display = "block";
+      }
+    } else {
+      // Hide subcategory group if no subcategories
+      const subcategoryGroup = document.getElementById("subcategoryGroup");
+      if (subcategoryGroup) {
+        subcategoryGroup.style.display = "none";
+      }
+    }
+  } catch (error) {
+    console.error('Error in populateSubcategories:', error, { category, orderType });
+  }
+}
+
+/**
+ * Show manage customization fields modal
     { type: "tags", label: "Glass Type", id: "glassType", options: ["Ordinary", "Tempered", "Reflective"], stepNumber: 1 },
     { type: "tags", label: "Glass Color", id: "glassColor", options: ["Clear", "Bronze", "Frosted/Smoked"], stepNumber: 1 },
     { type: "tags", label: "Frame Color/Material", id: "frameColor", options: ["Powder Coated White", "Analok", "Matte Gray", "Matte Black", "Wood Finish"], stepNumber: 1 },
@@ -1243,6 +1478,10 @@ function showManageCustomizationFields(category, subcategory) {
   const stepNamesKey = `${fieldKey}_stepNames`;
   let stepNames = customizationFields[stepNamesKey] || {};
   
+  // Get saved series selection for this subcategory
+  const savedSeriesKey = `${fieldKey}_selectedSeries`;
+  const savedSeries = customizationFields[savedSeriesKey] || null;
+  
   // Remove any existing manage fields modal to prevent duplicates
   const existingModal = document.getElementById("manageCustomizationFieldsModal");
   if (existingModal) {
@@ -1261,14 +1500,44 @@ function showManageCustomizationFields(category, subcategory) {
         Category: <strong>${category}</strong> | Subcategory: <strong>${subcategory}</strong>
       </p>
       <p style="color: #d9534f; font-size: 12px; margin-bottom: 15px; padding: 8px; background: #ffe0e0; border-radius: 4px;">
-        <i class="fas fa-info-circle"></i> <strong>Note:</strong> Minimum of 2 is enough.
+        <i class="fas fa-info-circle"></i> <strong>Note:</strong> A minimum of 2 fields per step is required.
       </p>
       
-      <div class="customization-fields-manager" id="fieldsManagerContainer">
+      <!-- Series Selection Mode - Available for ALL categories and subcategories -->
+      <div style="margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
+        <h4 style="margin: 0 0 15px 0; font-size: 16px; color: #005b82;">
+          <i class="fas fa-layer-group"></i> Series Configuration
+        </h4>
+        
+        <div style="margin-bottom: 15px;">
+          <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer;">
+            <input type="radio" name="seriesMode" id="useExistingSeries" value="existing" style="cursor: pointer;">
+            <span style="font-weight: 600; color: #333;">Use Existing Series</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+            <input type="radio" name="seriesMode" id="createNewSeries" value="new" style="cursor: pointer;">
+            <span style="font-weight: 600; color: #333;">Create New Series</span>
+          </label>
+        </div>
+        
+        <div id="seriesSelectorContainer" style="display: none; margin-top: 15px;">
+          <label for="manageSeriesSelect" style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">Select Series:</label>
+          <select id="manageSeriesSelect" class="input-text" style="width: 100%; padding: 8px;">
+            <option value="" disabled selected>Select series</option>
+          </select>
+        </div>
+        
+        <div id="newSeriesContainer" style="display: none !important; margin-top: 15px;">
+          <label for="newSeriesNameInput" style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">New Series Name:</label>
+          <input type="text" id="newSeriesNameInput" class="input-text" placeholder="e.g., YC-38 Series" style="width: 100%; padding: 8px;">
+        </div>
+      </div>
+      
+      <div class="customization-fields-manager" id="fieldsManagerContainer" style="display: none;">
         ${fields.length === 0 ? '<p style="color: #999; text-align: center; padding: 20px;">No fields added yet. Click "Add Field" to start.</p>' : ''}
       </div>
       
-      <div style="display: flex; gap: 10px; margin-top: 15px;">
+      <div id="fieldActionsContainer" style="display: none; gap: 10px; margin-top: 15px;">
         <button type="button" class="add-series-btn" id="addCustomizationFieldBtn">
           <i class="fas fa-plus"></i> Add Field
         </button>
@@ -1277,9 +1546,16 @@ function showManageCustomizationFields(category, subcategory) {
         </button>
       </div>
       
-      <div class="popup-actions" style="margin-top: 20px;">
-        <button class="save-btn" id="saveCustomizationFieldsBtn">Save Changes</button>
-        <button class="cancel-btn" id="cancelManageFieldsBtn">Cancel</button>
+      <div class="popup-actions" style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end; align-items: center; padding: 15px 0; border-top: 1px solid #e0e0e0;">
+        <button class="save-btn" id="saveCustomizationFieldsBtn" style="padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; border: none; background: #005b82; color: white; transition: background 0.3s;">
+          Save Changes
+        </button>
+        <button type="button" class="cancel-btn" id="deleteSeriesBtn" style="background: #d9534f; border-color: #d9534f; color: white; padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; border: none; display: none; transition: background 0.3s;" title="Delete selected series">
+          <i class="fas fa-trash"></i> Delete Series
+        </button>
+        <button class="cancel-btn" id="cancelManageFieldsBtn" style="padding: 10px 20px; font-size: 14px; font-weight: 600; border-radius: 4px; cursor: pointer; border: 1px solid #005b82; background: white; color: #005b82; transition: all 0.3s;">
+          Cancel
+        </button>
       </div>
     </div>
   `;
@@ -1297,6 +1573,40 @@ function showManageCustomizationFields(category, subcategory) {
   
   // Working copy of step names
   let workingStepNames = JSON.parse(JSON.stringify(stepNames));
+  
+  // Get series presets for this subcategory
+  // Series are now segregated by subcategory: Series_Presets[subcategory][seriesName]
+  if (!customizationFields["Series_Presets"]) {
+    customizationFields["Series_Presets"] = {};
+  }
+  if (!customizationFields["Series_Presets"][subcategory]) {
+    customizationFields["Series_Presets"][subcategory] = {};
+  }
+  const seriesPresets = customizationFields["Series_Presets"][subcategory] || {};
+  
+  // Get available series from predefined list OR from saved presets for this subcategory
+  // First, check if subcategory has predefined series
+  let availableSeries = subcategorySeries[subcategory] || [];
+  
+  // Also check for any series presets that exist for this specific subcategory
+  Object.keys(seriesPresets).forEach(seriesName => {
+    // Add series that exist in presets but not in predefined list
+    if (!availableSeries.includes(seriesName) && seriesName !== "None") {
+      availableSeries.push(seriesName);
+    }
+  });
+  
+  // Remove duplicates and filter out "None"
+  availableSeries = [...new Set(availableSeries)].filter(s => s !== "None");
+  
+  let workingSeriesPresets = {};
+  
+  // Filter series presets for this subcategory only
+  availableSeries.forEach(series => {
+    if (seriesPresets[series]) {
+      workingSeriesPresets[series] = JSON.parse(JSON.stringify(seriesPresets[series]));
+    }
+  });
   
   // Track dragged item index (shared across all items)
   let draggedIndex = null;
@@ -1503,10 +1813,51 @@ function showManageCustomizationFields(category, subcategory) {
         stepTitleLeft.appendChild(warning);
       }
       
+      // Add remove step button (X) - icon on the right side
+      const removeStepBtn = document.createElement("i");
+      removeStepBtn.className = "fas fa-times";
+      removeStepBtn.title = "Remove this step and all its fields";
+      removeStepBtn.style.cssText = "cursor: pointer; font-size: 16px; color: #005b82; margin-left: 5px;";
+      removeStepBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showRemoveConfirmation(`Step ${stepNum}`, () => {
+          // Remove all fields in this step
+          workingFields = workingFields.filter(f => (f.stepNumber || 1) !== stepNum);
+          // Remove step name
+          delete workingStepNames[stepNum];
+          // Re-number remaining steps to be sequential
+          const remainingSteps = [...new Set(workingFields.map(f => f.stepNumber || 1))].sort((a, b) => a - b);
+          remainingSteps.forEach((oldStepNum, index) => {
+            const newStepNum = index + 1;
+            if (oldStepNum !== newStepNum) {
+              // Update fields in this step
+              workingFields.forEach(f => {
+                if ((f.stepNumber || 1) === oldStepNum) {
+                  f.stepNumber = newStepNum;
+                  f.step = newStepNum;
+                }
+              });
+              // Update step names
+              if (workingStepNames[oldStepNum]) {
+                workingStepNames[newStepNum] = workingStepNames[oldStepNum];
+                delete workingStepNames[oldStepNum];
+              }
+            }
+          });
+          renderFieldsManager();
+        });
+      });
+      
       stepTitleLeft.appendChild(stepNumberBadge);
       stepTitleLeft.appendChild(stepNameInput);
       stepTitle.appendChild(stepTitleLeft);
-      stepTitle.appendChild(fieldCountBadge);
+      
+      // Add field count badge and remove button on the right side
+      const rightSide = document.createElement("div");
+      rightSide.style.cssText = "display: flex; align-items: center; gap: 5px;";
+      rightSide.appendChild(fieldCountBadge);
+      rightSide.appendChild(removeStepBtn);
+      stepTitle.appendChild(rightSide);
       stepHeader.appendChild(stepTitle);
       container.appendChild(stepHeader);
       
@@ -1802,8 +2153,318 @@ function showManageCustomizationFields(category, subcategory) {
     });
   }
   
-  // Initial render
-  renderFieldsManager();
+  
+  // Series mode selection handlers - Available for ALL categories and subcategories
+  // Works for all categories: Windows, Doors, Glass Partitions, Commercial, etc.
+  // Even if no predefined series exist, admin can create new ones
+  const useExistingRadio = document.getElementById("useExistingSeries");
+  const createNewRadio = document.getElementById("createNewSeries");
+  const seriesSelectorContainer = document.getElementById("seriesSelectorContainer");
+  const newSeriesContainer = document.getElementById("newSeriesContainer");
+  const manageSeriesSelect = document.getElementById("manageSeriesSelect");
+  const newSeriesNameInput = document.getElementById("newSeriesNameInput");
+  const fieldsContainer = document.getElementById("fieldsManagerContainer");
+  const fieldActionsContainer = document.getElementById("fieldActionsContainer");
+  
+  // Populate series dropdown with available series
+  availableSeries.forEach(series => {
+    const option = document.createElement("option");
+    option.value = series;
+    option.textContent = series;
+    manageSeriesSelect.appendChild(option);
+  });
+  
+  // If no series exist yet, show message but still allow creating new ones
+  if (availableSeries.length === 0) {
+    const noSeriesOption = document.createElement("option");
+    noSeriesOption.value = "";
+    noSeriesOption.textContent = "No series yet - Create one below";
+    noSeriesOption.disabled = true;
+    manageSeriesSelect.appendChild(noSeriesOption);
+  }
+  
+  // Track current mode and selected series
+  let currentMode = null;
+  let selectedSeriesName = savedSeries || null; // Initialize with saved series if available (for continuing edits)
+  let filteredFields = [];
+  
+  // Restore saved series selection if it exists (so admin can continue editing)
+  // This only applies to "Manage Customization Fields" - allows admin to continue editing a previously saved series
+  if (savedSeries && availableSeries.includes(savedSeries)) {
+    // Set the dropdown to the saved series
+    manageSeriesSelect.value = savedSeries;
+    // Auto-select "Use Existing Series" radio
+    useExistingRadio.checked = true;
+    currentMode = "existing";
+    // Show series selector container
+    seriesSelectorContainer.style.display = "block";
+    newSeriesContainer.style.display = "none";
+    // Show delete button if series is selected
+    const deleteSeriesBtn = document.getElementById("deleteSeriesBtn");
+    if (deleteSeriesBtn) {
+      deleteSeriesBtn.style.display = "block";
+    }
+    // Show fields for the saved series
+    setTimeout(() => {
+      showFieldsForMode();
+    }, 100);
+  }
+  
+  // Function to show fields based on mode
+  const showFieldsForMode = () => {
+      if (currentMode === "existing" && selectedSeriesName) {
+        // Ensure workingFields has data - if empty, load from customizationFields
+        if (!workingFields || workingFields.length === 0) {
+          workingFields = JSON.parse(JSON.stringify(customizationFields[fieldKey] || []));
+          window.currentWorkingFields = workingFields;
+        }
+        
+        // Show ALL fields for the existing series (not filtered)
+        // The preset values will be used to auto-fill, but all fields should be visible
+        filteredFields = JSON.parse(JSON.stringify(workingFields));
+        
+        // Update thickness options based on selected series
+        updateThicknessOptionsForSeries(selectedSeriesName);
+        
+        // Update thickness in fields
+        const thicknessField = filteredFields.find(f => f.id === "thickness");
+        if (thicknessField) {
+          const seriesThicknessOptions = getThicknessOptionsForSeries(selectedSeriesName);
+          if (seriesThicknessOptions.length > 0) {
+            thicknessField.options = seriesThicknessOptions;
+          }
+        }
+        
+        // Temporarily replace workingFields for rendering
+        const originalWorkingFields = workingFields;
+        workingFields = filteredFields;
+        
+        renderFieldsManager();
+        
+        // After rendering, apply preset values to the fields
+        setTimeout(() => {
+          const seriesPreset = workingSeriesPresets[selectedSeriesName] || {};
+          if (Object.keys(seriesPreset).length > 0) {
+            // Apply preset values to tag fields
+            Object.keys(seriesPreset).forEach(fieldId => {
+              const presetValue = seriesPreset[fieldId];
+              const hiddenInput = document.getElementById(fieldId);
+              if (hiddenInput && Array.isArray(presetValue)) {
+                hiddenInput.value = JSON.stringify(presetValue);
+                // Trigger tag rendering update
+                const tagContainer = document.querySelector(`#fieldsManagerContainer [data-field-id="${fieldId}"] .tag-container`);
+                if (tagContainer) {
+                  const field = filteredFields.find(f => f.id === fieldId);
+                  if (field && field.options) {
+                    renderTags(tagContainer, field.options, "", fieldId);
+                  }
+                }
+              } else {
+                // For number and other input types
+                const input = document.getElementById(fieldId);
+                if (input) {
+                  if (typeof presetValue === 'number') {
+                    input.value = presetValue;
+                  } else if (typeof presetValue === 'boolean') {
+                    input.checked = presetValue;
+                  }
+                }
+              }
+            });
+          }
+        }, 200);
+        
+        workingFields = originalWorkingFields; // Restore original for editing
+      } else if (currentMode === "new") {
+        // Show blank fields for new series creation (admin needs to create from scratch)
+        filteredFields = [];
+        workingFields = [];
+        window.currentWorkingFields = [];
+        renderFieldsManager();
+      } else {
+        // Hide fields
+        fieldsContainer.style.display = "none";
+        fieldActionsContainer.style.display = "none";
+        return;
+      }
+      
+      // Show fields and actions
+      fieldsContainer.style.display = "block";
+      fieldActionsContainer.style.cssText = "display: flex; gap: 10px; margin-top: 15px;";
+    };
+    
+    // If saved series exists, show fields for it after showFieldsForMode is defined
+    if (savedSeries && availableSeries.includes(savedSeries)) {
+      setTimeout(() => {
+        showFieldsForMode();
+      }, 100);
+    }
+  
+  // Use Existing Series handler
+  useExistingRadio.addEventListener("change", () => {
+      if (useExistingRadio.checked) {
+        currentMode = "existing";
+        seriesSelectorContainer.style.display = "block";
+        newSeriesContainer.style.display = "none";
+        manageSeriesSelect.disabled = false;
+        newSeriesNameInput.value = "";
+        
+        // Hide delete button until a series is selected
+        const deleteSeriesBtn = document.getElementById("deleteSeriesBtn");
+        if (deleteSeriesBtn) {
+          deleteSeriesBtn.style.display = "none";
+        }
+        
+      // Hide fields until series is selected
+      fieldsContainer.style.display = "none";
+      fieldActionsContainer.style.display = "none";
+    }
+  });
+  
+  // Create New Series handler
+  createNewRadio.addEventListener("change", () => {
+      if (createNewRadio.checked) {
+        currentMode = "new";
+        seriesSelectorContainer.style.display = "none";
+        manageSeriesSelect.disabled = true;
+        manageSeriesSelect.value = "";
+        selectedSeriesName = null;
+        
+        // Hide delete button when creating new series
+        if (deleteSeriesBtn) {
+          deleteSeriesBtn.style.display = "none";
+        }
+        
+        // Hide new series input initially (will show when user types)
+        newSeriesContainer.style.display = "none";
+        newSeriesNameInput.value = "";
+        
+      // Show blank fields for new series creation
+      showFieldsForMode();
+    }
+  });
+  
+  // Show/hide new series input based on value
+  newSeriesNameInput.addEventListener("input", () => {
+      if (newSeriesNameInput.value.trim()) {
+        newSeriesContainer.style.display = "block";
+      } else {
+      newSeriesContainer.style.display = "none";
+    }
+  });
+  
+  // Also check on focus - show the container when user starts typing
+  newSeriesNameInput.addEventListener("focus", () => {
+      newSeriesContainer.style.display = "block";
+    });
+    
+    // Hide on blur if empty
+    newSeriesNameInput.addEventListener("blur", () => {
+      if (!newSeriesNameInput.value.trim()) {
+      newSeriesContainer.style.display = "none";
+    }
+  });
+  
+  // Ensure it's hidden on initial load
+  setTimeout(() => {
+    if (newSeriesContainer && !newSeriesNameInput.value.trim()) {
+      newSeriesContainer.style.display = "none";
+    }
+  }, 100);
+  
+  // Series selection handler
+  const deleteSeriesBtn = document.getElementById("deleteSeriesBtn");
+  manageSeriesSelect.addEventListener("change", () => {
+      selectedSeriesName = manageSeriesSelect.value;
+      if (selectedSeriesName) {
+        // Show delete button when a series is selected
+        if (deleteSeriesBtn) {
+          deleteSeriesBtn.style.display = "block";
+        }
+        showFieldsForMode();
+        // Update thickness options based on selected series
+        updateThicknessOptionsForSeries(selectedSeriesName);
+      } else {
+        // Hide delete button when no series is selected
+        if (deleteSeriesBtn) {
+          deleteSeriesBtn.style.display = "none";
+        }
+      fieldsContainer.style.display = "none";
+      fieldActionsContainer.style.display = "none";
+    }
+  });
+  
+  // Delete series button handler
+  if (deleteSeriesBtn) {
+    deleteSeriesBtn.addEventListener("click", () => {
+        const seriesToDelete = manageSeriesSelect.value;
+        if (!seriesToDelete) {
+          showToast("Please select a series to delete.", 'error');
+          return;
+        }
+        
+        if (confirm(`Are you sure you want to delete the series "${seriesToDelete}"? This action cannot be undone.`)) {
+          // Remove from workingSeriesPresets
+          if (workingSeriesPresets[seriesToDelete]) {
+            delete workingSeriesPresets[seriesToDelete];
+          }
+          
+          // Remove from this subcategory's Series_Presets
+          if (customizationFields["Series_Presets"] && 
+              customizationFields["Series_Presets"][subcategory] && 
+              customizationFields["Series_Presets"][subcategory][seriesToDelete]) {
+            delete customizationFields["Series_Presets"][subcategory][seriesToDelete];
+          }
+          
+          // Remove from dropdown
+          const optionToRemove = Array.from(manageSeriesSelect.options).find(opt => opt.value === seriesToDelete);
+          if (optionToRemove) {
+            manageSeriesSelect.removeChild(optionToRemove);
+          }
+          
+          // Reset selection
+          manageSeriesSelect.value = "";
+          selectedSeriesName = null;
+          deleteSeriesBtn.style.display = "none";
+          
+          // Hide fields
+          fieldsContainer.style.display = "none";
+          fieldActionsContainer.style.display = "none";
+          
+          showToast(`Series "${seriesToDelete}" has been deleted.`, 'success');
+          
+      // Note: The deletion will be saved when the user clicks "Save Changes"
+    }
+  });
+  }
+  
+  // Helper function to get thickness options for a series
+  function getThicknessOptionsForSeries(seriesName) {
+      if (seriesName === "YC-38 Series") {
+        return ["6mm"];
+      } else if (seriesName === "YC-50 Series") {
+        return ["6mm", "8mm"];
+      } else if (seriesName === "60-DMX Series" || seriesName === "85 Series" || seriesName === "75 Series") {
+        return ["6mm", "8mm", "10mm", "12mm"];
+      }
+    return [];
+  }
+  
+  // Function to update thickness field options based on series
+  function updateThicknessOptionsForSeries(seriesName) {
+    const thicknessOptions = getThicknessOptionsForSeries(seriesName);
+    
+    if (thicknessOptions.length === 0) return;
+    
+    // Find and update thickness field in workingFields
+    const thicknessField = workingFields.find(f => f.id === "thickness");
+    if (thicknessField) {
+      thicknessField.options = thicknessOptions;
+    }
+  }
+  
+  // All subcategories now have series management available
+  // Fields will be shown based on series mode selection above
   
   // Load defaults button - loads from JSON file
   document.getElementById("loadDefaultsBtn").onclick = async () => {
@@ -1868,17 +2529,138 @@ function showManageCustomizationFields(category, subcategory) {
   // Save button
   document.getElementById("saveCustomizationFieldsBtn").onclick = async () => {
     try {
+      // Save series presets if creating new series
+      // Available for ALL categories and subcategories
+      // Series are segregated by subcategory: Series_Presets[subcategory][seriesName]
+      const createNewRadio = document.getElementById("createNewSeries");
+      const newSeriesNameInput = document.getElementById("newSeriesNameInput");
+      
+      if (createNewRadio && createNewRadio.checked && newSeriesNameInput && newSeriesNameInput.value.trim()) {
+        const newSeriesName = newSeriesNameInput.value.trim();
+        if (!customizationFields["Series_Presets"]) {
+          customizationFields["Series_Presets"] = {};
+        }
+        if (!customizationFields["Series_Presets"][subcategory]) {
+          customizationFields["Series_Presets"][subcategory] = {};
+        }
+        
+        // Create preset from current field selections
+        const newPreset = {};
+        const tagContainers = document.querySelectorAll('#fieldsManagerContainer .tag-container');
+        tagContainers.forEach(container => {
+          const fieldId = container.dataset.fieldId;
+          if (fieldId) {
+            const hiddenInput = document.getElementById(fieldId);
+            if (hiddenInput) {
+              const selectedValues = JSON.parse(hiddenInput.value || "[]");
+              if (selectedValues.length > 0) {
+                newPreset[fieldId] = selectedValues;
+              }
+            }
+          }
+        });
+        
+        // Also collect number and checkbox values
+        document.querySelectorAll('#fieldsManagerContainer input[type="number"]').forEach(input => {
+          if (input.value) {
+            newPreset[input.name] = parseFloat(input.value) || 0;
+          }
+        });
+        
+        document.querySelectorAll('#fieldsManagerContainer input[type="checkbox"]').forEach(input => {
+          newPreset[input.name] = input.checked;
+        });
+        
+        // Store series under its subcategory
+        customizationFields["Series_Presets"][subcategory][newSeriesName] = newPreset;
+        console.log('New series preset created for subcategory:', subcategory, 'series:', newSeriesName, newPreset);
+      }
+      
+      // Collect selected tags from all tag fields in the modal
+      const selectedTagsKey = `${fieldKey}_selectedTags`;
+      const selectedTags = {};
+      
+      // Find all tag containers in the fields manager
+      const tagContainers = document.querySelectorAll('#fieldsManagerContainer .tag-container');
+      tagContainers.forEach(container => {
+        const fieldId = container.dataset.fieldId;
+        if (fieldId) {
+          // Find the hidden input for this field
+          const hiddenInput = document.getElementById(fieldId);
+          if (hiddenInput) {
+            const selectedValues = JSON.parse(hiddenInput.value || "[]");
+            if (selectedValues.length > 0) {
+              selectedTags[fieldId] = selectedValues;
+            }
+          }
+        }
+      });
+      
       // Update the customization fields with working copy
       customizationFields[fieldKey] = workingFields;
       
       // Save step names
       customizationFields[stepNamesKey] = workingStepNames;
       
+      // Save selected tags
+      customizationFields[selectedTagsKey] = selectedTags;
+      
+      // Save the selected series for this subcategory
+      const savedSeriesKey = `${fieldKey}_selectedSeries`;
+      const manageSeriesSelectForSave = document.getElementById("manageSeriesSelect");
+      const createNewRadioForSave = document.getElementById("createNewSeries");
+      const newSeriesNameInputForSave = document.getElementById("newSeriesNameInput");
+      
+      // Determine which series was selected/created
+      let selectedSeriesToSave = null;
+      if (createNewRadioForSave && createNewRadioForSave.checked && newSeriesNameInputForSave && newSeriesNameInputForSave.value.trim()) {
+        // New series was created
+        selectedSeriesToSave = newSeriesNameInputForSave.value.trim();
+      } else if (manageSeriesSelectForSave && manageSeriesSelectForSave.value) {
+        // Existing series was selected
+        selectedSeriesToSave = manageSeriesSelectForSave.value;
+      }
+      
+      // Save the selected series
+      if (selectedSeriesToSave) {
+        customizationFields[savedSeriesKey] = selectedSeriesToSave;
+        console.log('Saved selected series for', fieldKey, ':', selectedSeriesToSave);
+      } else {
+        // Clear saved series if none selected
+        delete customizationFields[savedSeriesKey];
+      }
+      
+      // Save series presets (including deletions) for ALL subcategories
+      // Series management is available for all categories and subcategories
+      // Series are segregated by subcategory: Series_Presets[subcategory][seriesName]
+      if (!customizationFields["Series_Presets"]) {
+        customizationFields["Series_Presets"] = {};
+      }
+      if (!customizationFields["Series_Presets"][subcategory]) {
+        customizationFields["Series_Presets"][subcategory] = {};
+      }
+      // Update Series_Presets for this subcategory with workingSeriesPresets (deletions are already reflected)
+      Object.keys(workingSeriesPresets).forEach(seriesName => {
+        customizationFields["Series_Presets"][subcategory][seriesName] = workingSeriesPresets[seriesName];
+      });
+      // Also remove deleted series from this subcategory's Series_Presets
+      const allSeriesInPresets = Object.keys(customizationFields["Series_Presets"][subcategory] || {});
+      allSeriesInPresets.forEach(seriesName => {
+        if (!workingSeriesPresets[seriesName] && availableSeries.includes(seriesName)) {
+          delete customizationFields["Series_Presets"][subcategory][seriesName];
+        }
+      });
+      
       // Save to localStorage first
       localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
       
       // Save to database and wait for completion
       const saveSuccess = await saveCustomizationFieldsToDatabase(fieldKey, workingFields, category, subcategory);
+      
+      // Also save selectedTags to database as a separate entry
+      if (Object.keys(selectedTags).length > 0) {
+        await saveSelectedTagsToDatabase(fieldKey, selectedTags, category, subcategory);
+      }
       
       if (!saveSuccess) {
         showToast("Failed to save customization fields to database. Please try again.", 'error');
@@ -1895,6 +2677,9 @@ function showManageCustomizationFields(category, subcategory) {
         const selectedCategory = addCategorySelect.value;
         if (selectedSubcategory && selectedCategory && selectedSubcategory === subcategory && selectedCategory === category) {
           generateCustomizationFields(selectedSubcategory, addCustomizationContainer, "", selectedCategory);
+          
+          // No auto-application of series in Add New Product
+          // Admin must manually select series every time
         }
       }
       
@@ -1970,6 +2755,7 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
           <option value="tags" ${existingField?.type === 'tags' ? 'selected' : ''}>Tags (Multiple Selection)</option>
           <option value="checkbox" ${existingField?.type === 'checkbox' ? 'selected' : ''}>Checkbox (Yes/No)</option>
           <option value="number" ${existingField?.type === 'number' ? 'selected' : ''}>Number Input</option>
+          <option value="dimensions" ${existingField?.type === 'dimensions' ? 'selected' : ''}>Dimensions (Width, Height, h1)</option>
           <option value="color" ${existingField?.type === 'color' ? 'selected' : ''}>Color Picker</option>
         </select>
       </div>
@@ -2016,9 +2802,29 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
   
   // Show/hide options based on field type
   fieldTypeSelect.addEventListener("change", () => {
-    fieldOptionsGroup.style.display = fieldTypeSelect.value === "tags" ? "block" : "none";
-    fieldNumberGroup.style.display = fieldTypeSelect.value === "number" ? "block" : "none";
-  });
+        const fieldType = fieldTypeSelect.value;
+        fieldOptionsGroup.style.display = fieldType === "tags" ? "block" : "none";
+        fieldNumberGroup.style.display = fieldType === "number" ? "block" : "none";
+        
+        // For dimensions type, show info message
+        if (fieldType === "dimensions") {
+          if (!document.getElementById("dimensionsInfo")) {
+            const infoDiv = document.createElement("div");
+            infoDiv.id = "dimensionsInfo";
+            infoDiv.style.cssText = "margin-top: 10px; padding: 10px; background: #e8f4f8; border-radius: 4px; color: #005b82; font-size: 12px;";
+            infoDiv.innerHTML = '<i class="fas fa-info-circle"></i> Dimensions field will display Width, Height, and h1 (conditional) input fields to customers in one row.';
+            fieldTypeSelect.parentElement.appendChild(infoDiv);
+          }
+        } else {
+          const infoDiv = document.getElementById("dimensionsInfo");
+          if (infoDiv) infoDiv.remove();
+        }
+      });
+      
+      // Trigger change event to show/hide appropriate fields on load
+      if (existingField?.type) {
+        fieldTypeSelect.dispatchEvent(new Event('change'));
+      }
   
   // Step selection warning
   const stepSelect = document.getElementById("fieldStepSelect");
@@ -2124,6 +2930,13 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
     } else if (type === "number") {
       field.min = parseFloat(document.getElementById("fieldMinInput").value) || 0;
       field.step = parseFloat(document.getElementById("fieldStepInput").value) || 1;
+    } else if (type === "dimensions") {
+      // Dimensions field - special type that renders Width, Height, and h1 inputs
+      field.fields = ["width", "height", "h1"];
+      field.h1Conditional = existingField?.h1Conditional || {
+        dependsOn: "",
+        showWhen: []
+      };
     } else if (type === "color") {
       field.default = existingField?.default || "#000000";
     }
@@ -2187,6 +3000,10 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
   // Get step names
   const stepNamesKey = `${fieldKey}_stepNames`;
   const stepNames = customizationFields[stepNamesKey] || {};
+  
+  // Get saved series for this subcategory (for Add New Product form)
+  const savedSeriesKey = `${fieldKey}_selectedSeries`;
+  const savedSeries = customizationFields[savedSeriesKey] || null;
   
   // Group fields by step
   const fieldsByStep = {};
@@ -2253,14 +3070,27 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
         hiddenInput.type = "hidden";
         hiddenInput.id = `${prefix}${field.id}`;
         hiddenInput.name = field.id;
-        hiddenInput.value = "[]"; // Initialize as empty array JSON
         
         // Store available options in data attribute (original + dynamically added)
         tagContainer.dataset.availableOptions = JSON.stringify(field.options || []);
         // Store original options separately to track which tags can be removed
         tagContainer.dataset.originalOptions = JSON.stringify(field.options || []);
         
-        // Render initial tags
+        // Add: tags can be selected/unselected when series is chosen. Edit: use saved/product data, tags are clickable.
+        const allOptions = field.options || [];
+        if (prefix === "" || prefix === "standardOption_") {
+          // ADD product: automatically select ALL available tags by default
+          // Tags will be auto-selected, but can still be clicked to unselect
+          hiddenInput.value = JSON.stringify(allOptions);
+        } else {
+          // EDIT product: use saved selections or product data (populateEditForm sets this)
+          const selectedTagsKey = `${fieldKey}_selectedTags`;
+          const selectedTags = customizationFields[selectedTagsKey] || {};
+          const preSelected = selectedTags[field.id] || [];
+          hiddenInput.value = preSelected.length > 0 ? JSON.stringify(preSelected) : "[]";
+        }
+        
+        // Render tags (Add: all selected by default; Edit: selectable, click toggles)
         renderTags(tagContainer, field.options || [], prefix, field.id);
         
         tagWrapper.appendChild(tagContainer);
@@ -2330,6 +3160,116 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
           }, 500);
         });
         break;
+        
+      case "dimensions":
+        // Dimensions field - renders Width, Height, and h1 in one row
+        const dimensionsContainer = document.createElement("div");
+        dimensionsContainer.className = "dimensions-container";
+        dimensionsContainer.style.cssText = "display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;";
+        
+        // Width input
+        const widthGroup = document.createElement("div");
+        widthGroup.style.cssText = "flex: 1; min-width: 120px;";
+        const widthLabel = document.createElement("label");
+        widthLabel.textContent = "Width";
+        widthLabel.setAttribute("for", `${prefix}width`);
+        widthLabel.style.cssText = "display: block; margin-bottom: 6px; font-size: 13px; color: #333;";
+        const widthInput = document.createElement("input");
+        widthInput.type = "number";
+        widthInput.id = `${prefix}width`;
+        widthInput.name = "width";
+        widthInput.className = "input-text";
+        widthInput.min = 0;
+        widthInput.step = 0.1;
+        widthInput.placeholder = "0";
+        widthGroup.appendChild(widthLabel);
+        widthGroup.appendChild(widthInput);
+        
+        // Height input
+        const heightGroup = document.createElement("div");
+        heightGroup.style.cssText = "flex: 1; min-width: 120px;";
+        const heightLabel = document.createElement("label");
+        heightLabel.textContent = "Height";
+        heightLabel.setAttribute("for", `${prefix}height`);
+        heightLabel.style.cssText = "display: block; margin-bottom: 6px; font-size: 13px; color: #333;";
+        const heightInput = document.createElement("input");
+        heightInput.type = "number";
+        heightInput.id = `${prefix}height`;
+        heightInput.name = "height";
+        heightInput.className = "input-text";
+        heightInput.min = 0;
+        heightInput.step = 0.1;
+        heightInput.placeholder = "0";
+        heightGroup.appendChild(heightLabel);
+        heightGroup.appendChild(heightInput);
+        
+        dimensionsContainer.appendChild(widthGroup);
+        dimensionsContainer.appendChild(heightGroup);
+        
+        // h1 input (conditional)
+        if (field.h1Conditional && field.h1Conditional.dependsOn) {
+          const h1Group = document.createElement("div");
+          h1Group.id = `${prefix}h1Group`;
+          h1Group.className = "h1-dimension-group";
+          h1Group.style.cssText = "flex: 1; min-width: 120px; display: none;"; // Hidden by default
+          const h1Label = document.createElement("label");
+          h1Label.textContent = "h1";
+          h1Label.setAttribute("for", `${prefix}h1`);
+          h1Label.style.cssText = "display: block; margin-bottom: 6px; font-size: 13px; color: #333;";
+          const h1Input = document.createElement("input");
+          h1Input.type = "number";
+          h1Input.id = `${prefix}h1`;
+          h1Input.name = "h1";
+          h1Input.className = "input-text";
+          h1Input.min = 0;
+          h1Input.step = 0.1;
+          h1Input.placeholder = "0";
+          h1Group.appendChild(h1Label);
+          h1Group.appendChild(h1Input);
+          dimensionsContainer.appendChild(h1Group);
+          
+          // Add event listener to show/hide h1 based on dependency
+          const dependsOnField = field.h1Conditional.dependsOn;
+          const showWhen = field.h1Conditional.showWhen || [];
+          
+          // Function to check if h1 should be shown
+          const checkH1Visibility = () => {
+            const dependsOnInput = document.getElementById(`${prefix}${dependsOnField}`);
+            if (!dependsOnInput) return;
+            
+            let shouldShow = false;
+            if (dependsOnInput.type === "hidden") {
+              // It's a tags field
+              const selectedValues = JSON.parse(dependsOnInput.value || "[]");
+              shouldShow = showWhen.some(val => selectedValues.includes(val));
+            } else {
+              // It's a regular input
+              const value = dependsOnInput.value;
+              shouldShow = showWhen.includes(value);
+            }
+            
+            h1Group.style.display = shouldShow ? "block" : "none";
+          };
+          
+          // Check on page load
+          setTimeout(checkH1Visibility, 100);
+          
+          // Check when dependency changes
+          const dependsOnInput = document.getElementById(`${prefix}${dependsOnField}`);
+          if (dependsOnInput) {
+            if (dependsOnInput.type === "hidden") {
+              // For tags, listen to changes in the hidden input
+              dependsOnInput.addEventListener("change", checkH1Visibility);
+            } else {
+              dependsOnInput.addEventListener("change", checkH1Visibility);
+              dependsOnInput.addEventListener("input", checkH1Visibility);
+            }
+          }
+        }
+        
+        formGroup.appendChild(dimensionsContainer);
+        container.appendChild(formGroup);
+        break;
     }
     
     // Append input/elements based on field type
@@ -2340,12 +3280,24 @@ function generateCustomizationFields(subcategory, container, prefix = "", catego
       // For checkbox, input is already before label
       formGroup.appendChild(label);
       container.appendChild(formGroup);
+    } else if (field.type === "dimensions") {
+      // Dimensions are already appended in the case above
+      // formGroup is already appended to container at line 3201
     } else {
-      formGroup.appendChild(input);
-      container.appendChild(formGroup);
+      // For other types (color, number), append the input
+      if (input) {
+        formGroup.appendChild(input);
+        container.appendChild(formGroup);
+      } else {
+        console.warn(`Input not created for field type: ${field.type}, field ID: ${field.id}`);
+      }
     }
     });
   });
+  
+  // No auto-application of series in Add New Product form
+  // Admin must manually select series every time they open Add New Product
+  // This ensures no selections are saved unless admin explicitly saves the product
 }
 
 /**
@@ -2376,6 +3328,9 @@ function toggleTagSelection(tag, prefix, fieldId) {
   
   // Update hidden input
   hiddenInput.value = JSON.stringify(selectedValues);
+  
+  // Save selected tags as defaults for future products
+  saveSelectedTagsAsDefaults(prefix);
 }
 
 /**
@@ -2414,13 +3369,18 @@ function renderTags(container, options, prefix, fieldId) {
   // Update available options
   container.dataset.availableOptions = JSON.stringify(allOptions);
   
-  // Render each tag
+  // Add (prefix ""): all tags selected, no click. Edit (prefix "edit"): selectable, click toggles blue.
+  const isAddForm = (prefix === "" || prefix === "standardOption_");
+  
   allOptions.forEach(option => {
     const tag = document.createElement("span");
-    // Check if tag is in selectedValues to determine if it should be selected
     const isSelected = selectedValues.includes(option);
     tag.className = isSelected ? "tag selected" : "tag";
     tag.dataset.value = option;
+    
+    if (isAddForm) {
+      tag.title = "Already confirmed for product - no need to click";
+    }
     
     // Create tag content with image if available
     const tagContent = document.createElement("span");
@@ -2468,12 +3428,10 @@ function renderTags(container, options, prefix, fieldId) {
     priceSpan.textContent = `(₱${priceValue.toFixed(2)})`;
     tag.appendChild(priceSpan);
     
-    // Toggle selection on click - allow users to select/deselect tags
+    // Add form: clickable when series is selected (can unselect). Edit form: click to select/unselect (toggle blue).
+    // Both Add and Edit forms allow clicking to toggle selection
     tag.addEventListener("click", (e) => {
-      // Don't toggle if clicking on edit/remove buttons
-      if (e.target.closest('.tag-actions')) {
-        return;
-      }
+      if (e.target.closest('.tag-actions')) return;
       toggleTagSelection(tag, prefix, fieldId);
     });
     
@@ -2518,14 +3476,60 @@ function renderTags(container, options, prefix, fieldId) {
  * Auto-fills customization fields based on selected series preset
  * @param {string} seriesName - Name of the selected series (e.g., "900 Series")
  * @param {string} prefix - Field prefix
+ * @param {string} subcategory - Subcategory name (e.g., "Casement", "Sliding")
  */
-function autoFillSeriesPreset(seriesName, prefix) {
-  const presets = customizationFields["Series_Presets"];
+function autoFillSeriesPreset(seriesName, prefix, subcategory = null) {
+  // Get subcategory from form if not provided
+  if (!subcategory) {
+    const subcategorySelect = prefix === "edit" 
+      ? document.getElementById("editProductSubcategory")
+      : document.getElementById("productSubcategory");
+    if (subcategorySelect) {
+      subcategory = subcategorySelect.value;
+    }
+  }
+  
+  if (!subcategory) {
+    console.warn('autoFillSeriesPreset: subcategory not found');
+    return;
+  }
+  
+  // Series are now segregated by subcategory: Series_Presets[subcategory][seriesName]
+  if (!customizationFields["Series_Presets"] || !customizationFields["Series_Presets"][subcategory]) {
+    return;
+  }
+  
+  const presets = customizationFields["Series_Presets"][subcategory];
   if (!presets || !presets[seriesName]) {
     return;
   }
   
   const preset = presets[seriesName];
+  
+  // Special handling for thickness field - update options dynamically based on series
+  if (preset.thickness) {
+    const thicknessOptions = Array.isArray(preset.thickness) ? preset.thickness : [preset.thickness];
+    
+    // Find the thickness field in the customization fields and update its options
+    const fieldKey = prefix === "edit" ? getFieldKeyForEdit() : getFieldKeyForAdd();
+    if (fieldKey && customizationFields[fieldKey]) {
+      const thicknessField = customizationFields[fieldKey].find(f => f.id === "thickness");
+      if (thicknessField && thicknessField.type === "tags") {
+        // Update the field's options
+        thicknessField.options = thicknessOptions;
+        
+        // Find the container and update it
+        const container = document.getElementById(`${prefix}thicknessContainer`);
+        if (container) {
+          container.dataset.availableOptions = JSON.stringify(thicknessOptions);
+          container.dataset.originalOptions = JSON.stringify(thicknessOptions);
+          
+          // Re-render the tags with new options
+          renderTags(container, thicknessOptions, prefix, "thickness");
+        }
+      }
+    }
+  }
   
   // Fill each field in the preset
   Object.keys(preset).forEach(fieldId => {
@@ -2547,8 +3551,29 @@ function autoFillSeriesPreset(seriesName, prefix) {
   autoSaveCustomizationFields(prefix);
 }
 
+// Helper function to get field key for add form
+function getFieldKeyForAdd() {
+  const categorySelect = document.getElementById("addProductCategory");
+  const subcategorySelect = document.getElementById("addProductSubcategory");
+  if (categorySelect && subcategorySelect && categorySelect.value && subcategorySelect.value) {
+    return `${categorySelect.value}_${subcategorySelect.value}`;
+  }
+  return null;
+}
+
+// Helper function to get field key for edit form
+function getFieldKeyForEdit() {
+  const categorySelect = document.getElementById("editProductCategory");
+  const subcategorySelect = document.getElementById("editProductSubcategory");
+  if (categorySelect && subcategorySelect && categorySelect.value && subcategorySelect.value) {
+    return `${categorySelect.value}_${subcategorySelect.value}`;
+  }
+  return null;
+}
+
 /**
  * Auto-saves customization fields to product (for add/edit forms)
+ * Also saves selected tags as defaults for future products
  * @param {string} prefix - Field prefix ("add" or "edit")
  */
 function autoSaveCustomizationFields(prefix) {
@@ -2556,9 +3581,79 @@ function autoSaveCustomizationFields(prefix) {
   // The actual save happens when the form is submitted
   // But we can update the form data in real-time here if needed
   
+  // Save selected tags as defaults when tags are selected
+  saveSelectedTagsAsDefaults(prefix);
+  
   // For now, just ensure the data is collected correctly
   // The actual save happens on form submission
   console.log(`[Auto-Save] Customization fields updated for ${prefix}`);
+}
+
+/**
+ * Save selected tags as defaults for the current subcategory
+ * @param {string} prefix - Field prefix ("add" or "edit")
+ */
+function saveSelectedTagsAsDefaults(prefix) {
+  try {
+    // Get current category and subcategory
+    const categorySelect = prefix === "edit" 
+      ? document.getElementById("editProductCategory")
+      : document.getElementById("productCategory");
+    const subcategorySelect = prefix === "edit"
+      ? document.getElementById("editProductSubcategory")
+      : document.getElementById("productSubcategory");
+    
+    if (!categorySelect || !subcategorySelect) return;
+    
+    const category = categorySelect.value;
+    const subcategory = subcategorySelect.value;
+    
+    if (!category || !subcategory) return;
+    
+    // Build field key
+    let fieldKey;
+    if (category === "Windows") {
+      fieldKey = `Windows_${subcategory}`;
+    } else if (category === "Doors") {
+      fieldKey = `Doors_${subcategory}`;
+    } else if (category === "Glass Partitions & Enclosures") {
+      fieldKey = `Partitions_${subcategory}`;
+    } else if (category === "Mirrors & Specialty Glass") {
+      fieldKey = `Specialty_${subcategory}`;
+    } else if (category === "Commercial & Exterior") {
+      fieldKey = `Commercial_${subcategory}`;
+    } else {
+      return;
+    }
+    
+    // Collect selected tags from all tag fields
+    const selectedTagsKey = `${fieldKey}_selectedTags`;
+    const selectedTags = {};
+    
+    // Find all tag containers with the prefix
+    const tagContainers = document.querySelectorAll(`[id$="Container"][data-prefix="${prefix}"]`);
+    tagContainers.forEach(container => {
+      const fieldId = container.dataset.fieldId;
+      if (fieldId) {
+        const hiddenInput = document.getElementById(`${prefix}${fieldId}`);
+        if (hiddenInput) {
+          const selectedValues = JSON.parse(hiddenInput.value || "[]");
+          if (selectedValues.length > 0) {
+            selectedTags[fieldId] = selectedValues;
+          }
+        }
+      }
+    });
+    
+    // Save to customizationFields
+    if (Object.keys(selectedTags).length > 0) {
+      customizationFields[selectedTagsKey] = selectedTags;
+      // Save to localStorage
+      localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
+    }
+  } catch (e) {
+    console.error('Error saving selected tags as defaults:', e);
+  }
 }
 
 /**
@@ -3071,6 +4166,23 @@ function showAddTagDialog(container, prefix, fieldId, isEdit = false, oldTagValu
     } else if (!isEdit) {
       // Add new tag
       availableOptions.push(tagValue);
+      
+      // Automatically select the newly added tag
+      // Check if we're in the manage customization fields context OR Add product form
+      const isInManageFields = container.closest('#fieldsManagerContainer') !== null;
+      const isAddForm = (prefix === "" || prefix === "standardOption_");
+      
+      if (isInManageFields || isAddForm) {
+        const hiddenInput = document.getElementById(`${prefix}${fieldId}`);
+        if (hiddenInput) {
+          let selectedValues = JSON.parse(hiddenInput.value || "[]");
+          // Add the new tag to selected values if not already selected
+          if (!selectedValues.includes(tagValue)) {
+            selectedValues.push(tagValue);
+            hiddenInput.value = JSON.stringify(selectedValues);
+          }
+        }
+      }
     }
     
     container.dataset.availableOptions = JSON.stringify(availableOptions);
@@ -3118,7 +4230,7 @@ function showAddTagDialog(container, prefix, fieldId, isEdit = false, oldTagValu
       }
     }
     
-    // Re-render tags with updated list
+    // Re-render tags with updated list (will show new tag as selected)
     renderTags(container, availableOptions, prefix, fieldId);
     
     closeModal();
@@ -5060,6 +6172,9 @@ function renderStandardSeries() {
 }
 
 // -------------------- POPUPS (ADD / EDIT) --------------------
+// Backup storage for customizationFields when Add New Product popup opens
+let customizationFieldsBackup = null;
+
 function setupProductPopups() {
   const productGrid = document.querySelector(".product-grid");
 
@@ -5127,18 +6242,8 @@ function setupProductPopups() {
     const selectedSubcategory = this.value;
     const selectedCategory = addCategorySelect ? addCategorySelect.value : "";
     const manageGroup = document.getElementById("manageCustomizationGroup");
-    const seriesGroup = document.getElementById("seriesGroup");
-    const seriesSelect = document.getElementById("productSeries");
     
     if (selectedSubcategory) {
-      // Show Series dropdown for Windows subcategories
-      if (selectedCategory === "Windows" && seriesGroup && seriesSelect) {
-        seriesGroup.style.display = "block";
-        seriesSelect.value = ""; // Reset to "Select series" placeholder
-      } else if (seriesGroup) {
-        seriesGroup.style.display = "none";
-      }
-      
       // Removed automatic call to generateCustomizationFields to keep it blank as per user request
       if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
       
@@ -5146,19 +6251,8 @@ function setupProductPopups() {
       if (manageGroup) manageGroup.style.display = "block";
     } else {
       if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
-      // Hide manage button and series group
+      // Hide manage button
       if (manageGroup) manageGroup.style.display = "none";
-      if (seriesGroup) seriesGroup.style.display = "none";
-    }
-  });
-  
-  // ---------- ADD MODAL: Series Change Handler ----------
-  const seriesSelect = document.getElementById("productSeries");
-  seriesSelect?.addEventListener("change", function() {
-    const selectedSeries = this.value;
-    if (selectedSeries && selectedSeries !== "" && customizationFields["Series_Presets"] && customizationFields["Series_Presets"][selectedSeries]) {
-      // Auto-fill customization fields with series preset
-      autoFillSeriesPreset(selectedSeries, "");
     }
   });
   
@@ -5193,36 +6287,15 @@ function setupProductPopups() {
     const selectedSubcategory = this.value;
     const selectedCategory = editCategorySelect ? editCategorySelect.value : "";
     const editManageGroup = document.getElementById("editManageCustomizationGroup");
-    const editSeriesGroup = document.getElementById("editSeriesGroup");
-    const editSeriesSelect = document.getElementById("editProductSeries");
     
     if (selectedSubcategory) {
-      // Show Series dropdown for Windows subcategories
-      if (selectedCategory === "Windows" && editSeriesGroup && editSeriesSelect) {
-        editSeriesGroup.style.display = "block";
-        editSeriesSelect.value = ""; // Reset to None
-      } else if (editSeriesGroup) {
-        editSeriesGroup.style.display = "none";
-      }
-      
       generateCustomizationFields(selectedSubcategory, editCustomizationContainer, "edit", selectedCategory);
       // Show manage button for Customize Build tab
       if (editManageGroup) editManageGroup.style.display = "block";
     } else {
       editCustomizationContainer.innerHTML = "";
-      // Hide manage button and series group
+      // Hide manage button
       if (editManageGroup) editManageGroup.style.display = "none";
-      if (editSeriesGroup) editSeriesGroup.style.display = "none";
-    }
-  });
-  
-  // ---------- EDIT MODAL: Series Change Handler ----------
-  const editSeriesSelect = document.getElementById("editProductSeries");
-  editSeriesSelect?.addEventListener("change", function() {
-    const selectedSeries = this.value;
-    if (selectedSeries && selectedSeries !== "" && customizationFields["Series_Presets"] && customizationFields["Series_Presets"][selectedSeries]) {
-      // Auto-fill customization fields with series preset
-      autoFillSeriesPreset(selectedSeries, "edit");
     }
   });
   
@@ -5251,6 +6324,12 @@ function setupProductPopups() {
     addBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
+      
+      // Create backup of customizationFields before opening popup
+      // This allows us to restore if popup is closed without saving
+      customizationFieldsBackup = JSON.parse(JSON.stringify(customizationFields));
+      console.log('Backup created for customizationFields before opening Add New Product popup');
+      
       addPopup.style.display = "flex";
       
       // Full reset when opening
@@ -5397,6 +6476,47 @@ function setupProductPopups() {
       // Reset any previews
       const previewContainer = document.getElementById('konvaPreviewContainer');
       if (previewContainer) previewContainer.innerHTML = '';
+      
+      // Restore customizationFields from backup if popup is closed without saving
+      // This reverts any changes made in "Manage Customization Fields" that weren't saved in "Add New Product"
+      // The saved series will remain for "Manage Customization Fields" but won't auto-apply in "Add New Product" next time
+      if (customizationFieldsBackup !== null) {
+        // Get the current category and subcategory
+        const currentCategory = addCategorySelect ? addCategorySelect.value : "";
+        const currentSubcategory = addSubcategorySelect ? addSubcategorySelect.value : "";
+        
+        // Build field key
+        let fieldKey = null;
+        if (currentCategory && currentSubcategory) {
+          if (currentCategory === "Windows") {
+            fieldKey = `Windows_${currentSubcategory}`;
+          } else if (currentCategory === "Doors") {
+            fieldKey = `Doors_${currentSubcategory}`;
+          } else if (currentCategory === "Glass Partitions & Enclosures") {
+            fieldKey = `Partitions_${currentSubcategory}`;
+          } else if (currentCategory === "Mirrors & Specialty Glass") {
+            fieldKey = `Specialty_${currentSubcategory}`;
+          } else if (currentCategory === "Commercial & Exterior") {
+            fieldKey = `Commercial_${currentSubcategory}`;
+          } else {
+            fieldKey = currentSubcategory;
+          }
+        }
+        
+        // Preserve the saved series from backup (for "Manage Customization Fields")
+        const savedSeriesKey = fieldKey ? `${fieldKey}_selectedSeries` : null;
+        const preservedSeries = savedSeriesKey && customizationFieldsBackup[savedSeriesKey] ? customizationFieldsBackup[savedSeriesKey] : null;
+        
+        // Restore all customizationFields to the state before opening the popup
+        // This ensures no selections made in Add New Product are saved if popup is closed without saving
+        customizationFields = JSON.parse(JSON.stringify(customizationFieldsBackup));
+        
+        // Update localStorage to reflect the restored state
+        localStorage.setItem(CUSTOMIZATION_FIELDS_STORAGE_KEY, JSON.stringify(customizationFields));
+        // Clear the backup
+        customizationFieldsBackup = null;
+        console.log('Restored customizationFields from backup because Add New Product popup was closed without saving. No selections were saved.');
+      }
     })
   );
 
@@ -5529,14 +6649,31 @@ function setupProductPopups() {
     });
 
     fetch(base_url + "ProductCon/add_product", { method: "POST", body: formData })
-      .then(res => {
+      .then(async res => {
+        // Check if response is JSON
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          // Response is not JSON, likely an HTML error page
+          const text = await res.text();
+          console.error('Server returned non-JSON response:', text.substring(0, 500));
+          throw new Error('Server returned an error page instead of JSON. Check server logs for details.');
+        }
+        
         if (!res.ok) {
-          throw new Error('Network response was not ok');
+          // Try to parse as JSON even if not OK
+          try {
+            const errorData = await res.json();
+            throw new Error(errorData.msg || errorData.message || 'Network response was not ok');
+          } catch (e) {
+            throw new Error('Network response was not ok');
+          }
         }
         return res.json();
       })
       .then(data => {
         if (data.status === "success") {
+          // Product was saved successfully, discard the backup
+          customizationFieldsBackup = null;
           showToast("Product saved successfully!", 'success');
           setTimeout(() => {
             location.reload();
@@ -5750,6 +6887,8 @@ function populateEditForm(product) {
                     const editSeriesSelect = document.getElementById("editProductSeries");
                     if (actualCategory === "Windows" && editSeriesGroup && editSeriesSelect) {
                       editSeriesGroup.style.display = "block";
+                      // Populate series options based on selected subcategory
+                      populateSeriesOptions(product.Subcategory, editSeriesSelect);
                       // Try to get series from customization fields if available
                       // For now, set to None - can be enhanced later to read from saved data
                       editSeriesSelect.value = "";
@@ -6602,7 +7741,13 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log('Products page DOM loaded, initializing...');
 
   // Load customization fields (DB → localStorage → JSON defaults)
-  loadCustomizationFields().catch(e => console.error('Error loading customization fields:', e));
+  loadCustomizationFields().then(() => {
+    // After loading, force update Windows_Casement if needed
+    console.log('🔄 Checking Windows_Casement fields structure...');
+    updateWindowsCasementFields().catch(e => {
+      console.error('Error updating Windows_Casement fields:', e);
+    });
+  }).catch(e => console.error('Error loading customization fields:', e));
   
   // Setup functions with retry logic
   function initializeAll() {

@@ -106,25 +106,43 @@
                 
                 // Check for full URLs
                 if (strpos($image, 'http://') === 0 || strpos($image, 'https://') === 0) {
-                  // It's a full URL, use it as-is
+                  // It's a full URL, use it as-is (can't check existence of external URLs)
                   $imagePaths[] = $image;
                 } 
                 // Check for assets paths
                 else if (strpos($image, 'assets/') === 0) {
-                  // It's an assets path, use it as-is
-                  $imagePaths[] = base_url($image);
+                  // It's an assets path, check if file exists
+                  $filePath = FCPATH . $image;
+                  if (file_exists($filePath)) {
+                    $imagePaths[] = base_url($image);
+                  } else {
+                    // File doesn't exist, use placeholder
+                    $imagePaths[] = $placeholderSvg;
+                  }
                 } 
                 // Check for uploads paths
                 else if (strpos($image, 'uploads/') === 0) {
-                  // It already has uploads/ path, use it as-is
-                  $imagePaths[] = base_url($image);
+                  // It already has uploads/ path, check if file exists
+                  $filePath = FCPATH . $image;
+                  if (file_exists($filePath)) {
+                    $imagePaths[] = base_url($image);
+                  } else {
+                    // File doesn't exist, use placeholder
+                    $imagePaths[] = $placeholderSvg;
+                  }
                 } 
                 // Otherwise, treat as filename in uploads/products/
                 else {
                   // It's just a filename, prepend uploads/products/
                   // Use basename to ensure we only have the filename
                   $filename = basename($image);
-                  $imagePaths[] = base_url('uploads/products/' . $filename);
+                  $filePath = FCPATH . 'uploads/products/' . $filename;
+                  if (file_exists($filePath)) {
+                    $imagePaths[] = base_url('uploads/products/' . $filename);
+                  } else {
+                    // File doesn't exist, use placeholder
+                    $imagePaths[] = $placeholderSvg;
+                  }
                 }
               }
             }
@@ -166,7 +184,7 @@
                          alt="<?= htmlspecialchars($p->ProductName) ?>" 
                          class="product-slide <?= $index === 0 ? 'active' : '' ?>"
                          data-image-path="<?= htmlspecialchars($imagePath) ?>"
-                         onerror="console.error('Image failed to load:', this.dataset.imagePath); this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';">
+                         onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';">
                   <?php endforeach; ?>
                 <?php else: ?>
                   <div class="product-image-placeholder" style="display: flex; width: 100%; height: 100%; background: #f0f0f0; align-items: center; justify-content: center; color: #999; font-size: 14px;">

@@ -28,7 +28,7 @@ class ProductCon extends CI_Controller
     }
 
     $config['upload_path']   = $upload_path;
-    $config['allowed_types'] = 'jpg|jpeg|png|gif';
+    $config['allowed_types'] = 'jpg|jpeg|png|gif|webp';
     $config['encrypt_name']  = TRUE;
     $this->upload->initialize($config);
 
@@ -59,7 +59,13 @@ class ProductCon extends CI_Controller
             if ($this->upload->do_upload('productImage')) {
                 $uploaded_images[] = $this->upload->data('file_name');
             } else {
-                echo json_encode(['status' => 'error', 'msg' => $this->upload->display_errors()]);
+                $error_msg = $this->upload->display_errors();
+                $filename = isset($files['name'][$i]) ? htmlspecialchars($files['name'][$i]) : 'unknown';
+                $file_type = isset($files['type'][$i]) ? htmlspecialchars($files['type'][$i]) : 'unknown';
+                echo json_encode([
+                    'status' => 'error', 
+                    'msg' => 'Failed to upload image "' . $filename . '" (type: ' . $file_type . '). ' . $error_msg . ' Allowed types: jpg, jpeg, png, gif, webp'
+                ]);
                 return;
             }
         }
@@ -69,7 +75,13 @@ class ProductCon extends CI_Controller
             if ($this->upload->do_upload('productImage')) {
                 $uploaded_images[] = $this->upload->data('file_name');
             } else {
-                echo json_encode(['status' => 'error', 'msg' => $this->upload->display_errors()]);
+                $error_msg = $this->upload->display_errors();
+                $filename = isset($_FILES['productImage']['name']) ? htmlspecialchars($_FILES['productImage']['name']) : 'unknown';
+                $file_type = isset($_FILES['productImage']['type']) ? htmlspecialchars($_FILES['productImage']['type']) : 'unknown';
+                echo json_encode([
+                    'status' => 'error', 
+                    'msg' => 'Failed to upload image "' . $filename . '" (type: ' . $file_type . '). ' . $error_msg . ' Allowed types: jpg, jpeg, png, gif, webp'
+                ]);
                 return;
             }
         }
@@ -160,7 +172,7 @@ class ProductCon extends CI_Controller
                             
                             // Upload tag image
                             $tag_config['upload_path'] = $tag_upload_path;
-                            $tag_config['allowed_types'] = 'jpg|jpeg|png|gif';
+                            $tag_config['allowed_types'] = 'jpg|jpeg|png|gif|webp';
                             $tag_config['encrypt_name'] = TRUE;
                             $this->upload->initialize($tag_config);
                             
@@ -172,6 +184,12 @@ class ProductCon extends CI_Controller
                             
                             if ($this->upload->do_upload('tagImage')) {
                                 $imageUrl = $this->upload->data('file_name');
+                            } else {
+                                // Log upload error for tag images but don't fail the entire product save
+                                // Only fail if it's a critical error
+                                $upload_error = $this->upload->display_errors();
+                                log_message('error', 'Tag image upload failed for field: ' . $fieldId . ', tag: ' . $tagName . '. Error: ' . $upload_error);
+                                // Continue without the image - tag will be saved without image
                             }
                         }
                         

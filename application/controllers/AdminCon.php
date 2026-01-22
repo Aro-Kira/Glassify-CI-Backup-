@@ -4142,27 +4142,39 @@ class AdminCon extends CI_Controller
      */
     public function get_notification_count_ajax()
     {
+        // Set JSON header first to prevent HTML output
         header('Content-Type: application/json');
         
-        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
-            echo json_encode(['status' => 'error', 'count' => 0]);
-            return;
-        }
-        
-        // Count unviewed notifications from system_activity_log
-        if ($this->db->table_exists('system_activity_log')) {
-            // Get last viewed timestamp from session
-            $last_viewed = $this->session->userdata('admin_last_viewed_notifications');
+        try {
+            if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Admin') {
+                echo json_encode(['status' => 'error', 'count' => 0]);
+                return;
+            }
             
-            // Count notifications from last 30 days
-            $this->db->where('Timestamp >=', date('Y-m-d H:i:s', strtotime('-30 days')));
-            
-            // Filter out internal admin actions
-            try {
-                if ($this->db->table_exists('system_activity_log') && $this->db->field_exists('ShowAsNotification', 'system_activity_log')) {
-                    $this->db->where('ShowAsNotification', 1);
-                } else {
-                    // Backward compatibility: filter out common internal admin actions
+            // Count unviewed notifications from system_activity_log
+            if ($this->db->table_exists('system_activity_log')) {
+                // Get last viewed timestamp from session
+                $last_viewed = $this->session->userdata('admin_last_viewed_notifications');
+                
+                // Count notifications from last 30 days
+                $this->db->where('Timestamp >=', date('Y-m-d H:i:s', strtotime('-30 days')));
+                
+                // Filter out internal admin actions
+                try {
+                    if ($this->db->table_exists('system_activity_log') && $this->db->field_exists('ShowAsNotification', 'system_activity_log')) {
+                        $this->db->where('ShowAsNotification', 1);
+                    } else {
+                        // Backward compatibility: filter out common internal admin actions
+                        $this->db->where_not_in('Action', [
+                            'Order Status Updated',
+                            'Staff Assigned',
+                            'Order Completed',
+                            'Payment Status Updated'
+                        ]);
+                    }
+                } catch (Exception $e) {
+                    // If field check fails, use backward compatibility filter
+                    log_message('debug', 'Could not check ShowAsNotification field: ' . $e->getMessage());
                     $this->db->where_not_in('Action', [
                         'Order Status Updated',
                         'Staff Assigned',
@@ -4170,35 +4182,30 @@ class AdminCon extends CI_Controller
                         'Payment Status Updated'
                     ]);
                 }
-            } catch (Exception $e) {
-                // If field check fails, use backward compatibility filter
-                log_message('debug', 'Could not check ShowAsNotification field: ' . $e->getMessage());
-                $this->db->where_not_in('Action', [
-                    'Order Status Updated',
-                    'Staff Assigned',
-                    'Order Completed',
-                    'Payment Status Updated'
-                ]);
+                
+                // If admin has viewed notifications before, only count newer ones
+                if ($last_viewed) {
+                    $this->db->where('Timestamp >', $last_viewed);
+                }
+                
+                $count = $this->db->count_all_results('system_activity_log');
+            } else {
+                $count = 0;
             }
             
-            // If admin has viewed notifications before, only count newer ones
-            if ($last_viewed) {
-                $this->db->where('Timestamp >', $last_viewed);
+            // Limit to 99, show 99+ if more
+            if ($count > 99) {
+                $display_count = '99+';
+            } else {
+                $display_count = $count;
             }
             
-            $count = $this->db->count_all_results('system_activity_log');
-        } else {
-            $count = 0;
+            echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
+        } catch (Exception $e) {
+            // Ensure JSON is always returned, even on error
+            log_message('error', 'Error in get_notification_count_ajax: ' . $e->getMessage());
+            echo json_encode(['status' => 'error', 'count' => 0, 'message' => 'An error occurred']);
         }
-        
-        // Limit to 99, show 99+ if more
-        if ($count > 99) {
-            $display_count = '99+';
-        } else {
-            $display_count = $count;
-        }
-        
-        echo json_encode(['status' => 'success', 'count' => $count, 'display' => $display_count]);
     }
 
     // ======================
@@ -4455,7 +4462,7 @@ class AdminCon extends CI_Controller
         
         // Check if status actually changed
         if ($actual_new_status !== $effective_status) {
-            log_message('warning', "Status mismatch! Expected: {$effective_status}, Actual: " . ($actual_new_status ?? 'NULL/EMPTY'));
+            log_message('error', "Status mismatch! Expected: {$effective_status}, Actual: " . ($actual_new_status ?? 'NULL/EMPTY'));
             
             // If status is NULL or empty, the enum value probably doesn't exist
             if (empty($actual_new_status) && $effective_status === 'Ocular Pending') {

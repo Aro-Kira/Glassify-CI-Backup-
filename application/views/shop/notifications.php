@@ -57,6 +57,28 @@
     text-align: center;
 }
 
+/* Match icon color to notification type badge */
+.notification-item[data-type="order"] .notification-icon,
+.notification-item .notification-icon.order-icon {
+    color: #1e40af;
+}
+
+.notification-item[data-type="payment"] .notification-icon,
+.notification-item .notification-icon.payment-icon {
+    color: #065f46;
+}
+
+.notification-item[data-type="delivery"] .notification-icon,
+.notification-item .notification-icon.delivery-icon {
+    color: #92400e;
+}
+
+.notification-item[data-type="system"] .notification-icon,
+.notification-item[data-type="general"] .notification-icon,
+.notification-item .notification-icon.system-icon {
+    color: #4b5563;
+}
+
 .notification-details {
     flex: 1;
 }
@@ -211,8 +233,8 @@
                 $type_class = strtolower($notif->Type ?? 'general');
                 $is_unread = ($status === 'unread');
                 ?>
-                <div class="notification-item <?= $is_unread ? 'unread' : '' ?>" data-notification-id="<?= $notif->NotificationID ?>">
-                    <i class="fas <?= htmlspecialchars($icon) ?> notification-icon"></i>
+                <div class="notification-item <?= $is_unread ? 'unread' : '' ?>" data-notification-id="<?= $notif->NotificationID ?>" data-type="<?= $type_class ?>">
+                    <i class="fas <?= htmlspecialchars($icon) ?> notification-icon <?= $type_class ?>-icon"></i>
                     <div class="notification-details">
                         <div class="notification-title"><?= htmlspecialchars($notif->Title) ?></div>
                         <div class="notification-message"><?= htmlspecialchars($notif->Message) ?></div>

@@ -34,9 +34,26 @@ function updateNotificationBadge() {
     
     // Fetch notification count
     fetch(baseUrl + endpoint)
-        .then(response => response.json())
+        .then(response => {
+            // Check if response is OK
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                // Response is not JSON, likely HTML error page
+                return response.text().then(text => {
+                    console.warn('Notification endpoint returned non-JSON response:', text.substring(0, 200));
+                    throw new Error('Server returned non-JSON response');
+                });
+            }
+            
+            return response.json();
+        })
         .then(data => {
-            if (data.status === 'success') {
+            if (data && data.status === 'success') {
                 const count = data.count;
                 const display = data.display;
                 
@@ -59,7 +76,10 @@ function updateNotificationBadge() {
             }
         })
         .catch(error => {
-            console.error('Error updating notification badge:', error);
+            // Only log error if it's not a network error or expected error
+            if (error.message && !error.message.includes('Failed to fetch') && !error.message.includes('NetworkError')) {
+                console.error('Error updating notification badge:', error);
+            }
             badge.style.display = 'none';
         });
 }
