@@ -2252,26 +2252,39 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
       matchingSeries = seriesToShow;
     }
 
-    if (matchingSeries) {
-      // Set the dropdown to the series
-      manageSeriesSelect.value = matchingSeries;
-      // Auto-select "Use Existing Series" radio
-      useExistingRadio.checked = true;
-      currentMode = "existing";
-      selectedSeriesName = matchingSeries; // Update selectedSeriesName
-      // Show series selector container
-      seriesSelectorContainer.style.display = "block";
-      newSeriesContainer.style.display = "none";
-      // Show delete button if series is selected
-      const deleteSeriesBtn = document.getElementById("deleteSeriesBtn");
-      if (deleteSeriesBtn) {
-        deleteSeriesBtn.style.display = "block";
+    // Set the series selection with a small delay to ensure DOM is ready
+    setTimeout(() => {
+      if (matchingSeries) {
+        console.log(`✅ Setting dropdown value to: ${matchingSeries}`);
+        console.log(`manageSeriesSelect exists:`, !!manageSeriesSelect);
+        if (manageSeriesSelect) {
+          console.log(`manageSeriesSelect options count:`, manageSeriesSelect.options.length);
+          Array.from(manageSeriesSelect.options).forEach((opt, i) => {
+            console.log(`Option ${i}: value="${opt.value}" text="${opt.text}"`);
+          });
+        }
+        // Set the dropdown to the series
+        manageSeriesSelect.value = matchingSeries;
+        console.log(`Dropdown value after setting: ${manageSeriesSelect.value}`);
+
+        // Auto-select "Use Existing Series" radio
+        useExistingRadio.checked = true;
+        currentMode = "existing";
+        selectedSeriesName = matchingSeries; // Update selectedSeriesName
+        // Show series selector container
+        seriesSelectorContainer.style.display = "block";
+        newSeriesContainer.style.display = "none";
+        // Show delete button if series is selected
+        const deleteSeriesBtn = document.getElementById("deleteSeriesBtn");
+        if (deleteSeriesBtn) {
+          deleteSeriesBtn.style.display = "block";
+        }
+        // Show fields for the selected series
+        setTimeout(() => {
+          showFieldsForMode();
+        }, 100);
       }
-      // Show fields for the selected series
-      setTimeout(() => {
-        showFieldsForMode();
-      }, 100);
-    }
+    }, 50);
   } else {
     // No series to pre-select - leave unselected
     useExistingRadio.checked = false;
