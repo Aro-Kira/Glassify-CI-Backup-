@@ -2678,7 +2678,8 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
       // Save series presets if creating new series
       // Available for ALL categories and subcategories
       // Series are segregated by subcategory: Series_Presets[subcategory][seriesName]
-
+      // createNewRadio and newSeriesNameInput already declared above for validation
+      
       if (createNewRadio && createNewRadio.checked && newSeriesNameInput && newSeriesNameInput.value.trim()) {
         const newSeriesName = newSeriesNameInput.value.trim();
         if (!customizationFields["Series_Presets"]) {
@@ -2752,7 +2753,7 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
       // Save the selected series for this subcategory
       const savedSeriesKey = `${fieldKey}_selectedSeries`;
 
-      // Determine which series was selected/created (use variables declared above for validation)
+      // Determine which series was selected/created (use variables declared above)
       let selectedSeriesToSave = null;
       if (createNewRadio && createNewRadio.checked && newSeriesNameInput && newSeriesNameInput.value.trim()) {
         // New series was created
