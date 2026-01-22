@@ -1386,6 +1386,17 @@ function renderDoorsFrameless(productData, dimensions, layer, renderContext) {
     if (gridPattern) {
         drawGridPattern(layer, offsetX, offsetY, totalWidth, totalHeight, gridPattern);
     }
+
+    // Draw swing direction arrows (dashed diagonal lines)
+    drawSwingDirectionArrows(layer, offsetX, offsetY, totalWidth, totalHeight, isDouble, isLeftSwing);
+
+    // Draw dimension lines (width and height) for frameless door
+    const originalWidth = productData.originalWidth || dimensions.width;
+    const originalHeight = productData.originalHeight || dimensions.height;
+    const widthUnit = productData.widthUnit || dimensions.unit || 'in';
+    const heightUnit = productData.heightUnit || dimensions.unit || 'in';
+    drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight,
+                       originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
 }
 
 /**
@@ -1394,15 +1405,21 @@ function renderDoorsFrameless(productData, dimensions, layer, renderContext) {
 function renderDoorsPatchFitting(productData, dimensions, layer, renderContext) {
     const ctx = getRenderContext(renderContext);
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
-    
+
     const { width, height, unit } = dimensions;
     const customizationValues = productData.customizationValues || {};
-    
+
     const series = customizationValues.series || 'Frameless Door';
     const glassType = customizationValues.glassType || 'Tempered';
     const glassColor = customizationValues.glassColor || 'Clear';
     const frameColor = customizationValues.frameColor || 'Stainless Mirror Finish';
     const thickness = customizationValues.thickness || '10mm-12mm';
+
+    // Get door type and swing direction
+    const doorType = customizationValues.doorType || 'Single swing';
+    const doorSwing = customizationValues.doorSwing || 'Left swing';
+    const isDouble = doorType.toLowerCase().includes('double');
+    const isLeftSwing = doorSwing.toLowerCase().includes('left');
 
     // Calculate dimensions
     const actualRatio = width / height;
@@ -1458,6 +1475,104 @@ function renderDoorsPatchFitting(productData, dimensions, layer, renderContext) 
         });
         layer.add(patchRect);
     });
+
+    // Draw swing direction arrows (dashed diagonal lines)
+    drawSwingDirectionArrows(layer, offsetX, offsetY, totalWidth, totalHeight, isDouble, isLeftSwing);
+}
+
+/**
+ * Draw swing direction arrows for frameless doors
+ * Double doors: Always show ">|<" pattern (outward pointing)
+ * Single doors: "V" pattern based on swing direction
+ */
+function drawSwingDirectionArrows(layer, offsetX, offsetY, totalWidth, totalHeight, isDouble, isLeftSwing) {
+    const arrowLength = Math.min(totalWidth, totalHeight) * 0.5; // 50% of smaller dimension for better visibility
+    const strokeColor = '#FF0000'; // Bright red color for maximum visibility
+    const strokeWidth = 3; // Thicker lines
+    const dashPattern = [8, 4]; // Dash pattern
+
+    if (isDouble) {
+        // Double door: ">|<" pattern - always pointing outward, no swing direction consideration
+        const centerY = offsetY + totalHeight / 2;
+
+        // Left door arrow (always pointing right ">")
+        const leftHingeX = offsetX;
+        const leftHingeY = centerY;
+        const leftArrowX = leftHingeX + arrowLength; // Always point right
+        const leftArrowTopY = leftHingeY - arrowLength / 2;
+        const leftArrowBottomY = leftHingeY + arrowLength / 2;
+
+        // Right door arrow (always pointing left "<")
+        const rightHingeX = offsetX + totalWidth;
+        const rightHingeY = centerY;
+        const rightArrowX = rightHingeX - arrowLength; // Always point left
+        const rightArrowTopY = rightHingeY - arrowLength / 2;
+        const rightArrowBottomY = rightHingeY + arrowLength / 2;
+
+        // Draw left door arrow
+        const leftArrowTop = new Konva.Line({
+            points: [leftHingeX, leftHingeY, leftArrowX, leftArrowTopY],
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            dash: dashPattern,
+            listening: false,
+        });
+        const leftArrowBottom = new Konva.Line({
+            points: [leftHingeX, leftHingeY, leftArrowX, leftArrowBottomY],
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            dash: dashPattern,
+            listening: false,
+        });
+
+        // Draw right door arrow
+        const rightArrowTop = new Konva.Line({
+            points: [rightHingeX, rightHingeY, rightArrowX, rightArrowTopY],
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            dash: dashPattern,
+            listening: false,
+        });
+        const rightArrowBottom = new Konva.Line({
+            points: [rightHingeX, rightHingeY, rightArrowX, rightArrowBottomY],
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            dash: dashPattern,
+            listening: false,
+        });
+
+        layer.add(leftArrowTop);
+        layer.add(leftArrowBottom);
+        layer.add(rightArrowTop);
+        layer.add(rightArrowBottom);
+    } else {
+        // Single door: "V" pattern
+        const newarrowLength = Math.min(totalWidth, totalHeight) * 1;
+        const hingeX = isLeftSwing ? offsetX : offsetX + totalWidth;
+        const hingeY = offsetY + totalHeight / 2;
+        const arrowX = hingeX + (isLeftSwing ? newarrowLength : -newarrowLength);
+        const arrowTopY = hingeY - newarrowLength / 2;
+        const arrowBottomY = hingeY + newarrowLength / 2;
+       
+        // Draw V-shaped arrow
+        const arrowTop = new Konva.Line({
+            points: [hingeX, hingeY, arrowX, arrowTopY],
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            dash: dashPattern,
+            listening: false,
+        });
+        const arrowBottom = new Konva.Line({
+            points: [hingeX, hingeY, arrowX, arrowBottomY],
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            dash: dashPattern,
+            listening: false,
+        });
+
+        layer.add(arrowTop);
+        layer.add(arrowBottom);
+    }
 }
 
 // ============================================================================
@@ -1969,18 +2084,18 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
             listening: false,
         }));
     }
-    
+
     // Draw corner radius annotations for rectangle/square shapes
     if (shape.toLowerCase().includes('rectangle') || shape.toLowerCase().includes('square')) {
-        drawCornerRadiusAnnotationsForMirrors(customizationValues, offsetX, offsetY, totalWidth, totalHeight, shape, layer);
+        drawCornerRadiusAnnotationsForSpecialty(customizationValues, offsetX, offsetY, totalWidth, totalHeight, shape, layer);
     }
 }
 
 /**
- * Draw corner radius annotations on the Konva canvas for mirrors
- * Shows radius values and labels at each corner
+ * Draw corner radius annotations on the Konva canvas for specialty products
+ * Shows radius values and labels at each corner (used for mirrors, top glass, etc.)
  */
-function drawCornerRadiusAnnotationsForMirrors(customizationValues, offsetX, offsetY, windowWidth, windowHeight, shape, layer) {
+function drawCornerRadiusAnnotationsForSpecialty(customizationValues, offsetX, offsetY, windowWidth, windowHeight, shape, layer) {
     if (!customizationValues || !layer) return;
     
     // Only show for rectangle/square shapes
@@ -2161,18 +2276,34 @@ function drawCornerRadiusAnnotationsForMirrors(customizationValues, offsetX, off
 function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) {
     const ctx = getRenderContext(renderContext);
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
-    
+
     const { width, height, unit } = dimensions;
     const customizationValues = productData.customizationValues || {};
-    
+
+    // Use same comprehensive logic as mirrors but with top glass defaults
+    const series = customizationValues.series || 'Top Glass';
     const shape = customizationValues.shape || 'Rectangle';
-    const edgeFinish = customizationValues.edgeFinish || 'Polished';
+    const cornerRadius = customizationValues.cornerRadius || 0;
+    const frameType = customizationValues.frameType || 'Frameless'; // Top glass is typically frameless
+    const frameColor = customizationValues.frameColor || 'Polished'; // Edge finish stored here for frameless
+    const glassType = customizationValues.glassType || 'Clear'; // Top glass is typically clear
+    const thickness = customizationValues.thickness || '6mm';
+    const tintFinish = customizationValues.tintFinish || '';
+    const orientation = customizationValues.orientation || 'Horizontal'; // Top glass often horizontal
+    const style = customizationValues.style || '';
+    const gridPattern = customizationValues.gridPattern || '';
+    const arrangement = customizationValues.arrangement || 'Individually';
+    const lighting = customizationValues.lighting || '';
+    const ledColorTemperature = customizationValues.ledColorTemperature || '';
+    const control = customizationValues.control || '';
+    const additionalFeatures = customizationValues.additionalFeatures || '';
     const mountingMethod = customizationValues.mountingMethod || 'Wall-mounted';
+    const quantity = customizationValues.quantity || '';
 
     // Calculate dimensions
     const actualRatio = width / height;
     let totalWidth, totalHeight;
-    
+
     if (actualRatio > 1) {
         totalWidth = DRAWING_SIZE;
         totalHeight = DRAWING_SIZE / actualRatio;
@@ -2180,20 +2311,21 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
         totalHeight = DRAWING_SIZE;
         totalWidth = DRAWING_SIZE * actualRatio;
     }
-    
+
     const offsetX = (STAGE_SIZE - totalWidth) / 2;
     const offsetY = (STAGE_SIZE - totalHeight) / 2;
 
     // Get styles
-    const gStyle = getGlassStyle('Clear');
-    const edgeColor = edgeFinish.toLowerCase().includes('beveled') ? '#E8E8E8' : '#FFFFFF';
+    const gStyle = getGlassStyle(glassType, tintFinish);
+    const fStyle = getFrameStyle(frameColor);
+    const isFrameless = frameType.toLowerCase().includes('frameless');
 
     // Draw glass based on shape
+    let glassShape;
     const centerX = offsetX + totalWidth / 2;
     const centerY = offsetY + totalHeight / 2;
     const minRadius = Math.min(totalWidth, totalHeight) / 2;
 
-    let glassShape;
     if (shape.toLowerCase().includes('round') || shape.toLowerCase().includes('circle')) {
         glassShape = new Konva.Circle({
             x: centerX,
@@ -2201,11 +2333,11 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
             radius: minRadius,
             fill: gStyle.fill,
             opacity: gStyle.opacity,
-            stroke: edgeColor,
-            strokeWidth: 2,
+            stroke: isFrameless ? 'transparent' : fStyle.color,
+            strokeWidth: isFrameless ? 0 : fStyle.width,
             listening: false,
         });
-    } else if (shape.toLowerCase().includes('oval')) {
+    } else if (shape.toLowerCase().includes('oval') || shape.toLowerCase().includes('ellipse')) {
         glassShape = new Konva.Ellipse({
             x: centerX,
             y: centerY,
@@ -2213,11 +2345,41 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
             radiusY: totalHeight / 2,
             fill: gStyle.fill,
             opacity: gStyle.opacity,
-            stroke: edgeColor,
-            strokeWidth: 2,
+            stroke: isFrameless ? 'transparent' : fStyle.color,
+            strokeWidth: isFrameless ? 0 : fStyle.width,
             listening: false,
         });
     } else {
+        // Rectangle/Square - Support individual corner radius values
+        let cornerRadiusPx = 0;
+        let cornerRadiusArray = null;
+
+        // Check if cornerRadius is an object with individual corners
+        const cornerRadiusData = customizationValues.cornerRadius || customizationValues.CornerRadius || cornerRadius;
+
+        if (typeof cornerRadiusData === 'object' && cornerRadiusData !== null && !Array.isArray(cornerRadiusData)) {
+            // Individual corner radius values from object (stored in inches)
+            const pxPerInX = width > 0 ? (totalWidth / width) : 0;
+            const pxPerInY = height > 0 ? (totalHeight / height) : 0;
+            const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
+
+            const topLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topLeft || 0)) * (pxPerIn || 0));
+            const topRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topRight || 0)) * (pxPerIn || 0));
+            const bottomRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomRight || 0)) * (pxPerIn || 0));
+            const bottomLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomLeft || 0)) * (pxPerIn || 0));
+
+            cornerRadiusArray = [topLeft, topRight, bottomRight, bottomLeft];
+        } else {
+            // Single value (linked mode) - convert to array format
+            const safeCornerRadiusIn = Math.max(0, parseFloat(cornerRadiusData) || 0);
+            const pxPerInX = width > 0 ? (totalWidth / width) : 0;
+            const pxPerInY = height > 0 ? (totalHeight / height) : 0;
+            const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
+            cornerRadiusPx = Math.min(minRadius, safeCornerRadiusIn * (pxPerIn || 0));
+            cornerRadiusArray = [cornerRadiusPx, cornerRadiusPx, cornerRadiusPx, cornerRadiusPx];
+        }
+
+        const hasCornerRadius = cornerRadiusArray && cornerRadiusArray.some(radius => radius > 0);
         glassShape = new Konva.Rect({
             x: offsetX,
             y: offsetY,
@@ -2225,12 +2387,101 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
             height: totalHeight,
             fill: gStyle.fill,
             opacity: gStyle.opacity,
-            stroke: edgeColor,
-            strokeWidth: 2,
+            stroke: isFrameless ? 'transparent' : fStyle.color,
+            strokeWidth: isFrameless ? 0 : fStyle.width,
+            cornerRadius: hasCornerRadius ? cornerRadiusArray : 0,
             listening: false,
         });
     }
     layer.add(glassShape);
+
+    // Add grid pattern if specified
+    if (gridPattern) {
+        drawGridPattern(layer, offsetX, offsetY, totalWidth, totalHeight, gridPattern);
+    }
+
+    // Add LED lighting indicator if present
+    if (lighting && lighting.toLowerCase().includes('led')) {
+        const ledIndicator = new Konva.Circle({
+            x: offsetX + 20,
+            y: offsetY + 20,
+            radius: 5,
+            fill: '#FFD700',
+            opacity: 0.8,
+            listening: false,
+        });
+        layer.add(ledIndicator);
+    }
+
+    // Draw dimension lines (width and height) for top glass
+    const originalWidth = productData.originalWidth || dimensions.width;
+    const originalHeight = productData.originalHeight || dimensions.height;
+    const widthUnit = productData.widthUnit || dimensions.unit || 'in';
+    const heightUnit = productData.heightUnit || dimensions.unit || 'in';
+    drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight,
+                       originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
+
+    // Draw annotations (thickness, edge/frame based on frame type)
+    const formatThickness = thickness || '6mm';
+    let annotationParts = [`Thickness: ${formatThickness}`];
+
+    if (isFrameless) {
+        // For frameless top glass, show edge finish
+        // Check frameColor first (since edge options are stored there when frameless)
+        // Then check edgeFinish/edgeWork as fallback
+        let edgeFinish = '';
+        const frameColorValue = (frameColor || '').toLowerCase();
+        const edgeOptions = ['machine polished edges', 'beveled edge'];
+
+        // Check if frameColor contains an edge finish option
+        const isEdgeInFrameColor = frameColor && (
+            frameColorValue.includes('polished') ||
+            frameColorValue.includes('beveled') ||
+            edgeOptions.some(opt => frameColorValue === opt.toLowerCase() || frameColorValue.includes(opt.toLowerCase()))
+        );
+
+        if (isEdgeInFrameColor) {
+            edgeFinish = frameColor;
+        } else {
+            edgeFinish = customizationValues.edgeFinish || customizationValues.edgeWork || '';
+        }
+
+        if (edgeFinish) {
+            const formatEdge = edgeFinish.split('-').map(word =>
+                word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || edgeFinish;
+            annotationParts.push(`Edge: ${formatEdge}`);
+        }
+    } else {
+        // For framed top glass, show frame color
+        // Only show frame color if it's not an edge option
+        const frameColorValue = (frameColor || '').toLowerCase();
+        const isEdgeOption = frameColorValue.includes('polished') || frameColorValue.includes('beveled');
+
+        if (frameColor && !isEdgeOption) {
+            annotationParts.push(`Frame: ${frameColor}`);
+        }
+    }
+
+    if (annotationParts.length > 0) {
+        const annotationText = annotationParts.join('  |  ');
+        layer.add(new Konva.Text({
+            x: offsetX + totalWidth / 2,
+            y: offsetY + totalHeight + 15,
+            text: annotationText,
+            fontSize: 11,
+            fontStyle: 'bold',
+            fontFamily: 'Montserrat, Arial',
+            fill: '#555',
+            align: 'center',
+            offsetX: (annotationText.length * 6) / 2,
+            listening: false,
+        }));
+    }
+
+    // Draw corner radius annotations for rectangle/square shapes
+    if (shape.toLowerCase().includes('rectangle') || shape.toLowerCase().includes('square')) {
+        drawCornerRadiusAnnotationsForSpecialty(customizationValues, offsetX, offsetY, totalWidth, totalHeight, shape, layer);
+    }
 }
 
 /**
@@ -2239,19 +2490,34 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
 function renderSpecialtyGlassBoard(productData, dimensions, layer, renderContext) {
     const ctx = getRenderContext(renderContext);
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
-    
+
     const { width, height, unit } = dimensions;
     const customizationValues = productData.customizationValues || {};
-    
+
+    // Use same comprehensive logic as mirrors but with glass board defaults
+    const series = customizationValues.series || 'Glass Board';
     const shape = customizationValues.shape || 'Rectangle';
-    const edgeFinish = customizationValues.edgeFinish || 'Polished';
     const cornerRadius = customizationValues.cornerRadius || 0;
+    const frameType = customizationValues.frameType || 'Frameless'; // Glass boards are typically frameless
+    const frameColor = customizationValues.frameColor || 'Polished'; // Edge finish stored here for frameless
+    const glassType = customizationValues.glassType || 'Clear'; // Glass boards are typically clear
+    const thickness = customizationValues.thickness || '6mm';
+    const tintFinish = customizationValues.tintFinish || '';
+    const orientation = customizationValues.orientation || 'Vertical'; // Glass boards often vertical
+    const style = customizationValues.style || '';
+    const gridPattern = customizationValues.gridPattern || '';
+    const arrangement = customizationValues.arrangement || 'Single';
+    const lighting = customizationValues.lighting || '';
+    const ledColorTemperature = customizationValues.ledColorTemperature || '';
+    const control = customizationValues.control || '';
+    const additionalFeatures = customizationValues.additionalFeatures || '';
     const mountingMethod = customizationValues.mountingMethod || 'Wall-mounted';
+    const quantity = customizationValues.quantity || '';
 
     // Calculate dimensions
     const actualRatio = width / height;
     let totalWidth, totalHeight;
-    
+
     if (actualRatio > 1) {
         totalWidth = DRAWING_SIZE;
         totalHeight = DRAWING_SIZE / actualRatio;
@@ -2259,29 +2525,177 @@ function renderSpecialtyGlassBoard(productData, dimensions, layer, renderContext
         totalHeight = DRAWING_SIZE;
         totalWidth = DRAWING_SIZE * actualRatio;
     }
-    
+
     const offsetX = (STAGE_SIZE - totalWidth) / 2;
     const offsetY = (STAGE_SIZE - totalHeight) / 2;
 
     // Get styles
-    const gStyle = getGlassStyle('Clear');
-    const edgeColor = edgeFinish.toLowerCase().includes('beveled') ? '#E8E8E8' : '#FFFFFF';
+    const gStyle = getGlassStyle(glassType, tintFinish);
+    const fStyle = getFrameStyle(frameColor);
+    const isFrameless = frameType.toLowerCase().includes('frameless');
 
-    // Draw glass board
-    const cornerRadiusPx = cornerRadius ? (cornerRadius * (totalWidth / width)) : 0;
-    const boardRect = new Konva.Rect({
-        x: offsetX,
-        y: offsetY,
-        width: totalWidth,
-        height: totalHeight,
-        fill: gStyle.fill,
-        opacity: gStyle.opacity,
-        stroke: edgeColor,
-        strokeWidth: 2,
-        cornerRadius: cornerRadiusPx,
-        listening: false,
-    });
-    layer.add(boardRect);
+    // Draw glass board based on shape
+    let glassBoardShape;
+    const centerX = offsetX + totalWidth / 2;
+    const centerY = offsetY + totalHeight / 2;
+    const minRadius = Math.min(totalWidth, totalHeight) / 2;
+
+    if (shape.toLowerCase().includes('round') || shape.toLowerCase().includes('circle')) {
+        glassBoardShape = new Konva.Circle({
+            x: centerX,
+            y: centerY,
+            radius: minRadius,
+            fill: gStyle.fill,
+            opacity: gStyle.opacity,
+            stroke: isFrameless ? 'transparent' : fStyle.color,
+            strokeWidth: isFrameless ? 0 : fStyle.width,
+            listening: false,
+        });
+    } else if (shape.toLowerCase().includes('oval') || shape.toLowerCase().includes('ellipse')) {
+        glassBoardShape = new Konva.Ellipse({
+            x: centerX,
+            y: centerY,
+            radiusX: totalWidth / 2,
+            radiusY: totalHeight / 2,
+            fill: gStyle.fill,
+            opacity: gStyle.opacity,
+            stroke: isFrameless ? 'transparent' : fStyle.color,
+            strokeWidth: isFrameless ? 0 : fStyle.width,
+            listening: false,
+        });
+    } else {
+        // Rectangle/Square - Support individual corner radius values
+        let cornerRadiusPx = 0;
+        let cornerRadiusArray = null;
+
+        // Check if cornerRadius is an object with individual corners
+        const cornerRadiusData = customizationValues.cornerRadius || customizationValues.CornerRadius || cornerRadius;
+
+        if (typeof cornerRadiusData === 'object' && cornerRadiusData !== null && !Array.isArray(cornerRadiusData)) {
+            // Individual corner radius values from object (stored in inches)
+            const pxPerInX = width > 0 ? (totalWidth / width) : 0;
+            const pxPerInY = height > 0 ? (totalHeight / height) : 0;
+            const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
+
+            const topLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topLeft || 0)) * (pxPerIn || 0));
+            const topRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topRight || 0)) * (pxPerIn || 0));
+            const bottomRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomRight || 0)) * (pxPerIn || 0));
+            const bottomLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomLeft || 0)) * (pxPerIn || 0));
+
+            cornerRadiusArray = [topLeft, topRight, bottomRight, bottomLeft];
+        } else {
+            // Single value (linked mode) - convert to array format
+            const safeCornerRadiusIn = Math.max(0, parseFloat(cornerRadiusData) || 0);
+            const pxPerInX = width > 0 ? (totalWidth / width) : 0;
+            const pxPerInY = height > 0 ? (totalHeight / height) : 0;
+            const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
+            cornerRadiusPx = Math.min(minRadius, safeCornerRadiusIn * (pxPerIn || 0));
+            cornerRadiusArray = [cornerRadiusPx, cornerRadiusPx, cornerRadiusPx, cornerRadiusPx];
+        }
+
+        const hasCornerRadius = cornerRadiusArray && cornerRadiusArray.some(radius => radius > 0);
+        glassBoardShape = new Konva.Rect({
+            x: offsetX,
+            y: offsetY,
+            width: totalWidth,
+            height: totalHeight,
+            fill: gStyle.fill,
+            opacity: gStyle.opacity,
+            stroke: isFrameless ? 'transparent' : fStyle.color,
+            strokeWidth: isFrameless ? 0 : fStyle.width,
+            cornerRadius: hasCornerRadius ? cornerRadiusArray : 0,
+            listening: false,
+        });
+    }
+    layer.add(glassBoardShape);
+
+    // Add grid pattern if specified
+    if (gridPattern) {
+        drawGridPattern(layer, offsetX, offsetY, totalWidth, totalHeight, gridPattern);
+    }
+
+    // Add LED lighting indicator if present
+    if (lighting && lighting.toLowerCase().includes('led')) {
+        const ledIndicator = new Konva.Circle({
+            x: offsetX + 20,
+            y: offsetY + 20,
+            radius: 5,
+            fill: '#FFD700',
+            opacity: 0.8,
+            listening: false,
+        });
+        layer.add(ledIndicator);
+    }
+
+    // Draw dimension lines (width and height) for glass board
+    const originalWidth = productData.originalWidth || dimensions.width;
+    const originalHeight = productData.originalHeight || dimensions.height;
+    const widthUnit = productData.widthUnit || dimensions.unit || 'in';
+    const heightUnit = productData.heightUnit || dimensions.unit || 'in';
+    drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight,
+                       originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
+
+    // Draw annotations (thickness, edge/frame based on frame type)
+    const formatThickness = thickness || '6mm';
+    let annotationParts = [`Thickness: ${formatThickness}`];
+
+    if (isFrameless) {
+        // For frameless glass board, show edge finish
+        // Check frameColor first (since edge options are stored there when frameless)
+        // Then check edgeFinish/edgeWork as fallback
+        let edgeFinish = '';
+        const frameColorValue = (frameColor || '').toLowerCase();
+        const edgeOptions = ['machine polished edges', 'beveled edge'];
+
+        // Check if frameColor contains an edge finish option
+        const isEdgeInFrameColor = frameColor && (
+            frameColorValue.includes('polished') ||
+            frameColorValue.includes('beveled') ||
+            edgeOptions.some(opt => frameColorValue === opt.toLowerCase() || frameColorValue.includes(opt.toLowerCase()))
+        );
+
+        if (isEdgeInFrameColor) {
+            edgeFinish = frameColor;
+        } else {
+            edgeFinish = customizationValues.edgeFinish || customizationValues.edgeWork || '';
+        }
+
+        if (edgeFinish) {
+            const formatEdge = edgeFinish.split('-').map(word =>
+                word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || edgeFinish;
+            annotationParts.push(`Edge: ${formatEdge}`);
+        }
+    } else {
+        // For framed glass board, show frame color
+        // Only show frame color if it's not an edge option
+        const frameColorValue = (frameColor || '').toLowerCase();
+        const isEdgeOption = frameColorValue.includes('polished') || frameColorValue.includes('beveled');
+
+        if (frameColor && !isEdgeOption) {
+            annotationParts.push(`Frame: ${frameColor}`);
+        }
+    }
+
+    if (annotationParts.length > 0) {
+        const annotationText = annotationParts.join('  |  ');
+        layer.add(new Konva.Text({
+            x: offsetX + totalWidth / 2,
+            y: offsetY + totalHeight + 15,
+            text: annotationText,
+            fontSize: 11,
+            fontStyle: 'bold',
+            fontFamily: 'Montserrat, Arial',
+            fill: '#555',
+            align: 'center',
+            offsetX: (annotationText.length * 6) / 2,
+            listening: false,
+        }));
+    }
+
+    // Draw corner radius annotations for rectangle/square shapes
+    if (shape.toLowerCase().includes('rectangle') || shape.toLowerCase().includes('square')) {
+        drawCornerRadiusAnnotationsForSpecialty(customizationValues, offsetX, offsetY, totalWidth, totalHeight, shape, layer);
+    }
 }
 
 // ============================================================================
