@@ -6466,9 +6466,9 @@ function setupProductPopups() {
       const productCustomization = window.currentEditingProduct?.Customization || {};
       let storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
 
-      // Fallback for existing products: check saved series in customizationFields
+      // Fallback for existing products: try multiple sources
       if (!storedSeries) {
-        // Build field key to check for saved series
+        // First fallback: check saved series in customizationFields
         let fieldKey;
         if (selectedCategory === "Windows") {
           fieldKey = `Windows_${selectedSubcategory}`;
@@ -6486,6 +6486,17 @@ function setupProductPopups() {
 
         const savedSeriesKey = `${fieldKey}_selectedSeries`;
         storedSeries = customizationFields[savedSeriesKey] || null;
+
+        // Second fallback: infer series from customization data
+        if (!storedSeries && productCustomization && typeof productCustomization === 'object') {
+          // Try to detect series based on thickness or other field values
+          if (productCustomization.thickness && typeof productCustomization.thickness === 'number') {
+            const thickness = productCustomization.thickness;
+            if (thickness >= 3 && thickness <= 12) {
+              storedSeries = `YC-${thickness}mm Series`;
+            }
+          }
+        }
       }
 
       // Set global variable for series selection in Manage Customization Fields
@@ -6504,9 +6515,9 @@ function setupProductPopups() {
       const productCustomization = window.currentEditingProduct?.Customization || {};
       let storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
 
-      // Fallback for existing products: check saved series in customizationFields
+      // Fallback for existing products: try multiple sources
       if (!storedSeries) {
-        // Build field key to check for saved series
+        // First fallback: check saved series in customizationFields
         let fieldKey;
         if (selectedCategory === "Windows") {
           fieldKey = `Windows_${selectedSubcategory}`;
@@ -6524,6 +6535,17 @@ function setupProductPopups() {
 
         const savedSeriesKey = `${fieldKey}_selectedSeries`;
         storedSeries = customizationFields[savedSeriesKey] || null;
+
+        // Second fallback: infer series from customization data
+        if (!storedSeries && productCustomization && typeof productCustomization === 'object') {
+          // Try to detect series based on thickness or other field values
+          if (productCustomization.thickness && typeof productCustomization.thickness === 'number') {
+            const thickness = productCustomization.thickness;
+            if (thickness >= 3 && thickness <= 12) {
+              storedSeries = `YC-${thickness}mm Series`;
+            }
+          }
+        }
       }
 
       // Set global variable for series selection in Manage Customization Fields
@@ -6902,9 +6924,9 @@ function populateEditForm(product) {
   // Set global selectedCustomizationSeries for Manage Customization Fields
   let initialSeries = product?.SelectedCustomizationSeries || null;
 
-  // Fallback for existing products: check saved series in customizationFields
+  // Fallback for existing products: try multiple sources
   if (!initialSeries && product?.Category && product?.Subcategory) {
-    // Build field key to check for saved series
+    // First fallback: check saved series in customizationFields
     let fieldKey;
     const category = product.Category;
     const subcategory = product.Subcategory;
@@ -6924,6 +6946,28 @@ function populateEditForm(product) {
 
     const savedSeriesKey = `${fieldKey}_selectedSeries`;
     initialSeries = customizationFields[savedSeriesKey] || null;
+
+    // Second fallback: infer series from customization data
+    if (!initialSeries && product.Customization) {
+      let customizationData = product.Customization;
+      if (typeof customizationData === 'string') {
+        try {
+          customizationData = JSON.parse(customizationData);
+        } catch (e) {
+          customizationData = null;
+        }
+      }
+
+      if (customizationData && typeof customizationData === 'object') {
+        // Try to detect series based on thickness or other field values
+        if (customizationData.thickness && typeof customizationData.thickness === 'number') {
+          const thickness = customizationData.thickness;
+          if (thickness >= 3 && thickness <= 12) {
+            initialSeries = `YC-${thickness}mm Series`;
+          }
+        }
+      }
+    }
   }
 
   selectedCustomizationSeries = initialSeries;
@@ -7717,9 +7761,9 @@ function setupEditPopupHandlers() {
       const productCustomization = window.currentEditingProduct?.Customization || {};
       let storedSeries = window.currentEditingProduct?.SelectedCustomizationSeries;
 
-      // Fallback for existing products: check saved series in customizationFields
+      // Fallback for existing products: try multiple sources
       if (!storedSeries) {
-        // Build field key to check for saved series
+        // First fallback: check saved series in customizationFields
         let fieldKey;
         if (selectedCategory === "Windows") {
           fieldKey = `Windows_${selectedSubcategory}`;
@@ -7737,6 +7781,17 @@ function setupEditPopupHandlers() {
 
         const savedSeriesKey = `${fieldKey}_selectedSeries`;
         storedSeries = customizationFields[savedSeriesKey] || null;
+
+        // Second fallback: infer series from customization data
+        if (!storedSeries && productCustomization && typeof productCustomization === 'object') {
+          // Try to detect series based on thickness or other field values
+          if (productCustomization.thickness && typeof productCustomization.thickness === 'number') {
+            const thickness = productCustomization.thickness;
+            if (thickness >= 3 && thickness <= 12) {
+              storedSeries = `YC-${thickness}mm Series`;
+            }
+          }
+        }
       }
 
       // Set global variable for series selection in Manage Customization Fields
