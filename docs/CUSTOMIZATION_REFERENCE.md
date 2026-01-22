@@ -117,18 +117,16 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Basic Options (1) | Glass Type | `tags` | Clear \\| Tinted \\| Frosted \\| Laminated \\| Laminated safety glass |
-| Basic Options (1) | Door Type | `tags` | Single swing \\| Double swing \\| Single French door \\| Double French doors |
-| Basic Options (1) | Door Swing | `tags` | Left swing \\| Right swing \\| Left-hinged \\| Right-hinged |
-| Panel Configuration (2) | Fixed Panels | `tags` | With fixed side/transom panels \\| Without fixed panels \\| 0 fixed panels \\| 1 fixed panel \\| 2 fixed panels \\| More fixed panels \\| With fixed side panel (left or right) \\| With fixed transom \\| Both |
-| Panel Configuration (2) | Configuration | `tags` | With fixed side panel (left or right) \\| With fixed transom \\| Both \\| Single swing door \\| Double swing door |
-| Design & Hardware (3) | Handle Style | `tags` | Various pull handle designs \\| Various pull handles \\| Decorative handles |
-| Design & Hardware (3) | Hardware Finish | `tags` | Polished Chrome/Stainless Steel \\| Matte Black \\| Brushed Nickel \\| Gold \\| Chrome/Stainless Steel |
-| Design & Hardware (3) | Grid Pattern | `tags` | Internal grids \\| External grids \\| Colonial \\| Prairie \\| Custom grid designs \\| French type grid |
-| Glass Treatment & Installation (4) | Glass Treatment | `tags` | Frosted stripes (horizontal/vertical) \\| Custom patterns \\| Colors \\| Frosted sticker (customizable patterns, opacity, colors) |
-| Glass Treatment & Installation (4) | Installation | `tags` | Patch fittings (minimalist hardware) \\| Standard |
-| Glass Treatment & Installation (4) | Hardware | `tags` | Push/pull handles \\| Locks \\| Closers \\| Multi-point locks |
-| Glass Treatment & Installation (4) | Soft-close | `checkbox` | |
+| Step 1 (1) | Glass Type | `tags` | Clear \| Tinted \| Frosted \| Laminated \| Laminated safety glass |
+| Step 1 (1) | Door Type | `tags` | Single swing \| Double swing \| Single French door \| Double French doors |
+| Step 1 (1) | Door Swing | `tags` | Left swing \| Right swing \| Left-hinged \| Right-hinged |
+| Step 2 (2) | Handle Style | `tags` | Various pull handle designs \| Various pull handles \| Decorative handles |
+| Step 2 (2) | Hardware Finish | `tags` | Polished Chrome/Stainless Steel \| Matte Black \| Brushed Nickel \| Gold \| Chrome/Stainless Steel |
+| Step 2 (2) | Grid Pattern | `tags` | Internal grids \| External grids \| Colonial \| Prairie \| Custom grid designs \| French type grid |
+| Step 3 (3) | Glass Treatment | `tags` | Frosted stripes (horizontal/vertical) \| Custom patterns \| Colors \| Frosted sticker (customizable patterns, opacity, colors) |
+| Step 3 (3) | Installation | `tags` | Patch fittings (minimalist hardware) \| Standard |
+| Step 3 (3) | Hardware | `tags` | Push/pull handles \| Locks \| Closers \| Multi-point locks |
+| Step 3 (3) | Soft-close | `checkbox` |  |
 
 ### Patch Fitting
 **Step names:** Basic Options · Configuration & Details
@@ -223,9 +221,8 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Step 1 (1) | Shape | `tags` | Round \| Rectangle \| Oval \| Square \| Custom shapes |
+| Step 1 (1) | Shape | `tags` | Round \| Rectangle \| Oval \| Square |
 | Step 1 (1) | Edge Finish | `tags` | Beveled \| Polished \| Raw \| Beveled edge \| Flat polished edge \| Pencil edge |
-| Step 2 (2) | Corner Radius (in) | `number` | min 0 · step 0.1 |
 | Step 2 (2) | Mounting Method | `tags` | Wall-mounted \| Stand \| Adhesive |
 
 ### Glass Board
@@ -233,12 +230,9 @@ This reference lists every main category, its supported subcategories, and the d
 
 | Step | Field | Control | Options |
 | --- | --- | --- | --- |
-| Basic Options (1) | Shape | `tags` | Round \\| Rectangle \\| Oval \\| Square \\| Custom shapes |
-| Basic Options (1) | Edge Finish | `tags` | Beveled \\| Polished \\| Raw \\| Beveled edge \\| Flat polished edge \\| Pencil edge |
-| Details & Installation (2) | Corner Radius (in) | `number` | min 0 · step 0.1 |
-| Details & Installation (2) | Mounting Method | `tags` | Wall-mounted \\| Stand \\| Adhesive |
-**Notes:**
-- Corner radius only appears when Shape = Square, Rectangle
+| Step 1 (1) | Shape | `tags` | Round \| Rectangle \| Oval \| Square |
+| Step 1 (1) | Edge Finish | `tags` | Beveled \| Polished \| Raw \| Beveled edge \| Flat polished edge \| Pencil edge |
+| Step 2 (2) | Mounting Method | `tags` | Wall-mounted \| Stand \| Adhesive |
 
 
 

@@ -589,7 +589,7 @@ async function updateWindowsCasementFields() {
     
     // Expected new field IDs (in order): transomType, panelConfiguration, dimensions, frameColor, glassColor, glassType, thickness
     // Note: dimensions replaces the old width, height, h1 fields
-    const expectedFieldIds = ['transomType', 'panelConfiguration', 'dimensions', 'frameColor', 'glassColor', 'glassType', 'thickness'];
+    const expectedFieldIds = ['transomType', 'panelConfiguration', 'frameColor', 'glassColor', 'glassType', 'thickness'];
     const currentFieldIds = currentFields ? currentFields.map(f => f.id) : [];
     
     // Check if structure matches - must have all expected fields in correct order
