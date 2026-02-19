@@ -106,8 +106,8 @@ $route['accept-quotation'] = 'ShopCon/accept_quotation';
 Implemented PayMongo Sandbox payment processing for Direct Orders only. All payments use test API keys - no real money is involved.
 
 ### PayMongo Keys (Sandbox)
-- **Public Key**: `pk_test_H9zcEdXmDXCSjKbFkA9VBcBh`
-- **Secret Key**: `sk_test_...` (configure in environment variables or config file)
+- **Public Key**: `pk_test_****` (configure in environment variables or config file)
+- **Secret Key**: `sk_test_****` (configure in environment variables or config file)
 
 ### Payment Flow
 

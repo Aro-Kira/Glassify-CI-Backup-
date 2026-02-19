@@ -24,11 +24,11 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 // PayMongo Secret Key (Server-side operations)
 // Set via environment variable PAYMONGO_SECRET_KEY, or use value below
-$config['paymongo_secret_key'] = getenv('PAYMONGO_SECRET_KEY') ?: 'sk_test_bprPGRxXWFN5RHJTG3hvY2rP';
+$config['paymongo_secret_key'] = getenv('PAYMONGO_SECRET_KEY') ?: '';
 
 // PayMongo Public Key (Client-side operations)
 // Set via environment variable PAYMONGO_PUBLIC_KEY, or use value below
-$config['paymongo_public_key'] = getenv('PAYMONGO_PUBLIC_KEY') ?: 'pk_test_H9zcEdXmDXCSjKbFkA9VBcBh';
+$config['paymongo_public_key'] = getenv('PAYMONGO_PUBLIC_KEY') ?: '';
 
 /*
 |--------------------------------------------------------------------------
