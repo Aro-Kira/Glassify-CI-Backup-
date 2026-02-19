@@ -318,17 +318,13 @@ body {
   text-align: center;
 }
 
-.status-in-stock {
+.status-available {
   background: #4CAF50;
   color: #fff;
 }
 
-.status-low-stock {
-  background: #FF9800;
-  color: #fff;
-}
 
-.status-out-stock {
+.status-unavailable {
   background: #f44336;
   color: #fff;
 }
@@ -1077,9 +1073,6 @@ body {
   color: #fff;
 }
 
-.tag.selected .tag-price {
-  color: rgba(255, 255, 255, 0.8);
-}
 
 /* Tag Image Upload Styles */
 .tag-image-upload-container {
@@ -1559,13 +1552,7 @@ body {
   background: #e0e0e0;
 }
 
-/* Tag Price Display */
-.tag-price {
-  font-size: 11px;
-  color: #666;
-  margin-left: 4px;
-  font-weight: normal;
-}
+/* Tag price removed - styles cleared */
 
 /* Customization Tabs */
 .customization-tabs {

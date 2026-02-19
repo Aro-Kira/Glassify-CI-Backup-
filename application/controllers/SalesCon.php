@@ -23,21 +23,18 @@ class SalesCon extends CI_Controller
     // Check if user is authenticated and is a Sales Representative
     private function check_auth()
     {
-        // If a logged-in customer tries to access sales pages, force logout and redirect
+        // If a logged-in customer tries to access sales pages, redirect them (but DON'T log them out)
         if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
-            // Set error message BEFORE clearing session data (flashdata needs active session)
-            $this->session->set_flashdata('error', '⚠️ Access Denied: This page is restricted to Sales Representative employees only. Customer accounts cannot access employee pages. You have been logged out for security reasons.');
-            
-            // Clear all user session data (but keep session alive for flashdata)
-            $this->session->unset_userdata(['is_logged_in', 'user_id', 'user_name', 'user_email', 'user_role', 'customer_id']);
-            
-            // Set cache control headers to prevent back button access after force logout
-            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
-            $this->output->set_header('Pragma: no-cache');
-            $this->output->set_header('Expires: 0');
-            
-            redirect(base_url('login'));
+            // For AJAX requests, return JSON error
+            if ($this->input->is_ajax_request() || 
+                (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'status' => 'error', 'message' => 'Access denied. Sales Representative only.']);
+                exit;
+            }
+            // For regular requests, redirect to customer dashboard without logging out
+            $this->session->set_flashdata('error', '⚠️ Access Denied: This page is restricted to Sales Representative employees only.');
+            redirect(base_url('customer/dashboard'));
         }
         
         if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Sales Representative') {
@@ -628,8 +625,8 @@ class SalesCon extends CI_Controller
             $this->db->limit($per_page, $offset);
             $customers = $this->db->get()->result();
         } else {
-            // Fallback to user table
-            $this->db->where('user.Role', 'Customer');
+            // Fallback to user table - include Customer, Professional, and Beginner
+            $this->db->where_in('user.Role', ['Customer', 'Professional', 'Beginner']);
             $total_customers = $this->db->count_all_results('user');
             
             $this->db->select('
@@ -646,7 +643,7 @@ class SalesCon extends CI_Controller
                 user.Date_Updated as Last_Active
             ');
             $this->db->from('user');
-            $this->db->where('user.Role', 'Customer');
+            $this->db->where_in('user.Role', ['Customer', 'Professional', 'Beginner']);
             $this->db->order_by('user.Date_Created', 'DESC');
             $this->db->limit($per_page, $offset);
             $customers = $this->db->get()->result();
@@ -673,6 +670,9 @@ class SalesCon extends CI_Controller
     {
         $sales_rep_id = $this->get_current_sales_rep_id();
         
+        // Debug: Log sales rep ID
+        log_message('debug', 'Sales Orders Page: SalesRep_ID = ' . $sales_rep_id);
+        
         // Load Order_model
         $this->load->model('Order_model');
         
@@ -682,6 +682,8 @@ class SalesCon extends CI_Controller
         // Debug: Log if no orders found
         if (empty($all_orders)) {
             log_message('debug', 'Sales Orders: No orders found for SalesRep_ID: ' . $sales_rep_id);
+        } else {
+            log_message('debug', 'Sales Orders: Found ' . count($all_orders) . ' orders for SalesRep_ID: ' . $sales_rep_id);
         }
         
         // Define the three relevant statuses for this page
@@ -2453,8 +2455,8 @@ class SalesCon extends CI_Controller
      */
     private function sync_customers_to_enduser()
     {
-        // Get all customers from user table
-        $this->db->where('Role', 'Customer');
+        // Get all customers from user table (Customer, Professional, Beginner)
+        $this->db->where_in('Role', ['Customer', 'Professional', 'Beginner']);
         $customers = $this->db->get('user')->result();
         
         foreach ($customers as $customer) {

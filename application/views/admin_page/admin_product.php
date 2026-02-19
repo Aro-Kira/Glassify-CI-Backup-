@@ -36,6 +36,11 @@
           <option value="<?= htmlspecialchars($category); ?>"><?= htmlspecialchars($category); ?></option>
         <?php endforeach; ?>
       </select>
+      <select class="filter-availability" id="filterAvailability" style="margin-left:8px;">
+        <option value="">All Availability</option>
+        <option value="available">Available</option>
+        <option value="unavailable">Unavailable</option>
+      </select>
       <select class="sort-products" id="sortProducts">
         <option value="recent">Recently Added</option>
         <option value="last">Last Added</option>
@@ -102,14 +107,12 @@
         $orderTypeDisplay = ($orderType === 'site-assessed' || $orderType === 'Site-Assessed' || $orderType === 'site-assessment') ? 'Site Assessment' : 'Direct';
         
         // Get status
-        $status = isset($product->Status) ? $product->Status : 'Out of Stock';
+        $status = isset($product->Status) ? $product->Status : 'Available';
         $statusClass = '';
-        if ($status === 'In Stock') {
-          $statusClass = 'status-in-stock';
-        } elseif ($status === 'Low Stock') {
-          $statusClass = 'status-low-stock';
+        if ($status === 'available' || $status === 'Available') {
+          $statusClass = 'status-available';
         } else {
-          $statusClass = 'status-out-stock';
+          $statusClass = 'status-unavailable';
         }
         
         // Get price range
@@ -150,8 +153,8 @@
             <p class="product-name"><?= htmlspecialchars($product->ProductName); ?></p>
             
             <!-- Order Type -->
-            <p class="product-type">Type: <span><?= htmlspecialchars($orderTypeDisplay); ?></span></p>
-            
+            <!-- <p class="product-type">Type: <span><?= htmlspecialchars($orderTypeDisplay); ?></span></p>
+             -->
             <!-- Price Range -->
             <p class="product-price">
               <?php if ($priceMin !== null && $priceMax !== null): ?>
@@ -279,26 +282,14 @@
 
       <!-- RIGHT COLUMN: Order Type, Category, Customization, Standard Sizes -->
       <div class="form-column-right">
-        <!-- Order Type Selection (moved to top) -->
-        <div class="form-group">
-          <label>Order Type</label>
-          <div class="order-type-buttons">
-            <button type="button" class="order-type-btn active" id="directOrderBtn" data-order-type="direct">
-              Direct Order
-            </button>
-            <button type="button" class="order-type-btn" id="siteAssessmentBtn" data-order-type="site-assessment">
-              Site Assessment Order
-            </button>
-          </div>
-          <input type="hidden" id="productOrderType" name="orderType" value="direct">
-        </div>
+        <!-- Order type selection removed — categories are unified -->
 
         <!-- Main Category Selection -->
         <div class="form-group">
           <label for="productCategory">Category</label>
           <select id="productCategory" class="input-text">
             <option value="" disabled selected>Select category</option>
-            <!-- Categories will be filtered based on order type -->
+            <!-- Categories (unified) -->
           </select>
         </div>
 
@@ -379,6 +370,14 @@
           <input type="text" id="editProductName" class="text-input" placeholder="Enter product name">
         </div>
 
+          <div class="form-group">
+            <label for="editProductAvailability">Availability</label>
+            <label style="display:flex; align-items:center; gap:8px;">
+              <input type="checkbox" id="editProductAvailability" style="width:18px; height:18px;" />
+              <span>Unavailable</span>
+            </label>
+          </div>
+
         <!-- Description -->
         <div class="form-group">
           <label for="editProductDescription">Description</label>
@@ -415,26 +414,14 @@
 
       <!-- RIGHT COLUMN: Order Type, Category, Customization, Standard Sizes -->
       <div class="form-column-right">
-        <!-- Order Type Selection (moved to top) -->
-        <div class="form-group">
-          <label>Order Type</label>
-          <div class="order-type-buttons">
-            <button type="button" class="order-type-btn active" id="editDirectOrderBtn" data-order-type="direct">
-              Direct Order
-            </button>
-            <button type="button" class="order-type-btn" id="editSiteAssessmentBtn" data-order-type="site-assessment">
-              Site Assessment Order
-            </button>
-          </div>
-          <input type="hidden" id="editProductOrderType" name="orderType" value="direct">
-        </div>
+        <!-- Order type selection removed for edit form — categories are unified -->
 
         <!-- Main Category Selection (Read-only) -->
         <div class="form-group">
           <label for="editProductCategory">Category</label>
           <select id="editProductCategory" class="input-text" disabled style="opacity: 0.6; cursor: not-allowed;">
             <option value="" disabled selected>Select category</option>
-            <!-- Categories will be filtered based on order type -->
+            <!-- Categories (unified) -->
           </select>
           <small style="color: #666; font-size: 12px; display: block; margin-top: 4px;">Category cannot be edited</small>
         </div>
@@ -496,6 +483,11 @@
   <div class="popup" style="width: 400px;">
     <span class="close-btn" id="closeTagModal">&times;</span>
     <h3>Add New Tag</h3>
+    
+    <div style="color: #856404; font-size: 12px; margin-bottom: 15px; padding: 10px 12px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px;">
+      <i class="fas fa-exclamation-circle" style="margin-right: 5px;"></i> <strong>⚠️ Notice:</strong> This tag will <strong>NOT</strong> update the 2D Preview.
+    </div>
+    
     <div class="form-group">
       <label for="tagNameInput">Tag Name</label>
       <!-- Text input for regular tags -->
@@ -519,245 +511,7 @@
       <!-- Text input for custom shape when "Others" is selected -->
       <input type="text" id="tagNameCustomInput" class="text-input" placeholder="Enter custom shape name" style="display: none; margin-top: 8px;">
     </div>
-    <div class="form-group">
-      <label for="tagPriceInput">Price per Tag (₱)</label>
-      <div class="price-input">
-        <span>₱</span>
-        <input type="number" id="tagPriceInput" class="input-text" placeholder="0.00" step="0.01" min="0">
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="tagImageInput">Tag Image (Optional)</label>
-      <input type="file" id="tagImageInput" accept="image/*" style="display: none;">
-      <div class="tag-image-upload-container">
-        <button type="button" class="tag-image-upload-btn" id="tagImageUploadBtn">
-          <i class="fas fa-image"></i> Choose Image
-        </button>
-        <div class="tag-image-preview" id="tagImagePreview" style="display: none;">
-          <img id="tagImagePreviewImg" src="" alt="Tag preview">
-          <button type="button" class="tag-image-remove" id="tagImageRemoveBtn">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-    <!-- Konva Visual Configuration for 2D Preview - FULLY DYNAMIC -->
-    <div class="form-group konva-visual-config" id="konvaVisualConfigGroup">
-      <!-- Toggle Switch for 2D Preview -->
-      <div class="visual-preview-toggle-row" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 8px; margin-bottom: 12px; border: 1px solid #dee2e6;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <i class="fas fa-palette" style="color: #6c757d; font-size: 16px;"></i>
-          <div>
-            <label for="enableVisualPreview" style="font-weight: 600; color: #495057; margin: 0; cursor: pointer; font-size: 13px;">Enable 2D Preview Style</label>
-            <small style="display: block; color: #868e96; font-size: 11px; margin-top: 2px;">Configure how this option appears in customer's Konva.js preview</small>
-          </div>
-        </div>
-        <label class="toggle-switch" style="position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0;">
-          <input type="checkbox" id="enableVisualPreview" style="opacity: 0; width: 0; height: 0;">
-          <span class="toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 26px;"></span>
-            <style>
-              .toggle-switch input:checked + .toggle-slider { background: linear-gradient(135deg, #005b82 0%, #0077a8 100%); box-shadow: 0 0 8px rgba(0,91,130,0.3); }
-              .toggle-switch .toggle-slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-              .toggle-switch input:checked + .toggle-slider:before { transform: translateX(22px); }
-              #visualConfigContent { animation: slideDown 0.3s ease-out; }
-              @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-            </style>
-        </label>
-      </div>
-      
-      <!-- Visual Config Content (hidden by default) -->
-      <div id="visualConfigContent" style="display: none;">
-      
-      <!-- Konva Effect Type Selection -->
-      <div class="konva-config-row" style="margin-bottom: 10px;">
-        <label for="tagKonvaEffect" style="font-size: 12px; color: #555;">Visual Effect Type</label>
-        <select id="tagKonvaEffect" class="text-input" style="width: 100%;">
-          <option value="fill">Glass Fill (color + transparency)</option>
-          <option value="frame">Frame/Border Style</option>
-          <option value="pattern">Pattern/Texture Effect</option>
-          <option value="gradient">Gradient Effect</option>
-          <option value="shadow">Shadow/Glow Effect</option>
-          <option value="edge">Edge Style (dashed, beveled)</option>
-          <option value="overlay">Overlay/Tint Layer</option>
-          <option value="custom">Custom (specify all properties)</option>
-        </select>
-      </div>
-      
-      <!-- Basic Colors Row -->
-      <div class="konva-config-row" style="display: flex; gap: 12px; margin-bottom: 10px;">
-        <div style="flex: 1;">
-          <label for="tagFillColor" style="font-size: 12px; color: #555;">Primary Color</label>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <input type="color" id="tagFillColor" value="#E0F2F1" style="width: 50px; height: 32px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">
-            <input type="text" id="tagFillColorHex" class="text-input" value="#E0F2F1" style="flex: 1; font-size: 12px;" placeholder="#RRGGBB">
-          </div>
-        </div>
-        <div style="flex: 1;">
-          <label for="tagStrokeColor" style="font-size: 12px; color: #555;">Secondary/Stroke Color</label>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <input type="color" id="tagStrokeColor" value="#333333" style="width: 50px; height: 32px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;">
-            <input type="text" id="tagStrokeColorHex" class="text-input" value="#333333" style="flex: 1; font-size: 12px;" placeholder="#RRGGBB">
-          </div>
-        </div>
-      </div>
-      
-      <!-- Opacity and Width Row -->
-      <div class="konva-config-row" style="display: flex; gap: 12px; margin-bottom: 10px;">
-        <div style="flex: 1;">
-          <label for="tagOpacity" style="font-size: 12px; color: #555;">Opacity: <span id="tagOpacityValue">0.9</span></label>
-          <input type="range" id="tagOpacity" min="0.1" max="1" step="0.05" value="0.9" style="width: 100%;">
-        </div>
-        <div style="flex: 1;">
-          <label for="tagStrokeWidth" style="font-size: 12px; color: #555;">Stroke Width: <span id="tagStrokeWidthValue">4</span>px</label>
-          <input type="range" id="tagStrokeWidth" min="0" max="15" step="1" value="4" style="width: 100%;">
-        </div>
-      </div>
-      
-      <!-- Advanced Options (shown based on effect type) -->
-      <div id="advancedKonvaOptions" style="display: none; border-top: 1px dashed #ddd; padding-top: 10px; margin-top: 10px;">
-        <!-- Gradient Options -->
-        <div id="gradientOptions" style="display: none; margin-bottom: 10px;">
-          <label style="font-size: 12px; color: #555; font-weight: 600;">Gradient Settings</label>
-          <div style="display: flex; gap: 12px; margin-top: 6px;">
-            <div style="flex: 1;">
-              <label for="tagGradientEnd" style="font-size: 11px; color: #777;">End Color</label>
-              <input type="color" id="tagGradientEnd" value="#FFFFFF" style="width: 100%; height: 28px;">
-            </div>
-            <div style="flex: 1;">
-              <label for="tagGradientDirection" style="font-size: 11px; color: #777;">Direction</label>
-              <select id="tagGradientDirection" class="text-input" style="font-size: 11px;">
-                <option value="vertical">Top to Bottom</option>
-                <option value="horizontal">Left to Right</option>
-                <option value="diagonal">Diagonal</option>
-                <option value="radial">Radial (center)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Shadow Options -->
-        <div id="shadowOptions" style="display: none; margin-bottom: 10px;">
-          <label style="font-size: 12px; color: #555; font-weight: 600;">Shadow/Glow Settings</label>
-          <div style="display: flex; gap: 12px; margin-top: 6px;">
-            <div style="flex: 1;">
-              <label for="tagShadowBlur" style="font-size: 11px; color: #777;">Blur: <span id="tagShadowBlurValue">10</span>px</label>
-              <input type="range" id="tagShadowBlur" min="0" max="50" step="2" value="10" style="width: 100%;">
-            </div>
-            <div style="flex: 1;">
-              <label for="tagShadowOffset" style="font-size: 11px; color: #777;">Offset: <span id="tagShadowOffsetValue">5</span>px</label>
-              <input type="range" id="tagShadowOffset" min="0" max="30" step="1" value="5" style="width: 100%;">
-            </div>
-          </div>
-          <div style="display: flex; gap: 12px; margin-top: 6px;">
-            <div style="flex: 1;">
-              <label for="tagShadowColor" style="font-size: 11px; color: #777;">Shadow Color</label>
-              <input type="color" id="tagShadowColor" value="#000000" style="width: 100%; height: 28px;">
-            </div>
-            <div style="flex: 1;">
-              <label for="tagShadowOpacity" style="font-size: 11px; color: #777;">Shadow Opacity: <span id="tagShadowOpacityValue">0.3</span></label>
-              <input type="range" id="tagShadowOpacity" min="0" max="1" step="0.1" value="0.3" style="width: 100%;">
-            </div>
-          </div>
-        </div>
-        
-        <!-- Pattern Options -->
-        <div id="patternOptions" style="display: none; margin-bottom: 10px;">
-          <label style="font-size: 12px; color: #555; font-weight: 600;">Pattern Settings</label>
-          <div style="display: flex; gap: 12px; margin-top: 6px;">
-            <div style="flex: 1;">
-              <label for="tagPatternType" style="font-size: 11px; color: #777;">Pattern Type</label>
-              <select id="tagPatternType" class="text-input" style="font-size: 11px;">
-                <option value="none">None (Solid)</option>
-                <option value="lines">Lines</option>
-                <option value="grid">Grid</option>
-                <option value="dots">Dots</option>
-                <option value="crosshatch">Crosshatch</option>
-                <option value="frosted">Frosted Glass</option>
-                <option value="rain">Rain/Water Drops</option>
-              </select>
-            </div>
-            <div style="flex: 1;">
-              <label for="tagPatternDensity" style="font-size: 11px; color: #777;">Density: <span id="tagPatternDensityValue">5</span></label>
-              <input type="range" id="tagPatternDensity" min="1" max="20" step="1" value="5" style="width: 100%;">
-            </div>
-          </div>
-        </div>
-        
-        <!-- Edge Style Options -->
-        <div id="edgeOptions" style="display: none; margin-bottom: 10px;">
-          <label style="font-size: 12px; color: #555; font-weight: 600;">Edge Style Settings</label>
-          <div style="display: flex; gap: 12px; margin-top: 6px;">
-            <div style="flex: 1;">
-              <label for="tagEdgeStyle" style="font-size: 11px; color: #777;">Edge Type</label>
-              <select id="tagEdgeStyle" class="text-input" style="font-size: 11px;">
-                <option value="solid">Solid</option>
-                <option value="dashed">Dashed</option>
-                <option value="dotted">Dotted</option>
-                <option value="double">Double Line</option>
-                <option value="beveled">Beveled (3D effect)</option>
-                <option value="rounded">Rounded/Smooth</option>
-              </select>
-            </div>
-          </div>
-          
-          <!-- Corner Radius Controls -->
-          <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-              <label style="font-size: 11px; color: #555; font-weight: 600;"><i class="fas fa-border-style"></i> Corner Radius</label>
-              <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #666; cursor: pointer;">
-                <input type="checkbox" id="linkCornerRadius" checked style="width: 14px; height: 14px; cursor: pointer;">
-                <span>Link All</span>
-              </label>
-            </div>
-            
-            <!-- Visual Corner Grid -->
-            <div id="cornerRadiusGrid" style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 4px; align-items: center;">
-              <!-- Top Row -->
-              <div style="text-align: center;">
-                <label style="font-size: 10px; color: #888; display: block;">Top Left</label>
-                <input type="number" id="tagCornerRadiusTL" min="0" max="50" value="0" style="width: 50px; text-align: center; font-size: 11px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-              </div>
-              <div style="width: 40px;"></div>
-              <div style="text-align: center;">
-                <label style="font-size: 10px; color: #888; display: block;">Top Right</label>
-                <input type="number" id="tagCornerRadiusTR" min="0" max="50" value="0" style="width: 50px; text-align: center; font-size: 11px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-              </div>
-              
-              <!-- Middle Visual Preview -->
-              <div style="grid-column: 1 / -1; display: flex; justify-content: center; padding: 6px 0;">
-                <div id="cornerPreviewBox" style="width: 60px; height: 40px; border: 2px solid #6c5ce7; background: linear-gradient(135deg, #e8e4ff 0%, #f8f9fa 100%); border-radius: 0px;"></div>
-              </div>
-              
-              <!-- Bottom Row -->
-              <div style="text-align: center;">
-                <label style="font-size: 10px; color: #888; display: block;">Bottom Left</label>
-                <input type="number" id="tagCornerRadiusBL" min="0" max="50" value="0" style="width: 50px; text-align: center; font-size: 11px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-              </div>
-              <div style="width: 40px;"></div>
-              <div style="text-align: center;">
-                <label style="font-size: 10px; color: #888; display: block;">Bottom Right</label>
-                <input type="number" id="tagCornerRadiusBR" min="0" max="50" value="0" style="width: 50px; text-align: center; font-size: 11px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
-              </div>
-            </div>
-            
-            <!-- Quick All Corners Slider -->
-            <div id="allCornersSlider" style="margin-top: 10px;">
-              <label style="font-size: 10px; color: #777;">All Corners: <span id="tagCornerRadiusValue">0</span>px</label>
-              <input type="range" id="tagCornerRadius" min="0" max="50" step="1" value="0" style="width: 100%;">
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Live Preview Canvas -->
-      <div style="margin-top: 12px;">
-        <label style="font-size: 12px; color: #555;">Live Preview:</label>
-        <div id="tagKonvaPreview" style="width: 100%; height: 100px; background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%), linear-gradient(45deg, #f0f0f0 25%, transparent 25%, transparent 75%, #f0f0f0 75%); background-size: 20px 20px; background-position: 0 0, 10px 10px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;"></div>
-        <small style="color: #888; font-size: 10px;">Checkered background helps visualize transparency</small>
-      </div>
-      
-      </div><!-- End visualConfigContent -->
-    </div>
+    
     <div class="popup-actions">
       <button class="save-btn" id="confirmAddTag">Add Tag</button>
       <button class="cancel-btn" id="cancelAddTag">Cancel</button>

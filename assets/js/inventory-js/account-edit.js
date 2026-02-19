@@ -1,18 +1,6 @@
-// Immediate execution to verify script is loaded
-console.log('account-edit.js file is being parsed and executed');
-
-document.addEventListener("DOMContentLoaded", () => {
-  console.log('=== account-edit.js loaded ===');
-  
-  // =============================
-  // TOAST NOTIFICATION SYSTEM
-  // =============================
-  function showToast(message, type = 'info', duration = 3000) {
-      const existingToasts = document.querySelectorAll('.toast-notification');
-      existingToasts.forEach(toast => {
-          toast.classList.add('toast-fade-out');
-          setTimeout(() => toast.remove(), 300);
-      });
+// inventory account-edit functionality removed — file deprecated
+// (Inventory Page removed)
+console.log('Deprecated: account-edit.js (inventory)');
 
       const toast = document.createElement('div');
       toast.className = `toast-notification toast-${type}`;

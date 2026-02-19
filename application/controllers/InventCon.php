@@ -11,21 +11,18 @@ class InventCon extends CI_Controller
         $this->load->database();
         $this->load->model('User_model');
         
-        // If a logged-in customer tries to access inventory pages, force logout and redirect
+        // If a logged-in customer tries to access inventory pages, redirect them (but DON'T log them out)
         if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
-            // Set error message BEFORE clearing session data (flashdata needs active session)
-            $this->session->set_flashdata('error', '⚠️ Access Denied: This page is restricted to Inventory Officer employees only. Customer accounts cannot access employee pages. You have been logged out for security reasons.');
-            
-            // Clear all user session data (but keep session alive for flashdata)
-            $this->session->unset_userdata(['is_logged_in', 'user_id', 'user_name', 'user_email', 'user_role', 'customer_id']);
-            
-            // Set cache control headers to prevent back button access after force logout
-            $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-            $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
-            $this->output->set_header('Pragma: no-cache');
-            $this->output->set_header('Expires: 0');
-            
-            redirect(base_url('login'));
+            // For AJAX requests, return JSON error
+            if ($this->input->is_ajax_request() || 
+                (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)) {
+                header('Content-Type: application/json');
+                echo json_encode(['success' => false, 'status' => 'error', 'message' => 'Access denied. Inventory Officer only.']);
+                exit;
+            }
+            // For regular requests, redirect to customer dashboard without logging out
+            $this->session->set_flashdata('error', '⚠️ Access Denied: This page is restricted to Inventory Officer employees only.');
+            redirect(base_url('customer/dashboard'));
         }
         
         // Check if user is logged in and has Inventory Officer role

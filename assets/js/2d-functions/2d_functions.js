@@ -254,35 +254,46 @@ var Page2DModeling = {
        3) IMAGE PREVIEW SLIDER (product-preview.js)
     --------------------------------------------------------- */
     productPreview: function () {
-        const mainImage = document.getElementById('main-product-image');
-        if (!mainImage) return;
+        const imageContainer = document.getElementById('product-image-container');
+        if (!imageContainer) return;
 
-        const prevBtn = document.querySelector('.slider-controls .prev');
-        const nextBtn = document.querySelector('.slider-controls .next');
-        const imageCountDisplay = document.querySelector('.image-count');
+        const prevBtn = document.getElementById('prev-image');
+        const nextBtn = document.getElementById('next-image');
+        const imageCountDisplay = document.getElementById('image-counter');
 
-        const images = [
-            '/Assets/img/glass-window.jpg',
-            '/Assets/img/glass-window2.jpg',
-            '/Assets/img/glass-window3.jpg'
-        ];
+        const productImages = imageContainer.querySelectorAll('.main-product-image');
+        if (productImages.length === 0) return;
+
         let currentImageIndex = 0;
 
         function updateSlider() {
-            mainImage.src = images[currentImageIndex];
-            imageCountDisplay.textContent = `${currentImageIndex + 1}/${images.length}`;
+            // Hide all images
+            productImages.forEach((img, idx) => {
+                img.style.display = idx === currentImageIndex ? 'block' : 'none';
+                if (idx === currentImageIndex) {
+                    img.classList.add('active');
+                } else {
+                    img.classList.remove('active');
+                }
+            });
+
+            // Update counter
+            if (imageCountDisplay) {
+                imageCountDisplay.textContent = `${currentImageIndex + 1}/${productImages.length}`;
+            }
         }
 
         nextBtn?.addEventListener('click', () => {
-            currentImageIndex = (currentImageIndex + 1) % images.length;
+            currentImageIndex = (currentImageIndex + 1) % productImages.length;
             updateSlider();
         });
 
         prevBtn?.addEventListener('click', () => {
-            currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+            currentImageIndex = (currentImageIndex - 1 + productImages.length) % productImages.length;
             updateSlider();
         });
 
+        // Initialize with first image visible
         updateSlider();
     },
 

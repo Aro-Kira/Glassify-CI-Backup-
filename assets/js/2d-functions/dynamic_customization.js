@@ -4,17 +4,408 @@
 // Connects to Konva.js for visualization
 // =====================================================
 
-// Store selected values for all fields
-let selectedCustomizationValues = {};
+// IMPORTANT: Always use window.selectedCustomizationValues directly to preserve Proxy
+// The Proxy is created in customization_ajax.js to track changes
+if (typeof window !== 'undefined' && !window.selectedCustomizationValues) {
+    window.selectedCustomizationValues = {};
+    console.log('🔧 Initialized window.selectedCustomizationValues');
+}
 
-// Expose to window for access from other scripts
-if (typeof window !== 'undefined') {
-    window.selectedCustomizationValues = selectedCustomizationValues;
+// DEBUG: Monitor changes to selectedCustomizationValues
+function logCustomizationChange(fieldId, value, source) {
+    console.log(`📝 Customization changed:`, {
+        field: fieldId,
+        value: value,
+        source: source,
+        allValues: {...window.selectedCustomizationValues}
+    });
 }
 
 // Get selectedProduct from window (set from 2DModeling.php)
 function getSelectedProduct() {
   return window.selectedProduct || null;
+}
+
+// ============================================
+// HELPER FUNCTIONS FOR DOOR DIMENSIONS
+// These are defined globally so they can be accessed from multiple scopes
+// ============================================
+
+/**
+ * Gets total width and height from the main dimension inputs
+ */
+function getDoorTotalDimensions() {
+  const heightInput = document.getElementById('height');
+  const widthInput = document.getElementById('width');
+  return {
+    totalHeight: heightInput ? parseFloat(heightInput.value) || 0 : 0,
+    totalWidth: widthInput ? parseFloat(widthInput.value) || 0 : 0
+  };
+}
+
+/**
+ * Gets current Fixed Panels option from DOM
+ */
+function getDoorFixedPanelsOption() {
+  const fixedPanelsContainer = document.querySelector('[data-field-id="fixedPanels"]');
+  if (!fixedPanelsContainer) return 'None';
+  const activeCard = fixedPanelsContainer.querySelector('.option-card.active');
+  return activeCard ? activeCard.textContent.trim() : 'None';
+}
+
+/**
+ * Auto-calculate h1 + h2 = totalHeight for Transom/Both options
+ */
+function autoDoorCalculateHeights() {
+  const fixedPanels = getDoorFixedPanelsOption();
+  const { totalHeight } = getDoorTotalDimensions();
+  
+  const h1Input = document.getElementById('input-h1');
+  const h2Input = document.getElementById('input-h2');
+  
+  if (!h1Input || !h2Input) {
+    console.log('🚪 [Auto-Height] Input fields not found');
+    return;
+  }
+  
+  if (!totalHeight || totalHeight <= 0) {
+    console.log('🚪 [Auto-Height] Skipping - no total height set');
+    return;
+  }
+  
+  const hasTransom = fixedPanels === 'Transom Only' || fixedPanels === 'Both';
+  if (!hasTransom) {
+    console.log(`🚪 [Auto-Height] Skipping - current fixedPanels: "${fixedPanels}"`);
+    return;
+  }
+  
+  const h1 = parseFloat(h1Input.value) || 0;
+  const h2 = parseFloat(h2Input.value) || 0;
+  
+  console.log(`🚪 [Auto-Height] fixedPanels="${fixedPanels}", totalHeight=${totalHeight}, h1=${h1}, h2=${h2}`);
+  
+  // If user is actively editing h1
+  if (h1Input === document.activeElement && h1 > 0) {
+    const calculatedH2 = totalHeight - h1;
+    if (calculatedH2 > 0) {
+      h2Input.value = calculatedH2.toFixed(2);
+      console.log(`🚪 [Auto-Height] h2 = ${totalHeight} - ${h1} = ${calculatedH2.toFixed(2)}`);
+    }
+  }
+  // If user is actively editing h2
+  else if (h2Input === document.activeElement && h2 > 0) {
+    const calculatedH1 = totalHeight - h2;
+    if (calculatedH1 > 0) {
+      h1Input.value = calculatedH1.toFixed(2);
+      console.log(`🚪 [Auto-Height] h1 = ${totalHeight} - ${h2} = ${calculatedH1.toFixed(2)}`);
+    }
+  }
+  // If no field is active and neither has value, auto-populate
+  else if (!h1 && !h2) {
+    const h1Val = totalHeight * 0.7;
+    const h2Val = totalHeight * 0.3;
+    h1Input.value = h1Val.toFixed(2);
+    h2Input.value = h2Val.toFixed(2);
+    console.log(`🚪 [Auto-Height] h1 & h2 (default 70%/30%) = ${h1Val.toFixed(2)} & ${h2Val.toFixed(2)}`);
+  }
+}
+
+/**
+ * Auto-calculate w1 + w2 + w3 = totalWidth for various Fixed Panels options
+ */
+function autoDoorCalculateWidths() {
+  const fixedPanels = getDoorFixedPanelsOption();
+  const { totalWidth } = getDoorTotalDimensions();
+  
+  const w1Input = document.getElementById('input-w1');
+  const w2Input = document.getElementById('input-w2');
+  const w3Input = document.getElementById('input-w3');
+  
+  if (!w1Input || !w2Input || !w3Input) {
+    console.log('🚪 [Auto-Width] Input fields not found');
+    return;
+  }
+  
+  if (!totalWidth || totalWidth <= 0) {
+    console.log('🚪 [Auto-Width] Skipping - no total width set');
+    return;
+  }
+  
+  console.log(`🚪 [Auto-Width] fixedPanels="${fixedPanels}", totalWidth=${totalWidth}`);
+  
+  const w1 = parseFloat(w1Input.value) || 0;
+  const w2 = parseFloat(w2Input.value) || 0;
+  const w3 = parseFloat(w3Input.value) || 0;
+  
+  // Handle "None" case
+  if (fixedPanels === 'None') {
+    if (!w1) {
+      w1Input.value = totalWidth.toFixed(2);
+      w2Input.value = '0';
+      w3Input.value = '0';
+      console.log(`🚪 [Auto-Width] w1 (None) = totalWidth = ${totalWidth.toFixed(2)}, w2=0, w3=0`);
+    }
+    return;
+  }
+  
+  const hasWidthOptions = fixedPanels === '2 Panels' || fixedPanels === 'Both' || 
+                         fixedPanels === 'Fixed Side (Left)' || fixedPanels === 'Fixed Side (Right)';
+  if (!hasWidthOptions) {
+    console.log(`🚪 [Auto-Width] Skipping - current fixedPanels: "${fixedPanels}"`);
+    return;
+  }
+  
+  // If user is editing w1
+  if (w1Input === document.activeElement && w1 > 0) {
+    const remaining = totalWidth - w1;
+    if (remaining >= 0) {
+      if (fixedPanels === 'Both') {
+        const halfRemaining = remaining / 2;
+        w2Input.value = halfRemaining.toFixed(2);
+        w3Input.value = halfRemaining.toFixed(2);
+        console.log(`🚪 [Auto-Width] w2 & w3 (Both) = ${halfRemaining.toFixed(2)}`);
+      } else if (fixedPanels === 'Fixed Side (Left)') {
+        w2Input.value = remaining.toFixed(2);
+        w3Input.value = '0';
+        console.log(`🚪 [Auto-Width] w2 (Left) = ${remaining.toFixed(2)}`);
+      } else if (fixedPanels === 'Fixed Side (Right)') {
+        w2Input.value = '0';
+        w3Input.value = remaining.toFixed(2);
+        console.log(`🚪 [Auto-Width] w3 (Right) = ${remaining.toFixed(2)}`);
+      } else if (fixedPanels === '2 Panels') {
+        const halfRemaining = remaining / 2;
+        w2Input.value = halfRemaining.toFixed(2);
+        w3Input.value = halfRemaining.toFixed(2);
+        console.log(`🚪 [Auto-Width] w2 & w3 (2 Panels) = ${halfRemaining.toFixed(2)}`);
+      }
+    }
+  }
+  // If user is editing w2
+  else if (w2Input === document.activeElement && w2 > 0) {
+    const remaining = totalWidth - w1 - w2;
+    if (remaining >= 0) {
+      w3Input.value = remaining.toFixed(2);
+      console.log(`🚪 [Auto-Width] w3 = ${totalWidth} - ${w1} - ${w2} = ${remaining.toFixed(2)}`);
+    }
+  }
+  // If user is editing w3
+  else if (w3Input === document.activeElement && w3 > 0) {
+    const remaining = totalWidth - w1 - w3;
+    if (remaining >= 0) {
+      w2Input.value = remaining.toFixed(2);
+      console.log(`🚪 [Auto-Width] w2 = ${totalWidth} - ${w1} - ${w3} = ${remaining.toFixed(2)}`);
+    }
+  }
+  // If no field is active and none have values, auto-populate
+  else if (!w1 && !w2 && !w3) {
+    console.log(`🚪 [Auto-Width] No values set - auto-populating for "${fixedPanels}"`);
+    
+    if (fixedPanels === 'Both') {
+      const w2Val = totalWidth * 0.25;
+      const w1Val = totalWidth * 0.50;
+      const w3Val = totalWidth * 0.25;
+      w1Input.value = w1Val.toFixed(2);
+      w2Input.value = w2Val.toFixed(2);
+      w3Input.value = w3Val.toFixed(2);
+      console.log(`🚪 [Auto-Width] w1, w2, w3 (Both: 50%/25%/25%) = ${w1Val.toFixed(2)}, ${w2Val.toFixed(2)}, ${w3Val.toFixed(2)}`);
+    } 
+    else if (fixedPanels === 'Fixed Side (Left)') {
+      const w1Val = totalWidth * 0.70;
+      const w2Val = totalWidth * 0.30;
+      w1Input.value = w1Val.toFixed(2);
+      w2Input.value = w2Val.toFixed(2);
+      w3Input.value = '0';
+      console.log(`🚪 [Auto-Width] w1, w2 (Left: 70%/30%) = ${w1Val.toFixed(2)}, ${w2Val.toFixed(2)}`);
+    } 
+    else if (fixedPanels === 'Fixed Side (Right)') {
+      const w1Val = totalWidth * 0.70;
+      const w3Val = totalWidth * 0.30;
+      w1Input.value = w1Val.toFixed(2);
+      w2Input.value = '0';
+      w3Input.value = w3Val.toFixed(2);
+      console.log(`🚪 [Auto-Width] w1, w3 (Right: 70%/30%) = ${w1Val.toFixed(2)}, ${w3Val.toFixed(2)}`);
+    }
+    else if (fixedPanels === '2 Panels') {
+      const halfWidth = totalWidth / 2;
+      w1Input.value = halfWidth.toFixed(2);
+      w2Input.value = halfWidth.toFixed(2);
+      w3Input.value = '0';
+      console.log(`🚪 [Auto-Width] w1, w2 (2 Panels: 50%/50%) = ${halfWidth.toFixed(2)}, ${halfWidth.toFixed(2)}`);
+    }
+  }
+}
+
+/**
+ * Creates h1, h2, w1, w2, w3 sub-dimension input fields for door products
+ * These are always created for door products regardless of whether a dimensions field exists
+ */
+function createDoorSubDimensionInputs(container) {
+  console.log('🚪 [Door Inputs] createDoorSubDimensionInputs called');
+  
+  // Check if this is a door product
+  const product = getSelectedProduct();
+  console.log('🚪 [Door Inputs] Selected product:', product);
+  
+  const isDoorProduct = product?.category === 'Doors' || 
+                       (product?.Subcategory && 
+                        ['Frameless', 'Swing Door', 'Sliding', 'Bi-fold Door', 'Patch Fitting'].includes(product.Subcategory));
+  
+  console.log('🚪 [Door Inputs] Is door product:', isDoorProduct);
+  
+  if (!isDoorProduct) {
+    console.log('🚪 [Door Inputs] ❌ Not a door product, skipping');
+    return; // Not a door product, skip
+  }
+  
+  // Check if inputs already exist
+  if (document.getElementById('input-group-h1')) {
+    console.log('🚪 [Door Inputs] ⚠️ Inputs already exist, skipping creation');
+    return; // Already created
+  }
+  
+  console.log('🚪 [Door Inputs] Creating inputs...');
+  
+  // Create the dimensions container if it doesn't exist
+  let subDimensionsContainer = document.querySelector('.sub-dimensions-container');
+  if (!subDimensionsContainer) {
+    subDimensionsContainer = document.createElement('div');
+    subDimensionsContainer.className = 'dimensions-container sub-dimensions-container';
+    subDimensionsContainer.style.cssText = 'width: 100%;';
+    
+    // Append to container (at the end)
+    container.appendChild(subDimensionsContainer);
+  }
+  
+  // Create h1 input (Door Height)
+  const h1InputGroup = document.createElement('div');
+  h1InputGroup.id = 'input-group-h1';
+  h1InputGroup.className = 'hidden-step';
+  const h1Label = document.createElement('label');
+  h1Label.textContent = 'Door Height (h1)';
+  const h1InputField = document.createElement('input');
+  h1InputField.type = 'number';
+  h1InputField.id = 'input-h1';
+  h1InputField.className = 'dimension-input';
+  h1InputField.min = 0;
+  h1InputField.step = 0.1;
+  h1InputField.placeholder = '0.0';
+  const h1Unit = document.createElement('span');
+  h1Unit.textContent = 'Inches';
+  h1InputGroup.appendChild(h1Label);
+  h1InputGroup.appendChild(h1InputField);
+  h1InputGroup.appendChild(h1Unit);
+  
+  // Create h2 input (Transom Height)
+  const h2InputGroup = document.createElement('div');
+  h2InputGroup.id = 'input-group-h2';
+  h2InputGroup.className = 'hidden-step';
+  const h2Label = document.createElement('label');
+  h2Label.textContent = 'Transom Height (h2)';
+  const h2InputField = document.createElement('input');
+  h2InputField.type = 'number';
+  h2InputField.id = 'input-h2';
+  h2InputField.className = 'dimension-input';
+  h2InputField.min = 0;
+  h2InputField.step = 0.1;
+  h2InputField.placeholder = '0.0';
+  const h2Unit = document.createElement('span');
+  h2Unit.textContent = 'Inches';
+  h2InputGroup.appendChild(h2Label);
+  h2InputGroup.appendChild(h2InputField);
+  h2InputGroup.appendChild(h2Unit);
+  
+  // Create w1 input (Door Width)
+  const w1InputGroup = document.createElement('div');
+  w1InputGroup.id = 'input-group-w1';
+  w1InputGroup.className = 'hidden-step';
+  const w1Label = document.createElement('label');
+  w1Label.textContent = 'Door Width (w1)';
+  const w1InputField = document.createElement('input');
+  w1InputField.type = 'number';
+  w1InputField.id = 'input-w1';
+  w1InputField.className = 'dimension-input';
+  w1InputField.min = 0;
+  w1InputField.step = 0.1;
+  w1InputField.placeholder = '0.0';
+  const w1Unit = document.createElement('span');
+  w1Unit.textContent = 'Inches';
+  w1InputGroup.appendChild(w1Label);
+  w1InputGroup.appendChild(w1InputField);
+  w1InputGroup.appendChild(w1Unit);
+  
+  // Create w2 input (Left Panel Width)
+  const w2InputGroup = document.createElement('div');
+  w2InputGroup.id = 'input-group-w2';
+  w2InputGroup.className = 'hidden-step';
+  const w2Label = document.createElement('label');
+  w2Label.textContent = 'Left Panel Width (w2)';
+  const w2InputField = document.createElement('input');
+  w2InputField.type = 'number';
+  w2InputField.id = 'input-w2';
+  w2InputField.className = 'dimension-input';
+  w2InputField.min = 0;
+  w2InputField.step = 0.1;
+  w2InputField.placeholder = '0.0';
+  const w2Unit = document.createElement('span');
+  w2Unit.textContent = 'Inches';
+  w2InputGroup.appendChild(w2Label);
+  w2InputGroup.appendChild(w2InputField);
+  w2InputGroup.appendChild(w2Unit);
+  
+  // Create w3 input (Right Panel Width)
+  const w3InputGroup = document.createElement('div');
+  w3InputGroup.id = 'input-group-w3';
+  w3InputGroup.className = 'hidden-step';
+  const w3Label = document.createElement('label');
+  w3Label.textContent = 'Right Panel Width (w3)';
+  const w3InputField = document.createElement('input');
+  w3InputField.type = 'number';
+  w3InputField.id = 'input-w3';
+  w3InputField.className = 'dimension-input';
+  w3InputField.min = 0;
+  w3InputField.step = 0.1;
+  w3InputField.placeholder = '0.0';
+  const w3Unit = document.createElement('span');
+  w3Unit.textContent = 'Inches';
+  w3InputGroup.appendChild(w3Label);
+  w3InputGroup.appendChild(w3InputField);
+  w3InputGroup.appendChild(w3Unit);
+  
+  // Add all to sub-dimensions container
+  subDimensionsContainer.appendChild(h1InputGroup);
+  subDimensionsContainer.appendChild(h2InputGroup);
+  subDimensionsContainer.appendChild(w1InputGroup);
+  subDimensionsContainer.appendChild(w2InputGroup);
+  subDimensionsContainer.appendChild(w3InputGroup);
+  
+  console.log('🚪 [Door Inputs] All input groups appended to container');
+  
+  // Add input event listeners for all sub-dimensions with auto-calculation
+  [h1InputField, h2InputField, w1InputField, w2InputField, w3InputField].forEach(input => {
+    input.addEventListener('input', () => {
+      console.log(`🚪 [Door Inputs] ${input.id} changed to:`, input.value);
+      
+      // Auto-calculate related values using the global functions
+      if (input.id === 'input-h1' || input.id === 'input-h2') {
+        autoDoorCalculateHeights();
+      } else if (input.id === 'input-w1' || input.id === 'input-w2' || input.id === 'input-w3') {
+        autoDoorCalculateWidths();
+      }
+      
+      // Update Konva preview
+      if (typeof renderCustomState === 'function') {
+        setTimeout(() => renderCustomState(), 100);
+      }
+    });
+  });
+  
+  console.log('✅ [Door Inputs] Door sub-dimension inputs (h1, h2, w1, w2, w3) created successfully');
+  console.log('🚪 [Door Inputs] Verifying elements in DOM:');
+  console.log('🚪 [Door Inputs] h1 input-group found:', !!document.getElementById('input-group-h1'));
+  console.log('🚪 [Door Inputs] h2 input-group found:', !!document.getElementById('input-group-h2'));
+  console.log('🚪 [Door Inputs] w1 input-group found:', !!document.getElementById('input-group-w1'));
+  console.log('🚪 [Door Inputs] w2 input-group found:', !!document.getElementById('input-group-w2'));
+  console.log('🚪 [Door Inputs] w3 input-group found:', !!document.getElementById('input-group-w3'));
 }
 
 /**
@@ -170,6 +561,9 @@ function renderDynamicCustomizationFields(fields, tagPrices, container, tagImage
     window.customizationStepNames = finalStepNames;
   }
   
+  // Create h1, h2, w1, w2, w3 sub-dimension inputs for door products if they don't exist yet
+  createDoorSubDimensionInputs(container);
+  
   // Update navigation and step indicators with actual remaining steps count
   updateStepNavigation(finalTotalSteps, finalStepNames);
   
@@ -278,13 +672,7 @@ function enforceSingleSelection() {
       }
     }
     
-    // If none are active, make the first one active
-    if (activeCards.length === 0) {
-      const firstCard = container.querySelector('.option-card');
-      if (firstCard) {
-        firstCard.classList.add('active');
-      }
-    }
+    // No spec tags selected by default - do not auto-select first card
   });
   
   // Also check grid containers (for fields that use grid-3-cols directly)
@@ -298,13 +686,7 @@ function enforceSingleSelection() {
       }
     }
     
-    // If none are active, make the first one active
-    if (activeCards.length === 0) {
-      const firstCard = grid.querySelector('.option-card');
-      if (firstCard) {
-        firstCard.classList.add('active');
-      }
-    }
+    // No spec tags selected by default - do not auto-select first card
   });
   
   // Also check field sections (type-section, thickness-section, etc.)
@@ -318,12 +700,7 @@ function enforceSingleSelection() {
       }
     }
     
-    if (activeCards.length === 0) {
-      const firstCard = section.querySelector('.option-card');
-      if (firstCard) {
-        firstCard.classList.add('active');
-      }
-    }
+    // No spec tags selected by default - do not auto-select first card
   });
 }
 
@@ -474,47 +851,95 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
     }
 
     tag.addEventListener('click', function() {
-      // EXACT SAME LOGIC AS 2d_customization.js
       // Find the section (fieldGroup) - matches pattern: this.closest('.type-section')
       const section = this.closest('.type-section, .thickness-section, .edge-section, .frame-section, .field-section, div[class$="-section"]');
 
+      // Toggle behavior: if already active, remove it; otherwise, make it active and remove others
+      const isCurrentlyActive = this.classList.contains('active');
+
       if (section) {
-        // Remove active from all siblings in this section (EXACT pattern from 2d_customization.js)
-        section.querySelectorAll('.option-card').forEach(sib => sib.classList.remove('active'));
-        // Add active to clicked card
-        this.classList.add('active');
+        if (isCurrentlyActive) {
+          // Remove active from this card (unselect)
+          this.classList.remove('active');
+        } else {
+          // Remove active from all siblings in this section and add to clicked card
+          section.querySelectorAll('.option-card').forEach(sib => sib.classList.remove('active'));
+          this.classList.add('active');
+        }
       }
 
-      // Update selected value in global object
-      selectedCustomizationValues[field.id] = option;
-      if (typeof window !== 'undefined') {
-        window.selectedCustomizationValues = selectedCustomizationValues;
+      // Update selected value in global object (preserve Proxy by updating properties directly)
+      if (isCurrentlyActive) {
+        // Remove from selection
+        delete window.selectedCustomizationValues[field.id];
+      } else {
+        // Add to selection
+        window.selectedCustomizationValues[field.id] = option;
+        logCustomizationChange(field.id, option, 'option-card click');
       }
 
-      console.log(`Tag clicked: field="${field.id}", option="${option}"`);
-      
+      console.log(`Tag clicked: field="${field.id}", option="${option}", selected=${!isCurrentlyActive}`);
+
       // Update price if needed
       if (tagPrices && tagPrices[field.id]) {
-        // Find previously active tag for price update
-        const fieldContainer = this.closest(`[data-field-id="${field.id}"]`);
-        if (fieldContainer) {
-          const previouslyActive = fieldContainer.querySelector('.option-card.active:not([data-value="' + option + '"])');
-          if (previouslyActive) {
-            const prevOption = previouslyActive.dataset.value;
-            if (prevOption && tagPrices[field.id][prevOption]) {
-              updatePriceFromTagSelection(field.id, prevOption, false);
+        if (isCurrentlyActive) {
+          // Remove price for unselected tag
+          if (tagPrices[field.id][option]) {
+            updatePriceFromTagSelection(field.id, option, false);
+          }
+        } else {
+          // Find previously active tag for price update (should be none since we clear all)
+          const fieldContainer = this.closest(`[data-field-id="${field.id}"]`);
+          if (fieldContainer) {
+            const previouslyActive = fieldContainer.querySelector('.option-card.active:not([data-value="' + option + '"])');
+            if (previouslyActive) {
+              const prevOption = previouslyActive.dataset.value;
+              if (prevOption && tagPrices[field.id][prevOption]) {
+                updatePriceFromTagSelection(field.id, prevOption, false);
+              }
             }
           }
-        }
-        // Add price for newly selected tag
-        if (tagPrices[field.id][option]) {
-          updatePriceFromTagSelection(field.id, option, true);
+          // Add price for newly selected tag
+          if (tagPrices[field.id][option]) {
+            updatePriceFromTagSelection(field.id, option, true);
+          }
         }
       }
-      
+
       // Update visualization
-      console.log(`Updating Konva visualization: field="${field.id}", option="${option}"`);
-      updateKonvaFromField(field.id, option, true);
+      console.log(`Updating Konva visualization: field="${field.id}", option="${option}", selected=${!isCurrentlyActive}`);
+      updateKonvaFromField(field.id, option, !isCurrentlyActive);
+      
+      // Handle Fixed Panels input visibility for renderDoorsFrameless
+      if (field.id === 'fixedPanels' && typeof window.updateInputVisibility === 'function') {
+        console.log('🚪 [Tag Click] Calling updateInputVisibility with option:', option);
+        window.updateInputVisibility(option);
+        
+        // Also trigger auto-calculation and re-render to update the 2D preview
+        if (typeof window !== 'undefined') {
+          setTimeout(() => {
+            // Trigger auto-calculation for the new Fixed Panels option
+            console.log('🚪 [Tag Click] Triggering auto-calculation after visibility change');
+            
+            // Directly call auto-calculation functions
+            if (typeof window.autoDoorCalculateHeights === 'function') {
+              console.log('🚪 [Tag Click] Calling autoDoorCalculateHeights()');
+              window.autoDoorCalculateHeights();
+            }
+            if (typeof window.autoDoorCalculateWidths === 'function') {
+              console.log('🚪 [Tag Click] Calling autoDoorCalculateWidths()');
+              window.autoDoorCalculateWidths();
+            }
+            
+            // Then render to update the 2D preview
+            if (typeof window.renderCustomState === 'function') {
+              window.renderCustomState();
+            }
+          }, 50);
+        }
+      } else if (field.id === 'fixedPanels') {
+        console.log('🚪 [Tag Click] updateInputVisibility NOT available on window object!');
+      }
       
       // If shape field changed, check corner radius visibility immediately
       if (field.id === 'shape') {
@@ -592,15 +1017,12 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
     const allCards = tagContainer.querySelectorAll('.option-card');
     const activeCards = tagContainer.querySelectorAll('.option-card.active');
     
-    // If more than one is active, remove active from all and add to first only
+    // If more than one is active, keep only the first one active
     if (activeCards.length > 1) {
       allCards.forEach(card => card.classList.remove('active'));
       if (allCards.length > 0) {
         allCards[0].classList.add('active');
       }
-    } else if (activeCards.length === 0 && allCards.length > 0) {
-      // If none are active, make the first one active
-      allCards[0].classList.add('active');
     } else if (activeCards.length === 1) {
       // Ensure only this one is active - remove from all others
       allCards.forEach(card => {
@@ -615,11 +1037,9 @@ function renderTagsField(field, tagPrices, container, tagImages = {}) {
     const finalActiveCard = tagContainer.querySelector('.option-card.active');
     if (finalActiveCard) {
       const activeOption = finalActiveCard.dataset.value || finalActiveCard.textContent.trim();
-      // Update selected value in global object
-      selectedCustomizationValues[field.id] = activeOption;
-      if (typeof window !== 'undefined') {
-        window.selectedCustomizationValues = selectedCustomizationValues;
-      }
+      // Update selected value in global object (preserve Proxy)
+      window.selectedCustomizationValues[field.id] = activeOption;
+      logCustomizationChange(field.id, activeOption, 'initial active card');
       
       // If this is the shape field, check corner radius visibility immediately
       if (field.id === 'shape') {
@@ -760,7 +1180,7 @@ function renderNumberField(field, container) {
     
     // Set default value
     input.value = field.id === 'panelRows' ? '1' : '1';
-    selectedCustomizationValues[field.id] = 1;
+    window.selectedCustomizationValues[field.id] = 1;
     
     // Check initial size configuration selection
     const sizeConfigContainer = document.querySelector('[data-field-id="sizeConfiguration"]');
@@ -775,10 +1195,8 @@ function renderNumberField(field, container) {
   
   input.addEventListener('input', () => {
     const value = parseFloat(input.value) || (field.id === 'panelRows' || field.id === 'panelColumns' ? 1 : 0);
-    selectedCustomizationValues[field.id] = value;
-    if (typeof window !== 'undefined') {
-      window.selectedCustomizationValues = selectedCustomizationValues;
-    }
+    window.selectedCustomizationValues[field.id] = value;
+    logCustomizationChange(field.id, value, 'number input');
     updateKonvaFromField(field.id, value, true);
   });
 
@@ -904,9 +1322,158 @@ function renderDimensionsField(field, container) {
     });
   }
   
+  // For door products (Frameless, Swing, etc.), create additional sub-dimension inputs
+  // These are for h1, h2, w1, w2, w3 customization
+  const isDoorProduct = getSelectedProduct()?.category === 'Doors' || 
+                       (getSelectedProduct()?.Subcategory && 
+                        ['Frameless', 'Swing Door', 'Sliding', 'Bi-fold Door', 'Patch Fitting'].includes(getSelectedProduct().Subcategory));
+  
+  if (isDoorProduct && field.id === 'dimensions') {
+    // Create a container for sub-dimensions (h1, h2, w1, w2, w3)
+    const subDimensionsContainer = document.createElement('div');
+    subDimensionsContainer.className = 'dimensions-container sub-dimensions-container';
+    subDimensionsContainer.style.cssText = 'display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;';
+    
+    // Create h1 input (Door Height)
+    const h1InputGroup = document.createElement('div');
+    h1InputGroup.id = 'input-group-h1';
+    h1InputGroup.className = 'hidden-step';
+    h1InputGroup.style.cssText = 'flex: 1; min-width: 120px;';
+    const h1Label = document.createElement('label');
+    h1Label.textContent = 'Door Height (h1)';
+    h1Label.style.cssText = 'display: block; margin-bottom: 6px; font-size: 13px; color: #333; font-weight: 500;';
+    const h1InputField = document.createElement('input');
+    h1InputField.type = 'number';
+    h1InputField.id = 'input-h1';
+    h1InputField.className = 'dimension-input';
+    h1InputField.min = 0;
+    h1InputField.step = 0.1;
+    h1InputField.placeholder = '0.0';
+    h1InputField.style.cssText = 'width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;';
+    const h1Unit = document.createElement('span');
+    h1Unit.textContent = 'Inches';
+    h1Unit.style.cssText = 'display: block; margin-top: 4px; font-size: 12px; color: #666;';
+    h1InputGroup.appendChild(h1Label);
+    h1InputGroup.appendChild(h1InputField);
+    h1InputGroup.appendChild(h1Unit);
+    
+    // Create h2 input (Transom Height)
+    const h2InputGroup = document.createElement('div');
+    h2InputGroup.id = 'input-group-h2';
+    h2InputGroup.className = 'hidden-step';
+    h2InputGroup.style.cssText = 'flex: 1; min-width: 120px;';
+    const h2Label = document.createElement('label');
+    h2Label.textContent = 'Transom Height (h2)';
+    h2Label.style.cssText = 'display: block; margin-bottom: 6px; font-size: 13px; color: #333; font-weight: 500;';
+    const h2InputField = document.createElement('input');
+    h2InputField.type = 'number';
+    h2InputField.id = 'input-h2';
+    h2InputField.className = 'dimension-input';
+    h2InputField.min = 0;
+    h2InputField.step = 0.1;
+    h2InputField.placeholder = '0.0';
+    h2InputField.style.cssText = 'width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;';
+    const h2Unit = document.createElement('span');
+    h2Unit.textContent = 'Inches';
+    h2Unit.style.cssText = 'display: block; margin-top: 4px; font-size: 12px; color: #666;';
+    h2InputGroup.appendChild(h2Label);
+    h2InputGroup.appendChild(h2InputField);
+    h2InputGroup.appendChild(h2Unit);
+    
+    // Create w1 input (Door Width)
+    const w1InputGroup = document.createElement('div');
+    w1InputGroup.id = 'input-group-w1';
+    w1InputGroup.className = 'hidden-step';
+    w1InputGroup.style.cssText = 'flex: 1; min-width: 120px;';
+    const w1Label = document.createElement('label');
+    w1Label.textContent = 'Door Width (w1)';
+    w1Label.style.cssText = 'display: block; margin-bottom: 6px; font-size: 13px; color: #333; font-weight: 500;';
+    const w1InputField = document.createElement('input');
+    w1InputField.type = 'number';
+    w1InputField.id = 'input-w1';
+    w1InputField.className = 'dimension-input';
+    w1InputField.min = 0;
+    w1InputField.step = 0.1;
+    w1InputField.placeholder = '0.0';
+    w1InputField.style.cssText = 'width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;';
+    const w1Unit = document.createElement('span');
+    w1Unit.textContent = 'Inches';
+    w1Unit.style.cssText = 'display: block; margin-top: 4px; font-size: 12px; color: #666;';
+    w1InputGroup.appendChild(w1Label);
+    w1InputGroup.appendChild(w1InputField);
+    w1InputGroup.appendChild(w1Unit);
+    
+    // Create w2 input (Left Panel Width)
+    const w2InputGroup = document.createElement('div');
+    w2InputGroup.id = 'input-group-w2';
+    w2InputGroup.className = 'hidden-step';
+    w2InputGroup.style.cssText = 'flex: 1; min-width: 120px;';
+    const w2Label = document.createElement('label');
+    w2Label.textContent = 'Left Panel Width (w2)';
+    w2Label.style.cssText = 'display: block; margin-bottom: 6px; font-size: 13px; color: #333; font-weight: 500;';
+    const w2InputField = document.createElement('input');
+    w2InputField.type = 'number';
+    w2InputField.id = 'input-w2';
+    w2InputField.className = 'dimension-input';
+    w2InputField.min = 0;
+    w2InputField.step = 0.1;
+    w2InputField.placeholder = '0.0';
+    w2InputField.style.cssText = 'width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;';
+    const w2Unit = document.createElement('span');
+    w2Unit.textContent = 'Inches';
+    w2Unit.style.cssText = 'display: block; margin-top: 4px; font-size: 12px; color: #666;';
+    w2InputGroup.appendChild(w2Label);
+    w2InputGroup.appendChild(w2InputField);
+    w2InputGroup.appendChild(w2Unit);
+    
+    // Create w3 input (Right Panel Width)
+    const w3InputGroup = document.createElement('div');
+    w3InputGroup.id = 'input-group-w3';
+    w3InputGroup.className = 'hidden-step';
+    w3InputGroup.style.cssText = 'flex: 1; min-width: 120px;';
+    const w3Label = document.createElement('label');
+    w3Label.textContent = 'Right Panel Width (w3)';
+    w3Label.style.cssText = 'display: block; margin-bottom: 6px; font-size: 13px; color: #333; font-weight: 500;';
+    const w3InputField = document.createElement('input');
+    w3InputField.type = 'number';
+    w3InputField.id = 'input-w3';
+    w3InputField.className = 'dimension-input';
+    w3InputField.min = 0;
+    w3InputField.step = 0.1;
+    w3InputField.placeholder = '0.0';
+    w3InputField.style.cssText = 'width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;';
+    const w3Unit = document.createElement('span');
+    w3Unit.textContent = 'Inches';
+    w3Unit.style.cssText = 'display: block; margin-top: 4px; font-size: 12px; color: #666;';
+    w3InputGroup.appendChild(w3Label);
+    w3InputGroup.appendChild(w3InputField);
+    w3InputGroup.appendChild(w3Unit);
+    
+    // Add all sub-dimension inputs to container
+    subDimensionsContainer.appendChild(h1InputGroup);
+    subDimensionsContainer.appendChild(h2InputGroup);
+    subDimensionsContainer.appendChild(w1InputGroup);
+    subDimensionsContainer.appendChild(w2InputGroup);
+    subDimensionsContainer.appendChild(w3InputGroup);
+    
+    dimensionsContainer.appendChild(subDimensionsContainer);
+    
+    // Add input event listeners for sub-dimensions
+    [h1InputField, h2InputField, w1InputField, w2InputField, w3InputField].forEach(input => {
+      input.addEventListener('input', () => {
+        // Update Konva preview
+        if (typeof renderCustomState === 'function') {
+          setTimeout(() => renderCustomState(), 100);
+        }
+      });
+    });
+  }
+  
   // Add event listeners to update dimensions and trigger price recalculation
   [widthInput, heightInput].forEach(input => {
     input.addEventListener('input', () => {
+      console.log(`🚪 [Dimensions] ${input.id} changed to:`, input.value);
+      
       // Update global dimensions
       if (typeof window.currentDimensions !== 'undefined') {
         const fieldName = input.name;
@@ -915,6 +1482,16 @@ function renderDimensionsField(field, container) {
         } else {
           window.currentDimensions[fieldName] = { value: parseFloat(input.value) || 0, unit: 'in' };
         }
+      }
+      
+      // Trigger auto-calculation for door dimensions (w1, w2, w3, h1, h2)
+      if (typeof window.autoDoorCalculateHeights === 'function') {
+        console.log('🚪 [Dimensions] Triggering autoDoorCalculateHeights');
+        window.autoDoorCalculateHeights();
+      }
+      if (typeof window.autoDoorCalculateWidths === 'function') {
+        console.log('🚪 [Dimensions] Triggering autoDoorCalculateWidths');
+        window.autoDoorCalculateWidths();
       }
       
       // Trigger price recalculation
@@ -1391,11 +1968,10 @@ function updateCornerRadiusValues(fieldId) {
     
     // Convert to inches for storage (Konva expects inches)
     const valueInInches = convertToInches(value, currentUnit);
-    selectedCustomizationValues[fieldId] = valueInInches;
-    selectedCustomizationValues[`${fieldId}_unit`] = currentUnit; // Store unit for reference
-    if (typeof window !== 'undefined') {
-      window.selectedCustomizationValues = selectedCustomizationValues;
-    }
+    window.selectedCustomizationValues[fieldId] = valueInInches;
+    window.selectedCustomizationValues[`${fieldId}_unit`] = currentUnit; // Store unit for reference
+    logCustomizationChange(fieldId, valueInInches, 'dimension value');
+    logCustomizationChange(`${fieldId}_unit`, currentUnit, 'dimension unit');
     updateKonvaFromField(fieldId, valueInInches, true);
   } else {
     // Individual corner mode
@@ -1412,11 +1988,10 @@ function updateCornerRadiusValues(fieldId) {
       cornerValues[cornerKeys[index]] = convertToInches(value, currentUnit);
     });
     
-    selectedCustomizationValues[fieldId] = cornerValues;
-    selectedCustomizationValues[`${fieldId}_unit`] = currentUnit; // Store unit for reference
-    if (typeof window !== 'undefined') {
-      window.selectedCustomizationValues = selectedCustomizationValues;
-    }
+    window.selectedCustomizationValues[fieldId] = cornerValues;
+    window.selectedCustomizationValues[`${fieldId}_unit`] = currentUnit; // Store unit for reference
+    logCustomizationChange(fieldId, cornerValues, 'corner radius');
+    logCustomizationChange(`${fieldId}_unit`, currentUnit, 'corner unit');
     updateKonvaFromField(fieldId, cornerValues, true);
   }
 }
@@ -1610,7 +2185,7 @@ function handleMirrorsConditionals(changedFieldId, selectedValue) {
             // Clear selection if it's a frame option
             if (!isEdgeOption && card.classList.contains('active')) {
               card.classList.remove('active');
-              delete selectedCustomizationValues['frameColor'];
+              delete window.selectedCustomizationValues['frameColor'];
             }
           } else if (isStandardFrame) {
             // Show only frame options, hide edge options
@@ -1624,7 +2199,7 @@ function handleMirrorsConditionals(changedFieldId, selectedValue) {
             // Clear selection if it's an edge option
             if (!isFrameOption && card.classList.contains('active')) {
               card.classList.remove('active');
-              delete selectedCustomizationValues['frameColor'];
+              delete window.selectedCustomizationValues['frameColor'];
             }
           } else {
             // If frameType is not set, show all options (default state)
@@ -1662,7 +2237,7 @@ function handleMirrorsConditionals(changedFieldId, selectedValue) {
           const activeCard = edgeFinishContainer.querySelector('.option-card.active');
           if (activeCard) {
             activeCard.classList.remove('active');
-            delete selectedCustomizationValues['edgeFinish'];
+            delete window.selectedCustomizationValues['edgeFinish'];
           }
         }
       } else {
@@ -1896,7 +2471,7 @@ function handleWindowsSlidingConditionals(changedFieldId, selectedValue) {
             const twoTracksOption = Array.from(trackOptions).find(opt => opt.dataset.value === '2 Tracks');
             if (twoTracksOption) {
               twoTracksOption.classList.add('active');
-              selectedCustomizationValues['trackSystem'] = '2 Tracks';
+              window.selectedCustomizationValues['trackSystem'] = '2 Tracks';
             }
           }
         } else {
@@ -1959,17 +2534,7 @@ function handleWindowsSlidingConditionals(changedFieldId, selectedValue) {
         }
       });
       
-      // Auto-select first visible option if none selected
-      setTimeout(() => {
-        const activeConfig = panelConfigContainer.querySelector('.option-card.active');
-        if (!activeConfig || activeConfig.style.display === 'none') {
-          const visibleOptions = Array.from(panelConfigContainer.querySelectorAll('.option-card')).filter(opt => opt.style.display !== 'none');
-          if (visibleOptions.length > 0) {
-            visibleOptions[0].classList.add('active');
-            selectedCustomizationValues['panelConfiguration'] = visibleOptions[0].dataset.value || visibleOptions[0].textContent.trim();
-          }
-        }
-      }, 50);
+      // No spec tags selected by default - do not auto-select
     }
   }
 }
@@ -1995,7 +2560,7 @@ function handleAwningConditionals(changedFieldId, selectedValue) {
         const input = rowsContainer.querySelector('input[type="number"]');
         if (input) {
           input.value = '1';
-          selectedCustomizationValues['panelRows'] = 1;
+          window.selectedCustomizationValues['panelRows'] = 1;
         }
       }
     }
@@ -2010,15 +2575,15 @@ function handleAwningConditionals(changedFieldId, selectedValue) {
         const input = columnsContainer.querySelector('input[type="number"]');
         if (input) {
           input.value = '1';
-          selectedCustomizationValues['panelColumns'] = 1;
+          window.selectedCustomizationValues['panelColumns'] = 1;
         }
       }
     }
     
     // Update Konva visualization
     if (typeof window !== 'undefined' && typeof window.updateKonvaFromField === 'function') {
-      const rows = isMultiplePanels ? (selectedCustomizationValues['panelRows'] || 1) : 1;
-      const cols = isMultiplePanels ? (selectedCustomizationValues['panelColumns'] || 1) : 1;
+      const rows = isMultiplePanels ? (window.selectedCustomizationValues['panelRows'] || 1) : 1;
+      const cols = isMultiplePanels ? (window.selectedCustomizationValues['panelColumns'] || 1) : 1;
       updateKonvaFromField('panelRows', rows, true);
       updateKonvaFromField('panelColumns', cols, true);
     }
@@ -2149,6 +2714,12 @@ function updateKonvaFromField(fieldId, value, isActive) {
     'DoorSwing': 'doorSwing',
     'hingeSide': 'hingeSide',
     'HingeSide': 'hingeSide',
+    // Door sub-dimension inputs (h1, h2, w1, w2, w3)
+    'input-h1': 'h1',
+    'input-h2': 'h2',
+    'input-w1': 'w1',
+    'input-w2': 'w2',
+    'input-w3': 'w3',
     // Rounded corners for rectangle/square mirrors
     'cornerRadius': 'cornerRadius',
     'radius': 'cornerRadius',
@@ -2172,16 +2743,13 @@ function updateKonvaFromField(fieldId, value, isActive) {
   // Always store the value in selectedCustomizationValues, even if not in mapping
   // This ensures all fields are available for the comprehensive renderer
   if (isActive) {
-    selectedCustomizationValues[fieldId] = value;
+    window.selectedCustomizationValues[fieldId] = value;
+    logCustomizationChange(fieldId, value, 'updateKonvaFromField');
   } else {
-    if (selectedCustomizationValues[fieldId] === value) {
-      delete selectedCustomizationValues[fieldId];
+    if (window.selectedCustomizationValues[fieldId] === value) {
+      delete window.selectedCustomizationValues[fieldId];
+      logCustomizationChange(fieldId, null, 'updateKonvaFromField (deleted)');
     }
-  }
-  
-  // Update global state
-  if (typeof window !== 'undefined') {
-    window.selectedCustomizationValues = selectedCustomizationValues;
   }
   
   // Special handling for awning window panel configuration fields
@@ -2222,33 +2790,33 @@ function updateKonvaFromField(fieldId, value, isActive) {
   if (isTagField || isNumberField) {
     // Single-select (tags) or number fields: store as single value
     if (isActive) {
-      selectedCustomizationValues[fieldId] = value;
+      window.selectedCustomizationValues[fieldId] = value;
     } else {
       // If deselecting and it's the current value, clear it
-      if (selectedCustomizationValues[fieldId] === value) {
-        delete selectedCustomizationValues[fieldId];
+      if (window.selectedCustomizationValues[fieldId] === value) {
+        delete window.selectedCustomizationValues[fieldId];
       }
     }
   } else if (isCheckboxField) {
     // Multi-select: use array (for checkboxes, etc.)
-    if (!selectedCustomizationValues[fieldId]) {
-      selectedCustomizationValues[fieldId] = [];
+    if (!window.selectedCustomizationValues[fieldId]) {
+      window.selectedCustomizationValues[fieldId] = [];
     }
     
     if (isActive) {
-      if (!selectedCustomizationValues[fieldId].includes(value)) {
-        selectedCustomizationValues[fieldId].push(value);
+      if (!window.selectedCustomizationValues[fieldId].includes(value)) {
+        window.selectedCustomizationValues[fieldId].push(value);
       }
     } else {
-      selectedCustomizationValues[fieldId] = selectedCustomizationValues[fieldId].filter(v => v !== value);
+      window.selectedCustomizationValues[fieldId] = window.selectedCustomizationValues[fieldId].filter(v => v !== value);
     }
   } else {
     // Fallback: store as single value for unknown field types
     if (isActive) {
-      selectedCustomizationValues[fieldId] = value;
+      window.selectedCustomizationValues[fieldId] = value;
     } else {
-      if (selectedCustomizationValues[fieldId] === value) {
-        delete selectedCustomizationValues[fieldId];
+      if (window.selectedCustomizationValues[fieldId] === value) {
+        delete window.selectedCustomizationValues[fieldId];
       }
     }
   }
@@ -2287,10 +2855,8 @@ function updateKonvaFromField(fieldId, value, isActive) {
       }
       // Ensure selectedCustomizationValues also has the normalized value
       if (isActive) {
-        selectedCustomizationValues[fieldId] = thicknessValue;
-        if (typeof window !== 'undefined') {
-          window.selectedCustomizationValues = selectedCustomizationValues;
-        }
+        window.selectedCustomizationValues[fieldId] = thicknessValue;
+        logCustomizationChange(fieldId, thicknessValue, 'thickness handler');
       }
     } else if (konvaParam === 'screen') {
       // Screen field - store in selectedCustomizationValues for comprehensive renderer
@@ -2380,10 +2946,7 @@ function updateKonvaFromField(fieldId, value, isActive) {
     }
   }
 
-  // Ensure global reference is updated (for AJAX proxy detection)
-  if (typeof window !== 'undefined') {
-    window.selectedCustomizationValues = selectedCustomizationValues;
-  }
+  // Note: window.selectedCustomizationValues already updated directly above (Proxy preserved)
 
   // Re-render Konva - try multiple ways to access the render function
   // The renderCustomState function is defined in 2d_customization.js
@@ -2435,7 +2998,7 @@ function renderStandardSizes(standardSeries, container) {
     series.measurements.forEach((measurement, index) => {
       const sizeCard = document.createElement('div');
       sizeCard.className = 'option-card';
-      if (seriesIndex === 0 && index === 0) sizeCard.classList.add('active');
+      // No spec tags selected by default - do not auto-select first standard size
       
       sizeCard.dataset.height = measurement.height;
       sizeCard.dataset.width = measurement.width;
@@ -2490,12 +3053,14 @@ function renderStandardSizes(standardSeries, container) {
 
 /**
  * Updates price display for standard size selection
+ * DISABLED: Price is now static and shows the product's price range from database
  */
 function updatePriceForStandardSize(price) {
-  const totalPriceEl = document.getElementById('total-price');
-  if (totalPriceEl) {
-    totalPriceEl.textContent = `₱${parseFloat(price).toFixed(2)}`;
-  }
+  // Price display is now static - do not update
+  // const totalPriceEl = document.getElementById('total-price');
+  // if (totalPriceEl) {
+  //   totalPriceEl.textContent = `₱${parseFloat(price).toFixed(2)}`;
+  // }
 }
 
 /**
@@ -2740,44 +3305,176 @@ function goToDynamicStep(targetStep) {
  * @param {number} totalSteps - Total number of steps
  * @param {Object} stepNames - Step names object { "1": "Step Name", "2": "Step Name" }
  */
-function updateDynamicBreadcrumbs(currentStep, totalSteps, stepNames = null) {
-  const crumbMain = document.getElementById('crumb-main');
+// Helper function to ensure there's always a chevron before Review Order
+function ensureChevronBeforeReviewOrder() {
+  const crumbReview = document.getElementById('crumb-review');
   const breadcrumbsContainer = document.getElementById('breadcrumbs-container');
-  
-  if (!crumbMain || !breadcrumbsContainer) return;
-  
-  // Remove all dynamic breadcrumbs (keep only "Products" and main crumb)
-  const dynamicCrumbs = breadcrumbsContainer.querySelectorAll('[id^="crumb-step"], [id^="chevron-crumb-step"]');
+
+  if (!crumbReview || !breadcrumbsContainer) return;
+
+  // Remove any existing chevron before Review Order
+  const existingChevron = document.getElementById('chevron-crumb-review');
+  if (existingChevron) {
+    existingChevron.remove();
+  }
+
+  // Add a new chevron before Review Order
+  const finalChevron = document.createElement('span');
+  finalChevron.className = 'chevron-right';
+  finalChevron.id = 'chevron-crumb-review';
+  breadcrumbsContainer.insertBefore(finalChevron, crumbReview);
+}
+
+function updateDynamicBreadcrumbs(currentStep, totalSteps, stepNames = null) {
+  const crumbStep1 = document.getElementById('crumb-step1');
+  const crumbStep2 = document.getElementById('crumb-step2');
+  const crumbReview = document.getElementById('crumb-review');
+  const breadcrumbsContainer = document.getElementById('breadcrumbs-container');
+
+  // Get all chevron elements
+  const chevronStep1 = crumbStep1 ? crumbStep1.nextElementSibling : null;
+  const chevronStep2 = crumbStep2 ? crumbStep2.nextElementSibling : null;
+
+  if (!crumbStep1 || !crumbStep2 || !crumbReview || !breadcrumbsContainer) return;
+
+  // All orders now follow unified flow (site-assessment process)
+  // Order type check removed - all products treated the same
+
+  // Clear all dynamic steps between Step 2 and Review Order
+  const dynamicCrumbs = breadcrumbsContainer.querySelectorAll('[id^="crumb-step"]:not(#crumb-step1):not(#crumb-step2), [id^="chevron-crumb-step"]');
   dynamicCrumbs.forEach(crumb => crumb.remove());
-  
-  // Reset main crumb
+
+  // Set Step 1 breadcrumb
+  const step1Name = stepNames && stepNames['1'] ? stepNames['1'] : 'Step 1';
+  crumbStep1.textContent = step1Name;
+
+  // Set Step 2 breadcrumb
+  const step2Name = stepNames && stepNames['2'] ? stepNames['2'] : 'Step 2';
+  crumbStep2.textContent = step2Name;
+
+  // Reset visibility for Step 1 and Step 2
+  crumbStep1.style.display = '';
+  crumbStep2.style.display = '';
+  if (chevronStep1) chevronStep1.style.display = '';
+
+  // Handle navigation states - Review Order is always the final step
   if (currentStep === 1) {
-    // Step 1 - show main crumb as active
-    crumbMain.textContent = stepNames && stepNames['1'] ? stepNames['1'] : 'Glass Shape';
-    crumbMain.classList.add('active');
-  } else {
-    // Step 2+ - show main crumb as inactive, add step breadcrumbs
-    crumbMain.textContent = stepNames && stepNames['1'] ? stepNames['1'] : 'Glass Shape';
-    crumbMain.classList.remove('active');
-    
-    // Add breadcrumbs for each step up to current step
-    for (let step = 2; step <= currentStep; step++) {
-      const stepName = stepNames && stepNames[String(step)] 
-        ? stepNames[String(step)] 
+    // Step 1: Products → Step 1
+    crumbStep1.classList.add('active');
+    crumbStep2.classList.remove('active');
+    crumbReview.classList.remove('active');
+
+    // Hide Step 2 and Review Order
+    crumbStep2.style.display = 'none';
+    crumbReview.style.display = 'none';
+    if (chevronStep1) chevronStep1.style.display = 'none';
+    if (chevronStep2) chevronStep2.style.display = 'none';
+
+  } else if (currentStep === 2) {
+    // Step 2: Products → Step 1 → Step 2
+    crumbStep1.classList.remove('active');
+    crumbStep2.classList.add('active');
+    crumbReview.classList.remove('active');
+
+    // Hide Review Order
+    crumbReview.style.display = 'none';
+    if (chevronStep2) chevronStep2.style.display = 'none';
+
+  } else if (currentStep === totalSteps) {
+    // Final Step: Show all customization steps, but Review Order depends on order type
+    crumbStep1.classList.remove('active');
+    crumbStep2.classList.remove('active');
+
+    // Add all intermediate steps (Step 3, Step 4, etc.) between Step 2 and Review Order
+    // Hide the static chevron and rebuild the connection
+    if (chevronStep2) chevronStep2.style.display = 'none';
+
+    // Start inserting after Step 2
+    let insertAfter = crumbStep2;
+
+    for (let step = 3; step <= currentStep; step++) {
+      const stepName = stepNames && stepNames[String(step)]
+        ? stepNames[String(step)]
         : `Step ${step}`;
-      
-      // Add chevron
+
+      // Create chevron for this step
       const chevron = document.createElement('span');
       chevron.className = 'chevron-right';
       chevron.id = `chevron-crumb-step${step}`;
-      breadcrumbsContainer.appendChild(chevron);
-      
-      // Add breadcrumb
+
+      // Create crumb
       const crumb = document.createElement('span');
-      crumb.className = step === currentStep ? 'active' : '';
       crumb.id = `crumb-step${step}`;
       crumb.textContent = stepName;
-      breadcrumbsContainer.appendChild(crumb);
+      // Only highlight the current active step
+      if (step === currentStep) {
+        crumb.classList.add('active');
+      }
+
+      // Insert chevron and crumb after the previous element
+      insertAfter.insertAdjacentElement('afterend', chevron);
+      chevron.insertAdjacentElement('afterend', crumb);
+
+      // Next insertion point is after this crumb
+      insertAfter = crumb;
+    }
+
+    // Manage Review Order visibility and chevron
+    const isSiteOrderMode = typeof isSiteOrder !== 'undefined' ? isSiteOrder : false;
+    if (!isSiteOrderMode) {
+      // Direct orders: Show Review Order
+      crumbReview.classList.add('active');
+      crumbReview.style.display = '';
+
+      // Always ensure there's a chevron connecting to Review Order
+      ensureChevronBeforeReviewOrder();
+    } else {
+      // Site orders: Hide Review Order
+      crumbReview.classList.remove('active');
+      crumbReview.style.display = 'none';
+    }
+
+  } else {
+    // Additional Steps: Products → Step 1 → Step 2 → Step 3 → ...
+    crumbStep1.classList.remove('active');
+    crumbStep2.classList.remove('active');
+    crumbReview.classList.remove('active');
+
+    // Hide Review Order
+    crumbReview.style.display = 'none';
+    if (chevronStep2) chevronStep2.style.display = 'none';
+
+    // Add breadcrumbs for steps up to current step
+    // Hide the static chevron and rebuild the connection
+    if (chevronStep2) chevronStep2.style.display = 'none';
+
+    // Start inserting after Step 2
+    let insertAfter = crumbStep2;
+
+    for (let step = 3; step <= currentStep; step++) {
+      const stepName = stepNames && stepNames[String(step)]
+        ? stepNames[String(step)]
+        : `Step ${step}`;
+
+      // Create chevron
+      const chevron = document.createElement('span');
+      chevron.className = 'chevron-right';
+      chevron.id = `chevron-crumb-step${step}`;
+
+      // Create crumb
+      const crumb = document.createElement('span');
+      crumb.id = `crumb-step${step}`;
+      crumb.textContent = stepName;
+      if (step === currentStep) {
+        crumb.classList.add('active');
+      }
+
+      // Insert chevron and crumb after the previous element
+      insertAfter.insertAdjacentElement('afterend', chevron);
+      chevron.insertAdjacentElement('afterend', crumb);
+
+      // Next insertion point is after this crumb
+      insertAfter = crumb;
     }
   }
 }
@@ -2988,11 +3685,7 @@ function syncStateFromActiveSelections() {
     }
   }
   
-  // Update window.selectedCustomizationValues
-  if (typeof window !== 'undefined') {
-    window.selectedCustomizationValues = selectedCustomizationValues;
-  }
-  
+  // Note: window.selectedCustomizationValues already updated (Proxy preserved)
   console.log('[Sync] State sync complete. Current values:', {
     shape: window.currentShape,
     glassType: window.currentGlassType,
@@ -3043,6 +3736,10 @@ window.setupDirectToSummaryNavigation = setupDirectToSummaryNavigation;
 window.syncStateFromActiveSelections = syncStateFromActiveSelections;
 window.adjustTransomHeights = adjustTransomHeights;
 window.toggleH1InputVisibility = toggleH1InputVisibility;
+window.autoDoorCalculateHeights = autoDoorCalculateHeights;
+window.autoDoorCalculateWidths = autoDoorCalculateWidths;
+window.getDoorTotalDimensions = getDoorTotalDimensions;
+window.getDoorFixedPanelsOption = getDoorFixedPanelsOption;
 
 // MutationObserver disabled to avoid interfering with user clicks
 // The click handler itself ensures only one option is active

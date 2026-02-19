@@ -1,9 +1,6 @@
 <?php
-// Determine order type from URL parameter
-$order_type = isset($_GET['type']) ? $_GET['type'] : 'direct';
-$is_direct = ($order_type === 'direct');
-$is_site_assessed = ($order_type === 'site-assessed');
-$page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed Orders' : 'Orders');
+// Unified Orders Page - All orders follow the same process now
+$page_title = 'Orders';
 ?>
 
 <script>
@@ -16,10 +13,29 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
   const exportOrderUrl = "<?php echo base_url('AdminCon/export_order'); ?>";
   const approveOrderUrl = "<?php echo base_url('AdminCon/approve_order_admin'); ?>";
   const disapproveOrderUrl = "<?php echo base_url('AdminCon/disapprove_order_admin'); ?>";
-  const orderType = "<?php echo $order_type; ?>";
+  
+  // Debug: Test the orders API immediately
+  console.log('=== INLINE DEBUG START ===');
+  console.log('getOrdersUrl:', getOrdersUrl);
+  
+  // Simple fetch test
+  fetch(getOrdersUrl + '?status=all&page=1&limit=10')
+    .then(response => {
+      console.log('Inline fetch response status:', response.status);
+      return response.text();
+    })
+    .then(text => {
+      console.log('Inline fetch response:', text);
+    })
+    .catch(error => {
+      console.error('Inline fetch error:', error);
+    });
 </script>
 
-<script src="<?php echo base_url('assets/js/admin-js/order-management.js'); ?>"></script>
+<!-- TomSelect for searchable staff selects -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select/dist/css/tom-select.default.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tom-select/dist/js/tom-select.complete.min.js"></script>
+<script src="<?php echo base_url('assets/js/admin-js/order-management.js?v=' . time()); ?>"></script>
 
 <!-- Orders Section -->
 <section class="order-management-section">
@@ -31,6 +47,50 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
     </button>
   </div>
 
+  <!-- Order Tabs -->
+  <style>
+    .order-tabs { display: inline-flex; align-items: center; gap: 0; margin: 14px 0; font-size: 14px; }
+    .order-tabs .tab-btn { background: transparent; border: none; padding: 8px 12px; color: #212529; cursor: pointer; border-radius: 6px; display: inline-flex; align-items: center; }
+    .order-tabs .tab-btn.active { background: #02455F; color: #fff; }
+    .order-tabs .tab-btn:not(:last-child)::after { content: '|'; color: #6c757d; margin-left: 8px; margin-right: 8px; }
+    .order-tabs .tab-btn:focus { outline: none; box-shadow: none; }
+  </style>
+
+  <div class="order-tabs" role="tablist" aria-label="Order Tabs">
+    <button class="tab-btn active" id="tab-all" role="tab">All</button>
+    <button class="tab-btn" id="tab-ongoing" role="tab">On Going</button>
+    <button class="tab-btn" id="tab-completed" role="tab">Completed</button>
+    <button class="tab-btn" id="tab-cancelled" role="tab">Cancelled</button>
+  </div>
+
+  <script>
+    // Tab handlers - wire to existing filters and load action
+    (function(){
+      function setActive(tab){
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        if(tab) tab.classList.add('active');
+      }
+
+      function applyTabFilter(statusValue, tabEl){
+        var statusEl = document.getElementById('status-filter');
+        var applyBtn = document.getElementById('apply-filters');
+        if(statusEl) statusEl.value = statusValue;
+        setActive(tabEl);
+        if(applyBtn) applyBtn.click();
+      }
+
+      var tAll = document.getElementById('tab-all');
+      var tOngoing = document.getElementById('tab-ongoing');
+      var tCompleted = document.getElementById('tab-completed');
+      var tCancelled = document.getElementById('tab-cancelled');
+
+      if(tAll) tAll.addEventListener('click', function(){ applyTabFilter('all', tAll); });
+      if(tOngoing) tOngoing.addEventListener('click', function(){ applyTabFilter('on_going', tOngoing); });
+      if(tCompleted) tCompleted.addEventListener('click', function(){ applyTabFilter('Completed', tCompleted); });
+      if(tCancelled) tCancelled.addEventListener('click', function(){ applyTabFilter('Cancelled', tCancelled); });
+    })();
+  </script>
+
   <!-- Filters Section -->
   <div class="filters-container">
     <div class="filter-group">
@@ -41,26 +101,13 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
         <option value="Awaiting Admin">Awaiting Admin</option>
         <option value="Approved">Approved</option>
         <option value="Disapproved">Disapproved</option>
-        <?php if ($is_site_assessed): ?>
         <option value="Ocular Pending">Ocular Pending</option>
-        <?php endif; ?>
         <option value="In Fabrication">In Fabrication</option>
         <option value="Ready for Installation">Ready for Installation</option>
         <option value="Completed">Completed</option>
         <option value="Cancelled">Cancelled</option>
       </select>
     </div>
-
-    <?php if ($is_site_assessed): ?>
-    <div class="filter-group">
-      <label for="ocular-filter">Ocular Status:</label>
-      <select id="ocular-filter" class="filter-select">
-        <option value="all">All</option>
-        <option value="completed">Completed</option>
-        <option value="pending">Pending</option>
-      </select>
-    </div>
-    <?php endif; ?>
 
     <div class="filter-group">
       <label for="date-range-start">Date Range:</label>
@@ -96,20 +143,17 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
           <th>#</th>
           <th>Order ID</th>
           <th>Client Name</th>
+          <th>User Role</th>
           <th>Product Name</th>
           <th>Address</th>
           <th>Order Date</th>
-          <?php if ($is_site_assessed): ?>
-          <th>Ocular Status</th>
-          <?php endif; ?>
-          <th>Total Amount</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody id="ordersTableBody">
         <tr>
-          <td colspan="<?php echo $is_site_assessed ? '10' : '9'; ?>" style="text-align: center; padding: 20px;">Loading orders...</td>
+          <td colspan="8" style="text-align: center; padding: 20px;">Loading orders...</td>
         </tr>
       </tbody>
     </table>
@@ -139,11 +183,12 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
       <!-- Order Information Section -->
       <div class="info-card">
         <div class="info-card-header">
-          <i class="fas fa-info-circle info-card-icon"></i>
-          <h4 class="info-card-title">Order Information</h4>
+              <i class="fas fa-info-circle info-card-icon"></i>
+                <span id="detail-order-overview" style="flex: 1; min-width: 150px; display: inline;">Order Overview</span>
         </div>
         <div class="info-card-body">
           <div class="info-grid">
+            <!-- Ocular Visit Staff removed per UX request -->
             <div class="info-item">
               <span class="info-label">Order ID</span>
               <span class="info-value" id="detail-order-id">-</span>
@@ -153,24 +198,17 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
               <span class="info-value" id="detail-order-date">-</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Order Type</span>
-              <span class="info-value">
-                <span class="badge badge-<?php echo $is_direct ? 'primary' : 'warning'; ?>" id="detail-order-type">
-                  <?php echo $is_direct ? 'Direct Order' : 'Site-Assessed Order'; ?>
-                </span>
-              </span>
-            </div>
-            <div class="info-item">
               <span class="info-label">Status</span>
               <span class="info-value">
                 <span class="badge" id="detail-status-badge">-</span>
               </span>
             </div>
+            <div class="info-item">
+              <span class="info-label">Preferred Ocular Visit Date</span>
+              <span class="info-value" id="detail-preferred-ocular-date">-</span>
+            </div>
           </div>
-          <!-- Status History Timeline -->
-          <div class="status-timeline" id="status-timeline" style="margin-top: 20px;">
-            <!-- Status history will be loaded here -->
-          </div>
+          <!-- Status History Timeline removed as not needed -->
         </div>
       </div>
 
@@ -202,11 +240,11 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
         </div>
       </div>
 
-      <!-- Products/Items Section -->
+      <!-- Order Details Section -->
       <div class="info-card">
         <div class="info-card-header">
-          <i class="fas fa-boxes info-card-icon"></i>
-          <h4 class="info-card-title">Products/Items</h4>
+          <i class="fas fa-box info-card-icon"></i>
+          <h4 class="info-card-title">Order Details</h4>
         </div>
         <div class="info-card-body" style="padding: 0;">
           <div style="overflow-x: auto;">
@@ -214,11 +252,9 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
               <thead>
                 <tr>
                   <th>Product Name</th>
+                  <th>Customization Details</th>
                   <th>Quantity</th>
-                  <th>Unit Price</th>
-                  <th>Subtotal</th>
-                  <th>Specifications</th>
-                  <th>Design File</th>
+                  <th>Design</th>
                 </tr>
               </thead>
               <tbody id="detail-items-tbody">
@@ -229,86 +265,7 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
         </div>
       </div>
 
-      <!-- Pricing & Payment Section -->
-      <div class="info-card">
-        <div class="info-card-header">
-          <i class="fas fa-money-bill-wave info-card-icon"></i>
-          <h4 class="info-card-title">Pricing & Payment</h4>
-        </div>
-        <div class="info-card-body">
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">Subtotal</span>
-              <span class="info-value" id="detail-subtotal">₱0.00</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Tax</span>
-              <span class="info-value" id="detail-tax">₱0.00</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Payment Status</span>
-              <span class="info-value" id="detail-payment-status">-</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Payment Method</span>
-              <span class="info-value" id="detail-payment-method">-</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Payment Date</span>
-              <span class="info-value" id="detail-payment-date">-</span>
-            </div>
-            <div class="info-item full-width">
-              <span class="info-label">Payment Receipt</span>
-              <span class="info-value" id="detail-payment-receipt">-</span>
-            </div>
-          </div>
-          <div class="total-section-modern" style="margin-top: 20px;">
-            <span class="total-label">Total Quotation</span>
-            <span class="total-amount" id="detail-total-amount">₱0.00</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Ocular/Site Assessment Section (Site-Assessed Orders Only) -->
-      <?php if ($is_site_assessed): ?>
-      <div class="info-card">
-        <div class="info-card-header">
-          <i class="fas fa-clipboard-check info-card-icon"></i>
-          <h4 class="info-card-title">Ocular/Site Assessment</h4>
-        </div>
-        <div class="info-card-body">
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">Ocular Status</span>
-              <span class="info-value">
-                <span class="badge" id="detail-ocular-status">Pending</span>
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Ocular Date</span>
-              <span class="info-value" id="detail-ocular-date">-</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Ocular Completed By</span>
-              <span class="info-value" id="detail-ocular-staff">-</span>
-            </div>
-            <div class="info-item full-width">
-              <span class="info-label">Ocular Notes</span>
-              <textarea class="form-textarea-modern" id="detail-ocular-notes" rows="5" readonly></textarea>
-              <button class="btn-modern btn-secondary" id="edit-ocular-notes-btn" style="margin-top: 10px;">
-                <i class="fas fa-edit" style="margin-right: 6px;"></i>Edit Notes
-              </button>
-            </div>
-            <div class="info-item full-width">
-              <span class="info-label">Site Photos</span>
-              <div class="photo-gallery" id="detail-ocular-photos">
-                <!-- Photos will be loaded here -->
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <?php endif; ?>
+      <!-- (Ocular/Site Assessment card intentionally removed per request) -->
 
       <!-- Assigned Staff Section -->
       <div class="info-card">
@@ -319,9 +276,25 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
         <div class="info-card-body">
           <div class="info-grid">
             <div class="info-item">
+              <span class="info-label">Ocular Visit Staff</span>
+              <div class="info-value-with-action" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span id="detail-ocular-staff" style="flex: 1 1 0%; min-width: 150px;">N/A</span>
+                <i id="ocular-lock-inline" class="fas fa-lock" style="margin-left:8px;color:#6c757d;display:none;" title="Ocular assignment locked until appropriate stage"></i>
+                <select class="form-control staff-select" id="select-ocular-staff" style="flex: 1; min-width: 200px;">
+                  <option value="">Select Staff...</option>
+                  <!-- Options will be loaded via AJAX -->
+                </select>
+                <button class="btn-modern btn-secondary" id="change-ocular-staff" style="padding: 8px 16px;">
+                  <i class="fas fa-edit" style="margin-right: 4px;"></i>Change
+                </button>
+              </div>
+            </div>
+
+            <div class="info-item">
               <span class="info-label">Fabrication Staff</span>
               <div class="info-value-with-action" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <span id="detail-fabrication-staff" style="flex: 1; min-width: 150px;">-</span>
+                <span id="detail-fabrication-staff" style="flex: 1 1 0%; min-width: 150px;">-</span>
+                <i id="fabrication-lock-inline" class="fas fa-lock" style="margin-left:8px;color:#6c757d;display:none;" title="Fabrication assignment locked until order is In Fabrication"></i>
                 <select class="form-control staff-select" id="select-fabrication-staff" style="display: none; flex: 1; min-width: 200px;">
                   <option value="">Select Staff...</option>
                   <!-- Options will be loaded via AJAX -->
@@ -331,10 +304,12 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
                 </button>
               </div>
             </div>
+
             <div class="info-item">
               <span class="info-label">Installation Staff</span>
               <div class="info-value-with-action" style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <span id="detail-installation-staff" style="flex: 1; min-width: 150px;">-</span>
+                <span id="detail-installation-staff" style="flex: 1 1 0%; min-width: 150px;">-</span>
+                <i id="installation-lock-inline" class="fas fa-lock" style="margin-left:8px;color:#6c757d;display:none;" title="Installation assignment locked until order is Ready for Installation"></i>
                 <select class="form-control staff-select" id="select-installation-staff" style="display: none; flex: 1; min-width: 200px;">
                   <option value="">Select Staff...</option>
                   <!-- Options will be loaded via AJAX -->
@@ -370,13 +345,156 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
         <div class="info-card-body">
           <div class="info-grid">
             <div class="info-item full-width">
-              <span class="info-label">Special Instructions</span>
-              <span class="info-value" id="detail-special-instructions">-</span>
+              <span class="info-value" id="detail-special-instructions" style="white-space: pre-wrap; line-height: 1.6;">-</span>
             </div>
-            <div class="info-item">
-              <span class="info-label">Preferred Installation Date</span>
-              <span class="info-value" id="detail-preferred-installation-date">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Breakdown Section -->
+      <div class="info-card">
+        <div class="info-card-header">
+          <i class="fas fa-money-bill-wave info-card-icon"></i>
+          <h4 class="info-card-title">Payment Breakdown</h4>
+        </div>
+        <div class="info-card-body">
+          <div style="margin-bottom: 20px; padding: 12px; background: #f8f9fa; border-left: 4px solid #02455F; border-radius: 4px;">
+            <small style="color: #495057;">
+              <i class="fas fa-info-circle"></i> <strong>Payment Schedule:</strong> 50% downpayment at ocular visit, 40% after fabrication complete, 10% after installation complete.
+            </small>
+          </div>
+          
+          <!-- Payment Stage 1: Downpayment (50%) -->
+          <div id="payment-stage-1" style="border: 2px solid #02455F; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #ffffff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h5 style="margin: 0; color: #02455F;">
+                <i class="fas fa-money-bill-wave"></i> Downpayment (50%)
+              </h5>
+              <span id="order-downpayment-status-badge" class="badge" style="background-color: #ffc107; color: #000;">Pending</span>
             </div>
+            <div class="info-grid" style="margin-top: 10px;">
+              <div class="info-item">
+                <span class="info-label">Amount (₱)</span>
+                <input type="number" id="order-downpayment-amount" class="form-control" min="0" step="0.01" placeholder="Auto-calculated" disabled>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Payment Method</span>
+                <input type="text" id="order-downpayment-method" class="form-control" value="—" disabled>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Status</span>
+                <input type="text" id="order-downpayment-status-text" class="form-control" value="Pending" disabled>
+              </div>
+            </div>
+            <div class="info-item full-width" id="order-downpayment-receipt-container" style="margin-top: 10px; display: none;">
+              <span class="info-label">Payment Receipt:</span>
+              <div id="order-downpayment-receipt-link" style="margin-top: 8px;">
+                <a href="#" target="_blank" style="color: #02455F; text-decoration: underline;">
+                  <i class="fas fa-file-pdf" style="margin-right: 5px;"></i>View receipt
+                </a>
+              </div>
+            </div>
+            <small style="color: #6c757d; font-style: italic; margin-top: 10px; display: block;">
+              <i class="fas fa-info-circle"></i> Downpayment is managed in the Ocular Visit appointment.
+            </small>
+          </div>
+          
+          <!-- Payment Stage 2: Fabrication Payment (40%) -->
+          <div id="payment-stage-2" style="border: 2px solid #dee2e6; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #f8f9fa; opacity: 0.6;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h5 style="margin: 0; color: #6c757d;">
+                <i class="fas fa-lock"></i> Fabrication Payment (40%)
+              </h5>
+              <span id="order-fabrication-status-badge" class="badge" style="background-color: #6c757d; color: #fff;">Locked</span>
+            </div>
+            <div class="info-grid" style="margin-top: 10px;">
+              <div class="info-item">
+                <span class="info-label">Amount (₱)</span>
+                <input type="number" id="order-fabrication-amount" class="form-control" value="" disabled placeholder="Available after fabrication">
+              </div>
+              <div class="info-item">
+                <span class="info-label">Payment Method</span>
+                <select id="order-fabrication-method" class="form-control" disabled>
+                  <option value="">Select method</option>
+                  <option value="GCash">GCash</option>
+                  <option value="Maya">Maya</option>
+                  <option value="Card">Credit/Debit Card</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Check">Check</option>
+                </select>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Status</span>
+                <select id="order-fabrication-status" class="form-control" disabled>
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                </select>
+              </div>
+            </div>
+            <div class="info-item full-width" id="order-fabrication-receipt-container" style="margin-top: 10px; display: none;">
+              <span class="info-label">Payment Receipt:</span>
+              <input type="file" id="order-fabrication-receipt" accept="image/*,application/pdf" class="form-control" disabled>
+              <div id="order-fabrication-receipt-link" style="margin-top: 8px; display: none;">
+                <a href="#" target="_blank" style="color: #02455F; text-decoration: underline;">
+                  <i class="fas fa-file-pdf" style="margin-right: 5px;"></i>View receipt
+                </a>
+              </div>
+            </div>
+            <small style="color: #6c757d; font-style: italic; margin-top: 10px; display: block;">
+              <i class="fas fa-info-circle"></i> This payment stage will be available when order status is "In Fabrication" or later.
+            </small>
+          </div>
+          
+          <!-- Payment Stage 3: Installation Payment (10%) -->
+          <div id="payment-stage-3" style="border: 2px solid #dee2e6; border-radius: 8px; padding: 15px; margin-bottom: 15px; background: #f8f9fa; opacity: 0.6;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h5 style="margin: 0; color: #6c757d;">
+                <i class="fas fa-lock"></i> Installation Payment (10%)
+              </h5>
+              <span id="order-installation-status-badge" class="badge" style="background-color: #6c757d; color: #fff;">Locked</span>
+            </div>
+            <div class="info-grid" style="margin-top: 10px;">
+              <div class="info-item">
+                <span class="info-label">Amount (₱)</span>
+                <input type="number" id="order-installation-amount" class="form-control" value="" disabled placeholder="Available after installation">
+              </div>
+              <div class="info-item">
+                <span class="info-label">Payment Method</span>
+                <select id="order-installation-method" class="form-control" disabled>
+                  <option value="">Select method</option>
+                  <option value="GCash">GCash</option>
+                  <option value="Maya">Maya</option>
+                  <option value="Card">Credit/Debit Card</option>
+                  <option value="Cash">Cash</option>
+                  <option value="Check">Check</option>
+                </select>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Status</span>
+                <select id="order-installation-status" class="form-control" disabled>
+                  <option value="Pending">Pending</option>
+                  <option value="Paid">Paid</option>
+                </select>
+              </div>
+            </div>
+            <div class="info-item full-width" id="order-installation-receipt-container" style="margin-top: 10px; display: none;">
+              <span class="info-label">Payment Receipt:</span>
+              <input type="file" id="order-installation-receipt" accept="image/*,application/pdf" class="form-control" disabled>
+              <div id="order-installation-receipt-link" style="margin-top: 8px; display: none;">
+                <a href="#" target="_blank" style="color: #02455F; text-decoration: underline;">
+                  <i class="fas fa-file-pdf" style="margin-right: 5px;"></i>View receipt
+                </a>
+              </div>
+            </div>
+            <small style="color: #6c757d; font-style: italic; margin-top: 10px; display: block;">
+              <i class="fas fa-info-circle"></i> This payment stage will be available when order status is "Installation/Delivery" or later.
+            </small>
+          </div>
+          
+          <div style="margin-top: 15px; padding: 12px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+            <small style="color: #856404;">
+              <i class="fas fa-exclamation-triangle"></i> <strong>Note:</strong> Payment stages unlock based on order status. Fabrication payment becomes editable during "In Fabrication" stage, and installation payment becomes editable during "Installation/Delivery" stage.
+            </small>
           </div>
         </div>
       </div>
@@ -425,15 +543,13 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
               <label class="form-label-modern" for="admin-notes-textarea-general">Admin Notes</label>
               <div style="display: flex; gap: 10px; align-items: flex-end;">
                 <textarea id="admin-notes-textarea-general" class="form-textarea-modern" rows="3" placeholder="Add internal notes..." style="flex: 1;"></textarea>
-                <button class="btn-modern btn-primary" id="save-notes-btn" style="padding: 12px 24px;">
-                  <i class="fas fa-save" style="margin-right: 6px;"></i>Save
-                </button>
               </div>
             </div>
+            <div class="form-group-modern" id="disapproval-reason-group" style="display: none;">
+              <label class="form-label-modern" for="disapproval-reason-general">Disapproval Reason <span class="required-asterisk">*</span></label>
+              <textarea id="disapproval-reason-general" class="form-textarea-modern" rows="3" placeholder="Please provide a reason for disapproval..." required></textarea>
+            </div>
             <div class="action-buttons-row" style="margin-top: 20px; gap: 10px;">
-              <button class="btn-modern btn-secondary" id="link-calendar-btn">
-                <i class="fas fa-calendar-alt" style="margin-right: 6px;"></i>Link to Calendar
-              </button>
               <button class="btn-modern btn-secondary" id="export-order-btn">
                 <i class="fas fa-file-export" style="margin-right: 6px;"></i>Export Order
               </button>
@@ -457,11 +573,6 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
   <ul>
     <li><a href="#" class="action-view">View Details</a></li>
     <li><a href="#" class="action-update-status">Update Status</a></li>
-    <li><a href="#" class="action-assign-staff">Assign Staff</a></li>
-    <?php if ($is_site_assessed): ?>
-    <li><a href="#" class="action-ocular-notes" style="display: none;">Add Ocular Notes</a></li>
-    <?php endif; ?>
-    <li><a href="#" class="action-link-calendar">Link to Calendar</a></li>
     <li><a href="#" class="action-export">Export Order</a></li>
     <li><a href="#" class="action-cancel" style="display: none;">Cancel Order</a></li>
   </ul>
@@ -531,6 +642,18 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
           </div>
         </div>
       </div>
+      <?php if ($is_site_assessed): ?>
+      <div class="form-group-modern">
+        <label class="form-label-modern" for="modal-assign-ocular-staff">Ocular Visit Staff</label>
+        <select id="modal-assign-ocular-staff" class="form-control">
+          <option value="">Select Ocular Staff...</option>
+        </select>
+        <p class="current-assignment" id="current-ocular-staff" style="margin-top: 8px; font-size: 13px; color: #6c757d;">
+          <i class="fas fa-info-circle" style="margin-right: 5px;"></i>Current: <span style="font-weight: 500; color: #02455F;">-</span>
+        </p>
+
+      </div>
+      <?php endif; ?>
       <div class="form-group-modern">
         <label class="form-label-modern" for="modal-assign-fabrication-staff">Fabrication Staff</label>
         <select id="modal-assign-fabrication-staff" class="form-control">
@@ -541,7 +664,7 @@ $page_title = $is_direct ? 'Direct Orders' : ($is_site_assessed ? 'Site-Assessed
         </p>
       </div>
       <div class="form-group-modern">
-        <label class="form-label-modern" for="modal-assign-installation-staff">Installation Staff</label>
+        <label class="form-label-modern" for="modal-assign-installation-staff">Installation Staff <i id="modal-installation-lock" class="fas fa-lock" style="margin-left:8px;color:#6c757d;display:none;" title="Locked until order is Ready for Installation"></i></label>
         <select id="modal-assign-installation-staff" class="form-control">
           <option value="">Select Installation Staff...</option>
         </select>

@@ -81,16 +81,6 @@
                     </svg>
                     <span>Products</span>
                 </a>
-                <a href="reports.php" class="nav-item">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <line x1="3" y1="21" x2="3" y2="9" stroke="currentColor" stroke-width="2"/>
-                        <line x1="9" y1="21" x2="9" y2="13" stroke="currentColor" stroke-width="2"/>
-                        <line x1="15" y1="21" x2="15" y2="5" stroke="currentColor" stroke-width="2"/>
-                        <line x1="21" y1="21" x2="21" y2="17" stroke="currentColor" stroke-width="2"/>
-                        <line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    <span>Reports</span>
-                </a>
             </nav>
         </aside>
 

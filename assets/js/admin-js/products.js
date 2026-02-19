@@ -358,10 +358,11 @@ function setupSearchFilter() {
   const searchInput = document.querySelector(".search-input");
   const searchButton = document.querySelector(".search-button");
   const categoryFilter = document.querySelector(".filter-category");
+  const availabilityFilter = document.querySelector(".filter-availability");
   const activeFiltersTags = document.getElementById("activeFiltersTags");
   const clearAllFilters = document.getElementById("clearAllFilters");
   
-  if (!searchInput || !searchButton || !categoryFilter) {
+  if (!searchInput || !searchButton || !categoryFilter || !availabilityFilter) {
     console.warn('Search/filter elements not found, retrying...');
     setTimeout(setupSearchFilter, 100);
     return;
@@ -374,6 +375,7 @@ function setupSearchFilter() {
     const activeFilters = [];
     const searchTerm = (searchInput?.value || "").trim();
     const selectedCategory = (categoryFilter?.value || "").trim();
+    const selectedAvailability = (availabilityFilter?.value || "").trim();
     
     if (searchTerm) {
       activeFilters.push({ type: 'search', value: searchTerm, label: `Search: "${searchTerm}"` });
@@ -381,6 +383,10 @@ function setupSearchFilter() {
     
     if (selectedCategory) {
       activeFilters.push({ type: 'category', value: selectedCategory, label: `Category: ${selectedCategory}` });
+    }
+    if (selectedAvailability) {
+      const label = selectedAvailability === 'available' ? 'Available' : 'Unavailable';
+      activeFilters.push({ type: 'availability', value: selectedAvailability, label: `Availability: ${label}` });
     }
     
     // Clear existing tags
@@ -400,6 +406,8 @@ function setupSearchFilter() {
           searchInput.value = '';
         } else if (filter.type === 'category') {
           categoryFilter.value = '';
+        } else if (filter.type === 'availability') {
+          availabilityFilter.value = '';
         }
         filterProducts();
       });
@@ -423,6 +431,24 @@ function setupSearchFilter() {
 
     const searchTerm = (searchInput?.value || "").toLowerCase().trim();
     const selectedCategory = (categoryFilter?.value || "").toLowerCase().trim();
+    const selectedAvailability = (availabilityFilter?.value || "").toLowerCase().trim();
+    // Helper to determine if a status should be treated as available for customers/admin filter
+    function isStatusAvailable(statusText) {
+      if (!statusText) return false;
+      const s = statusText.toLowerCase();
+      // Common unavailable indicators
+      const unavailableKeywords = ['out of stock', 'out-of-stock', 'out', 'unavailable'];
+      for (const kw of unavailableKeywords) {
+        if (s.indexOf(kw) !== -1) return false;
+      }
+      // Common available indicators
+      const availableKeywords = ['available', 'in stock', 'low stock', 'low-stock'];
+      for (const kw of availableKeywords) {
+        if (s.indexOf(kw) !== -1) return true;
+      }
+      // Fallback: treat unspecified statuses as available (so admin can still see them when 'Available' is selected)
+      return true;
+    }
 
     let visibleCount = 0;
     productCards.forEach(card => {
@@ -439,7 +465,18 @@ function setupSearchFilter() {
       const matchesSearch = !searchTerm || name.includes(searchTerm);
       const matchesCategory = !selectedCategory || normalizedCategory === normalizedSelectedCategory || category.includes(selectedCategory);
 
-      const show = matchesSearch && matchesCategory;
+      // Availability matching using robust classifier
+      const status = (card.dataset.status || '').toLowerCase().trim();
+      let matchesAvailability = true;
+      if (selectedAvailability) {
+        if (selectedAvailability === 'available') {
+          matchesAvailability = isStatusAvailable(status);
+        } else if (selectedAvailability === 'unavailable') {
+          matchesAvailability = !isStatusAvailable(status);
+        }
+      }
+
+      const show = matchesSearch && matchesCategory && matchesAvailability;
       
       card.style.display = show ? "" : "none";
       if (show) visibleCount++;
@@ -471,6 +508,7 @@ function setupSearchFilter() {
       e.preventDefault();
       searchInput.value = '';
       categoryFilter.value = '';
+      availabilityFilter.value = '';
       filterProducts();
     });
   }
@@ -492,6 +530,7 @@ function setupSearchFilter() {
   });
   
   categoryFilter.addEventListener("change", filterProducts);
+  availabilityFilter.addEventListener("change", filterProducts);
   
   // Initial filter to ensure everything is visible
   filterProducts();
@@ -520,22 +559,14 @@ function setupSearchFilter() {
  * - Form submission → Collect all customization data → Send as JSON to server
  */
 
-// Order Type to Category mapping
-// Defines which categories are available for each order type
-// Based on new reference:
-// 🟢 Direct Order: Windows, Mirrors & Specialty Glass
-// 🔵 Site Assessment: Doors, Glass Partitions & Enclosures, Commercial & Exterior
-const orderTypeCategories = {
-  "direct": [
-    "Windows",                    // Sliding, Awning, Casement, Fixed Glass
-    "Mirrors & Specialty Glass"   // Mirrors, Top Glass, Glass Board (Small-Scale Items)
-  ],
-  "site-assessment": [
-    "Doors",                      // Sliding, Frameless (Large-Scale)
-    "Glass Partitions & Enclosures", // Frameless Glass, Shower Enclosure (Large-Scale)
-    "Commercial & Exterior"       // Storefront, Glass Balcony, Stair Railings (Large-Scale)
-  ]
-};
+// Unified categories (direct + site-assessment combined)
+const unifiedCategories = [
+  "Windows",
+  "Mirrors & Specialty Glass",
+  "Doors",
+  "Glass Partitions & Enclosures",
+  "Commercial & Exterior"
+];
 
 // Category to Subcategory mapping
 // Maps each main category to its available subcategories
@@ -547,15 +578,7 @@ const categorySubcategories = {
   "Commercial & Exterior": ["Storefront", "Glass Balcony", "Stair Railings"]
 };
 
-// Order Type to Subcategory filtering
-// For "Mirrors & Specialty Glass" category, filter subcategories based on order type
-// Small-Scale (Direct): Mirrors, Top Glass, Glass Board
-// Large-Scale (Site Assessment): All other subcategories if any
-const orderTypeSubcategories = {
-  "Mirrors & Specialty Glass": {
-    "direct": ["Mirrors", "Top Glass", "Glass Board"]
-  }
-};
+// Note: subcategory filtering by order type removed — all subcategories are shown
 
 // Store editable customization fields (can be modified by admin)
 // Load from localStorage if available, otherwise use defaults
@@ -902,6 +925,52 @@ async function saveCustomizationFieldsToDatabase(fieldKeyToSave = null, fieldsTo
   }
 }
 
+/**
+ * Save series presets to database
+ * Stores all series configurations organized by subcategory
+ */
+async function saveSeriesPresetsToDatabase(seriesPresets) {
+  try {
+    if (!seriesPresets || Object.keys(seriesPresets).length === 0) {
+      console.log('No series presets to save');
+      return true;
+    }
+
+    const formData = new FormData();
+    formData.append('seriesPresets', JSON.stringify(seriesPresets));
+
+    const response = await fetch(base_url + 'customizationFields/saveSeriesPresets', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('HTTP error saving series presets:', response.status, text);
+      return false;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response when saving series presets:', text.substring(0, 200));
+      return false;
+    }
+
+    const result = await response.json();
+    if (result.status === 'success') {
+      console.log('Series presets saved successfully to database');
+      return true;
+    } else {
+      console.error('Error saving series presets:', result.message || 'Unknown error');
+      return false;
+    }
+  } catch (e) {
+    console.error('Error saving series presets to database:', e);
+    return false;
+  }
+}
+
 // Store cached default fields to avoid multiple fetches
 let cachedDefaultFields = null;
 
@@ -972,18 +1041,22 @@ async function initializeDefaultCustomizationFields() {
  * @param {HTMLElement} categorySelect - Category select element
  */
 function populateCategories(orderType, categorySelect) {
-  // Clear existing options except the first placeholder
-  categorySelect.innerHTML = '<option value="" disabled selected>Select category</option>';
-  
-  if (orderType && orderTypeCategories[orderType]) {
-    orderTypeCategories[orderType].forEach(category => {
-      const option = document.createElement("option");
-      option.value = category;
-      option.textContent = category;
-      categorySelect.appendChild(option);
-    });
+  // Backwards-compatible signature: allow calling with (categorySelect) only
+  if (!categorySelect) {
+    categorySelect = orderType;
   }
-  
+
+  // Clear existing options and add placeholder
+  categorySelect.innerHTML = '<option value="" disabled selected>Select category</option>';
+
+  // Populate with unified categories
+  unifiedCategories.forEach(category => {
+    const option = document.createElement("option");
+    option.value = category;
+    option.textContent = category;
+    categorySelect.appendChild(option);
+  });
+
   // Clear subcategory when category changes
   const subcategorySelect = document.getElementById("productSubcategory");
   const subcategoryGroup = document.getElementById("subcategoryGroup");
@@ -994,7 +1067,7 @@ function populateCategories(orderType, categorySelect) {
   if (subcategoryGroup) {
     subcategoryGroup.style.display = "none";
   }
-  
+
   // Clear customization fields
   const customizationContainer = document.getElementById("customizationFields");
   if (customizationContainer) {
@@ -1067,12 +1140,7 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
     subcategorySelect.innerHTML = '<option value="" disabled selected>Select subcategory</option>';
     
     if (category && categorySubcategories[category]) {
-      let subcategories = categorySubcategories[category];
-      
-      // Filter subcategories based on order type if category has order-type-specific subcategories
-      if (orderType && orderTypeSubcategories[category] && orderTypeSubcategories[category][orderType]) {
-        subcategories = orderTypeSubcategories[category][orderType];
-      }
+      const subcategories = categorySubcategories[category];
       
       subcategories.forEach(subcat => {
         const option = document.createElement("option");
@@ -1094,7 +1162,7 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
       }
     }
   } catch (error) {
-    console.error('Error in populateSubcategories:', error, { category, orderType });
+    console.error('Error in populateSubcategories:', error, { category });
   }
 }
 
@@ -1201,26 +1269,21 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
     console.warn('populateSubcategories: subcategorySelect is null or invalid');
     return;
   }
-  
+
   try {
-    // Clear existing options and set placeholder with selected attribute
+    // Clear existing options and set placeholder
     subcategorySelect.innerHTML = '<option value="" disabled selected>Select subcategory</option>';
-    
+
     if (category && categorySubcategories[category]) {
-      let subcategories = categorySubcategories[category];
-      
-      // Filter subcategories based on order type if category has order-type-specific subcategories
-      if (orderType && orderTypeSubcategories[category] && orderTypeSubcategories[category][orderType]) {
-        subcategories = orderTypeSubcategories[category][orderType];
-      }
-      
+      const subcategories = categorySubcategories[category];
+
       subcategories.forEach(subcat => {
         const option = document.createElement("option");
         option.value = subcat;
         option.textContent = subcat;
         subcategorySelect.appendChild(option);
       });
-      
+
       // Show subcategory group if subcategories exist
       const subcategoryGroup = document.getElementById("subcategoryGroup");
       if (subcategoryGroup) {
@@ -1234,7 +1297,7 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
       }
     }
   } catch (error) {
-    console.error('Error in populateSubcategories:', error, { category, orderType });
+    console.error('Error in populateSubcategories:', error, { category });
   }
 }
 
@@ -1432,12 +1495,7 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
     subcategorySelect.innerHTML = '<option value="" disabled selected>Select subcategory</option>';
     
     if (category && categorySubcategories[category]) {
-      let subcategories = categorySubcategories[category];
-      
-      // Filter subcategories based on order type if category has order-type-specific subcategories
-      if (orderType && orderTypeSubcategories[category] && orderTypeSubcategories[category][orderType]) {
-        subcategories = orderTypeSubcategories[category][orderType];
-      }
+      const subcategories = categorySubcategories[category];
       
       subcategories.forEach(subcat => {
         const option = document.createElement("option");
@@ -1450,7 +1508,7 @@ function populateSubcategories(category, subcategorySelect, orderType = null) {
       });
     }
   } catch (error) {
-    console.error('Error in populateSubcategories:', error, { category, orderType });
+    console.error('Error in populateSubcategories:', error, { category });
   }
 }
 
@@ -1507,6 +1565,10 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
       <div id="minFieldsWarning" style="color: #d9534f; font-size: 12px; margin-bottom: 15px; padding: 8px; background: #ffe0e0; border-radius: 4px; display: none;">
         <i class="fas fa-info-circle"></i> <strong>Note:</strong> A minimum of 2 fields per step is required.
       </div>
+
+      <div style="color: #856404; font-size: 12px; margin-bottom: 15px; padding: 10px 12px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px;">
+        <i class="fas fa-exclamation-circle" style="margin-right: 5px;"></i> <strong>⚠️ Important:</strong> Fields added or modified here will <strong>NOT</strong> update the 2D Preview. This is for customization configuration purposes only.
+      </div>
       
       <!-- Series Selection Mode - Available for ALL categories and subcategories -->
       <div style="margin-bottom: 25px; padding: 15px; background: #f8f9fa; border-radius: 6px; border: 1px solid #dee2e6;">
@@ -1532,7 +1594,7 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
           </select>
         </div>
         
-        <div id="newSeriesContainer" style="display: none !important; margin-top: 15px;">
+        <div id="newSeriesContainer" style="display: none; margin-top: 15px;">
           <label for="newSeriesNameInput" style="display: block; margin-bottom: 8px; font-weight: 600; color: #333;">New Series Name:</label>
           <input type="text" id="newSeriesNameInput" class="input-text" placeholder="e.g., YC-38 Series" style="width: 100%; padding: 8px;">
         </div>
@@ -2419,9 +2481,10 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
           deleteSeriesBtn.style.display = "none";
         }
         
-        // Hide new series input initially (will show when user types)
-        newSeriesContainer.style.display = "none";
+        // Show new series input container immediately when user selects "Create New Series"
+        newSeriesContainer.style.display = "block";
         newSeriesNameInput.value = "";
+        newSeriesNameInput.focus(); // Auto-focus for better UX
         
       // Show blank fields for new series creation
       showFieldsForMode();
@@ -2447,13 +2510,6 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
   newSeriesNameInput.addEventListener("focus", () => {
       newSeriesContainer.style.display = "block";
     });
-    
-    // Hide on blur if empty
-    newSeriesNameInput.addEventListener("blur", () => {
-      if (!newSeriesNameInput.value.trim()) {
-      newSeriesContainer.style.display = "none";
-    }
-  });
   
   // Ensure it's hidden on initial load
   setTimeout(() => {
@@ -2499,14 +2555,14 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
   
   // Delete series button handler
   if (deleteSeriesBtn) {
-    deleteSeriesBtn.addEventListener("click", () => {
+    deleteSeriesBtn.addEventListener("click", async () => {
         const seriesToDelete = manageSeriesSelect.value;
         if (!seriesToDelete) {
           showToast("Please select a series to delete.", 'error');
           return;
         }
         
-        if (confirm(`Are you sure you want to delete the series "${seriesToDelete}"? This action cannot be undone.`)) {
+        if (await showConfirmationAsync(`Are you sure you want to delete the series "${seriesToDelete}"? This action cannot be undone.`)) {
           // Remove from workingSeriesPresets
           if (workingSeriesPresets[seriesToDelete]) {
             delete workingSeriesPresets[seriesToDelete];
@@ -2572,7 +2628,8 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
   // Load defaults button - loads from JSON file
   document.getElementById("loadDefaultsBtn").onclick = async () => {
     if (workingFields.length > 0) {
-      if (!confirm('Loading defaults will replace all current fields. Continue?')) {
+      const confirmed = await showConfirmationAsync('Loading defaults will replace all current fields. Continue?');
+      if (!confirmed) {
         return;
       }
     }
@@ -2812,6 +2869,11 @@ function showManageCustomizationFields(category, subcategory, productCustomizati
         await saveSelectedTagsToDatabase(fieldKey, selectedTags, category, subcategory);
       }
       
+      // Save series presets to database
+      if (Object.keys(customizationFields["Series_Presets"] || {}).length > 0) {
+        await saveSeriesPresetsToDatabase(customizationFields["Series_Presets"]);
+      }
+      
       if (!saveSuccess) {
         showToast("Failed to save customization fields to database. Please try again.", 'error');
         return;
@@ -2895,6 +2957,11 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
     <div class="popup" style="width: 500px;">
       <span class="close-btn" id="closeFieldModal">&times;</span>
       <h3>${isEdit ? 'Edit' : 'Add'} Customization Field</h3>
+      
+      <div style="color: #856404; font-size: 12px; margin-bottom: 15px; padding: 10px 12px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px;">
+        <i class="fas fa-exclamation-circle" style="margin-right: 5px;"></i> <strong>⚠️ Notice:</strong> This field will <strong>NOT</strong> update the 2D Preview.
+      </div>
+
       <div class="form-group">
         <label for="fieldLabelInput">Field Label</label>
         <input type="text" id="fieldLabelInput" class="text-input" placeholder="e.g., Glass Type" value="${existingField?.label || ''}">
@@ -3023,7 +3090,7 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
   });
   
   // Save field
-  document.getElementById("confirmFieldBtn").onclick = () => {
+  document.getElementById("confirmFieldBtn").onclick = async () => {
     const label = document.getElementById("fieldLabelInput").value.trim();
     const type = fieldTypeSelect.value;
     
@@ -3056,7 +3123,7 @@ function showAddCustomizationFieldModal(fieldKey, category, subcategory, onSave,
     const count = stepCounts[stepNumber] || 0;
     const actualCount = isEdit && (existingField?.stepNumber || 1) === stepNumber ? count - 1 : count;
     if (actualCount >= MAX_FIELDS_PER_STEP && !isEdit) {
-      const proceed = confirm(`Step ${stepNumber} already has ${actualCount} fields. Maximum ${MAX_FIELDS_PER_STEP} fields per step is recommended for better customer experience. Do you want to continue anyway?`);
+      const proceed = await showConfirmationAsync(`Step ${stepNumber} already has ${actualCount} fields. Maximum ${MAX_FIELDS_PER_STEP} fields per step is recommended for better customer experience. Do you want to continue anyway?`);
       if (!proceed) {
         return;
       }
@@ -3569,14 +3636,7 @@ function renderTags(container, options, prefix, fieldId) {
       tag.appendChild(visualIndicator);
     }
     
-    // Add price display for all tags (always show price, even if 0)
-    const priceSpan = document.createElement("span");
-    priceSpan.className = "tag-price";
-    const priceValue = (tagPrices[fieldId] && tagPrices[fieldId][option] !== undefined) 
-      ? parseFloat(tagPrices[fieldId][option]) 
-      : 0;
-    priceSpan.textContent = `(₱${priceValue.toFixed(2)})`;
-    tag.appendChild(priceSpan);
+    // Price display removed — tags now show only name (no price)
     
     // Add form: clickable when series is selected (can unselect). Edit form: click to select/unselect (toggle blue).
     // Both Add and Edit forms allow clicking to toggle selection
@@ -3931,27 +3991,34 @@ function showAddTagDialog(container, prefix, fieldId, isEdit = false, oldTagValu
     tagNameCustomInput.value = "";
   }
   
-  // Populate price
-  tagPriceInput.value = (isEdit && tagPrices[fieldId] && tagPrices[fieldId][oldTagValue] !== undefined) 
-    ? tagPrices[fieldId][oldTagValue] 
-    : "";
-  
-  // Populate image
-  tagImageInput.value = "";
-  if (isEdit && tagImages[fieldId] && tagImages[fieldId][oldTagValue]) {
-    const imgData = tagImages[fieldId][oldTagValue];
-    tagImagePreview.style.display = "block";
-    if (imgData instanceof File) {
-      const reader = new FileReader();
-      reader.onload = (e) => tagImagePreviewImg.src = e.target.result;
-      reader.readAsDataURL(imgData);
+  // Populate price (if input exists)
+  if (tagPriceInput) {
+    tagPriceInput.value = (isEdit && tagPrices[fieldId] && tagPrices[fieldId][oldTagValue] !== undefined)
+      ? tagPrices[fieldId][oldTagValue]
+      : "";
+  }
+
+  // Populate image (if inputs exist)
+  if (tagImageInput && tagImagePreview && tagImagePreviewImg) {
+    try { tagImageInput.value = ""; } catch (e) { /* some browsers prevent setting file input value */ }
+    if (isEdit && tagImages[fieldId] && tagImages[fieldId][oldTagValue]) {
+      const imgData = tagImages[fieldId][oldTagValue];
+      tagImagePreview.style.display = "block";
+      if (imgData instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => tagImagePreviewImg.src = e.target.result;
+        reader.readAsDataURL(imgData);
+      } else {
+        tagImagePreviewImg.src = imgData;
+      }
+      modal.dataset.tagImageFile = typeof imgData === 'string' ? imgData : imgData.name;
     } else {
-      tagImagePreviewImg.src = imgData;
+      tagImagePreview.style.display = "none";
+      tagImagePreviewImg.src = "";
+      modal.dataset.tagImageFile = "";
     }
-    modal.dataset.tagImageFile = typeof imgData === 'string' ? imgData : imgData.name;
   } else {
-    tagImagePreview.style.display = "none";
-    tagImagePreviewImg.src = "";
+    // Ensure dataset is cleared when image UI isn't present
     modal.dataset.tagImageFile = "";
   }
 
@@ -3979,48 +4046,56 @@ function showAddTagDialog(container, prefix, fieldId, isEdit = false, oldTagValu
     };
   }
   
-  // Image upload button click handler
-  tagImageUploadBtn.onclick = () => {
-    tagImageInput.click();
-  };
-  
-  // Image input change handler
-  tagImageInput.onchange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        showToast('Please select a valid image file.', 'error');
-        return;
+  // Image upload handlers (only if elements exist)
+  if (tagImageUploadBtn && tagImageInput) {
+    tagImageUploadBtn.onclick = () => {
+      try { tagImageInput.click(); } catch (e) { /* ignore */ }
+    };
+
+    // Image input change handler
+    tagImageInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+          showToast('Please select a valid image file.', 'error');
+          return;
+        }
+        
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          showToast('Image size must be less than 5MB.', 'error');
+          return;
+        }
+        
+        // Create preview (if preview elements exist)
+        if (tagImagePreview && tagImagePreviewImg) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            tagImagePreviewImg.src = event.target.result;
+            tagImagePreview.style.display = "block";
+            modal.dataset.tagImageFile = file.name; // Store filename for reference
+          };
+          reader.readAsDataURL(file);
+        } else {
+          modal.dataset.tagImageFile = file.name;
+        }
       }
-      
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        showToast('Image size must be less than 5MB.', 'error');
-        return;
-      }
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        tagImagePreviewImg.src = event.target.result;
-        tagImagePreview.style.display = "block";
-        modal.dataset.tagImageFile = file.name; // Store filename for reference
+    };
+
+    // Remove image handler (if remove btn exists)
+    if (tagImageRemoveBtn) {
+      tagImageRemoveBtn.onclick = () => {
+        try { tagImageInput.value = ""; } catch (e) { /* ignore */ }
+        if (tagImagePreview) tagImagePreview.style.display = "none";
+        if (tagImagePreviewImg) tagImagePreviewImg.src = "";
+        modal.dataset.tagImageFile = "";
       };
-      reader.readAsDataURL(file);
     }
-  };
-  
-  // Remove image handler
-  tagImageRemoveBtn.onclick = () => {
-    tagImageInput.value = "";
-    tagImagePreview.style.display = "none";
-    tagImagePreviewImg.src = "";
-    modal.dataset.tagImageFile = "";
+  }
     
     // If editing, also remove from global storage immediately or on confirm? 
     // Best to wait for confirm.
-  };
   
   // ===== KONVA VISUAL CONFIG SETUP (FULLY DYNAMIC) =====
   // Show visual config for ALL tag fields - admin has full flexibility
@@ -4261,8 +4336,8 @@ function showAddTagDialog(container, prefix, fieldId, isEdit = false, oldTagValu
       tagValue = tagNameInput.value.trim();
     }
     
-    const tagPrice = parseFloat(tagPriceInput.value) || 0;
-    const tagImageFile = tagImageInput.files[0];
+    const tagPrice = tagPriceInput ? (parseFloat(tagPriceInput.value) || 0) : 0;
+    const tagImageFile = (tagImageInput && tagImageInput.files && tagImageInput.files.length > 0) ? tagImageInput.files[0] : null;
     
     if (!tagValue) {
       showToast(isShapeField ? "Please select a shape." : "Please enter a tag name.", 'error');
@@ -4341,26 +4416,24 @@ function showAddTagDialog(container, prefix, fieldId, isEdit = false, oldTagValu
     
     container.dataset.availableOptions = JSON.stringify(availableOptions);
     
-    // Store/Update tag price
-    if (!tagPrices[fieldId]) {
-      tagPrices[fieldId] = {};
+    // Store/Update tag price only if price input exists
+    if (tagPriceInput) {
+      if (!tagPrices[fieldId]) tagPrices[fieldId] = {};
+      tagPrices[fieldId][tagValue] = tagPrice;
     }
-    tagPrices[fieldId][tagValue] = tagPrice;
-    
-    // Store/Update tag image if provided
-    if (tagImageFile) {
-      if (!tagImages[fieldId]) {
-        tagImages[fieldId] = {};
-      }
-      // Store the file object - will be uploaded when product is saved
+
+    // Store/Update tag image only if image UI exists and a file was provided
+    if (tagImageInput && tagImageFile) {
+      if (!tagImages[fieldId]) tagImages[fieldId] = {};
       tagImages[fieldId][tagValue] = tagImageFile;
-    } else if (modal.dataset.tagImageFile === "" && tagImages[fieldId]) {
-      // Image was removed
-      delete tagImages[fieldId][tagValue];
     }
-    
-    // Store visual config - only if toggle is enabled
-    const visualConfig = collectKonvaVisualConfig();
+
+    // Store visual config only when the visual preview toggle exists and is enabled
+    let visualConfig = null;
+    const enableToggleEl = document.getElementById("enableVisualPreview");
+    if (typeof collectKonvaVisualConfig === 'function' && enableToggleEl && enableToggleEl.checked) {
+      visualConfig = collectKonvaVisualConfig();
+    }
     
     // CRITICAL: Ensure tagVisualConfigs is an object, not an array
     // This can happen if PHP returns [] instead of {} for empty configs
@@ -4406,19 +4479,24 @@ function showAddTagDialog(container, prefix, fieldId, isEdit = false, oldTagValu
   }
   
   // Enter key for custom shape input
-  tagNameCustomInput.onkeypress = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      confirmBtn.click();
-    }
-  };
-  
-  tagPriceInput.onkeypress = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      confirmBtn.click();
-    }
-  };
+  if (tagNameCustomInput) {
+    tagNameCustomInput.onkeypress = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        confirmBtn.click();
+      }
+    };
+  }
+
+  // Enter key for price input (if present)
+  if (tagPriceInput) {
+    tagPriceInput.onkeypress = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        confirmBtn.click();
+      }
+    };
+  }
   
   // Enter key for dropdown (select)
   if (isShapeField) {
@@ -6369,23 +6447,18 @@ function setupProductPopups() {
 
   let productBeingEdited = null;
 
-  // Initialize categories based on default order type (direct)
+  // Initialize categories (unified)
   if (addCategorySelect) {
-    populateCategories("direct", addCategorySelect);
+    populateCategories(addCategorySelect);
   }
-
-  // Get orderTypeInput early to avoid reference errors
-  const orderTypeInput = document.getElementById("productOrderType");
 
   // ---------- ADD MODAL: Category Change Handler ----------
   addCategorySelect?.addEventListener("change", function() {
     const selectedCategory = this.value;
     if (selectedCategory) {
-      // Get current order type
-      const currentOrderType = orderTypeInput ? orderTypeInput.value : "direct";
-      // Show subcategory dropdown and populate it (with order type filtering)
+      // Show subcategory dropdown and populate it
       if (addSubcategoryGroup) addSubcategoryGroup.style.display = "block";
-      if (addSubcategorySelect) populateSubcategories(selectedCategory, addSubcategorySelect, currentOrderType);
+      if (addSubcategorySelect) populateSubcategories(selectedCategory, addSubcategorySelect);
       // Clear customization fields until subcategory is selected
       if (addCustomizationContainer) addCustomizationContainer.innerHTML = "";
     } else {
@@ -6753,16 +6826,16 @@ function setupProductPopups() {
     let description = addDescriptionInput ? addDescriptionInput.value.trim() : '';
     let categoryEl = document.getElementById("productCategory");
     let subcategoryEl = document.getElementById("productSubcategory");
-    let orderTypeEl = document.getElementById("productOrderType");
     let priceMinEl = document.getElementById("productPriceMin");
     let priceMaxEl = document.getElementById("productPriceMax");
     let category = categoryEl ? categoryEl.value : '';
     let subcategory = subcategoryEl ? subcategoryEl.value : '';
-    let orderType = orderTypeEl ? orderTypeEl.value : '';
+    // Order type removed from UI; keep empty string for backward compatibility
+    let orderType = '';
     let priceMin = priceMinEl ? parseFloat(priceMinEl.value) : 0;
     let priceMax = priceMaxEl ? parseFloat(priceMaxEl.value) : 0;
 
-    if (!name || !category || !orderType) {
+    if (!name || !category) {
       showToast("Please complete all required fields.", 'error');
       return;
     }
@@ -6998,14 +7071,33 @@ function populateEditForm(product) {
   
   if (editNameInput) editNameInput.value = product.ProductName || '';
   if (editDescriptionInput) editDescriptionInput.value = product.Description || '';
+
+  // Populate availability/status control (edit)
+  const editAvailabilityEl = document.getElementById("editProductAvailability");
+  if (editAvailabilityEl) {
+    const statusRaw = (product.Status || product.status || '').toString().trim().toLowerCase();
+    // If it's a checkbox (label: "Unavailable"), check it when status is 'unavailable'
+    if (editAvailabilityEl.type === 'checkbox') {
+      // Treat any variant that contains 'unavail' as unavailable (handles whitespace/case/noise)
+      editAvailabilityEl.checked = (statusRaw.indexOf('unavail') !== -1);
+    } else {
+      if (statusRaw.indexOf('avail') !== -1 && statusRaw.indexOf('unavail') === -1) {
+        editAvailabilityEl.value = 'available';
+      } else if (statusRaw.indexOf('unavail') !== -1) {
+        editAvailabilityEl.value = 'unavailable';
+      } else {
+        // Default to available if status is missing/unknown
+        editAvailabilityEl.value = 'available';
+      }
+    }
+  }
   
   // Populate price range
   if (editPriceMinInput) editPriceMinInput.value = product.PriceMin || '';
   if (editPriceMaxInput) editPriceMaxInput.value = product.PriceMax || '';
   
-  // Set order type
-  const orderType = product.OrderType || 'direct';
-  if (editOrderTypeInput) editOrderTypeInput.value = orderType;
+  // Note: Order type concept removed — keep any existing value but do not rely on it
+  const orderType = product.OrderType || '';
   if (editDirectOrderBtn && editSiteAssessmentBtn) {
     [editDirectOrderBtn, editSiteAssessmentBtn].forEach(btn => btn.classList.remove("active"));
     if (orderType === "direct") {
@@ -7014,10 +7106,10 @@ function populateEditForm(product) {
       editSiteAssessmentBtn.classList.add("active");
     }
   }
-  
-  // Populate categories based on order type (read-only)
+
+  // Populate categories (unified) for edit form (read-only)
   if (editCategoryEl) {
-    populateCategories(orderType, editCategoryEl);
+    populateCategories(editCategoryEl);
     if (product.Category) {
       const categoryValue = String(product.Category).trim();
       
@@ -7868,6 +7960,15 @@ function setupEditPopupHandlers() {
     if (editOrderTypeInput) editOrderTypeInput.value = "direct";
     if (editDirectBtn) editDirectBtn.classList.add("active");
     if (editSiteAssessBtn) editSiteAssessBtn.classList.remove("active");
+    // Reset availability control
+    const editAvailabilityElClose = document.getElementById("editProductAvailability");
+    if (editAvailabilityElClose) {
+      if (editAvailabilityElClose.type === 'checkbox') {
+        editAvailabilityElClose.checked = false; // default to Available
+      } else {
+        editAvailabilityElClose.value = 'available';
+      }
+    }
     
     // Reset tabs
     const editCustTab = document.getElementById("editCustomizeTab");
@@ -8026,6 +8127,19 @@ function setupEditPopupHandlers() {
     
     // Add role parameter
     formData.append("user_role", "Admin");
+
+    // Include availability/status from edit form so backend can persist it
+    const editAvailabilityEl = document.getElementById("editProductAvailability");
+    if (editAvailabilityEl) {
+      let availabilityValue;
+      if (editAvailabilityEl.type === 'checkbox') {
+        // Checkbox labeled 'Unavailable' -> checked means 'unavailable'
+        availabilityValue = editAvailabilityEl.checked ? 'unavailable' : 'available';
+      } else {
+        availabilityValue = editAvailabilityEl.value;
+      }
+      formData.append("editProductAvailability", availabilityValue);
+    }
 
     // Append all new images if any are uploaded
     uploadedImages.edit.forEach((file, index) => {

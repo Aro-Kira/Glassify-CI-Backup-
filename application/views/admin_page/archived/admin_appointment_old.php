@@ -552,12 +552,12 @@ function openEditModal(appointmentId) {
                 
                 document.getElementById('editProgressPopupOverlay').style.display = 'flex';
             } else {
-                alert('Error loading appointment details: ' + data.message);
+                showToast('Error loading appointment details: ' + data.message, 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error loading appointment details');
+            showToast('Error loading appointment details', 'error');
         });
 }
 
@@ -581,16 +581,16 @@ function saveAppointmentChanges() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Appointment updated successfully!');
+            showToast('Appointment updated successfully!', 'success');
             closePopup();
             loadAppointments(); // This will also refresh the calendar
         } else {
-            alert('Error: ' + data.message);
+            showToast('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error updating appointment');
+        showToast('Error updating appointment', 'error');
     });
 }
 
@@ -602,7 +602,7 @@ function deleteAppointment() {
     const appointmentId = document.getElementById('edit-appointment-id').value;
     
     if (!appointmentId) {
-        alert('Error: Appointment ID not found');
+        showToast('Error: Appointment ID not found', 'error');
         return;
     }
     
@@ -616,17 +616,17 @@ function deleteAppointment() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Appointment deleted successfully!');
+            showToast('Appointment deleted successfully!', 'success');
             closePopup();
             loadAppointments(); // Refresh the appointments table
             loadAppointmentsForCalendar(); // Refresh the calendar
         } else {
-            alert('Error: ' + data.message);
+            showToast('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error deleting appointment');
+        showToast('Error deleting appointment', 'error');
     });
 }
 

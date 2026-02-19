@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Orders AJAX</title>
+</head>
+<body>
+    <h1>Testing Orders AJAX Call</h1>
+    <button onclick="testCall()">Test AJAX Call</button>
+    <div id="output" style="white-space: pre-wrap; margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+    
+    <script>
+        async function testCall() {
+            const output = document.getElementById('output');
+            output.textContent = 'Making request...';
+            
+            try {
+                const url = 'http://localhost/Glassify-CI/AdminCon/get_orders_ajax?status=all&page=1&limit=10';
+                console.log('Calling:', url);
+                
+                const response = await fetch(url, {
+                    credentials: 'same-origin'
+                });
+                
+                console.log('Status:', response.status);
+                const text = await response.text();
+                console.log('Response:', text);
+                
+                output.textContent = `Status: ${response.status}\n\n${text}`;
+                
+                try {
+                    const json = JSON.parse(text);
+                    output.textContent += '\n\n=== Parsed JSON ===\n' + JSON.stringify(json, null, 2);
+                } catch(e) {
+                    output.textContent += '\n\nCould not parse as JSON';
+                }
+            } catch (error) {
+                output.textContent = 'Error: ' + error.message;
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>

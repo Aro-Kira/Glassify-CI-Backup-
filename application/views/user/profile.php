@@ -49,25 +49,29 @@ function get_status_class($status) {
             <!-- Left Sidebar Navigation -->
             <aside class="profile-sidebar">
                 <nav class="sidebar-nav">
-                    <a href="#account-details" class="nav-item <?php echo $current_section === 'account-details' ? 'active' : ''; ?>" onclick="switchSection('account-details', this)">
+                    <a href="#account-details" class="nav-item <?php echo $current_section === 'account-details' ? 'active' : ''; ?>" onclick="event.preventDefault(); switchSection('account-details', this)">
                         <i class="fas fa-user"></i>
                         <span>Account details</span>
                     </a>
                     <div class="nav-group <?php echo $current_section === 'orders' ? 'expanded' : ''; ?>" id="orders-nav-group">
-                        <a href="#orders" class="nav-item <?php echo $current_section === 'orders' ? 'active' : ''; ?>" onclick="toggleOrdersDropdown(event, this)">
+                        <a href="#orders" class="nav-item <?php echo $current_section === 'orders' ? 'active' : ''; ?>" onclick="event.preventDefault(); toggleOrdersDropdown(event, this)">
                             <i class="fas fa-envelope"></i>
                             <span>Orders</span>
                             <i class="fas fa-chevron-down dropdown-arrow"></i>
                         </a>
                         <div class="nav-sub-items">
-                            <a href="#ongoing-orders" class="nav-sub-item" onclick="showOrderCategory('ongoing-orders', this)">Ongoing Orders</a>
-                            <a href="#completed-orders" class="nav-sub-item" onclick="showOrderCategory('completed-orders', this)">Completed Orders</a>
-                            <a href="#cancelled-orders" class="nav-sub-item" onclick="showOrderCategory('cancelled-orders', this)">Cancelled Orders</a>
+                            <a href="#ongoing-orders" class="nav-sub-item" onclick="event.preventDefault(); showOrderCategory('ongoing-orders', this)">Ongoing Orders</a>
+                            <a href="#completed-orders" class="nav-sub-item" onclick="event.preventDefault(); showOrderCategory('completed-orders', this)">Completed Orders</a>
+                            <a href="#cancelled-orders" class="nav-sub-item" onclick="event.preventDefault(); showOrderCategory('cancelled-orders', this)">Cancelled Orders</a>
                         </div>
                     </div>
-                    <a href="#addresses" class="nav-item <?php echo $current_section === 'addresses' ? 'active' : ''; ?>" onclick="switchSection('addresses', this)">
+                    <a href="#addresses" class="nav-item <?php echo $current_section === 'addresses' ? 'active' : ''; ?>" onclick="event.preventDefault(); switchSection('addresses', this)">
                         <i class="fas fa-home"></i>
                         <span>Addresses</span>
+                    </a>
+                    <a href="#user-experience" class="nav-item <?php echo $current_section === 'user-experience' ? 'active' : ''; ?>" onclick="event.preventDefault(); switchSection('user-experience', this)">
+                        <i class="fas fa-user-cog"></i>
+                        <span>Skill Level</span>
                     </a>
                     <a href="<?php echo base_url('logout'); ?>" class="nav-item">
                         <i class="fas fa-sign-out-alt"></i>
@@ -114,23 +118,41 @@ function get_status_class($status) {
                             <table class="styled-table">
                                 <thead>
                                     <tr>
-                                        <th>Product Image</th>
-                                        <th>Product Name</th>
-                                        <th>Price</th>
+                                        <th>Order Number</th>
+                                        <th>Product</th>
                                         <th>Quantity</th>
-                                        <th>Total Price</th>
-                                        <th>Action</th>
+                                        <th>Total Amount</th>
+                                        <th>Order Status</th>
+                                        <th>Order Date</th>
+                                        <th>View Details</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php foreach ($orders as $order): ?>
                                         <tr>
                                             <td>
+                                                <?php
+                                                $display_order = '';
+                                                if (!empty($order->OrderNumber)) {
+                                                    $on = $order->OrderNumber;
+                                                    if (preg_match('/^\d+$/', $on)) {
+                                                        $display_order = 'GI' . str_pad($on, 3, '0', STR_PAD_LEFT);
+                                                    } else {
+                                                        $display_order = htmlspecialchars($on);
+                                                    }
+                                                } elseif (!empty($order->OrderID)) {
+                                                    $display_order = htmlspecialchars($order->OrderID);
+                                                } else {
+                                                    $display_order = '-';
+                                                }
+                                                echo $display_order;
+                                                ?>
+                                            </td>
+                                            <td style="display: flex; align-items: center; gap: 10px;">
                                                 <?php 
                                                 $image_raw = $order->ImageUrl ?? '';
                                                 $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
                                                 $product_img = $placeholder_svg;
-                                                
                                                 if (!empty($image_raw)) {
                                                     $decoded = json_decode($image_raw, true);
                                                     $first_image = '';
@@ -139,7 +161,6 @@ function get_status_class($status) {
                                                     } else {
                                                         $first_image = $image_raw;
                                                     }
-                                                    
                                                     if (!empty($first_image) && strpos($first_image, 'broken-image-icon') === false) {
                                                         if (strpos($first_image, 'http') === 0) {
                                                             $product_img = $first_image;
@@ -151,12 +172,41 @@ function get_status_class($status) {
                                                     }
                                                 }
                                                 ?>
-                                                <img src="<?= $product_img ?>" alt="Product" class="product-thumb" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px;">
+                                                <img src="<?= $product_img ?>" alt="Product" class="product-thumb" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px;">
+                                                <span><?= htmlspecialchars($order->ProductName ?? 'Custom Order') ?></span>
                                             </td>
-                                            <td><?= htmlspecialchars($order->ProductName ?? 'Custom Order') ?></td>
-                                            <td>₱<?= number_format($order->ItemPrice ?? ($order->TotalAmount / ($order->Quantity ?: 1)), 2) ?></td>
-                                            <td><?= $order->Quantity ?: 1 ?></td>
-                                            <td style="font-weight: 600; color: #0f2b46;">₱<?= number_format($order->TotalAmount, 2) ?></td>
+                                            <?php
+                                            // Ensure quantity has a sensible fallback
+                                            $qty = (!empty($order->Quantity) && intval($order->Quantity) > 0) ? intval($order->Quantity) : 1;
+                                            // Compute total if missing or zero
+                                            $total = (!empty($order->TotalAmount) && floatval($order->TotalAmount) > 0) ? floatval($order->TotalAmount) : (floatval($order->EstimatePrice ?? 0) * $qty);
+                                            ?>
+                                            <td><?= $qty ?></td>
+                                            <td style="font-weight: 600; color: #0f2b46;">₱<?= number_format($total, 2) ?></td>
+                                            <td>
+                                                <?php
+                                                // Unified order status display - all orders follow same process
+                                                $status = strtolower(trim($order->Status));
+                                                if ($status === 'booking requested') {
+                                                    echo 'Booking Requested';
+                                                } elseif ($status === 'ocular visit' || $status === 'ocular pending') {
+                                                    echo 'Ocular Visit';
+                                                } elseif ($status === 'in fabrication') {
+                                                    echo 'In Fabrication';
+                                                } elseif ($status === 'ready for installation' || $status === 'installation') {
+                                                    echo 'Installation';
+                                                } elseif ($status === 'completed') {
+                                                    echo 'Completed';
+                                                } elseif ($status === 'approved') {
+                                                    echo 'Approved';
+                                                } elseif ($status === 'pending review') {
+                                                    echo 'Pending Review';
+                                                } else {
+                                                    echo ucfirst($status);
+                                                }
+                                                ?>
+                                            </td>
+                                            <td><?= !empty($order->OrderDate) ? date('Y-m-d', strtotime($order->OrderDate)) : '' ?></td>
                                             <td>
                                                 <a href="<?= base_url('track_order?order=' . $order->OrderID) ?>" class="btn-view-details">View Details</a>
                                             </td>
@@ -169,35 +219,52 @@ function get_status_class($status) {
                     }
                     ?>
 
-                    <div class="order-categories">
-                        <!-- Content area -->
-                        <div class="order-category-content-area">
-                            <div id="ongoing-orders" class="category-content active">
-                                <h4 style="margin: 0 0 20px 0; color: #0f2b46;">Ongoing Orders (<?= count($ongoing_orders) ?>)</h4>
-                                <?php render_order_table($ongoing_orders, 'ongoing-orders'); ?>
-                            </div>
-                            <div id="completed-orders" class="category-content">
-                                <h4 style="margin: 0 0 20px 0; color: #0f2b46;">Completed Orders (<?= count($completed_orders) ?>)</h4>
-                                <?php render_order_table($completed_orders, 'completed-orders'); ?>
-                            </div>
-                            <div id="cancelled-orders" class="category-content">
-                                <h4 style="margin: 0 0 20px 0; color: #0f2b46;">Cancelled Orders (<?= count($cancelled_orders) ?>)</h4>
-                                <?php render_order_table($cancelled_orders, 'cancelled-orders'); ?>
-                            </div>
+                    <!-- Order Content Area - No left menu, just content -->
+                    <div class="order-content-wrapper">
+                        <div id="ongoing-orders" class="category-content active">
+                            <h4 style="margin: 0 0 20px 0; color: #0f2b46;">Ongoing Orders (<?= count($ongoing_orders) ?>)</h4>
+                            <?php render_order_table($ongoing_orders, 'ongoing-orders'); ?>
+                        </div>
+                        <div id="completed-orders" class="category-content">
+                            <h4 style="margin: 0 0 20px 0; color: #0f2b46;">Completed Orders (<?= count($completed_orders) ?>)</h4>
+                            <?php render_order_table($completed_orders, 'completed-orders'); ?>
+                        </div>
+                        <div id="cancelled-orders" class="category-content">
+                            <h4 style="margin: 0 0 20px 0; color: #0f2b46;">Cancelled Orders (<?= count($cancelled_orders) ?>)</h4>
+                            <?php render_order_table($cancelled_orders, 'cancelled-orders'); ?>
                         </div>
                     </div>
 
                     <script>
-                        function toggleOrdersDropdown(event, element) {
-                            const group = element.closest('.nav-group');
-                            group.classList.toggle('expanded');
+                        function selectOrderCategory(categoryId) {
+                            // Hide all category contents
+                            document.querySelectorAll('.category-content').forEach(content => {
+                                content.classList.remove('active');
+                            });
                             
-                            // If it's the main orders section click, show the first sub-item content
-                            if (!element.classList.contains('nav-sub-item')) {
+                            // Show the selected category content
+                            const targetContent = document.getElementById(categoryId);
+                            if (targetContent) {
+                                targetContent.classList.add('active');
+                            }
+                        }
+
+                        function toggleOrdersDropdown(event, element) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            
+                            const group = element.closest('.nav-group');
+                            
+                            // Toggle dropdown expanded state
+                            if (group.classList.contains('expanded')) {
+                                // Already expanded, just show orders section
                                 switchSection('orders', element);
-                                // Default to ongoing
-                                const firstSub = group.querySelector('.nav-sub-item');
-                                if (firstSub) showOrderCategory('ongoing-orders', firstSub);
+                            } else {
+                                // Expand the dropdown
+                                group.classList.add('expanded');
+                                
+                                // Show the orders section
+                                switchSection('orders', element);
                             }
                         }
 
@@ -230,15 +297,28 @@ function get_status_class($status) {
                         }
 
                         function showOrderCategory(categoryId, element) {
+                            // This function is called from sidebar sub-items
                             // Ensure Orders section is visible
                             document.querySelectorAll('.content-section').forEach(sec => {
                                 sec.style.display = 'none';
                             });
                             document.getElementById('orders').style.display = 'block';
 
-                            // Hide all contents
-                            document.querySelectorAll('.category-content').forEach(content => {
-                                content.classList.remove('active');
+                            // Update category selection using the selectOrderCategory function
+                            selectOrderCategory(categoryId);
+                            
+                            // Find and activate the corresponding tab in the left menu
+                            const tabItem = document.querySelector(`.order-category-item[data-category="${categoryId}"]`);
+                            if (tabItem) {
+                                document.querySelectorAll('.order-category-item').forEach(item => {
+                                    item.classList.remove('active');
+                                });
+                                tabItem.classList.add('active');
+                            }
+                            
+                            // Deactivate ALL main nav items
+                            document.querySelectorAll('.nav-item').forEach(item => {
+                                item.classList.remove('active');
                             });
                             
                             // Deactivate all sub-items
@@ -246,18 +326,15 @@ function get_status_class($status) {
                                 item.classList.remove('active');
                             });
                             
-                            // Show selected content
-                            document.getElementById(categoryId).classList.add('active');
+                            // Expand the orders dropdown
+                            const ordersGroup = document.getElementById('orders-nav-group');
+                            if (ordersGroup) {
+                                ordersGroup.classList.add('expanded');
+                            }
                             
-                            // Activate selected sub-item
+                            // Activate ONLY the selected sub-item (this will be blue)
                             element.classList.add('active');
                             
-                            // Update main orders nav as active
-                            document.querySelectorAll('.nav-item').forEach(item => {
-                                item.classList.remove('active');
-                            });
-                            document.getElementById('orders-nav-group').querySelector('.nav-item').classList.add('active');
-
                             // Scroll to top
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                         }
@@ -434,8 +511,352 @@ function get_status_class($status) {
                     </div>
                 </div>
 
+                <!-- Skill Level Section -->
+                <div id="user-experience" class="content-section">
+                    <h3>Skill Level</h3>
+                    <p class="section-description">Tell us about your skill level so we can guide you properly.</p>
+                    
+                    <?php if (isset($setup_status) && $setup_status !== 'completed'): ?>
+                        <div class="incomplete-setup-notice" style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 1rem; margin-bottom: 1.5rem;">
+                            <i class="fas fa-exclamation-circle" style="color: #856404;"></i>
+                            <span style="color: #856404;">Your experience setup is incomplete. Please complete all required fields.</span>
+                        </div>
+                    <?php endif; ?>
+
+                    <form id="experienceForm" class="experience-form">
+                        <input type="hidden" name="role" id="experience-role-input" value="<?php echo isset($customer_role) ? htmlspecialchars($customer_role) : 'beginner'; ?>">
+                        <!-- Role (read-only with request change) -->
+                        <div class="experience-field">
+                            <label class="experience-label">Role <span class="required">*</span></label>
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span id="user-role-badge" class="role-badge"><?php echo isset($customer_role) ? htmlspecialchars(ucfirst($customer_role)) : 'Beginner'; ?></span>
+                                <button type="button" id="btn-request-role" class="btn-link">Request change</button>
+                            </div>
+                        </div>
+
+                        <?php
+                        // Extract professional type from experience_data
+                        $professional_type = '';
+                        if (isset($experience_data) && isset($experience_data['professional_type'])) {
+                            $prof_type = $experience_data['professional_type'];
+                            // Check if it's one of the predefined types
+                            if (in_array(strtolower($prof_type), ['architect', 'engineer', 'contractor'])) {
+                                $professional_type = strtolower($prof_type);
+                            } else {
+                                $professional_type = 'other';
+                            }
+                        }
+                        ?>
+
+                        <!-- Professional Type (shown only if Professional) -->
+                        <div class="experience-field professional-only" style="<?php echo (isset($customer_role) && $customer_role === 'professional') ? '' : 'display: none;'; ?>">
+                            <label class="experience-label">Professional Type <span class="required">*</span></label>
+                            <div class="experience-options">
+                                <label class="experience-option">
+                                    <input type="radio" name="professional_type" value="architect" 
+                                        <?php echo ($professional_type === 'architect') ? 'checked' : ''; ?>>
+                                    <span>Architect</span>
+                                </label>
+                                <label class="experience-option">
+                                    <input type="radio" name="professional_type" value="engineer" 
+                                        <?php echo ($professional_type === 'engineer') ? 'checked' : ''; ?>>
+                                    <span>Engineer</span>
+                                </label>
+                                <label class="experience-option">
+                                    <input type="radio" name="professional_type" value="contractor" 
+                                        <?php echo ($professional_type === 'contractor') ? 'checked' : ''; ?>>
+                                    <span>Contractor</span>
+                                </label>
+                                <label class="experience-option">
+                                    <input type="radio" name="professional_type" value="other" id="professional-type-other"
+                                        <?php echo ($professional_type === 'other') ? 'checked' : ''; ?>>
+                                    <span>Other</span>
+                                </label>
+                            </div>
+                            <div id="other-professional-type-input" style="<?php echo ($professional_type === 'other' && isset($customer_role) && $customer_role === 'professional') ? '' : 'display: none;'; ?> margin-top: 10px;">
+                                <input type="text" name="other_professional_type" id="other_professional_type" 
+                                    placeholder="Please specify your professional type" 
+                                    value="<?php echo (isset($experience_data) && isset($experience_data['professional_type']) && !in_array(strtolower($experience_data['professional_type']), ['architect', 'engineer', 'contractor'])) ? htmlspecialchars($experience_data['professional_type']) : ''; ?>"
+                                    style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            </div>
+                        </div>
+
+                        <!-- BEGINNER FIELDS -->
+                        <div class="beginner-fields" style="<?php echo (isset($customer_role) && $customer_role === 'beginner') ? '' : 'display: none;'; ?>">
+                            <!-- Question 2: Ever ordered product with specifications -->
+                            <div class="experience-field">
+                                <label class="experience-label">Have you ever ordered a product that required specifications?</label>
+                                <div class="experience-options">
+                                    <label class="experience-option">
+                                        <input type="radio" name="beginner_experience" value="first_time" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['experience']) && $experience_data['experience'] === 'first_time') ? 'checked' : ''; ?>>
+                                        <span>No, this is my first time</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="beginner_experience" value="once_twice" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['experience']) && $experience_data['experience'] === 'once_twice') ? 'checked' : ''; ?>>
+                                        <span>Yes, once or twice</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="beginner_experience" value="several_times" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['experience']) && $experience_data['experience'] === 'several_times') ? 'checked' : ''; ?>>
+                                        <span>Yes, several times</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Question 3: Familiar with specifications -->
+                            <div class="experience-field">
+                                <label class="experience-label">Are you familiar with reading or providing product specifications (sizes, profiles, materials)?</label>
+                                <div class="experience-options">
+                                    <label class="experience-option">
+                                        <input type="radio" name="beginner_specifications" value="not_at_all" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['specifications_knowledge']) && $experience_data['specifications_knowledge'] === 'not_at_all') ? 'checked' : ''; ?>>
+                                        <span>Not at all</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="beginner_specifications" value="a_little" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['specifications_knowledge']) && $experience_data['specifications_knowledge'] === 'a_little') ? 'checked' : ''; ?>>
+                                        <span>A little</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="beginner_specifications" value="yes_need_guidance" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['specifications_knowledge']) && $experience_data['specifications_knowledge'] === 'yes_need_guidance') ? 'checked' : ''; ?>>
+                                        <span>Yes, but I still need guidance</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Question 4: Customization handling -->
+                            <div class="experience-field">
+                                <label class="experience-label">How would you like your product customization to be handled after the ocular visit?</label>
+                                <p style="font-size: 0.9em; color: #666; margin-top: 0.25rem; margin-bottom: 0.75rem;">Note: Beginner users cannot create customization themselves. This affects review/approval flow only.</p>
+                                <div class="experience-options">
+                                    <label class="experience-option">
+                                        <input type="radio" name="beginner_customization_handling" value="prepare_for_me" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['customization_handling']) && $experience_data['customization_handling'] === 'prepare_for_me') ? 'checked' : ''; ?>>
+                                        <span>I prefer GlassWorth Builders to prepare the customization for me</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="beginner_customization_handling" value="review_and_approve" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['customization_handling']) && $experience_data['customization_handling'] === 'review_and_approve') ? 'checked' : ''; ?>>
+                                        <span>I want to review and approve the customization prepared for me</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Read-only notice for Beginners -->
+                            <div class="info-box" style="background: #e7f3ff; border-left: 4px solid #2196F3; padding: 1rem; margin-top: 1rem;">
+                                <i class="fas fa-info-circle" style="color: #2196F3;"></i>
+                                <span style="color: #1976D2; margin-left: 0.5rem;">Product customization will be prepared after your ocular visit.</span>
+                            </div>
+                        </div>
+
+                        <!-- Role Request Modal -->
+                        <div id="roleRequestModal" class="modal" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:10000;">
+                            <div style="background:#fff; width:520px; max-width:95%; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.2); overflow:hidden;">
+                                <div style="padding:14px 18px; background:#02455F; color:#fff; display:flex; justify-content:space-between; align-items:center;">
+                                    <strong>Apply to change role</strong>
+                                    <button type="button" id="roleModalClose" style="background:transparent; border:none; color:#fff; font-size:20px; cursor:pointer;">×</button>
+                                </div>
+                                <div style="padding:18px;">
+                                    <p>Please answer the following with <strong>Yes</strong> or <strong>No</strong> (these are self-declared):</p>
+                                    <div style="margin-bottom:12px;">
+                                        <label for="requestedRoleSelect">Change role to</label>
+                                        <div style="margin-top:6px;">
+                                            <select id="requestedRoleSelect" style="padding:6px;border:1px solid #ddd;border-radius:4px;">
+                                                <option value="Professional">Professional</option>
+                                                <option value="Beginner">Beginner</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div style="margin-bottom:12px;">
+                                        <label>1. I can read product specifications and measurements</label>
+                                        <div style="margin-top:6px;">
+                                            <label style="margin-right:12px;"><input type="radio" name="r1" value="Yes" checked> Yes</label>
+                                            <label><input type="radio" name="r1" value="No"> No</label>
+                                        </div>
+                                    </div>
+                                    <div style="margin-bottom:12px;">
+                                        <label>2. I have the necessary tools to perform customizations</label>
+                                        <div style="margin-top:6px;">
+                                            <label style="margin-right:12px;"><input type="radio" name="r2" value="Yes" checked> Yes</label>
+                                            <label><input type="radio" name="r2" value="No"> No</label>
+                                        </div>
+                                    </div>
+                                    <div style="margin-bottom:12px;">
+                                        <label>3. I have performed product customizations before</label>
+                                        <div style="margin-top:6px;">
+                                            <label style="margin-right:12px;"><input type="radio" name="r3" value="Yes" checked> Yes</label>
+                                            <label><input type="radio" name="r3" value="No"> No</label>
+                                        </div>
+                                    </div>
+
+                                    <div style="margin-top:8px;">
+                                        <label for="roleComment">Optional comment (max 40 chars)</label>
+                                        <input id="roleComment" type="text" maxlength="40" placeholder="Optional reason (40 chars)" style="width:100%; padding:8px; border:1px solid #d1d5db; border-radius:6px; margin-top:6px;">
+                                        <div id="commentCount" style="font-size:12px; color:#6b7280; margin-top:6px;">0 / 40</div>
+                                    </div>
+                                    <div style="margin-top:8px;">
+                                        <label style="display:flex; gap:8px; align-items:center;"><input type="checkbox" id="confirmAccuracy"> I confirm these answers are accurate.</label>
+                                    </div>
+                                    <p class="text-muted" style="font-size:13px; margin-top:10px;">Requests allowed once every 90 days. Requests are auto-approved and applied immediately.</p>
+                                </div>
+                                <div style="padding:12px 18px; display:flex; justify-content:flex-end; gap:8px; background:#f7f7f7;">
+                                    <button type="button" id="roleCancel" class="btn-secondary">Cancel</button>
+                                    <button type="button" id="submitRoleRequest" class="btn-primary">Submit</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PROFESSIONAL FIELDS -->
+                        <div class="professional-fields" style="<?php echo (isset($customer_role) && $customer_role === 'professional') ? '' : 'display: none;'; ?>">
+                            <!-- Question 2: Previous experience with specifications -->
+                            <div class="experience-field">
+                                <label class="experience-label">Have you previously worked with products that required detailed specifications?</label>
+                                <div class="experience-options">
+                                    <label class="experience-option">
+                                        <input type="radio" name="professional_prev_experience" value="yes_regularly" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['previous_experience']) && $experience_data['previous_experience'] === 'yes_regularly') ? 'checked' : ''; ?>>
+                                        <span>Yes, regularly</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="professional_prev_experience" value="yes_occasionally" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['previous_experience']) && $experience_data['previous_experience'] === 'yes_occasionally') ? 'checked' : ''; ?>>
+                                        <span>Yes, occasionally</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="professional_prev_experience" value="no_understand_drawings" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['previous_experience']) && $experience_data['previous_experience'] === 'no_understand_drawings') ? 'checked' : ''; ?>>
+                                        <span>No, but I understand technical drawings</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Question 3: Specification preparation -->
+                            <div class="experience-field">
+                                <label class="experience-label">How do you usually prepare product specifications?</label>
+                                <div class="experience-options">
+                                    <label class="experience-option">
+                                        <input type="radio" name="professional_spec_prep" value="prepare_myself" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['specification_preparation']) && $experience_data['specification_preparation'] === 'prepare_myself') ? 'checked' : ''; ?>>
+                                        <span>I prepare measurements and specifications myself</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="professional_spec_prep" value="collaborate_after_assessment" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['specification_preparation']) && $experience_data['specification_preparation'] === 'collaborate_after_assessment') ? 'checked' : ''; ?>>
+                                        <span>I collaborate after a site assessment</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="professional_spec_prep" value="adjust_supplier_specs" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['specification_preparation']) && $experience_data['specification_preparation'] === 'adjust_supplier_specs') ? 'checked' : ''; ?>>
+                                        <span>I adjust specifications provided by suppliers</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Question 4: 2D tool comfort -->
+                            <div class="experience-field">
+                                <label class="experience-label">How comfortable are you with customizing products using a 2D configuration tool?</label>
+                                <div class="experience-options">
+                                    <label class="experience-option">
+                                        <input type="radio" name="professional_2d_comfort" value="very_comfortable" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['2d_tool_comfort']) && $experience_data['2d_tool_comfort'] === 'very_comfortable') ? 'checked' : ''; ?>>
+                                        <span>Very comfortable</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="professional_2d_comfort" value="somewhat_comfortable" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['2d_tool_comfort']) && $experience_data['2d_tool_comfort'] === 'somewhat_comfortable') ? 'checked' : ''; ?>>
+                                        <span>Somewhat comfortable</span>
+                                    </label>
+                                    <label class="experience-option">
+                                        <input type="radio" name="professional_2d_comfort" value="prefer_minimal" 
+                                            <?php echo (isset($experience_data) && isset($experience_data['2d_tool_comfort']) && $experience_data['2d_tool_comfort'] === 'prefer_minimal') ? 'checked' : ''; ?>>
+                                        <span>I prefer minimal adjustments</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-buttons" style="margin-top: 2rem;">
+                            <button type="submit" class="btn-save" id="experienceSaveBtn">
+                                Save Changes
+                            </button>
+                        </div>
+                    </form>
+
+                    <script>
+                        // Role request modal handlers
+                        (function(){
+                            var btn = document.getElementById('btn-request-role');
+                            var modal = document.getElementById('roleRequestModal');
+                            var closeBtn = document.getElementById('roleModalClose');
+                            var cancelBtn = document.getElementById('roleCancel');
+                            var submitBtn = document.getElementById('submitRoleRequest');
+
+                            function openModal(){ modal.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+                            function closeModal(){ modal.style.display = 'none'; document.body.style.overflow = ''; }
+
+                            if (btn) btn.addEventListener('click', openModal);
+                            if (closeBtn) closeBtn.addEventListener('click', closeModal);
+                            if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+                            if (submitBtn) submitBtn.addEventListener('click', function(){
+                                var getChecked = function(name){
+                                    var el = document.querySelector('input[name="'+name+'"]:checked');
+                                    return el ? el.value : 'No';
+                                };
+                                var answers = [getChecked('r1'), getChecked('r2'), getChecked('r3')];
+                                var confirmation = document.getElementById('confirmAccuracy').checked;
+                                if (!confirmation) { showToast('Please confirm the accuracy of your answers.', 'warning'); return; }
+
+                                var commentEl = document.getElementById('roleComment');
+                                var comment = commentEl ? commentEl.value.trim() : '';
+                                if (comment.length > 40) { showToast('Comment must be 40 characters or fewer.', 'warning'); return; }
+
+                                var bypass = (location.search.indexOf('bypass_cooldown=1') !== -1);
+                                var targetRole = document.getElementById('requestedRoleSelect') ? document.getElementById('requestedRoleSelect').value : 'Professional';
+                                fetch('<?php echo base_url('Role_requests/create'); ?>', {
+                                    method: 'POST',
+                                    headers: {'Content-Type':'application/json'},
+                                    body: JSON.stringify({ requested_role: targetRole, answers: answers, confirmation: confirmation, comment: comment, bypass_cooldown: bypass })
+                                }).then(function(r){ return r.json(); }).then(function(res){
+                                    if (!res || !res.success) {
+                                        showToast(res && res.message ? res.message : 'Failed to submit request', 'error');
+                                        return;
+                                    }
+                                    // All accepted requests are applied immediately server-side
+                                    // Update badge to show the actual requested role
+                                    var badge = document.getElementById('user-role-badge');
+                                    if (badge) badge.textContent = targetRole; // Use the actual role that was requested
+                                    // Update hidden role input so the experience form posts the correct role (lowercase for consistency)
+                                    var hid = document.getElementById('experience-role-input');
+                                    if (hid) hid.value = targetRole.toLowerCase();
+                                    // Refresh experience UI visibility
+                                    if (typeof updateExperienceFields === 'function') updateExperienceFields();
+                                    showToast('Role updated successfully to ' + targetRole + '. The page will reload to apply changes.', 'success');
+                                    closeModal();
+                                    // Reload page to ensure all UI reflects new role (especially product customization pages)
+                                    setTimeout(function(){ location.reload(); }, 500);
+                                }).catch(function(){ showToast('Submission failed', 'error'); });
+                            });
+                            // update comment counter
+                            var commentEl = document.getElementById('roleComment');
+                            var countEl = document.getElementById('commentCount');
+                            if (commentEl && countEl) {
+                                commentEl.addEventListener('input', function(){
+                                    var len = Math.min(40, this.value.length);
+                                    countEl.textContent = len + ' / 40';
+                                });
+                                // initialize
+                                countEl.textContent = (commentEl.value || '').length + ' / 40';
+                            }
+                        })();
+                    </script>
+                </div>
+
                 <!-- Account Details Section (Current Profile Form) -->
-                <div id="account-details" class="content-section">
+                <div id="account-details" class="content-section active" style="display: block;">
                     <section class="settings-container">
             <section class="settings-form">
                 <form id="accountForm">
@@ -513,6 +934,20 @@ function get_status_class($status) {
                     </section>
                 </div>
             </section>
+            </div>
+        </div>
+
+        <!-- Experience Success Modal -->
+        <div id="experienceSuccessModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 10000; align-items: center; justify-content: center;">
+            <div style="background: white; border-radius: 12px; padding: 2rem; max-width: 400px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: relative;">
+                <div style="width: 60px; height: 60px; background: #28a745; border-radius: 50%; margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </div>
+                <h3 style="color: #333; font-size: 1.3rem; margin-bottom: 0.5rem; font-weight: 600;">Success!</h3>
+                <p id="experienceSuccessMessage" style="color: #666; font-size: 1rem; margin-bottom: 1.5rem; line-height: 1.5;">Your experience settings have been updated successfully.</p>
+                <button onclick="closeExperienceSuccessModal()" style="background: #28a745; color: white; border: none; padding: 0.75rem 2rem; border-radius: 6px; font-size: 1rem; cursor: pointer; font-weight: 500; transition: background 0.2s;" onmouseover="this.style.background='#218838'" onmouseout="this.style.background='#28a745'">OK</button>
             </div>
         </div>
 
@@ -946,9 +1381,9 @@ function get_status_class($status) {
                     .then(data => {
                         if (data.success) {
                             if (addressId) {
-                                alert("Address updated successfully!");
+                                showToast("Address updated successfully!", "success");
                             } else {
-                                alert("Address added successfully!");
+                                showToast("Address added successfully!", "success");
                             }
                             $("#newAddressForm")[0].reset();
                             $("#editAddressID").val('');
@@ -959,7 +1394,7 @@ function get_status_class($status) {
                             $("#region").trigger('change');
                             loadAddresses(); // refresh list
                         } else {
-                            alert(data.message || "Failed to save address.");
+                            showToast(data.message || "Failed to save address.", "error");
                         }
                     });
             });
@@ -1092,7 +1527,7 @@ function get_status_class($status) {
                     dataType: "json",
                     success: function (res) {
                         if (res.status === "success") {
-                            alert("Profile updated!");
+                            showToast("Profile updated!", "success");
                             saveBtn.prop("disabled", true);
                             passwordError.hide();
 
@@ -1107,7 +1542,7 @@ function get_status_class($status) {
                                 }
                             });
                         } else {
-                            alert(res.message || "Failed to update profile.");
+                            showToast(res.message || "Failed to update profile.", "error");
                             if (res.message && res.message.toLowerCase().includes("password")) {
                                 passwordError.text(res.message).show();
                             }
@@ -1121,38 +1556,69 @@ function get_status_class($status) {
                                 passwordError.text(errorMsg).show();
                             }
                         }
-                        alert(errorMsg);
+                        showToast(errorMsg, "error");
                     }
                 });
             });
 
             // ========= ANCHOR LINK HANDLING =========
-            // Show account-details by default
-            $('#account-details').addClass('active');
-            $('.nav-item[href*="account-details"]').addClass('active');
-
             // Handle hash links for navigation
             function showSection(sectionId) {
-                $('.content-section').removeClass('active');
-                $('.nav-item').removeClass('active');
+                // Hide all content sections
+                document.querySelectorAll('.content-section').forEach(sec => {
+                    sec.style.display = 'none';
+                });
+                
+                // Remove active from all nav items and sub-items
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelectorAll('.nav-sub-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                // Close orders dropdown
+                const ordersGroup = document.getElementById('orders-nav-group');
+                if (ordersGroup) {
+                    ordersGroup.classList.remove('expanded');
+                }
                 
                 const sectionMap = {
                     'orders': 'orders',
                     'addresses': 'addresses',
-                    'account-details': 'account-details'
+                    'account-details': 'account-details',
+                    'user-experience': 'user-experience'
                 };
                 
-                if (sectionMap[sectionId]) {
-                    $('#' + sectionId).addClass('active');
-                    $('.nav-item[href*="' + sectionId + '"]').addClass('active');
-                } else {
-                    // Default to account-details
-                    $('#account-details').addClass('active');
-                    $('.nav-item[href*="account-details"]').addClass('active');
+                const targetSectionId = sectionMap[sectionId] || 'account-details';
+                
+                // Show the target section
+                const targetSection = document.getElementById(targetSectionId);
+                if (targetSection) {
+                    targetSection.style.display = 'block';
+                }
+                
+                // Set active nav item
+                const navSelector = `a[href="#${targetSectionId}"]`;
+                const activeNavItem = document.querySelector(navSelector);
+                if (activeNavItem && activeNavItem.classList.contains('nav-item')) {
+                    activeNavItem.classList.add('active');
                 }
             }
 
-            // Handle hash on page load
+            // Initialize page - show account-details section by default
+            document.addEventListener('DOMContentLoaded', function() {
+                // Handle hash on page load
+                if (window.location.hash) {
+                    const hash = window.location.hash.substring(1);
+                    showSection(hash);
+                } else {
+                    // Default to account-details if no hash - ensure it's visible
+                    showSection('account-details');
+                }
+            });
+
+            // Handle hash on page load (fallback for older browsers)
             if (window.location.hash) {
                 const hash = window.location.hash.substring(1);
                 showSection(hash);
@@ -1278,15 +1744,15 @@ function get_status_class($status) {
                     dataType: "json",
                     success: function (res) {
                         if (res.success) {
-                            alert("Address archived successfully!");
+                            showToast("Address archived successfully!", "success");
                             closeAddressFormModal();
                             location.reload();
                         } else {
-                            alert(res.message || "Failed to archive address.");
+                            showToast(res.message || "Failed to archive address.", "error");
                         }
                     },
                     error: function() {
-                        alert("Error deleting address. Please try again.");
+                        showToast("Error deleting address. Please try again.", "error");
                     }
                 });
             });
@@ -1309,14 +1775,14 @@ function get_status_class($status) {
                     .then(data => {
                         if (data.success) {
                             if (addressId) {
-                                alert("Address updated successfully!");
+                                showToast("Address updated successfully!", "success");
                         } else {
-                                alert("Address added successfully!");
+                                showToast("Address added successfully!", "success");
                             }
                             closeAddressFormModal();
                             location.reload();
                         } else {
-                            alert(data.message || "Failed to save address.");
+                            showToast(data.message || "Failed to save address.", "error");
                         }
                     });
             });
@@ -1482,6 +1948,145 @@ function get_status_class($status) {
             setupDropdownLimit("#addressesRegion");
             setupDropdownLimit("#addressesProvince");
             setupDropdownLimit("#addressesCity");
+
+            // ========= SKILL LEVEL TAB LOGIC =========
+            const roleInputs = document.querySelectorAll('input[name="role"]');
+            const beginnerFields = document.querySelector('.beginner-fields');
+            const professionalFields = document.querySelector('.professional-fields');
+            const professionalOnly = document.querySelector('.professional-only');
+
+            function updateExperienceFields() {
+                // Prefer explicit radio inputs if present, otherwise fall back to the hidden role input
+                let selectedRole = document.querySelector('input[name="role"]:checked')?.value;
+                if (!selectedRole) {
+                    const hidden = document.getElementById('experience-role-input');
+                    selectedRole = hidden ? hidden.value : null;
+                }
+
+                if (selectedRole === 'professional') {
+                    if (beginnerFields) beginnerFields.style.display = 'none';
+                    if (professionalFields) professionalFields.style.display = 'block';
+                    if (professionalOnly) professionalOnly.style.display = 'block';
+                } else if (selectedRole === 'beginner') {
+                    if (beginnerFields) beginnerFields.style.display = 'block';
+                    if (professionalFields) professionalFields.style.display = 'none';
+                    if (professionalOnly) professionalOnly.style.display = 'none';
+                } else {
+                    if (beginnerFields) beginnerFields.style.display = 'none';
+                    if (professionalFields) professionalFields.style.display = 'none';
+                    if (professionalOnly) professionalOnly.style.display = 'none';
+                }
+            }
+
+            // Initialize on load
+            updateExperienceFields();
+
+            // Update on role change
+            roleInputs.forEach(input => {
+                input.addEventListener('change', updateExperienceFields);
+            });
+
+            // Handle professional type "Other" toggle
+            const professionalTypeInputs = document.querySelectorAll('input[name="professional_type"]');
+            const otherProfessionalInput = document.getElementById('other-professional-type-input');
+            const otherProfessionalTypeField = document.getElementById('other_professional_type');
+
+            function toggleOtherProfessionalInput() {
+                const otherSelected = document.getElementById('professional-type-other')?.checked;
+                let roleIsProfessional = document.querySelector('input[name="role"][value="professional"]')?.checked;
+                if (!roleIsProfessional) {
+                    const hid = document.getElementById('experience-role-input');
+                    roleIsProfessional = hid ? hid.value === 'professional' : false;
+                }
+                if (otherProfessionalInput) {
+                    // Only show if both conditions are met: role is professional AND other is selected
+                    const shouldShow = otherSelected && roleIsProfessional;
+                    otherProfessionalInput.style.display = shouldShow ? 'block' : 'none';
+                    if (otherProfessionalTypeField) {
+                        if (shouldShow) {
+                            otherProfessionalTypeField.setAttribute('required', 'required');
+                        } else {
+                            otherProfessionalTypeField.removeAttribute('required');
+                        }
+                    }
+                }
+            }
+
+            // Initialize on load
+            toggleOtherProfessionalInput();
+
+            // Update on professional type change
+            professionalTypeInputs.forEach(input => {
+                input.addEventListener('change', toggleOtherProfessionalInput);
+            });
+
+            // Also update when role changes
+            document.querySelectorAll('input[name="role"]').forEach(input => {
+                input.addEventListener('change', toggleOtherProfessionalInput);
+            });
+
+            // Handle experience form submission
+            $('#experienceForm').on('submit', function(e) {
+                e.preventDefault();
+
+                const formData = $(this).serialize();
+
+                $.ajax({
+                    url: '<?= base_url("UserCon/update_experience") ?>',
+                    type: 'POST',
+                    data: formData,
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.status === 'success') {
+                            showExperienceSuccessModal(response.message || 'Your experience settings have been updated successfully.');
+                            // Reload after modal is closed
+                            setTimeout(function() {
+                                location.reload();
+                            }, 2000);
+                        } else {
+                            showExperienceSuccessModal(response.message, true);
+                        }
+                    },
+                    error: function() {
+                        showExperienceSuccessModal('An error occurred while saving your experience settings.', true);
+                    }
+                });
+            });
+        });
+
+        // Experience Success Modal Functions
+        function showExperienceSuccessModal(message, isError) {
+            const modal = document.getElementById('experienceSuccessModal');
+            const messageEl = document.getElementById('experienceSuccessMessage');
+            const icon = modal.querySelector('div[style*="background: #28a745"]');
+            const button = modal.querySelector('button');
+            
+            if (isError) {
+                icon.style.background = '#dc3545';
+                button.style.background = '#dc3545';
+                button.onmouseover = function() { this.style.background = '#c82333'; };
+                button.onmouseout = function() { this.style.background = '#dc3545'; };
+            } else {
+                icon.style.background = '#28a745';
+                button.style.background = '#28a745';
+                button.onmouseover = function() { this.style.background = '#218838'; };
+                button.onmouseout = function() { this.style.background = '#28a745'; };
+            }
+            
+            messageEl.textContent = message;
+            modal.style.display = 'flex';
+        }
+
+        function closeExperienceSuccessModal() {
+            const modal = document.getElementById('experienceSuccessModal');
+            modal.style.display = 'none';
+        }
+
+        // Close modal on overlay click
+        document.getElementById('experienceSuccessModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeExperienceSuccessModal();
+            }
         });
     </script>
 

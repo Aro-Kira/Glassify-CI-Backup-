@@ -346,10 +346,6 @@ const generatedCustomizationDefaults = {
             "stepNumber": 3
         }
     ],
-            "min": 1,
-            "step": 0.1
-        }
-    ],
     "Windows_Fixed Glass": [
         {
             "type": "tags",

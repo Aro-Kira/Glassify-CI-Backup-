@@ -693,4 +693,100 @@ class CustomizationFieldsCon extends CI_Controller
 
         return '';
     }
+
+    /**
+     * Save series presets to database
+     * POST /customizationFields/saveSeriesPresets
+     * Expects: seriesPresets (JSON string of series configurations organized by subcategory)
+     */
+    public function saveSeriesPresets()
+    {
+        $seriesPresetsJson = $this->input->post('seriesPresets');
+
+        if (!$seriesPresetsJson) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Missing required parameter: seriesPresets'
+            ]);
+            return;
+        }
+
+        // Handle JSON string
+        if (is_string($seriesPresetsJson)) {
+            $seriesPresets = json_decode($seriesPresetsJson, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Invalid JSON in seriesPresets: ' . json_last_error_msg()
+                ]);
+                return;
+            }
+        } else {
+            $seriesPresets = $seriesPresetsJson;
+        }
+
+        if (!is_array($seriesPresets) || empty($seriesPresets)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'seriesPresets must be a non-empty array'
+            ]);
+            return;
+        }
+
+        // Check if table exists
+        if (!$this->db->table_exists('customization_field_configs')) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Table customization_field_configs does not exist'
+            ]);
+            return;
+        }
+
+        try {
+            // Save each subcategory's series presets
+            foreach ($seriesPresets as $subcategory => $seriesData) {
+                $fieldKey = "Series_Presets_{$subcategory}";
+                $presetsJson = json_encode($seriesData);
+
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    echo json_encode([
+                        'status' => 'error',
+                        'message' => 'Invalid JSON for subcategory ' . htmlspecialchars($subcategory) . ': ' . json_last_error_msg()
+                    ]);
+                    return;
+                }
+
+                // Check if config exists
+                $this->db->where('FieldKey', $fieldKey);
+                $existing = $this->db->get('customization_field_configs')->row();
+
+                if ($existing) {
+                    // Update
+                    $this->db->where('FieldKey', $fieldKey);
+                    $this->db->update('customization_field_configs', [
+                        'FieldConfig' => $presetsJson,
+                        'Updated_Date' => date('Y-m-d H:i:s')
+                    ]);
+                } else {
+                    // Insert
+                    $this->db->insert('customization_field_configs', [
+                        'Category' => 'Series_Presets',
+                        'Subcategory' => $subcategory,
+                        'FieldKey' => $fieldKey,
+                        'FieldConfig' => $presetsJson
+                    ]);
+                }
+            }
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => 'Series presets saved successfully'
+            ]);
+        } catch (Exception $e) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Error saving series presets: ' . $e->getMessage()
+            ]);
+        }
+    }
 }

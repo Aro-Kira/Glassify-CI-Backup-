@@ -438,23 +438,20 @@ $(document).ready(function () {
             subtotal += price * quantity;
         });
 
-        // Calculate shipping and handling to match server-side calculation
-        // Shipping: 25 per item, Handling: 10 per item
+        // Calculate shipping to match server-side calculation
+        // Shipping: 25 per item
         const shipping = selectedItems * 25;
-        const handling = selectedItems * 10;
-        const total = subtotal + shipping + handling;
+        const total = subtotal + shipping;
 
         // Update summary display
         $('#summary-items').text(selectedItems);
         $('#summary-subtotal').text(subtotal.toFixed(2));
         $('#summary-shipping').text(shipping.toFixed(2));
-        $('#summary-handling').text(handling.toFixed(2));
         $('#summary-total').text(total.toFixed(2));
 
         // Update mobile summary display
         $('#summary-items-mobile').text(selectedItems);
         $('#summary-shipping-mobile').text(shipping.toFixed(2));
-        $('#summary-handling-mobile').text(handling.toFixed(2));
         $('#summary-total-mobile').text(total.toFixed(2));
 
         // Update selected count in checkout button
@@ -471,7 +468,7 @@ $(document).ready(function () {
             $('#checkout-selected-btn-mobile').prop('disabled', false).removeClass('disabled');
         }
 
-        return { selectedItems, subtotal, shipping, handling, total };
+        return { selectedItems, subtotal, shipping, total };
     }
 
     // =============================

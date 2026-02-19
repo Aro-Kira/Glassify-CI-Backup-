@@ -74,7 +74,7 @@ function showCartNotification(message, type) {
 $(document).on('click', '#add-to-cart-btn', function () {
     const btn = $(this);
     const originalText = btn.html();
-    
+
     // Show loading state
     btn.prop('disabled', true).html('<span class="spinner"></span> Adding...');
 
@@ -100,6 +100,12 @@ $(document).on('click', '#add-to-cart-btn', function () {
     // This ensures we capture all fields configured in admin (numberOfPanels, operation, configuration, etc.)
     const customSelections = window.selectedCustomizationValues || {};
     
+    console.log('=== ADD TO CART CUSTOMIZATION DEBUG ===');
+    console.log('window.selectedCustomizationValues:', window.selectedCustomizationValues);
+    console.log('customSelections:', customSelections);
+    console.log('customSelections keys:', Object.keys(customSelections));
+    console.log('=================================');
+    
     // Get dimensions with units
     const heightValue = $('#input-height').val() || '';
     const widthValue = $('#input-width').val() || '';
@@ -123,6 +129,20 @@ $(document).on('click', '#add-to-cart-btn', function () {
     }
 
     // Build data object with all customization values
+    // Read current quantity (if the summary input exists)
+    let currentQuantity = 1;
+    const qtyInput = $('#summary-qty-input');
+    if (qtyInput.length) {
+        currentQuantity = parseInt(qtyInput.val()) || 1;
+    }
+
+    // Read quantity selected in the summary (if present)
+    let bookQuantity = 1;
+    const bookQtyInput = $('#summary-qty-input');
+    if (bookQtyInput.length) {
+        bookQuantity = parseInt(bookQtyInput.val()) || 1;
+    }
+
     let data = {
         product_id: product_id,
         dimensions: dims,
@@ -154,6 +174,7 @@ $(document).on('click', '#add-to-cart-btn', function () {
         url: base_url + "CartCon/add_customized_ajax",
         type: "POST",
         data: data,
+        xhrFields: { withCredentials: true }, // Ensure session cookies are sent
         success: function (res) {
             try {
                 let response = typeof res === 'string' ? JSON.parse(res) : res;
@@ -209,11 +230,34 @@ $(document).on('click', '#add-to-cart-btn', function () {
 
 });
 
+// Quantity increment/decrement handlers for the summary quantity input
+$(document).on('click', '#qty-increase', function () {
+    const input = $('#summary-qty-input');
+    if (!input.length) return;
+    const val = parseInt(input.val()) || 1;
+    input.val(val + 1).trigger('change');
+});
+
+$(document).on('click', '#qty-decrease', function () {
+    const input = $('#summary-qty-input');
+    if (!input.length) return;
+    const val = parseInt(input.val()) || 1;
+    input.val(Math.max(1, val - 1)).trigger('change');
+});
+
+// Enforce minimum quantity of 1 when user types a value
+$(document).on('change', '#summary-qty-input', function () {
+    const input = $(this);
+    let val = parseInt(input.val()) || 1;
+    if (val < 1) val = 1;
+    input.val(val);
+});
+
 // Buy Now button handler
 $(document).on('click', '#buy-now-btn', function () {
     const btn = $(this);
     const originalText = btn.html();
-    
+
     btn.prop('disabled', true).html('Processing...');
 
     let product_id = btn.data('product-id');
@@ -230,6 +274,13 @@ $(document).on('click', '#buy-now-btn', function () {
     // Collect all customization values dynamically from selectedCustomizationValues
     const customizationValues = window.selectedCustomizationValues || {};
     
+    // DEBUG: Log what we're capturing from 2D modeling
+    console.log('=== BUY NOW - CUSTOMIZATION DEBUG ===');
+    console.log('window.selectedCustomizationValues:', window.selectedCustomizationValues);
+    console.log('customizationValues object:', customizationValues);
+    console.log('customizationValues keys:', Object.keys(customizationValues));
+    console.log('customizationValues JSON:', JSON.stringify(customizationValues));
+    
     // Get dimensions with units
     const heightValue = $('#input-height').val() || '';
     const widthValue = $('#input-width').val() || '';
@@ -244,6 +295,20 @@ $(document).on('click', '#buy-now-btn', function () {
     const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customizationValues.edgeFinish || '';
     const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customizationValues.frameColor || '';
     
+    // Read quantity selected in the summary (if present)
+    let buyQuantity = 1;
+    const buyQtyInput = $('#summary-qty-input');
+    if (buyQtyInput.length) {
+        buyQuantity = parseInt(buyQtyInput.val()) || 1;
+    }
+
+    // Read quantity selected in the summary (if present)
+    let bookQuantity = 1;
+    const bookQtyInput = $('#summary-qty-input');
+    if (bookQtyInput.length) {
+        bookQuantity = parseInt(bookQtyInput.val()) || 1;
+    }
+
     let data = {
         product_id: product_id,
         dimensions: dimensions,
@@ -255,7 +320,7 @@ $(document).on('click', '#buy-now-btn', function () {
         frame: legacyFrame,
         engraving: $('#step-3 input').val() || customizationValues.engraving || 'None',
         price: priceText,
-        quantity: 1,
+        quantity: buyQuantity,
         design_image: designImageData,
         buy_now: true,
         // Include all dynamic customization values (synced with admin side)
@@ -318,7 +383,14 @@ $(document).on('click', '#buy-now-btn', function () {
 $(document).on('click', '#book-now-btn', function () {
     const btn = $(this);
     const originalText = btn.html();
-    
+    const isGuest = btn.data('is-guest') === 'true' || btn.data('is-guest') === true;
+
+    // If guest user, show authentication modal instead of proceeding
+    if (isGuest) {
+        $('#guest-auth-modal').removeClass('hidden-step').css('display', 'flex');
+        return;
+    }
+
     btn.prop('disabled', true).html('Processing...');
 
     let product_id = btn.data('product-id');
@@ -335,6 +407,14 @@ $(document).on('click', '#book-now-btn', function () {
     // Collect all customization values dynamically from selectedCustomizationValues
     const customizationValues = window.selectedCustomizationValues || {};
     
+    // DEBUG: Log what we're capturing from 2D modeling
+    console.log('=== BOOK NOW - CUSTOMIZATION DEBUG ===');
+    console.log('window.selectedCustomizationValues:', window.selectedCustomizationValues);
+    console.log('customizationValues object:', customizationValues);
+    console.log('customizationValues keys:', Object.keys(customizationValues));
+    console.log('customizationValues JSON:', JSON.stringify(customizationValues));
+    console.log('customizationValues JSON length:', JSON.stringify(customizationValues).length);
+    
     // Get dimensions with units
     const heightValue = $('#input-height').val() || '';
     const widthValue = $('#input-width').val() || '';
@@ -349,6 +429,13 @@ $(document).on('click', '#book-now-btn', function () {
     const legacyEdge = $('.option-card[data-edge-work].active').data('edge-work') || customizationValues.edgeFinish || '';
     const legacyFrame = $('.option-card[data-frame-type].active').data('frame-type') || customizationValues.frameColor || '';
     
+    // Read quantity selected in the summary (if present)
+    let bookQuantity = 1;
+    const bookQtyInput = $('#summary-qty-input');
+    if (bookQtyInput.length) {
+        bookQuantity = parseInt(bookQtyInput.val(), 10) || 1;
+    }
+
     let data = {
         product_id: product_id,
         dimensions: dimensions,
@@ -360,7 +447,7 @@ $(document).on('click', '#book-now-btn', function () {
         frame: legacyFrame,
         engraving: $('#step-3 input').val() || customizationValues.engraving || 'None',
         price: priceText,
-        quantity: 1,
+        quantity: bookQuantity,
         design_image: designImageData,
         book_now: true, // Flag for booking instead of buying
         // Include all dynamic customization values (synced with admin side)
@@ -371,14 +458,25 @@ $(document).on('click', '#book-now-btn', function () {
         url: base_url + "CartCon/add_customized_ajax",
         type: "POST",
         data: data,
+        dataType: "json", // Ensure proper JSON parsing
+        xhrFields: { withCredentials: true }, // Ensure session cookies are sent
+        beforeSend: function() {
+            console.log('Book Now AJAX - Sending request to:', base_url + "CartCon/add_customized_ajax");
+        },
         success: function (res) {
+            console.log('Book Now AJAX - Response received:', res);
             try {
                 let response = typeof res === 'string' ? JSON.parse(res) : res;
 
                 if (response.status === 'success') {
                     // Redirect to booking page (shipping, preferred visit date, order summary) with the cart item selected
                     const bookUrl = (typeof BASE_URL === 'string' && BASE_URL) ? BASE_URL.replace(/\/?$/, '') + '/booking' : '/booking';
-                    window.location.href = bookUrl + (bookUrl.indexOf('?') >= 0 ? '&' : '?') + 'selected=' + response.cart_id;
+                    let redirectUrl = bookUrl + (bookUrl.indexOf('?') >= 0 ? '&' : '?') + 'selected=' + response.cart_id;
+                    // If this was a 'Book Now' action from the 2D review, mark origin so booking shows 'Review'
+                    if (data && data.book_now) {
+                        redirectUrl += '&from=review';
+                    }
+                    window.location.href = redirectUrl;
                 } else {
                     showCartNotification((response.message || 'Unknown error'), 'error');
                     btn.prop('disabled', false).html(originalText);
@@ -417,4 +515,155 @@ $(document).on('click', '#book-now-btn', function () {
             btn.prop('disabled', false).html(originalText);
         }
     });
+});
+
+// Download Quotation button handler
+$(document).on('click', '#download-quotation-btn', function () {
+    const btn = $(this);
+    const originalText = btn.html();
+
+    btn.prop('disabled', true).html('Generating PDF...');
+
+    // Get quotation content
+    const quotationContainer = $('.quotation-preview-container').clone();
+    
+    // Create a printable window with the quotation
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+        showCartNotification('Please allow popups to download the quotation', 'error');
+        btn.prop('disabled', false).html(originalText);
+        return;
+    }
+
+    const quotationNumber = $('#quotation-number').text();
+    
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Quotation - QT-${quotationNumber}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                    font-family: 'Segoe UI', Arial, sans-serif; 
+                    padding: 40px;
+                    color: #333;
+                }
+                .quotation-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    margin-bottom: 30px;
+                    padding-bottom: 20px;
+                    border-bottom: 3px solid #1a3a1a;
+                }
+                .quotation-company {
+                    display: flex;
+                    align-items: center;
+                    gap: 15px;
+                }
+                .quotation-logo {
+                    width: 60px;
+                    height: 60px;
+                    object-fit: contain;
+                }
+                .quotation-company-info strong {
+                    display: block;
+                    font-size: 1.4rem;
+                    color: #1a3a1a;
+                }
+                .quotation-company-info span {
+                    font-size: 0.85rem;
+                    color: #666;
+                }
+                .quotation-meta {
+                    text-align: right;
+                }
+                .quotation-label {
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    color: #1a3a1a;
+                    letter-spacing: 2px;
+                }
+                .quotation-number, .quotation-date {
+                    font-size: 0.9rem;
+                    color: #666;
+                    margin-top: 5px;
+                }
+                .quotation-customer-info {
+                    margin: 20px 0;
+                    padding: 15px;
+                    background: #f5f5f5;
+                    border-radius: 5px;
+                }
+                .quotation-product-info {
+                    margin-bottom: 20px;
+                }
+                .quotation-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-bottom: 20px;
+                }
+                .quotation-table th {
+                    background: #1a3a1a;
+                    color: white;
+                    padding: 12px 15px;
+                    text-align: left;
+                }
+                .quotation-table th.text-right {
+                    text-align: right;
+                }
+                .quotation-table td {
+                    padding: 12px 15px;
+                    border-bottom: 1px solid #eee;
+                }
+                .quotation-table td.text-right {
+                    text-align: right;
+                }
+                .quotation-table tfoot tr {
+                    background: #f9f9f9;
+                }
+                .quotation-table .quotation-total td {
+                    border-top: 2px solid #1a3a1a;
+                    font-size: 1.1rem;
+                    font-weight: bold;
+                    color: #1a3a1a;
+                }
+                .quotation-notes {
+                    margin-top: 25px;
+                    padding: 15px;
+                    background: #fff9e6;
+                    border-left: 4px solid #f0ad4e;
+                    font-size: 0.9rem;
+                    color: #666;
+                }
+                .quotation-validity {
+                    margin-top: 15px;
+                    font-size: 0.9rem;
+                    color: #888;
+                    text-align: right;
+                }
+                @media print {
+                    body { padding: 20px; }
+                }
+            </style>
+        </head>
+        <body>
+            ${quotationContainer.html()}
+            <script>
+                window.onload = function() {
+                    window.print();
+                    setTimeout(function() { window.close(); }, 500);
+                };
+            </script>
+        </body>
+        </html>
+    `);
+    
+    printWindow.document.close();
+    
+    setTimeout(function() {
+        btn.prop('disabled', false).html(originalText);
+    }, 1000);
 });

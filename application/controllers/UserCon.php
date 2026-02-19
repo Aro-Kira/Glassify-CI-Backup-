@@ -17,8 +17,10 @@ class UserCon extends CI_Controller
     // =============================
     public function profile()
     {
-        // Check if user is logged in and is a customer
-        if (!$this->session->userdata('is_logged_in') || $this->session->userdata('user_role') !== 'Customer') {
+        // Check if user is logged in and is a customer (allow Professional/Beginner as customer-equivalents)
+        $allowed_customer_roles = ['Customer', 'Professional', 'Beginner'];
+        $session_role = $this->session->userdata('user_role') ?: '';
+        if (!$this->session->userdata('is_logged_in') || !in_array($session_role, $allowed_customer_roles)) {
             // Set cache control headers to prevent back button access
             $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
             $this->output->set_header('Cache-Control: post-check=0, pre-check=0', false);
@@ -95,6 +97,28 @@ class UserCon extends CI_Controller
                     'Note' => ''
                 ];
             }
+        }
+
+        // Load experience data for User Experience tab
+        if ($customer_id) {
+            $customer_data = $this->db->get_where('customer', ['Customer_ID' => $customer_id])->row();
+            if ($customer_data) {
+                $data['customer_role'] = $customer_data->role ?? null;
+                $data['setup_status'] = $customer_data->setup_status ?? 'pending';
+                if (!empty($customer_data->experience_data)) {
+                    $data['experience_data'] = json_decode($customer_data->experience_data, true);
+                } else {
+                    $data['experience_data'] = [];
+                }
+            } else {
+                $data['customer_role'] = null;
+                $data['setup_status'] = 'pending';
+                $data['experience_data'] = [];
+            }
+        } else {
+            $data['customer_role'] = null;
+            $data['setup_status'] = 'pending';
+            $data['experience_data'] = [];
         }
 
         $this->load->view('includes/header', $data);
@@ -515,6 +539,84 @@ class UserCon extends CI_Controller
         }
 
         $this->send_response('success', 'Profile updated successfully');
+    }
+
+    // =============================
+    // UPDATE USER EXPERIENCE
+    // =============================
+    public function update_experience()
+    {
+        $userID = $this->session->userdata('user_id');
+        if (!$userID) {
+            return $this->send_response('error', 'No active user session', 403);
+        }
+
+        // Get customer record
+        $this->load->model('Customer_model');
+        $customer_id = $this->Customer_model->get_customer_id($userID);
+        
+        if (!$customer_id) {
+            return $this->send_response('error', 'Customer not found', 404);
+        }
+
+        // Get customer data
+        $customer = $this->db->get_where('customer', ['Customer_ID' => $customer_id])->row();
+        if (!$customer) {
+            return $this->send_response('error', 'Customer record not found', 404);
+        }
+
+        // Validate role
+        $role = $this->input->post('role', TRUE);
+        if (!in_array($role, ['beginner', 'professional'])) {
+            return $this->send_response('error', 'Invalid role selected', 400);
+        }
+
+        // Get existing experience data to preserve professional_type
+        $existing_data = [];
+        if (!empty($customer->experience_data)) {
+            $existing_data = json_decode($customer->experience_data, true);
+        }
+
+        // Prepare experience data
+        $experience_data = [
+            'role' => $role
+        ];
+
+        // Preserve professional_type if role is professional
+        if ($role === 'professional' && isset($existing_data['professional_type'])) {
+            $experience_data['professional_type'] = $existing_data['professional_type'];
+        }
+
+        if ($role === 'beginner') {
+            $experience_data['experience'] = $this->input->post('beginner_experience', TRUE);
+            $experience_data['specifications_knowledge'] = $this->input->post('beginner_specifications', TRUE);
+            $experience_data['customization_handling'] = $this->input->post('beginner_customization_handling', TRUE);
+        } elseif ($role === 'professional') {
+            $experience_data['previous_experience'] = $this->input->post('professional_prev_experience', TRUE);
+            $experience_data['specification_preparation'] = $this->input->post('professional_spec_prep', TRUE);
+            $experience_data['2d_tool_comfort'] = $this->input->post('professional_2d_comfort', TRUE);
+        }
+
+        // Update customer record
+        $update_data = [
+            'role' => $role,
+            'experience_data' => json_encode($experience_data),
+            'setup_status' => 'completed' // Ensure setup is marked as completed when updating
+        ];
+
+        if ($this->db->update('customer', $update_data, ['Customer_ID' => $customer_id])) {
+            // Also sync user.Role with capitalized version to keep both tables consistent
+            $user_role_capitalized = ucfirst($role); // 'beginner' -> 'Beginner', 'professional' -> 'Professional'
+            $this->db->where('UserID', $userID);
+            $this->db->update('user', ['Role' => $user_role_capitalized]);
+            
+            // Update session to reflect the new role
+            $this->session->set_userdata('user_role', $user_role_capitalized);
+            
+            return $this->send_response('success', 'Your experience settings have been updated successfully.');
+        } else {
+            return $this->send_response('error', 'Failed to update experience settings', 500);
+        }
     }
 
     // =============================

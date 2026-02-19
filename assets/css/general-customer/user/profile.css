@@ -1,59 +1,11 @@
-/* Order Categories Styling */
-.order-categories {
-  display: flex;
-  flex-direction: row;
-  gap: 0;
+/* Order Content Wrapper Styling */
+.order-content-wrapper {
   margin-top: 20px;
   background: #fff;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
-  min-height: 400px;
-}
-
-.order-category-menu {
-  width: 250px;
-  flex-shrink: 0;
-  background: #f8f9fa;
-  border-right: 1px solid #e0e0e0;
-  display: flex;
-  flex-direction: column;
-}
-
-.order-category-item {
-  border: none;
-  border-bottom: 1px solid #e0e0e0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.category-toggle {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 20px;
-  background: transparent;
-  cursor: pointer;
-  font-weight: 600;
-  color: #0f2b46;
-  transition: all 0.2s;
-  border-left: 4px solid transparent;
-}
-
-.order-category-item.active .category-toggle {
-  background: #fff;
-  color: #02455f;
-  border-left-color: #02455f;
-}
-
-.category-toggle:hover {
-  background: #f0f2f5;
-}
-
-.order-category-content-area {
-  flex: 1;
   padding: 25px;
-  background: #fff;
-  overflow-y: auto;
+  min-height: 400px;
 }
 
 .category-content {
@@ -70,13 +22,6 @@
   text-align: center;
   font-style: italic;
   font-size: 1.1rem;
-}
-
-/* Override profile.css styled-table for order sub-tables if needed */
-.order-category-item .table-wrapper {
-  margin: 0;
-  border-radius: 0;
-  box-shadow: none;
 }
 
 .order-category-item .styled-table {
@@ -215,10 +160,10 @@ body {
 }
 
 .nav-sub-item.active {
-  color: #02455f;
+  color: #fff;
   font-weight: 600;
-  background: #fff;
-  border-left-color: #02455f;
+  background: #02455f;
+  border-left-color: #01344a;
 }
 
 /* Reverting previous inner side-by-side layout */
@@ -1927,3 +1872,232 @@ body {
   color: #333;
   margin-bottom: 1rem;
 }
+
+#/* ========= SKILL LEVEL SECTION ========= */
+#user-experience {
+  padding: 0;
+}
+
+#user-experience h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #0f2b46;
+  margin-bottom: 0.5rem;
+}
+
+/* Role badge and request modal styles */
+.role-badge {
+  display: inline-block;
+  background: #eef6f9;
+  color: #034052;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  box-shadow: inset 0 -1px 0 rgba(0,0,0,0.02);
+}
+
+#btn-request-role, .btn-link {
+  background: transparent;
+  border: none;
+  color: #02455F;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 8px;
+  font-size: 14px;
+}
+
+/* Modal backdrop and card */
+#roleRequestModal {
+  position: fixed;
+  inset: 0;
+  display: none; /* controlled by inline JS */
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 43, 70, 0.45);
+  z-index: 10000;
+}
+
+#roleRequestModal .modal-card {
+  background: #fff;
+  width: 560px;
+  max-width: 94%;
+  border-radius: 8px;
+  box-shadow: 0 20px 40px rgba(2,36,54,0.32);
+  overflow: hidden;
+}
+
+#roleRequestModal .modal-header {
+  background: #02455F;
+  color: #fff;
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#roleRequestModal .modal-body {
+  padding: 18px;
+  color: #334155;
+  font-size: 14px;
+}
+
+#roleRequestModal .modal-body label { display:block; margin-bottom:6px; color:#102a43; }
+#roleRequestModal .modal-body select.form-control { width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:6px; background:#fff; }
+
+#roleRequestModal .modal-footer {
+  padding: 12px 18px;
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  background:#f7f7f8;
+}
+
+.btn-primary, #submitRoleRequest {
+  background: #0f5f7a;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.btn-secondary, #roleCancel {
+  background: #e6eef2;
+  color: #034052;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#roleRequestModal .text-muted { color: #6b7280; font-size: 13px; }
+
+#user-experience .section-description {
+  color: #666;
+  margin-bottom: 2rem;
+  font-size: 0.95rem;
+}
+
+.incomplete-setup-notice {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #856404;
+}
+
+.incomplete-setup-notice i {
+  font-size: 1.2rem;
+}
+
+.experience-form {
+  max-width: 700px;
+}
+
+.experience-field {
+  margin-bottom: 2rem;
+}
+
+.experience-label {
+  display: block;
+  font-weight: 600;
+  color: #0f2b46;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+}
+
+.experience-label .required {
+  color: #dc3545;
+}
+
+.experience-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.experience-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #fff;
+}
+
+.experience-option:hover {
+  border-color: #02455F;
+  background: #f8f9fa;
+}
+
+.experience-option input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #02455F;
+}
+
+.experience-option input[type="radio"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.experience-option span {
+  flex: 1;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.experience-option input[type="radio"]:checked + span {
+  font-weight: 600;
+  color: #02455F;
+}
+
+.experience-field select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.experience-field select:focus {
+  outline: none;
+  border-color: #02455F;
+}
+
+.experience-field select:disabled,
+.experience-option input[type="radio"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.professional-other-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.professional-other-input:focus {
+  outline: none;
+  border-color: #02455F;
+}
+
+#experienceSaveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #6c757d;
+}
+

@@ -1,11 +1,6 @@
-/* Montserrat loaded via Google Fonts in layout.php */
-
-/* ===== RESET & BASE ===== */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/* Inventory CSS deprecated — inventory pages removed */
+/* Minimal placeholder to avoid 404 on includes */
+body { background: none; }
 
 body {
   margin: 0;

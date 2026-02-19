@@ -15,6 +15,99 @@ class ProductCon extends CI_Controller
         $this->load->helper(array('url', 'form'));
     }
 
+    /**
+     * Set product status (Available/Unavailable) via POST.
+     * Example POST keys: 'status' => 'available'|'unavailable'
+     */
+    public function set_product_status($id)
+    {
+        header('Content-Type: application/json');
+        $status = $this->input->post('status', true);
+        if ($status === null) {
+            echo json_encode(['status' => 'error', 'msg' => 'Missing status']);
+            return;
+        }
+
+        $status_normalized = strtolower($status) === 'available' ? 'Available' : 'Unavailable';
+
+        if ($this->Product_model->update_product_status($id, $status_normalized)) {
+            echo json_encode(['status' => 'success']);
+        } else {
+            echo json_encode(['status' => 'error']);
+        }
+    }
+
+    /**
+     * Get product status (returns JSON)
+     */
+    public function get_product_status($id)
+    {
+        header('Content-Type: application/json');
+        $status = $this->Product_model->get_product_status($id);
+        if ($status === null) {
+            echo json_encode(['status' => 'error', 'msg' => 'Product not found']);
+        } else {
+            echo json_encode(['status' => 'success', 'data' => ['status' => $status]]);
+        }
+    }
+    
+    /**
+     * Get product details via GET parameter (for AJAX calls)
+     * Used by beginner booking to get product info without cart
+     */
+    public function get_product_details()
+    {
+        header('Content-Type: application/json');
+        
+        $product_id = $this->input->get('product_id');
+        
+        if (!$product_id) {
+            echo json_encode(['status' => 'error', 'message' => 'Product ID is required']);
+            return;
+        }
+        
+        $product = $this->Product_model->get_product($product_id);
+        
+        if (!$product) {
+            echo json_encode(['status' => 'error', 'message' => 'Product not found']);
+            return;
+        }
+        
+        // Get first image from ImageUrl (could be JSON array)
+        $imageUrl = '';
+        if (!empty($product->ImageUrl)) {
+            $decoded = json_decode($product->ImageUrl, true);
+            if (is_array($decoded) && !empty($decoded[0])) {
+                $firstImage = trim($decoded[0]);
+                $firstImage = ltrim($firstImage, '/');
+                if (strpos($firstImage, 'http') === 0) {
+                    $imageUrl = $firstImage;
+                } else if (strpos($firstImage, 'uploads/') === 0 || strpos($firstImage, 'assets/') === 0) {
+                    $imageUrl = base_url($firstImage);
+                } else {
+                    $imageUrl = base_url('uploads/products/' . basename($firstImage));
+                }
+            } else {
+                $imageUrl = base_url('uploads/products/' . basename($product->ImageUrl));
+            }
+        }
+        
+        echo json_encode([
+            'status' => 'success',
+            'product' => [
+                'Product_ID' => $product->Product_ID,
+                'ProductName' => $product->ProductName,
+                'Category' => $product->Category ?? '',
+                'Subcategory' => $product->Subcategory ?? '',
+                'Price' => $product->Price ?? null,
+                'PriceMin' => $product->PriceMin ?? null,
+                'PriceMax' => $product->PriceMax ?? null,
+                'ImageUrl' => $imageUrl,
+                'Description' => $product->Description ?? ''
+            ]
+        ]);
+    }
+
 
     // ---------------- ADD PRODUCT ----------------
     public function add_product()
@@ -185,6 +278,8 @@ class ProductCon extends CI_Controller
     $priceMin = $this->input->post('priceMin');
     $priceMax = $this->input->post('priceMax');
     $standardSeries = $this->input->post('standardSeries');
+    $category = $this->input->post('category', true);
+    $subcategory = $this->input->post('subcategory', true);
 
     // Calculate average price for backward compatibility
     $avgPrice = 0;
@@ -219,7 +314,8 @@ class ProductCon extends CI_Controller
         'PriceMax'    => $priceMax ? $priceMax : null,
         'ImageUrl'    => $image_json,
         'DateAdded'   => date('Y-m-d H:i:s'),
-        'Status'      => 'active' // default value
+        // Default new products to 'Available' so they show up immediately in listings
+        'Status'      => 'Available'
     ];
 
     // Add customization data if provided (from Customize Build tab)
@@ -469,6 +565,7 @@ public function update_product($id)
         $standardSeries = $this->input->post('standardSeries');
         $orderType = $this->input->post('orderType', true);
         $subcategory = $this->input->post('subcategory', true);
+      
         
         // Calculate average price for backward compatibility
         $avgPrice = 0;
@@ -517,6 +614,21 @@ public function update_product($id)
             $data['PriceMax'] = $priceMax;
         } else {
             $data['PriceMax'] = null;
+        }
+
+        // Availability / Status handling (Admin)
+        // Accepts several possible POST keys from the admin UI: 'status', 'availability', or 'editProductAvailability'
+        $availability = $this->input->post('status', true);
+        if ($availability === null) {
+            $availability = $this->input->post('availability', true);
+        }
+        if ($availability === null) {
+            $availability = $this->input->post('editProductAvailability', true);
+        }
+        if ($availability !== null) {
+            // Normalize to DB enum values: 'Available' or 'Unavailable'
+            $availability_lc = strtolower($availability);
+            $data['Status'] = ($availability_lc === 'available' || $availability === 'Available') ? 'Available' : 'Unavailable';
         }
         
         // Add customization data if provided (from Customize Build tab)
@@ -586,7 +698,9 @@ public function update_product($id)
             'ProductName' => $this->input->post('name', true),
             'Price'       => $this->input->post('price', true),
             'Category'    => $this->input->post('category', true),
-            'Material'    => $this->input->post('material', true)
+            'Material'    => $this->input->post('material', true),
+            'availability' => $this->input->post('availability')
+            
         ];
         
         if (!empty($_FILES['productImage']['name'])) {
@@ -913,6 +1027,7 @@ public function update_product($id)
             'product' => [
                 'Product_ID' => $product->Product_ID,
                 'ProductName' => $product->ProductName,
+                'Description' => isset($product->Description) ? $product->Description : '',
                 'Category' => $product->Category,
                 'Subcategory' => $product->Subcategory,
                 'OrderType' => $product->OrderType ?? 'direct',
@@ -921,6 +1036,7 @@ public function update_product($id)
                 'PriceMin' => $product->PriceMin,
                 'PriceMax' => $product->PriceMax,
                 'ImageUrl' => $images,
+                'Status' => isset($product->Status) ? $product->Status : 'Available',
                 'Customization' => $customization,
                 'SelectedCustomizationSeries' => $product->SelectedCustomizationSeries,
                 'tagPrices' => empty($tag_prices) ? new stdClass() : $tag_prices,

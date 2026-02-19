@@ -102,17 +102,20 @@ $route['customizationFields/save'] = 'CustomizationFieldsCon/save';
 $route['customizationAjax/save'] = 'CustomizationAjaxCon/save';
 $route['customizationAjax/load'] = 'CustomizationAjaxCon/load';
 $route['customizationAjax/price'] = 'CustomizationAjaxCon/price';
-$route['addtocart'] = 'CartCon/cart_page';
-$route['cart-page'] = 'CartCon/cart_page';
+// Cart page removed - redirect to wishlist (booking-only workflow)
+$route['addtocart'] = 'WishlistCon/index';
+$route['cart-page'] = 'WishlistCon/index';
 $route['payment'] = 'ShopCon/checkout';
 $route['booking'] = 'ShopCon/booking';
 $route['confirm-booking'] = 'ShopCon/confirm_booking';
 $route['accept-quotation'] = 'ShopCon/accept_quotation';
 $route['payment/create-payment-intent'] = 'ShopCon/create_payment_intent';
+$route['payment/create-stage-payment-intent'] = 'ShopCon/create_stage_payment_intent';
 $route['payment/attach-payment-method'] = 'ShopCon/attach_payment_method';
 $route['payment/complete'] = 'ShopCon/payment_complete';
 $route['paying'] = 'ShopCon/ewallet';
 $route['complete'] = 'ShopCon/complete';
+$route['complete_booking'] = 'ShopCon/complete_booking';
 $route['ShopCon/submit_ewallet_payment'] = 'ShopCon/submit_ewallet_payment';
 $route['submit-ewallet-payment'] = 'ShopCon/submit_ewallet_payment';
 $route['terms_order'] = 'ShopCon/terms_order';
@@ -126,7 +129,12 @@ $route['wishlist/remove'] = 'WishlistCon/remove_ajax';
 $route['wishlist/clear'] = 'WishlistCon/clear_ajax';
 $route['wishlist/move_to_cart'] = 'WishlistCon/move_to_cart_ajax';
 $route['wishlist/count'] = 'WishlistCon/get_count_ajax';
+
+// Product API routes
+$route['ProductCon/get_product_details'] = 'ProductCon/get_product_details';
+
 $route['track_order'] = 'ShopCon/order_tracking';
+$route['order-tracking'] = 'ShopCon/order_tracking';
 $route['waiting_order'] = 'ShopCon/waiting_order';
 $route['cartsave'] = 'AddtoCartCon/save';
 $route['my_purchases'] = 'ShopCon/list_products';
@@ -164,6 +172,11 @@ $route['auth/process_reset_password/(:any)'] = 'auth/process_reset_password/$1';
 $route['auth/confirm_email/(:any)'] = 'auth/confirm_email/$1';
 $route['auth/resend_confirmation'] = 'auth/resend_confirmation_email';
 
+/*==============Experience Setup Routes================*/
+$route['setup-experience'] = 'auth/setup_experience';
+$route['auth/setup_experience'] = 'auth/setup_experience';
+$route['auth/save_experience_setup'] = 'auth/save_experience_setup';
+
 /* 
 ======================================
 =============User Routes===============
@@ -185,14 +198,12 @@ $route['admin-calendar'] = 'AdminCon/admin_calendar';
 $route['AdminCon/get_calendar_events'] = 'AdminCon/get_calendar_events';
 $route['AdminCon/get_day_details'] = 'AdminCon/get_day_details';
 $route['admin-production'] = 'AdminCon/admin_production';
-$route['admin-quotations'] = 'AdminCon/admin_quotations';
 $route['admin-return-orders'] = 'AdminCon/admin_return_orders';
 $route['admin-employee'] = 'AdminCon/admin_employee';
 $route['admin-endUser'] = 'AdminCon/admin_endUser';
 $route['admin-inventory'] = 'AdminCon/admin_inventory';
 $route['admin-product'] = 'AdminCon/admin_product';
 $route['admin-payments'] = 'AdminCon/admin_payments';
-$route['admin-reports'] = 'AdminCon/admin_reports';
 $route['admin-account'] = 'AdminCon/admin_account';
 $route['admin-notif'] = 'AdminCon/admin_notif';
 $route['admin-get-notification-count'] = 'AdminCon/get_notification_count_ajax';
@@ -242,13 +253,7 @@ $route['SalesCon/request_approval'] = 'SalesCon/request_approval';
 ======================================
  */
 
-$route['inventory-dashboard'] = 'InventCon/inventory_dashboard';
-$route['inventory-products'] = 'InventCon/inventory_products';
-$route['inventory-inventory'] = 'InventCon/inventory_inventory';
-$route['inventory-account'] = 'InventCon/inventory_account';
-$route['inventory-reports'] = 'InventCon/inventory_reports';
-$route['inventory-notif'] = 'InventCon/inventory_notif';
-$route['inventory-get-notification-count'] = 'InventCon/get_notification_count_ajax';
+// Inventory pages removed — routes disabled
 
 /* 
 ======================================

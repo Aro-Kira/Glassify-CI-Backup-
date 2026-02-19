@@ -128,7 +128,7 @@ function showToast(message, type = 'info', duration = 3000) {
 // Book Now Handler - Saves complete order details to customization table
 $(document).on('click', '#buy-now-btn', function(e) {
     e.preventDefault();
-    
+
     const productId = $(this).data('product-id');
     const customerId = document.body.getAttribute('data-customer-id');
     
@@ -220,6 +220,7 @@ $(document).on('click', '#buy-now-btn', function(e) {
         type: 'POST',
         data: orderData,
         dataType: 'text', // Expect text response to parse manually
+        xhrFields: { withCredentials: true }, // Ensure session cookies are sent
         success: function(response) {
             try {
                 const res = typeof response === 'string' ? JSON.parse(response) : response;

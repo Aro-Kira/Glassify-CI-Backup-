@@ -1472,6 +1472,26 @@ tbody tr:hover {
   border-bottom: none;
 }
 
+/* Items Table Footer for Quotation Totals */
+.items-table tfoot {
+  background: #f8f9fa;
+  border-top: 2px solid #e9ecef;
+}
+
+.items-table tfoot td {
+  padding: 10px 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.items-table tfoot .totals-row:last-child td {
+  border-bottom: none;
+}
+
+.items-table tfoot .total-final td {
+  background: #eef6fa;
+  padding: 14px 16px;
+}
+
 /* Action Buttons - Modern Style */
 .action-buttons {
   display: flex;

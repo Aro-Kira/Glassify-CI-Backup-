@@ -1,18 +1,6 @@
-/* Montserrat loaded via Google Fonts in layout.php */
-
-/* ===== RESET & BASE ===== */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  background-color: #f4f6f9;
-  color: #333;
-}
+/* Inventory CSS deprecated — inventory pages removed */
+/* Minimal placeholder to avoid 404 on includes */
+body { background: none; }
 
 .logo-container {
   display: flex;

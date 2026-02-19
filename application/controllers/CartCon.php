@@ -463,14 +463,17 @@ class CartCon extends CI_Controller
             $customer->Address = $full_address;
         }
 
-        $data['title'] = "Glassify - MY CART";
-        $data['cart_items'] = $cart_items;
-        $data['customer'] = $customer;
-        $data['summary'] = $this->calculate_summary($cart_items);
-
-        $this->load->view('includes/header', $data);
-        $this->load->view('shop/addtocart', $data);
-        $this->load->view('includes/footer');
+        // Cart page no longer used - redirect to wishlist (booking-only workflow)
+        redirect('wishlist');
+        
+        // Legacy code kept for reference:
+        // $data['title'] = "Glassify - MY CART";
+        // $data['cart_items'] = $cart_items;
+        // $data['customer'] = $customer;
+        // $data['summary'] = $this->calculate_summary($cart_items);
+        // $this->load->view('includes/header', $data);
+        // $this->load->view('shop/addtocart', $data);
+        // $this->load->view('includes/footer');
     }
 
     // ===================== REMOVE ITEM =====================
@@ -1003,6 +1006,94 @@ class CartCon extends CI_Controller
             
             $customization = !empty($customization_parts) ? implode(' | ', $customization_parts) : 'Standard';
             
+            // Build structured breakdown for pills rendering (use actual values from Customization JSON)
+            $breakdown_fields = [];
+            if (!empty($item->Customization)) {
+                log_message('debug', '=== CART ITEM BREAKDOWN DEBUG ===');
+                log_message('debug', 'Cart_ID: ' . $item->Cart_ID);
+                log_message('debug', 'Item Customization JSON: ' . $item->Customization);
+                $dynamic_customs = json_decode($item->Customization, true);
+                log_message('debug', 'Decoded customization: ' . print_r($dynamic_customs, true));
+                
+                // Get product's customization field configuration to preserve order and labels
+                $field_order = [];
+                $field_labels = [];
+                if (!empty($item->Product_ID)) {
+                    $this->db->select('Category, Subcategory');
+                    $this->db->from('product');
+                    $this->db->where('Product_ID', $item->Product_ID);
+                    $product = $this->db->get()->row();
+                    
+                    if ($product && !empty($product->Category) && !empty($product->Subcategory)) {
+                        $fieldKey = $product->Category . '_' . $product->Subcategory;
+                        // Load field configuration from customization_field_configs table
+                        $this->db->select('FieldConfig');
+                        $this->db->from('customization_field_configs');
+                        $this->db->where('FieldKey', $fieldKey);
+                        $config = $this->db->get()->row();
+                        
+                        if ($config && !empty($config->FieldConfig)) {
+                            $fields = json_decode($config->FieldConfig, true);
+                            if (is_array($fields)) {
+                                foreach ($fields as $field) {
+                                    $field_id = $field['id'] ?? '';
+                                    $field_label = $field['label'] ?? ucfirst($field_id);
+                                    if (!empty($field_id)) {
+                                        $field_order[] = $field_id;
+                                        $field_labels[$field_id] = $field_label;
+                                    }
+                                }
+                                log_message('debug', 'FieldKey: ' . $fieldKey);
+                                log_message('debug', 'Field order loaded: ' . print_r($field_order, true));
+                                log_message('debug', 'Field labels loaded: ' . print_r($field_labels, true));
+                            }
+                        }
+                    }
+                }
+                
+                // Add dimension as the FIRST field if available
+                if (!empty($item->Dimensions)) {
+                    $breakdown_fields[] = ['label' => 'Dimension', 'value' => $item->Dimensions];
+                    log_message('debug', "Added Dimension: " . $item->Dimensions);
+                }
+                
+                if (is_array($dynamic_customs)) {
+                    // Use field order from configuration if available, otherwise use JSON order
+                    $keys_to_process = !empty($field_order) ? $field_order : array_keys($dynamic_customs);
+                    
+                    foreach ($keys_to_process as $key) {
+                        if (!isset($dynamic_customs[$key])) continue;
+                        $val = $dynamic_customs[$key];
+                        
+                        // Skip internal/legacy fields - only show actual 2D customization specs
+                        if (in_array($key, ['product_id', 'product_name', 'total_quotation', 'quantity', 'price_breakdown', 'customization', 'dimensions', 'shape', 'type', 'thickness', 'edge', 'frame', 'engraving'])) {
+                            log_message('debug', "Skipping field: $key");
+                            continue;
+                        }
+                        if ($val === '' || $val === null || $val === 'None') continue;
+                        
+                        // Use configured label if available, otherwise transform field name
+                        $label = isset($field_labels[$key]) ? $field_labels[$key] : ucfirst(preg_replace('/(?<!^)[A-Z]/', ' $0', str_replace('_', ' ', $key)));
+                        $breakdown_fields[] = ['label' => $label, 'value' => $val];
+                        log_message('debug', "Added field: $label = $val");
+                    }
+                }
+                log_message('debug', 'Breakdown fields built: ' . print_r($breakdown_fields, true));
+            } else {
+                log_message('debug', 'No Customization field found for item ' . $item->Cart_ID);
+            }
+            // ONLY use legacy fields as fallback if NO customization data exists at all
+            if (empty($breakdown_fields)) {
+                log_message('debug', 'Using legacy field fallback for Cart_ID: ' . $item->Cart_ID);
+                if (!empty($item->Dimensions)) $breakdown_fields[] = ['label' => 'Size', 'value' => $item->Dimensions];
+                if (!empty($item->GlassShape)) $breakdown_fields[] = ['label' => 'Shape', 'value' => ucfirst($item->GlassShape)];
+                if (!empty($item->GlassType)) $breakdown_fields[] = ['label' => 'Type', 'value' => ucfirst($item->GlassType)];
+                if (!empty($item->GlassThickness)) $breakdown_fields[] = ['label' => 'Thickness', 'value' => $item->GlassThickness];
+                if (!empty($item->EdgeWork)) $breakdown_fields[] = ['label' => 'Edge', 'value' => ucfirst(str_replace('-', ' ', $item->EdgeWork))];
+                if (!empty($item->FrameType)) $breakdown_fields[] = ['label' => 'Frame', 'value' => ucfirst($item->FrameType)];
+                if (!empty($item->Engraving) && $item->Engraving !== 'None') $breakdown_fields[] = ['label' => 'Engraving', 'value' => $item->Engraving];
+            }
+            
             // Handle image - can be JSON or string
             $image_raw = $item->ImageUrl ?? 'default.jpg';
             $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
@@ -1048,13 +1139,20 @@ class CartCon extends CI_Controller
                 'cart_id' => $item->Cart_ID,
                 'product_id' => $item->Product_ID,
                 'description' => $item->ProductName,
+                'category' => $item->Category ?? '',
+                'subcategory' => $item->Subcategory ?? '',
                 'quantity' => $item->Quantity,
                 'unit_price' => $price,
                 'total' => $total,
                 'customization' => $customization,
+                'customization_breakdown' => $breakdown_fields,
                 'image' => $image_url,
                 'has_design' => !empty($item->DesignRef),
-                'design_ref' => !empty($item->DesignRef) ? base_url($item->DesignRef) : null
+                'design_ref' => !empty($item->DesignRef) ? base_url($item->DesignRef) : null,
+                'PriceMin' => $item->PriceMin ?? null,
+                'PriceMax' => $item->PriceMax ?? null,
+                'price_min' => $item->PriceMin ?? null,
+                'price_max' => $item->PriceMax ?? null
             ];
         }
         
@@ -1093,6 +1191,8 @@ class CartCon extends CI_Controller
     {
         $subtotal = 0;
         $total_items = 0;
+        $price_min = null;
+        $price_max = null;
 
         foreach ($cart_items as $item) {
             // Use Price (which includes EstimatePrice or BasePrice) as calculated in get_cart_items_with_details
@@ -1100,6 +1200,14 @@ class CartCon extends CI_Controller
             $price = $item->Price ?? $item->EstimatePrice ?? $item->BasePrice ?? 0;
             $subtotal += $price * $item->Quantity;
             $total_items += $item->Quantity;
+            
+            // Collect price range from product (use first product's price range)
+            if ($price_min === null && isset($item->PriceMin)) {
+                $price_min = $item->PriceMin;
+            }
+            if ($price_max === null && isset($item->PriceMax)) {
+                $price_max = $item->PriceMax;
+            }
         }
 
         $shipping = $total_items * 25;
@@ -1111,7 +1219,9 @@ class CartCon extends CI_Controller
             'subtotal' => $subtotal,
             'shipping' => $shipping,
             'handling' => $handling,
-            'total' => $total
+            'total' => $total,
+            'price_range_min' => $price_min,
+            'price_range_max' => $price_max
         ];
     }
 

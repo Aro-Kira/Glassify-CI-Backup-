@@ -2,28 +2,47 @@ document.addEventListener("DOMContentLoaded", () => {
   const allProducts = Array.from(document.querySelectorAll(".product"));
   const paginationContainer = document.querySelector(".pagination");
   const checkboxes = document.querySelectorAll(".filters input[type='checkbox']");
+  const categoryRadios = document.querySelectorAll(".filters input[name='category']");
+  const subcategoryCheckboxes = document.querySelectorAll(".filters input[name='subcategory']");
   const activeFiltersContainer = document.querySelector(".active-filters");
   const searchInput = document.querySelector(".search");
   const resultsText = document.querySelector(".search-results p");
+  const subcategoriesGroup = document.getElementById("subcategories-group");
+  const subcategoriesContainer = document.getElementById("subcategories-container");
 
   const itemsPerPage = 6;
   let currentPage = 1;
   let filteredProducts = [...allProducts]; // start with all
 
+  // Subcategories data (will be populated from PHP)
+  const subcategoriesData = window.subcategoriesByCategory || {};
+
   // 🔎 Apply filters + search
   function applyFilters() {
     const selected = {
       Category: [],
+      Subcategory: [],
       Availability: [],
     };
 
-    // collect selected checkboxes - allow multiple selections per group
+    // collect selected category radio button
+    const selectedCategoryRadio = document.querySelector(".filters input[name='category']:checked");
+    if (selectedCategoryRadio) {
+      selected.Category.push(selectedCategoryRadio.value);
+    }
+
+    // collect selected subcategory checkboxes
+    subcategoryCheckboxes.forEach(cb => {
+      if (cb.checked) {
+        selected.Subcategory.push(cb.value);
+      }
+    });
+
+    // collect selected availability checkboxes
     checkboxes.forEach(cb => {
       if (cb.checked) {
         const group = cb.closest(".filter-group").querySelector("h4").textContent;
-        if (group === "Category") {
-          selected.Category.push(cb.value);
-        } else if (group === "Availability") {
+        if (group === "Availability") {
           selected.Availability.push(cb.value);
         }
       }
@@ -35,18 +54,25 @@ document.addEventListener("DOMContentLoaded", () => {
     filteredProducts = allProducts.filter(product => {
       let show = true;
 
-      // Category filter - check if product matches any selected category
+      // Category filter - check if product matches selected category
       if (selected.Category.length > 0) {
         const productCategory = (product.dataset.category || "").trim();
-        const matchesCategory = selected.Category.some(selectedCat => {
-          const normalizedProduct = productCategory.toLowerCase();
-          const normalizedSelected = selectedCat.toLowerCase();
-          // Exact match or contains match for flexibility
-          return normalizedProduct === normalizedSelected || 
-                 normalizedProduct.includes(normalizedSelected) || 
-                 normalizedSelected.includes(normalizedProduct);
-        });
+        const selectedCategory = selected.Category[0]; // Only one category can be selected
+        const normalizedProduct = productCategory.toLowerCase();
+        const normalizedSelected = selectedCategory.toLowerCase();
+        const matchesCategory = normalizedProduct === normalizedSelected ||
+                               normalizedProduct.includes(normalizedSelected) ||
+                               normalizedSelected.includes(normalizedProduct);
         if (!matchesCategory) {
+          show = false;
+        }
+      }
+
+      // Subcategory filter - check if product matches any selected subcategory
+      if (selected.Subcategory.length > 0) {
+        const productSubcategory = (product.dataset.subcategory || "").trim();
+        const matchesSubcategory = selected.Subcategory.includes(productSubcategory);
+        if (!matchesSubcategory) {
           show = false;
         }
       }
@@ -159,6 +185,41 @@ document.addEventListener("DOMContentLoaded", () => {
     activeFiltersContainer.innerHTML = "<h4>Active Filters:</h4>";
     let hasFilter = false;
 
+    // Handle category radio button
+    const selectedCategoryRadio = document.querySelector(".filters input[name='category']:checked");
+    if (selectedCategoryRadio) {
+      hasFilter = true;
+      const tag = document.createElement("span");
+      tag.className = "filter-tag";
+      tag.textContent = selectedCategoryRadio.parentNode.textContent.trim();
+
+      tag.addEventListener("click", () => {
+        selectedCategoryRadio.checked = false;
+        handleCategoryChange();
+      });
+
+      activeFiltersContainer.appendChild(tag);
+    }
+
+    // Handle subcategory checkboxes
+    const subcategoryCheckboxes = document.querySelectorAll(".filters input[name='subcategory']");
+    subcategoryCheckboxes.forEach(checkbox => {
+      if (checkbox.checked) {
+        hasFilter = true;
+        const tag = document.createElement("span");
+        tag.className = "filter-tag";
+        tag.textContent = checkbox.parentNode.textContent.trim();
+
+        tag.addEventListener("click", () => {
+          checkbox.checked = false;
+          applyFilters();
+        });
+
+        activeFiltersContainer.appendChild(tag);
+      }
+    });
+
+    // Handle availability checkboxes
     checkboxes.forEach(checkbox => {
       if (checkbox.checked) {
         hasFilter = true;
@@ -181,19 +242,71 @@ document.addEventListener("DOMContentLoaded", () => {
       clearAll.textContent = "Clear All";
 
       clearAll.addEventListener("click", () => {
+        // Clear category radio
+        if (selectedCategoryRadio) {
+          selectedCategoryRadio.checked = false;
+        }
+        // Clear subcategory checkboxes
+        subcategoryCheckboxes.forEach(cb => (cb.checked = false));
+        // Clear availability checkboxes
         checkboxes.forEach(cb => (cb.checked = false));
         searchInput.value = "";
         filteredProducts = [...allProducts];
         currentPage = 1;
         showPage(currentPage);
-        updateActiveFilters();
+        handleCategoryChange(); // This will hide subcategories and update filters
       });
 
       activeFiltersContainer.appendChild(clearAll);
     }
   }
 
-  // ✅ Allow multiple selections per group (removed single-selection restriction)
+  // 🔘 Handle category radio button changes
+  function handleCategoryChange() {
+    const selectedCategory = document.querySelector(".filters input[name='category']:checked");
+    if (selectedCategory) {
+      const categoryValue = selectedCategory.value;
+
+      // Show subcategories group
+      subcategoriesGroup.style.display = "block";
+
+      // Populate subcategories
+      const subcategories = subcategoriesData[categoryValue] || [];
+      subcategoriesContainer.innerHTML = "";
+
+      if (subcategories.length > 0) {
+        subcategories.forEach(subcategory => {
+          const label = document.createElement("label");
+          label.innerHTML = `<input type="checkbox" name="subcategory" value="${subcategory}"> ${subcategory}`;
+          subcategoriesContainer.appendChild(label);
+        });
+
+        // Update subcategory checkboxes reference
+        const newSubcategoryCheckboxes = document.querySelectorAll(".filters input[name='subcategory']");
+
+        // Add event listeners to new subcategory checkboxes
+        newSubcategoryCheckboxes.forEach(cb => {
+          cb.addEventListener("change", () => {
+            applyFilters();
+          });
+        });
+      } else {
+        subcategoriesContainer.innerHTML = "<p style='color: #666; font-style: italic;'>No subcategories available</p>";
+      }
+    } else {
+      // Hide subcategories when no category is selected
+      subcategoriesGroup.style.display = "none";
+    }
+
+    applyFilters();
+  }
+
+  // Add event listeners to category radio buttons
+  categoryRadios.forEach(radio => {
+    radio.addEventListener("change", handleCategoryChange);
+  });
+
+  // ✅ Allow multiple selections for availability checkboxes
   checkboxes.forEach(checkbox => {
     checkbox.addEventListener("change", e => {
       applyFilters();

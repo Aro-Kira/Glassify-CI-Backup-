@@ -17,9 +17,13 @@ class EndUserCon extends CI_Controller {
     public function get_users() {
         header('Content-Type: application/json');
         
-        $this->db->where('Role', 'Customer');
-        $this->db->order_by('Date_Created', 'DESC');
-        $users = $this->db->get('user')->result();
+        $this->db->select('u.*, c.role, c.experience_data, c.setup_status');
+        $this->db->from('user u');
+        $this->db->join('customer c', 'c.UserID = u.UserID', 'left');
+        // Include Customer, Professional, and Beginner as customer-equivalents
+        $this->db->where_in('u.Role', ['Customer', 'Professional', 'Beginner']);
+        $this->db->order_by('u.Date_Created', 'DESC');
+        $users = $this->db->get()->result();
         
         $formatted = [];
         foreach ($users as $user) {
@@ -28,6 +32,41 @@ class EndUserCon extends CI_Controller {
             
             // For last active, we'll use Date_Updated for now (can be enhanced later)
             $lastActive = $user->Date_Updated ? date('Y-m-d', strtotime($user->Date_Updated)) : $joinedDate;
+            
+            // Determine role display
+            // Priority: customer.role (from experience setup) > user.Role (account-level)
+            $roleDisplay = '';
+            
+            // First try customer.role from experience setup
+            if ($user->setup_status === 'completed' && $user->role) {
+                if ($user->role === 'beginner') {
+                    $roleDisplay = 'Beginner';
+                } elseif ($user->role === 'professional') {
+                    // Get profession type from experience_data
+                    $professionType = '';
+                    if ($user->experience_data) {
+                        $experienceData = json_decode($user->experience_data, true);
+                        if (isset($experienceData['profession_type'])) {
+                            $professionType = ucfirst($experienceData['profession_type']);
+                            if ($professionType === 'Other' && isset($experienceData['profession_type_other'])) {
+                                $professionType = $experienceData['profession_type_other'];
+                            }
+                        }
+                    }
+                    $roleDisplay = $professionType ? 'Professional (' . $professionType . ')' : 'Professional';
+                }
+            }
+            
+            // Fallback to user.Role if no customer.role available
+            if (!$roleDisplay && $user->Role) {
+                if ($user->Role === 'Professional') {
+                    $roleDisplay = 'Professional';
+                } elseif ($user->Role === 'Beginner') {
+                    $roleDisplay = 'Beginner';
+                } elseif ($user->Role === 'Customer') {
+                    $roleDisplay = 'Customer';
+                }
+            }
             
             $formatted[] = [
                 'id' => (int)$user->UserID,
@@ -38,7 +77,8 @@ class EndUserCon extends CI_Controller {
                 'phone' => $user->PhoneNum,
                 'joinedDate' => $joinedDate,
                 'lastActive' => $lastActive,
-                'status' => $user->Status
+                'status' => $user->Status,
+                'roleDisplay' => $roleDisplay
             ];
         }
         
@@ -58,15 +98,16 @@ class EndUserCon extends CI_Controller {
         
         $user_id = $userData['id'];
         
-        // Check if user exists and is a customer
+        // Check if user exists and is a customer-equivalent (Customer, Professional, Beginner)
         $user = $this->User_model->get_by_id($user_id);
         if (!$user) {
             echo json_encode(['success' => false, 'message' => 'User not found']);
             return;
         }
         
-        if ($user->Role !== 'Customer') {
-            echo json_encode(['success' => false, 'message' => 'User is not a customer']);
+        $allowed_roles = ['Customer', 'Professional', 'Beginner'];
+        if (!in_array($user->Role, $allowed_roles)) {
+            echo json_encode(['success' => false, 'message' => 'User is not an end user']);
             return;
         }
         
@@ -105,15 +146,16 @@ class EndUserCon extends CI_Controller {
         
         $user_id = $req['id'];
         
-        // Check if user exists and is a customer
+        // Check if user exists and is a customer-equivalent (Customer, Professional, Beginner)
         $user = $this->User_model->get_by_id($user_id);
         if (!$user) {
             echo json_encode(['success' => false, 'message' => 'User not found']);
             return;
         }
         
-        if ($user->Role !== 'Customer') {
-            echo json_encode(['success' => false, 'message' => 'User is not a customer']);
+        $allowed_roles = ['Customer', 'Professional', 'Beginner'];
+        if (!in_array($user->Role, $allowed_roles)) {
+            echo json_encode(['success' => false, 'message' => 'User is not an end user']);
             return;
         }
         

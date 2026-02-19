@@ -131,12 +131,14 @@ JAVASCRIPT FILES:
                                 <td class="item-price">₱<?= number_format($item->Price, 2) ?></td>
                                 <td class="actions">
                                     <?php 
-                                    $is_in_cart = isset($in_cart_wishlist_ids) && in_array($item->Wishlist_ID, $in_cart_wishlist_ids);
-                                    $button_class = $is_in_cart ? 'add-cart-btn added-state' : 'add-cart-btn';
-                                    $button_text = $is_in_cart ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg> Added' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg> Add to Cart';
-                                    $button_style = $is_in_cart ? 'style="background: #28a745; color: white;"' : '';
+                                    // Check if item is already booked/in progress
+                                    $is_booked = isset($booked_wishlist_ids) && in_array($item->Wishlist_ID, $booked_wishlist_ids);
+                                    $button_class = $is_booked ? 'book-btn in-progress-state' : 'book-btn';
+                                    $button_text = $is_booked ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg> In Progress' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg> Book Now';
+                                    $button_style = $is_booked ? 'style="background: #6c757d; color: white; cursor: not-allowed;"' : '';
+                                    $button_disabled = $is_booked ? 'disabled' : '';
                                     ?>
-                                    <button class="<?= $button_class ?>" data-id="<?= $item->Wishlist_ID ?>" <?= $button_style ?>>
+                                    <button class="<?= $button_class ?>" data-id="<?= $item->Wishlist_ID ?>" data-product-id="<?= $item->Product_ID ?>" data-customization-id="<?= $item->CustomizationID ?>" <?= $button_style ?> <?= $button_disabled ?>>
                                         <?= $button_text ?>
                                     </button>
                                 </td>

@@ -280,6 +280,74 @@ body {
   border-bottom: none;
 }
 
+/* ======================
+   REQUESTS TABLE (COMPACT)
+   ====================== */
+.requests-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  color: #333;
+  background: transparent;
+}
+
+.requests-table thead {
+  background-color: transparent;
+}
+
+.requests-table thead th {
+  text-align: left;
+  padding: 10px 12px;
+  color: #02455F;
+  font-weight: 700;
+  font-size: 13px;
+  border-bottom: 1px solid #e6eef2;
+}
+
+.requests-table tbody td {
+  padding: 10px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f3f5;
+  font-size: 13px;
+}
+
+.requests-table tbody tr:hover {
+  background-color: #fbfcfd;
+}
+
+.requests-table .order-link {
+  color: #006494;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.requests-table .order-link:hover {
+  text-decoration: underline;
+  color: #02455F;
+}
+
+.requests-table .btn-small {
+  display: inline-block;
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid #006494;
+  color: #006494;
+  border-radius: 4px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.requests-table .btn-small:hover {
+  background: #006494;
+  color: #fff;
+}
+
+/* Make the table more compact on small screens */
+@media (max-width: 800px) {
+  .requests-table thead th { font-size: 12px; padding: 8px; }
+  .requests-table tbody td { font-size: 12px; padding: 8px; }
+}
+
 /* Order Link */
 .order-link {
   color: #006494;
@@ -639,16 +707,27 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-/* .section-title {
+/* Section titles inside details cards */
+.details-section .section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 18px;
   font-weight: 600;
   color: #02455F;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #006494;
+  margin: 0 0 15px 0;
+  padding: 0 0 10px 0;
   font-family: 'Montserrat', sans-serif;
 }
- */
+
+.details-section .section-title::after {
+  content: "";
+  display: block;
+  flex: 1 1 auto;
+  height: 2px;
+  background: #006494;
+  margin-left: 8px;
+}
 .info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -700,6 +779,70 @@ body {
 .form-control.editable[readonly] {
   background: #f5f5f5;
   cursor: not-allowed;
+}
+
+/* Day appointments popup (replaces alert()) */
+.day-appointments-popup {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  background: #1f2a37;
+  color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  min-width: 320px;
+  max-width: 640px;
+  z-index: 99999;
+  opacity: 0;
+  transition: opacity 220ms ease, transform 220ms ease;
+  overflow: hidden;
+  font-family: 'DM Sans', sans-serif;
+}
+.day-appointments-popup.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.day-appointments-popup .dap-header {
+  background: linear-gradient(135deg,#02455F 0%,#006494 100%);
+  padding: 12px 16px;
+  font-weight: 600;
+}
+.day-appointments-popup .dap-body {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #e6f2fb;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.day-appointments-popup .dap-body .dap-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.day-appointments-popup .dap-body th,
+.day-appointments-popup .dap-body td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 13px;
+}
+.day-appointments-popup .dap-body th { color: #cde9ff; font-weight: 600; }
+.day-appointments-popup .dap-body td.dap-time { width: 72px; white-space: nowrap; }
+.day-appointments-popup .dap-body td.dap-order { width: 90px; white-space: nowrap; }
+.day-appointments-popup .dap-body td.dap-client { min-width: 120px; }
+.day-appointments-popup .dap-body td.dap-specs { color: #d7eefc; opacity: 0.9; }
+.day-appointments-popup .dap-actions {
+  padding: 10px 16px;
+  text-align: right;
+  background: rgba(255,255,255,0.02);
+}
+.day-appointments-popup .dap-actions .dap-close {
+  background: #fff;
+  color: #02455F;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
 .staff-select {

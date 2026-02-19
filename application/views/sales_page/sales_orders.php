@@ -767,13 +767,33 @@
 </div>
 
 <script>
+    // Debug: Log page load
+    console.log('Sales Orders Page Loading...');
+    console.log('Base URL:', '<?php echo base_url(); ?>');
+    
     const base_url = '<?php echo base_url(); ?>';
-    const ordersData = <?php echo json_encode($orders); ?>;
+    
+    // Error handling for ordersData JSON
+    let ordersData = [];
+    try {
+        ordersData = <?php echo json_encode($orders); ?>;
+        console.log('Orders Data loaded successfully:', ordersData.length, 'orders');
+        console.log('Orders:', ordersData);
+    } catch (error) {
+        console.error('Error parsing orders data:', error);
+        showToast('Error loading orders data. Please refresh the page.', 'error');
+    }
+    
+    // Debug: Check if orders data is valid
+    if (!Array.isArray(ordersData)) {
+        console.error('Orders data is not an array:', ordersData);
+        ordersData = [];
+    }
 </script>
-<script src="<?php echo base_url('assets/js/sales-js/sales-order-tabs.js'); ?>"></script>
-<script src="<?php echo base_url('assets/js/sales-js/sales-order-approval-btn.js'); ?>"></script>
-<script src="<?php echo base_url('assets/js/sales-js/sales-order-check-btn.js'); ?>"></script>
-<script src="<?php echo base_url('assets/js/sales-js/sales-order-view-btn.js'); ?>"></script>
-<script src="<?php echo base_url('assets/js/sales-js/sales-request-approval-handler.js'); ?>"></script>
-<script src="<?php echo base_url('assets/js/sales-js/sales-order-approve-handler.js'); ?>"></script>
-<script src="<?php echo base_url('assets/js/sales-js/sales-orders-main.js'); ?>"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-tabs.js'); ?>" onerror="console.error('Failed to load sales-order-tabs.js')"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-approval-btn.js'); ?>" onerror="console.error('Failed to load sales-order-approval-btn.js')"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-check-btn.js'); ?>" onerror="console.error('Failed to load sales-order-check-btn.js')"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-view-btn.js'); ?>" onerror="console.error('Failed to load sales-order-view-btn.js')"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-request-approval-handler.js'); ?>" onerror="console.error('Failed to load sales-request-approval-handler.js')"></script>
+<script src="<?php echo base_url('assets/js/sales-js/sales-order-approve-handler.js'); ?>" onerror="console.error('Failed to load sales-order-approve-handler.js')"></script>
+<script src=\"<?php echo base_url('assets/js/sales-js/sales-orders-main.js'); ?>\" onerror=\"console.error('Failed to load sales-orders-main.js')\"></script>\n\n<!-- Loading fix script - Must be loaded last to override any loading states -->\n<script src=\"<?php echo base_url('assets/js/sales-js/orders-loading-fix.js'); ?>\"></script>

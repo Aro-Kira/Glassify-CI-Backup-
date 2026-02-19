@@ -11,7 +11,7 @@ const backGroup = document.getElementById('back-group');
 const step1 = document.getElementById('step-1');
 const step2 = document.getElementById('step-2');
 const step3 = document.getElementById('step-3');
-const crumbMain = document.getElementById('crumb-main');
+// Breadcrumbs are now managed dynamically by updateDynamicBreadcrumbs()
 const breadcrumbsContainer = document.getElementById('breadcrumbs-container');
 const nextNote = document.getElementById('next-note');
 const backNote = document.getElementById('back-note');
@@ -45,6 +45,22 @@ const MAX_FILE_SIZE_MB = 25;
 let currentStep = 1;
 let isStandardMode = false;
 let dimensionsLocked = false; // Lock state for equalizing height and width
+
+// Track the last step before entering review
+let lastStepBeforeReview = 1;
+
+// Pricing database - declared early to avoid temporal dead zone issues
+let pricingDatabase = null;
+
+// Store calculated price breakdown - declared early to avoid temporal dead zone issues
+let priceBreakdown = {
+    baseArea: 0,
+    fieldPrices: {},
+    total: 0
+};
+
+// Store the design image data globally for cart submission - declared early to avoid temporal dead zone
+let currentDesignImageData = null;
 
 // CUSTOM STATE VARIABLES
 let currentShape = 'rectangle';
@@ -82,9 +98,9 @@ function convertToMm(value, unit) {
 // --- KONVA.JS VISUALIZATION LOGIC ---
 // Default configuration values per KONVA_DEFAULT_OPTIONS_REFERENCE.md
 
-const KONVA_CONTAINER_ID = 'konva-container';
+var KONVA_CONTAINER_ID = 'konva-container';
 const konvaWrapper = document.getElementById(KONVA_CONTAINER_ID);
-const STAGE_SIZE = konvaWrapper.offsetWidth;
+const STAGE_SIZE = konvaWrapper ? konvaWrapper.offsetWidth : 0;
 
 // Canvas Layout Constants - per KONVA_DEFAULT_OPTIONS_REFERENCE.md
 const PADDING = 40; // Padding around drawing area (pixels)
@@ -94,114 +110,119 @@ const DIM_OFFSET = 15; // Offset for dimension lines from glass panel
 // --- VISUAL CONFIGURATION ---
 // Default glass type visual styles. These are SYSTEM DEFAULTS and will NOT be overridden by database configs.
 // Synced with KONVA_DEFAULT_OPTIONS_REFERENCE.md
+// CONSOLIDATED: Eliminated redundancy (case variations), added categories and visual indicators
 let glassStyles = {
-    // Standard Glass Types
-    'clear': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
-    'tinted': { fill: '#546E7A', opacity: 0.7, isDefault: true },
-    'laminated': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
-    'tempered': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
-    'double': { fill: '#B2DFDB', opacity: 0.9, isDefault: true },
-    'low-e': { fill: '#Dcedc8', opacity: 0.85, isDefault: true },
-    'Low-E': { fill: '#Dcedc8', opacity: 0.85, isDefault: true },
-    'frosted': { fill: '#98dfffff', opacity: 0.95, isDefault: true },
-    'Frosted': { fill: '#8ec8ffff', opacity: 0.95, isDefault: true },
-    'fully frosted': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
-    'Fully frosted': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
-    'smoked': { fill: '#808080', opacity: 0.7, isDefault: true },
-    'frosted (full or partial)': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
-    'Frosted (full or partial)': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
-    'patterned': { fill: '#E8E8E8', opacity: 0.9, isDefault: true },
-    'safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
-    'Safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
-    'reflective coatings': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85, isDefault: true },
-    'Reflective coatings': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85, isDefault: true },
-    'laminated safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
-    'Laminated safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true },
-    'clear with frosted sticker': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
-    'Clear with frosted sticker': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
-    '10mm Frosted Tempered': { fill: '#FFFFFF', opacity: 0.95, isDefault: true },
-    'bulletproof': { fill: '#CFD8DC', opacity: 0.98, isDefault: true },
-    'Bulletproof': { fill: '#CFD8DC', opacity: 0.98, isDefault: true },
-    // Windows-Specific Glass Types
-    'ultra clear': { fill: 'rgba(255, 255, 255, 0.1)', opacity: 0.9, isDefault: true },
-    'bronze': { fill: 'rgba(205, 127, 50, 0.4)', opacity: 0.7, isDefault: true },
-    'light green': { fill: 'rgba(144, 238, 144, 0.4)', opacity: 0.7, isDefault: true },
-    'dark gray': { fill: 'rgba(105, 105, 105, 0.5)', opacity: 0.6, isDefault: true },
-    'copperfree mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9, isDefault: true },
-    'euro gray': { fill: 'rgba(169, 169, 169, 0.5)', opacity: 0.7, isDefault: true },
-    'ford blue': { fill: 'rgba(70, 130, 180, 0.5)', opacity: 0.7, isDefault: true },
-    'ordinary': { fill: '#E0F2F1', opacity: 0.9, isDefault: true },
-    'reflective': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85, isDefault: true },
-    // Reflective Glass Variants
-    'reflective: clear': { fill: 'rgba(255, 255, 255, 0.6)', opacity: 0.9, isDefault: true },
-    'reflective: gray': { fill: 'rgba(169, 169, 169, 0.6)', opacity: 0.8, isDefault: true },
-    'reflective: light blue': { fill: 'rgba(173, 216, 230, 0.6)', opacity: 0.8, isDefault: true },
-    'reflective: dark blue': { fill: 'rgba(0, 0, 139, 0.6)', opacity: 0.8, isDefault: true },
-    'reflective: light green': { fill: 'rgba(50, 205, 50, 0.6)', opacity: 0.8, isDefault: true },
-    'reflective: dark green': { fill: 'rgba(0, 100, 0, 0.6)', opacity: 0.8, isDefault: true },
-    'reflective: light bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.8, isDefault: true },
-    // Tempered Glass Variants
-    'tempered: clear': { fill: 'rgba(255, 255, 255, 0.2)', opacity: 0.9, isDefault: true },
-    'tempered: bronze': { fill: 'rgba(205, 127, 50, 0.3)', opacity: 0.8, isDefault: true },
-    // Mirror-Specific Tint Options
-    'mirror-clear': { fill: 'rgba(224, 242, 241, 0.9)', opacity: 0.95, isDefault: true },
-    'mirror-bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.7, isDefault: true },
-    'mirror-grey': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6, isDefault: true },
-    'mirror-grey-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6, isDefault: true },
-    'mirror-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6, isDefault: true },
-    'mirror-black': { fill: 'rgba(38, 50, 56, 0.7)', opacity: 0.8, isDefault: true },
-    // Mirror type from JSON
-    'copper free and lead free mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9, isDefault: true },
-    'Copper Free and Lead Free Mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9, isDefault: true }
+    // ========== BASIC CLEAR GLASS ==========
+    'clear': { fill: '#E0F2F1', opacity: 0.6, isDefault: true, category: 'basic', indicator: '◇', description: 'Standard clear glass' },
+    'Clear': { fill: '#E0F2F1', opacity: 0.6, isDefault: true, category: 'basic', indicator: '◇', description: 'Standard clear glass (capitalized)' },
+    'ordinary': { fill: '#E0F2F1', opacity: 0.5, isDefault: true, category: 'basic', indicator: '◇', description: 'Ordinary clear glass' },
+    'ultra clear': { fill: 'rgba(255, 255, 255, 0.1)', opacity: 0.5, isDefault: true, category: 'basic', indicator: '◇', description: 'Ultra clear glass with minimal color tint' },
+    
+    // ========== TEMPERED GLASS ==========
+    'tempered': { fill: '#E0F2F1', opacity: 0.6, isDefault: true, category: 'tempered', indicator: '✓', description: 'Safety tempered glass' },
+    'tempered: clear': { fill: 'rgba(255, 255, 255, 0.2)', opacity: 0.6, isDefault: true, category: 'tempered', indicator: '✓', description: 'Clear tempered glass' },
+    'tempered: bronze': { fill: 'rgba(205, 127, 50, 0.3)', opacity: 0.6, isDefault: true, category: 'tempered', indicator: '✓', description: 'Bronze tinted tempered glass' },
+    '10mm frosted tempered': { fill: '#FFFFFF', opacity: 0.6, isDefault: true, category: 'tempered', indicator: '✓', description: '10mm frosted tempered glass' },
+    
+    // ========== TINTED & COLOR GLASS ==========
+    'tinted': { fill: '#546E7A', opacity: 0.7, isDefault: true, category: 'tinted', indicator: '⬤', description: 'General tinted glass' },
+    'bronze': { fill: 'rgba(205, 127, 50, 0.4)', opacity: 0.7, isDefault: true, category: 'tinted', indicator: '⬤', description: 'Bronze tinted glass' },
+    'light green': { fill: 'rgba(144, 238, 144, 0.4)', opacity: 0.7, isDefault: true, category: 'tinted', indicator: '⬤', description: 'Light green tinted glass' },
+    'dark gray': { fill: 'rgba(105, 105, 105, 0.5)', opacity: 0.6, isDefault: true, category: 'tinted', indicator: '⬤', description: 'Dark gray tinted glass' },
+    'euro gray': { fill: 'rgba(169, 169, 169, 0.5)', opacity: 0.7, isDefault: true, category: 'tinted', indicator: '⬤', description: 'European gray tinted glass' },
+    'ford blue': { fill: 'rgba(70, 130, 180, 0.5)', opacity: 0.7, isDefault: true, category: 'tinted', indicator: '⬤', description: 'Ford blue tinted glass' },
+    'smoked': { fill: '#808080', opacity: 0.6, isDefault: true, category: 'tinted', indicator: '⬤', description: 'Smoked gray glass' },
+    
+    // ========== FROSTED GLASS ==========
+    'frosted': { fill: '#98dfffff', opacity: 0.6, isDefault: true, category: 'frosted', indicator: '❄', description: 'Standard frosted glass' },
+    'fully frosted': { fill: '#FFFFFF', opacity: 0.95, isDefault: true, category: 'frosted', indicator: '❄', description: 'Fully frosted opaque glass' },
+    'frosted (full or partial)': { fill: '#FFFFFF', opacity: 0.95, isDefault: true, category: 'frosted', indicator: '❄', description: 'Frosted - full or partial coverage' },
+    'clear with frosted sticker': { fill: '#E0F2F1', opacity: 0.9, isDefault: true, category: 'frosted', indicator: '❄', description: 'Clear glass with frosted sticker' },
+    
+    // ========== LAMINATED GLASS ==========
+    'laminated': { fill: '#CFD8DC', opacity: 0.95, isDefault: true, category: 'laminated', indicator: '≡', description: 'Standard laminated glass' },
+    'laminated safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true, category: 'laminated', indicator: '≡', description: 'Laminated safety glass' },
+    
+    // ========== SAFETY GLASS ==========
+    'safety glass': { fill: '#CFD8DC', opacity: 0.95, isDefault: true, category: 'safety', indicator: '⚔', description: 'Tempered safety glass' },
+    'bulletproof': { fill: '#CFD8DC', opacity: 0.98, isDefault: true, category: 'safety', indicator: '⚔', description: 'Bulletproof safety glass' },
+    
+    // ========== INSULATED & ENERGY EFFICIENT ==========
+    'double': { fill: '#B2DFDB', opacity: 0.9, isDefault: true, category: 'insulated', indicator: '⊞', description: 'Double-pane insulated glass' },
+    'low-e': { fill: '#Dcedc8', opacity: 0.85, isDefault: true, category: 'insulated', indicator: '⊞', description: 'Low-emissivity energy efficient glass' },
+    
+    // ========== PATTERNED & SPECIALTY ==========
+    'patterned': { fill: '#E8E8E8', opacity: 0.9, isDefault: true, category: 'patterned', indicator: '▦', description: 'Patterned decorative glass' },
+    
+    // ========== REFLECTIVE GLASS ==========
+    'reflective': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85, isDefault: true, category: 'reflective', indicator: '◆', description: 'Reflective coated glass' },
+    'reflective coatings': { fill: 'rgba(200, 200, 200, 0.6)', opacity: 0.85, isDefault: true, category: 'reflective', indicator: '◆', description: 'Reflective coatings' },
+    'reflective: clear': { fill: 'rgba(255, 255, 255, 0.6)', opacity: 0.9, isDefault: true, category: 'reflective', indicator: '◆', description: 'Clear reflective glass' },
+    'reflective: gray': { fill: 'rgba(169, 169, 169, 0.6)', opacity: 0.8, isDefault: true, category: 'reflective', indicator: '◆', description: 'Gray reflective glass' },
+    'reflective: light blue': { fill: 'rgba(173, 216, 230, 0.6)', opacity: 0.8, isDefault: true, category: 'reflective', indicator: '◆', description: 'Light blue reflective glass' },
+    'reflective: dark blue': { fill: 'rgba(0, 0, 139, 0.6)', opacity: 0.8, isDefault: true, category: 'reflective', indicator: '◆', description: 'Dark blue reflective glass' },
+    'reflective: light green': { fill: 'rgba(50, 205, 50, 0.6)', opacity: 0.8, isDefault: true, category: 'reflective', indicator: '◆', description: 'Light green reflective glass' },
+    'reflective: dark green': { fill: 'rgba(0, 100, 0, 0.6)', opacity: 0.8, isDefault: true, category: 'reflective', indicator: '◆', description: 'Dark green reflective glass' },
+    'reflective: light bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.8, isDefault: true, category: 'reflective', indicator: '◆', description: 'Light bronze reflective glass' },
+    
+    // ========== MIRROR TYPES ==========
+    'mirror-clear': { fill: 'rgba(224, 242, 241, 0.9)', opacity: 0.95, isDefault: true, category: 'mirror', indicator: '🔍', description: 'Clear mirror' },
+    'mirror-bronze': { fill: 'rgba(205, 127, 50, 0.6)', opacity: 0.7, isDefault: true, category: 'mirror', indicator: '🔍', description: 'Bronze mirror' },
+    'mirror-grey': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6, isDefault: true, category: 'mirror', indicator: '🔍', description: 'Grey mirror' },
+    'mirror-grey-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6, isDefault: true, category: 'mirror', indicator: '🔍', description: 'Grey smoked mirror' },
+    'mirror-smoked': { fill: 'rgba(96, 125, 139, 0.5)', opacity: 0.6, isDefault: true, category: 'mirror', indicator: '🔍', description: 'Smoked mirror' },
+    'mirror-black': { fill: 'rgba(38, 50, 56, 0.7)', opacity: 0.8, isDefault: true, category: 'mirror', indicator: '🔍', description: 'Black mirror' },
+    'copperfree mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9, isDefault: true, category: 'mirror', indicator: '🔍', description: 'Copper free and lead free mirror' },
+    'copper free and lead free mirror': { fill: 'rgba(192, 192, 192, 0.8)', opacity: 0.9, isDefault: true, category: 'mirror', indicator: '🔍', description: 'Copper free and lead free mirror' }
 };
 
 // DEFAULT frame styles - these are SYSTEM DEFAULTS and will NOT be overridden by database configs
 // Synced with KONVA_DEFAULT_OPTIONS_REFERENCE.md
+// CONSOLIDATED: Eliminated redundancy (case variations), added categories and visual indicators
 let frameStyles = {
-    // Standard Frame Colors
-    'white': { color: '#FFFFFF', width: 4, isDefault: true },
-    'black': { color: '#000000', width: 4, isDefault: true },
-    'silver': { color: '#C0C0C0', width: 3, isDefault: true },
-    'bronze': { color: '#CD7F32', width: 3, isDefault: true },
-    'gold': { color: '#FFD700', width: 4, isDefault: true },
-    'rose-gold': { color: '#B76E79', width: 4, isDefault: true },
-    'wood': { color: '#795548', width: 6, isDefault: true },
-    'aluminum': { color: '#90A4AE', width: 3, isDefault: true },
-    'chrome': { color: '#E8E8E8', width: 3, isDefault: true },
-    'brushed-nickel': { color: '#A8A9AD', width: 3, isDefault: true },
-    'stainless-steel': { color: '#C9CCD1', width: 3, isDefault: true },
-    'custom-color': { color: '#888888', width: 4, isDefault: true },
-    // Legacy Frame Types
-    'vinyl': { color: '#333333', width: 4, isDefault: true },
-    'frameless': { color: 'transparent', width: 0, isDefault: true },
-    // Windows-Specific Frame Colors
-    'powder coated white': { color: '#F8F8F8', width: 4, isDefault: true },
-    'Powder Coated White': { color: '#F8F8F8', width: 4, isDefault: true },
-    'analok': { color: '#F5F5DC', width: 4, isDefault: true },
-    'Analok': { color: '#F5F5DC', width: 4, isDefault: true },
-    'matte gray': { color: '#6B6B6B', width: 4, isDefault: true },
-    'Matte Gray': { color: '#6B6B6B', width: 4, isDefault: true },
-    'matte black': { color: '#1A1A1A', width: 4, isDefault: true },
-    'Matte Black': { color: '#1A1A1A', width: 4, isDefault: true },
-    'wood finish': { color: '#8B4513', width: 4, isDefault: true },
-    'Wood Finish': { color: '#8B4513', width: 4, isDefault: true },
-    'hanalok': { color: '#F5F5DC', width: 4, isDefault: true },
-    'gray': { color: '#808080', width: 4, isDefault: true },
-    'grey': { color: '#808080', width: 4, isDefault: true },
-    'Dark Grey/Black': { color: '#2C2C2C', width: 4, isDefault: true },
-    'dark grey/black': { color: '#2C2C2C', width: 4, isDefault: true },
-    'Brown (wood-look)': { color: '#8B4513', width: 4, isDefault: true },
-    'brown (wood-look)': { color: '#8B4513', width: 4, isDefault: true },
-    'Stainless Mirror Finish': { color: '#D4D4D4', width: 3, isDefault: true },
-    'stainless mirror finish': { color: '#D4D4D4', width: 3, isDefault: true },
-    'Analok (dark/bronze finish)': { color: '#8B4513', width: 4, isDefault: true },
-    'analok (dark/bronze finish)': { color: '#8B4513', width: 4, isDefault: true },
-    'Custom colors': { color: '#888888', width: 4, isDefault: true },
-    'custom colors': { color: '#888888', width: 4, isDefault: true },
-    // Mirror-Specific Frame Types
-    'standard-frame': { color: '#333333', width: 6, isDefault: true },
-    'thin-frame': { color: '#333333', width: 3, isDefault: true },
-    'grid-frame': { color: '#333333', width: 4, isDefault: true }
+    // ========== METAL FINISHES ==========
+    'white': { color: '#FFFFFF', width: 4, isDefault: true, category: 'metal', indicator: '■', description: 'White frame' },
+    'black': { color: '#000000', width: 4, isDefault: true, category: 'metal', indicator: '■', description: 'Black frame' },
+    'silver': { color: '#C0C0C0', width: 3, isDefault: true, category: 'metal', indicator: '■', description: 'Silver frame' },
+    'bronze': { color: '#CD7F32', width: 3, isDefault: true, category: 'metal', indicator: '■', description: 'Bronze frame' },
+    'gold': { color: '#FFD700', width: 4, isDefault: true, category: 'metal', indicator: '■', description: 'Gold frame' },
+    'rose-gold': { color: '#B76E79', width: 4, isDefault: true, category: 'metal', indicator: '■', description: 'Rose gold frame' },
+    'aluminum': { color: '#90A4AE', width: 3, isDefault: true, category: 'metal', indicator: '■', description: 'Aluminum frame' },
+    'chrome': { color: '#E8E8E8', width: 3, isDefault: true, category: 'metal', indicator: '■', description: 'Chrome frame' },
+    'brushed-nickel': { color: '#A8A9AD', width: 3, isDefault: true, category: 'metal', indicator: '■', description: 'Brushed nickel frame' },
+    'stainless-steel': { color: '#C9CCD1', width: 3, isDefault: true, category: 'metal', indicator: '■', description: 'Stainless steel frame' },
+    'stainless mirror finish': { color: '#D4D4D4', width: 3, isDefault: true, category: 'metal', indicator: '■', description: 'Stainless mirror finish' },
+    'custom-color': { color: '#888888', width: 4, isDefault: true, category: 'metal', indicator: '■', description: 'Custom color frame' },
+    
+    // ========== WOOD FINISHES ==========
+    'wood': { color: '#795548', width: 6, isDefault: true, category: 'wood', indicator: '▌', description: 'Wood frame' },
+    'wood finish': { color: '#8B4513', width: 4, isDefault: true, category: 'wood', indicator: '▌', description: 'Wood finish frame' },
+    'brown (wood-look)': { color: '#8B4513', width: 4, isDefault: true, category: 'wood', indicator: '▌', description: 'Brown wood-look frame' },
+    
+    // ========== POWDER COATED & MATTE ==========
+    'powder coated white': { color: '#F8F8F8', width: 4, isDefault: true, category: 'coated', indicator: '◆', description: 'Powder coated white frame' },
+    'analok': { color: '#F5F5DC', width: 4, isDefault: true, category: 'coated', indicator: '◆', description: 'Analok finish frame' },
+    'analok (dark/bronze finish)': { color: '#8B4513', width: 4, isDefault: true, category: 'coated', indicator: '◆', description: 'Analok dark/bronze finish' },
+    'matte gray': { color: '#6B6B6B', width: 4, isDefault: true, category: 'coated', indicator: '◆', description: 'Matte gray frame' },
+    'matte black': { color: '#1A1A1A', width: 4, isDefault: true, category: 'coated', indicator: '◆', description: 'Matte black frame' },
+    'dark grey/black': { color: '#2C2C2C', width: 4, isDefault: true, category: 'coated', indicator: '◆', description: 'Dark grey/black frame' },
+    
+    // ========== MATERIAL TYPES ==========
+    'vinyl': { color: '#333333', width: 4, isDefault: true, category: 'material', indicator: '▢', description: 'Vinyl frame' },
+    'hanalok': { color: '#F5F5DC', width: 4, isDefault: true, category: 'material', indicator: '▢', description: 'Hanalok frame' },
+    
+    // ========== FRAMELESS ==========
+    'frameless': { color: 'transparent', width: 0, isDefault: true, category: 'frameless', indicator: '─', description: 'Frameless design' },
+    
+    // ========== GRAY VARIANTS ==========
+    'gray': { color: '#808080', width: 4, isDefault: true, category: 'gray', indicator: '◇', description: 'Gray frame' },
+    'grey': { color: '#808080', width: 4, isDefault: true, category: 'gray', indicator: '◇', description: 'Grey frame' },
+    
+    // ========== SPECIALTY FRAME TYPES ==========
+    'standard-frame': { color: '#333333', width: 6, isDefault: true, category: 'specialty', indicator: '◊', description: 'Standard frame' },
+    'thin-frame': { color: '#333333', width: 3, isDefault: true, category: 'specialty', indicator: '◊', description: 'Thin frame' },
+    'grid-frame': { color: '#333333', width: 4, isDefault: true, category: 'specialty', indicator: '◊', description: 'Grid frame pattern' },
+    'custom colors': { color: '#888888', width: 4, isDefault: true, category: 'specialty', indicator: '◊', description: 'Custom color options' }
 };
 
 /**
@@ -226,72 +247,72 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
         console.log('[Konva] No custom visual configs to load');
         return;
     }
-    
+
     const totalFields = Object.keys(tagVisualConfigs).length;
     console.log(`[Konva] ========== LOADING VISUAL CONFIGS FROM ADMIN ==========`);
     console.log(`[Konva] Total fields with visual configs: ${totalFields}`);
     console.log('[Konva] Full config data:', JSON.stringify(tagVisualConfigs, null, 2));
-    
+
     // Store full configs for advanced rendering
     extendedVisualConfigs = { ...extendedVisualConfigs, ...tagVisualConfigs };
-    
+
     let glassConfigsAdded = 0;
     let frameConfigsAdded = 0;
-    
+
     // Process each field's visual configs
     Object.keys(tagVisualConfigs).forEach(fieldId => {
         const fieldConfigs = tagVisualConfigs[fieldId];
         if (!fieldConfigs || typeof fieldConfigs !== 'object') return;
-        
+
         const tagCount = Object.keys(fieldConfigs).length;
         console.log(`[Konva] Processing field "${fieldId}" with ${tagCount} tag config(s)`);
-        
+
         Object.keys(fieldConfigs).forEach(tagName => {
             const config = fieldConfigs[tagName];
             if (!config) return;
-            
+
             // Skip if visual config is disabled
             if (config.enabled === false) {
                 console.log(`[Konva] ⏭️ Skipping disabled config for ${fieldId}/${tagName}`);
                 return;
             }
-            
+
             // Normalize tag name for lookup (lowercase, replace spaces with dashes)
             const normalizedTagName = tagName.toLowerCase().replace(/\s+/g, '-');
-            
+
             console.log(`[Konva] Processing: "${tagName}" -> "${normalizedTagName}"`);
-            
+
             // Store extended config with all advanced properties
             extendedVisualConfigs[normalizedTagName] = { ...config, fieldId, originalTagName: tagName };
-            
+
             // Determine which style object to update based on field type AND effect type
             const fieldIdLower = fieldId.toLowerCase();
             const effectType = (config.effectType || 'fill').toLowerCase();
-            
+
             // Check if this is a frame-related field FIRST (has priority over glass)
             // This prevents frameColor from being treated as glass
-            const isFrameField = fieldIdLower.includes('frame') || 
-                                 (fieldIdLower.includes('color') && !fieldIdLower.includes('glass')) || 
-                                 fieldIdLower.includes('edge') ||
-                                 fieldIdLower.includes('border') ||
-                                 fieldIdLower.includes('stroke') ||
-                                 effectType === 'frame' ||
-                                 effectType === 'edge';
-            
+            const isFrameField = fieldIdLower.includes('frame') ||
+                (fieldIdLower.includes('color') && !fieldIdLower.includes('glass')) ||
+                fieldIdLower.includes('edge') ||
+                fieldIdLower.includes('border') ||
+                fieldIdLower.includes('stroke') ||
+                effectType === 'frame' ||
+                effectType === 'edge';
+
             // Check if this is a glass-related field (expanded detection)
             // NOTE: Exclude frame-related fields to prevent conflicts
             const isGlassField = !isFrameField && (
-                                 fieldIdLower.includes('glass') || 
-                                 fieldIdLower.includes('tint') || 
-                                 fieldIdLower.includes('finish') ||
-                                 (fieldIdLower.includes('type') && !fieldIdLower.includes('frame')) ||
-                                 fieldIdLower.includes('material') ||
-                                 effectType === 'fill' ||
-                                 effectType === 'gradient' ||
-                                 effectType === 'pattern' ||
-                                 effectType === 'overlay'
-                                 );
-            
+                fieldIdLower.includes('glass') ||
+                fieldIdLower.includes('tint') ||
+                fieldIdLower.includes('finish') ||
+                (fieldIdLower.includes('type') && !fieldIdLower.includes('frame')) ||
+                fieldIdLower.includes('material') ||
+                effectType === 'fill' ||
+                effectType === 'gradient' ||
+                effectType === 'pattern' ||
+                effectType === 'overlay'
+            );
+
             if (isGlassField) {
                 // Check if this style already exists as a default - if so, preserve it and skip database override
                 const existingStyle = glassStyles[normalizedTagName];
@@ -299,7 +320,7 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
                     console.log(`[Konva] ⏭️ Skipping database override for default glass style "${normalizedTagName}" - preserving system default`);
                     return; // Skip this tag, preserve default
                 }
-                
+
                 // Only add/update if it's a new style (not a default)
                 glassStyles[normalizedTagName] = {
                     fill: config.fill || '#E0F2F1',
@@ -319,7 +340,7 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
                 glassConfigsAdded++;
                 console.log(`[Konva] ✅ GLASS style added for "${normalizedTagName}": fill=${config.fill}, opacity=${config.opacity}`);
             }
-            
+
             if (isFrameField) {
                 // Check if this style already exists as a default - if so, preserve it and skip database override
                 const existingStyle = frameStyles[normalizedTagName];
@@ -327,14 +348,14 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
                     console.log(`[Konva] ⏭️ Skipping database override for default frame style "${normalizedTagName}" - preserving system default`);
                     return; // Skip this tag, preserve default
                 }
-                
+
                 // For frame colors, support multiple config formats:
                 // 1. Direct format: { color: "#FFF", width: 4 }
                 // 2. Konva format: { stroke: "#FFF", strokeWidth: 4 }
                 // 3. Legacy format: { fill: "#FFF" } (for backward compatibility)
                 const frameColor = config.color || config.stroke || config.fill || '#333333';
                 const frameWidth = config.width !== undefined ? config.width : (config.strokeWidth !== undefined ? config.strokeWidth : 4);
-                
+
                 // Only add/update if it's a new style (not a default)
                 frameStyles[normalizedTagName] = {
                     color: frameColor,
@@ -355,7 +376,7 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
                 frameConfigsAdded++;
                 console.log(`[Konva] ✅ FRAME style added for "${normalizedTagName}": color=${frameColor}, width=${frameWidth}`);
             }
-            
+
             // Also add by original tag name variants for flexible lookups
             // Only add variants if the style was actually added (not skipped as default)
             const tagVariants = [
@@ -364,7 +385,7 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
                 tagName.toLowerCase().replace(/\s+/g, '_'),
                 tagName.replace(/\s+/g, '')
             ];
-            
+
             tagVariants.forEach(variant => {
                 if (variant !== normalizedTagName) {
                     // Only add variants if the main style was added (not a default that was skipped)
@@ -384,14 +405,14 @@ function loadDynamicVisualConfigs(tagVisualConfigs) {
             });
         });
     });
-    
+
     // Expose extended configs globally
     if (typeof window !== 'undefined') {
         window.extendedVisualConfigs = extendedVisualConfigs;
         window.frameStyles = frameStyles;
         window.glassStyles = glassStyles;
     }
-    
+
     console.log(`[Konva] ========== VISUAL CONFIG LOADING COMPLETE ==========`);
     console.log(`[Konva] Glass styles added/updated: ${glassConfigsAdded}`);
     console.log(`[Konva] Frame styles added/updated: ${frameConfigsAdded}`);
@@ -411,21 +432,91 @@ function getExtendedVisualConfig(tagName) {
 }
 
 /**
+ * Get all glass types grouped by category
+ * @returns {Object} Glass types organized by category with indicators
+ */
+function getGlassTypesByCategory() {
+    const categories = {};
+    
+    Object.entries(glassStyles).forEach(([name, style]) => {
+        const category = style.category || 'other';
+        if (!categories[category]) {
+            categories[category] = [];
+        }
+        categories[category].push({
+            name,
+            ...style
+        });
+    });
+    
+    return categories;
+}
+
+/**
+ * Get all frame types grouped by category
+ * @returns {Object} Frame types organized by category with indicators
+ */
+function getFrameTypesByCategory() {
+    const categories = {};
+    
+    Object.entries(frameStyles).forEach(([name, style]) => {
+        const category = style.category || 'other';
+        if (!categories[category]) {
+            categories[category] = [];
+        }
+        categories[category].push({
+            name,
+            ...style
+        });
+    });
+    
+    return categories;
+}
+
+/**
+ * Generate a display label for glass type with indicator
+ * @param {string} glassType - Glass type name
+ * @returns {string} Formatted label with indicator
+ */
+function getGlassTypeLabel(glassType) {
+    const style = glassStyles[glassType.toLowerCase()];
+    if (!style) return glassType;
+    
+    const indicator = style.indicator || '●';
+    const description = style.description || glassType;
+    return `${indicator} ${description}`;
+}
+
+/**
+ * Generate a display label for frame type with indicator
+ * @param {string} frameType - Frame type name
+ * @returns {string} Formatted label with indicator
+ */
+function getFrameTypeLabel(frameType) {
+    const style = frameStyles[frameType.toLowerCase()];
+    if (!style) return frameType;
+    
+    const indicator = style.indicator || '●';
+    const description = style.description || frameType;
+    return `${indicator} ${description}`;
+}
+
+/**
  * Apply advanced visual effects to a Konva shape
  * @param {Konva.Shape} shape - Konva shape to modify
  * @param {Object} config - Visual config with advanced options
  */
 function applyAdvancedVisualEffects(shape, config) {
     if (!shape || !config) return;
-    
+
     const effectType = config.effectType || 'fill';
-    
+
     // Apply gradient if configured
     if (effectType === 'gradient' && config.gradientEnd) {
         const bounds = shape.getClientRect();
         const width = bounds.width || 100;
         const height = bounds.height || 100;
-        
+
         if (config.gradientDirection === 'radial') {
             shape.fillRadialGradientStartPoint({ x: width / 2, y: height / 2 });
             shape.fillRadialGradientStartRadius(0);
@@ -436,20 +527,20 @@ function applyAdvancedVisualEffects(shape, config) {
         } else {
             let startPoint = { x: 0, y: 0 };
             let endPoint = { x: 0, y: height };
-            
+
             if (config.gradientDirection === 'horizontal') {
                 endPoint = { x: width, y: 0 };
             } else if (config.gradientDirection === 'diagonal') {
                 endPoint = { x: width, y: height };
             }
-            
+
             shape.fillLinearGradientStartPoint(startPoint);
             shape.fillLinearGradientEndPoint(endPoint);
             shape.fillLinearGradientColorStops([0, config.fill, 1, config.gradientEnd]);
             shape.fill(null); // Clear solid fill
         }
     }
-    
+
     // Apply shadow if configured
     // Defaults per KONVA_DEFAULT_OPTIONS_REFERENCE.md: shadowColor: #000000, shadowBlur: 10, shadowOffset: { x: 5, y: 5 }, shadowOpacity: 0.3
     if ((effectType === 'shadow' || config.shadowBlur) && config.shadowBlur > 0) {
@@ -462,7 +553,7 @@ function applyAdvancedVisualEffects(shape, config) {
         shape.shadowOffset({ x: offsetX, y: offsetY });
         shape.shadowOpacity(config.shadowOpacity !== undefined ? config.shadowOpacity : 0.3);
     }
-    
+
     // Apply edge style if configured
     if (config.edgeStyle) {
         if (config.edgeStyle === 'dashed') {
@@ -471,12 +562,97 @@ function applyAdvancedVisualEffects(shape, config) {
             shape.dash([2, 4]);
         }
     }
-    
+
     // Apply corner radius if configured and shape supports it
     if (config.cornerRadius && typeof shape.cornerRadius === 'function') {
         shape.cornerRadius(config.cornerRadius);
     }
 }
+
+    /**
+     * Generate a small canvas that simulates frosted / hammered glass texture.
+     * Returns the canvas element which can be used as an image source for Konva.Image.
+     * @param {number} w - canvas width
+     * @param {number} h - canvas height
+     * @param {Object} opts - { density, color, intensity }
+     */
+    function generateFrostCanvas(w, h, opts = {}) {
+        const density = Math.max(1, opts.density || 6);
+        const intensity = typeof opts.intensity === 'number' ? opts.intensity : 0.6;
+        const baseColor = opts.color || '#ffffff';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+
+        // Slight translucent base tint (so pattern blends with underlying glass color)
+        ctx.fillStyle = baseColor;
+        ctx.globalAlpha = 0.02 * intensity;
+        ctx.fillRect(0, 0, w, h);
+        ctx.globalAlpha = 1;
+
+        // Draw many small soft bumps using radial gradients
+        const bumps = density * 180; // number of bumps scales with density
+        for (let i = 0; i < bumps; i++) {
+            const rx = Math.random() * w;
+            const ry = Math.random() * h;
+            // size biased by intensity and canvas size
+            const maxR = Math.max(2, Math.min(w, h) * (0.005 + Math.random() * 0.03) * (1 + intensity));
+            const r = Math.random() * maxR + 0.5;
+
+            const g = ctx.createRadialGradient(rx, ry, 0, rx, ry, r * 2);
+            const a = 0.03 + Math.random() * 0.12 * intensity; // alpha per bump
+            g.addColorStop(0, `rgba(255,255,255,${a})`);
+            g.addColorStop(0.6, `rgba(250,250,250,${a * 0.6})`);
+            g.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(rx - r * 2, ry - r * 2, r * 4, r * 4);
+        }
+
+        // Add a few darker mottles to break uniformity
+        const darks = Math.max(10, density * 8);
+        for (let i = 0; i < darks; i++) {
+            const rx = Math.random() * w;
+            const ry = Math.random() * h;
+            const r = Math.random() * Math.max(1, Math.min(w, h) * 0.02);
+            const g = ctx.createRadialGradient(rx, ry, 0, rx, ry, r * 2);
+            const a = 0.01 + Math.random() * 0.04 * intensity;
+            g.addColorStop(0, `rgba(200,200,200,${a})`);
+            g.addColorStop(1, 'rgba(200,200,200,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(rx - r * 2, ry - r * 2, r * 4, r * 4);
+        }
+
+        // Soft blur pass for smoother bumps (use ctx.filter for modern browsers)
+        try {
+            ctx.filter = `blur(${1.0 * intensity}px)`;
+            const temp = document.createElement('canvas');
+            temp.width = w;
+            temp.height = h;
+            const tctx = temp.getContext('2d');
+            tctx.drawImage(canvas, 0, 0);
+            ctx.clearRect(0, 0, w, h);
+            ctx.drawImage(temp, 0, 0);
+            ctx.filter = 'none';
+        } catch (e) {
+            // If ctx.filter not supported, ignore
+        }
+
+        // Add subtle noise overlay to create granular frost look
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            const n = (Math.random() - 0.5) * 6 * intensity; // noise amount
+            data[i] = Math.min(255, Math.max(0, data[i] + n));
+            data[i+1] = Math.min(255, Math.max(0, data[i+1] + n));
+            data[i+2] = Math.min(255, Math.max(0, data[i+2] + n));
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        return canvas;
+    }
+
 
 /**
  * Draw pattern overlay on a Konva layer
@@ -491,9 +667,9 @@ function applyAdvancedVisualEffects(shape, config) {
  */
 function drawKonvaPatternOverlay(layer, x, y, width, height, patternType, density, color) {
     if (!patternType || patternType === 'none') return;
-    
+
     const spacing = Math.max(5, 30 / (density || 5));
-    
+
     if (patternType === 'lines') {
         for (let i = spacing; i < width; i += spacing) {
             layer.add(new Konva.Line({
@@ -537,18 +713,26 @@ function drawKonvaPatternOverlay(layer, x, y, width, height, patternType, densit
             }
         }
     } else if (patternType === 'frosted') {
-        // Frosted glass effect - random small dots
-        for (let i = 0; i < (density || 5) * 20; i++) {
-            const dotX = x + Math.random() * width;
-            const dotY = y + Math.random() * height;
-            layer.add(new Konva.Circle({
-                x: dotX,
-                y: dotY,
-                radius: Math.random() * 2 + 0.5,
-                fill: '#FFFFFF',
-                opacity: Math.random() * 0.3 + 0.1,
+        // Frosted glass effect - create a repeating canvas texture that resembles
+        // the attachment (hammered / frosted glass). We draw many small bumps,
+        // blur and adjust opacity, then add as a Konva.Image so it's fast to render.
+        const frostImage = generateFrostCanvas(Math.max(96, Math.round(width/3)), Math.max(96, Math.round(height/3)), {
+            density: density || 6,
+            color: color || '#ffffff',
+            intensity: 0.6
+        });
+
+        if (frostImage) {
+            const img = new Konva.Image({
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                image: frostImage,
+                opacity: 0.45,
                 listening: false
-            }));
+            });
+            layer.add(img);
         }
     } else if (patternType === 'rain') {
         // Rain/water drops effect
@@ -573,14 +757,14 @@ function drawKonvaPatternOverlay(layer, x, y, width, height, patternType, densit
 if (typeof window !== 'undefined') {
     // Track if configs have been loaded to avoid duplicate loading
     let visualConfigsLoaded = false;
-    
+
     // Check if product data is already available
     const checkAndLoadConfigs = () => {
         if (visualConfigsLoaded) {
             console.log('[Konva] Visual configs already loaded, skipping');
             return;
         }
-        
+
         // Check for pending configs (set by 2DModeling.php if function wasn't ready)
         if (window.pendingVisualConfigs) {
             console.log('[Konva] Loading pending visual configs...');
@@ -589,22 +773,22 @@ if (typeof window !== 'undefined') {
             visualConfigsLoaded = true;
             return;
         }
-        
-       /*  if (window.selectedProduct && window.selectedProduct.tagVisualConfigs) {
-            const configCount = Object.keys(window.selectedProduct.tagVisualConfigs).length;
-            if (configCount > 0) {
-                console.log(`[Konva] Auto-loading ${configCount} visual config field(s) from product data`);
-                loadDynamicVisualConfigs(window.selectedProduct.tagVisualConfigs);
-                visualConfigsLoaded = true;
-            }
-        } */
+
+        /*  if (window.selectedProduct && window.selectedProduct.tagVisualConfigs) {
+             const configCount = Object.keys(window.selectedProduct.tagVisualConfigs).length;
+             if (configCount > 0) {
+                 console.log(`[Konva] Auto-loading ${configCount} visual config field(s) from product data`);
+                 loadDynamicVisualConfigs(window.selectedProduct.tagVisualConfigs);
+                 visualConfigsLoaded = true;
+             }
+         } */
     };
-    
+
     // Try at multiple intervals to catch different loading scenarios
     setTimeout(checkAndLoadConfigs, 100);
     setTimeout(checkAndLoadConfigs, 300);
     setTimeout(checkAndLoadConfigs, 600);
-    
+
     // Also listen for DOM ready in case data loads later
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -612,16 +796,46 @@ if (typeof window !== 'undefined') {
             setTimeout(checkAndLoadConfigs, 700);
         });
     }
-    
+
     // Expose functions globally for manual calls
     window.loadDynamicVisualConfigs = loadDynamicVisualConfigs;
     window.getExtendedVisualConfig = getExtendedVisualConfig;
     window.applyAdvancedVisualEffects = applyAdvancedVisualEffects;
     window.drawKonvaPatternOverlay = drawKonvaPatternOverlay;
-    
+
+        // Fallback: attach click handlers to any visible control labeled "Frosted"
+        // This helps older UIs that don't use data-glass-type attributes.
+        function attachFrostedButtonFallback() {
+            const candidates = Array.from(document.querySelectorAll('.option-card, button, .tag-option, .tag-item'));
+            candidates.forEach(el => {
+                try {
+                    if (el.__frostedFallbackAttached) return;
+                    const txt = (el.textContent || '').trim().toLowerCase();
+                    if (txt === 'frosted' || txt === 'frost') {
+                        el.addEventListener('click', () => {
+                            currentGlassType = 'frosted';
+                            if (typeof window !== 'undefined') {
+                                if (!window.selectedCustomizationValues) window.selectedCustomizationValues = {};
+                                window.selectedCustomizationValues.glassColor = 'Frosted';
+                            }
+                            if (typeof renderCustomState === 'function') renderCustomState();
+                        });
+                        el.__frostedFallbackAttached = true;
+                    }
+                } catch (e) { /* ignore */ }
+            });
+        }
+
+        // Run fallback attachment after DOM ready and also after short delay to catch dynamic UIs
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => { attachFrostedButtonFallback(); setTimeout(attachFrostedButtonFallback, 800); });
+        } else {
+            attachFrostedButtonFallback(); setTimeout(attachFrostedButtonFallback, 800);
+        }
+
     // Helper to check if visual configs are loaded
     window.areVisualConfigsLoaded = () => visualConfigsLoaded;
-    
+
     // Helper to force reload visual configs (useful for debugging)
     window.reloadVisualConfigs = () => {
         visualConfigsLoaded = false;
@@ -629,21 +843,32 @@ if (typeof window !== 'undefined') {
     };
 }
 
-// Initialize Konva
-const stage = new Konva.Stage({
-    container: KONVA_CONTAINER_ID,
-    width: STAGE_SIZE,
-    height: STAGE_SIZE,
-});
+// Initialize Konva (only if container exists)
+let stage = null;
+let layer = null;
+if (konvaWrapper && STAGE_SIZE > 0 && typeof Konva !== 'undefined') {
+    stage = new Konva.Stage({
+        container: KONVA_CONTAINER_ID,
+        width: STAGE_SIZE,
+        height: STAGE_SIZE,
+    });
 
-const layer = new Konva.Layer();
-stage.add(layer);
+    layer = new Konva.Layer();
+    stage.add(layer);
+    // expose for other modules
+    window.stage = stage;
+    window.layer = layer;
+} else {
+    // Ensure `window.layer` exists (null) so other scripts can check it safely
+    window.layer = null;
+}
 
 /**
  * Renders multi-panel product configuration (e.g., sliding doors, windows with multiple panels)
  * Based on product catalog JSON customization options
  */
 function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, edgeWork, frameType, originalWidth, originalHeight, heightUnit, customizationValues = {}) {
+    if (!layer) return; // Konva not initialized (container missing) - nothing to render
     layer.destroyChildren();
 
     // Get panel configuration from customization values
@@ -652,31 +877,103 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     const configuration = (customizationValues.configuration || customizationValues.Configuration || '').toLowerCase();
 
     // Get transom type (Top / Bottom Fixed Panel)
-    const transomType = customizationValues.transomType || 
-                        customizationValues.TransomType || 
-                        customizationValues.transomTypeTopBottomFixedPanel ||
-                        customizationValues.TransomTypeTopBottomFixedPanel || 
-                        'None';
+    const transomType = customizationValues.transomType ||
+        customizationValues.TransomType ||
+        customizationValues.transomTypeTopBottomFixedPanel ||
+        customizationValues.TransomTypeTopBottomFixedPanel ||
+        'None';
     const hasTransom = transomType && transomType.toLowerCase() !== 'none';
     const isFixedTransomHead = hasTransom && transomType.toLowerCase().includes('head');
     const isFixedTransomSill = hasTransom && transomType.toLowerCase().includes('sill');
-    
+
     // Get h1 (sliding section height) and h2 (fixed transom height) values from inputs if available
     let h1Value = null;
     let h1Unit = heightUnit;
     let h2Value = null;
     let h2Unit = heightUnit;
-    
+
+    let w1Value = null;
+    let w1Unit = unit;
+    let w2Value = null;
+    let w2Unit = unit;
+
+    let w3Value = null;
+    let w3Unit = unit;
+
+
     // Check if h1 input exists and is visible
     const h1InputGroup = inputGroupH1 || document.getElementById('input-group-h1');
     const h1Input = inputH1 || document.getElementById('input-h1');
     const h1UnitBtn = btnUnitH1 || document.getElementById('btn-unit-h1');
-    
+
     // Check if h2 input exists and is visible
     const h2InputGroup = inputGroupH2 || document.getElementById('input-group-h2');
     const h2Input = inputH2 || document.getElementById('input-h2');
     const h2UnitBtn = btnUnitH2 || document.getElementById('btn-unit-h2');
-    
+
+    // check if w1 input exists and is visible
+    const w1InputGroup = inputGroupW1 || document.getElementById('input-group-w1');
+    const w1Input = inputW1 || document.getElementById('input-w1');
+    const w1UnitBtn = btnUnitW1 || document.getElementById('btn-unit-w1');
+
+    // check if w2 input exists and is visible
+    const w2InputGroup = inputGroupW2 || document.getElementById('input-group-w2');
+    const w2Input = inputW2 || document.getElementById('input-w2');
+    const w2UnitBtn = btnUnitW2 || document.getElementById('btn-unit-w2');
+
+    const w3InputGroup = inputGroupW3 || document.getElementById('input-group-w3');
+    const w3Input = inputW3 || document.getElementById('input-w3');
+    const w3UnitBtn = btnUnitW3 || document.getElementById('btn-unit-w3');
+
+    if (w1Input && w1Input.value && w1InputGroup && !w1InputGroup.classList.contains('hidden-step') && w1InputGroup.style.display !== 'none') {
+        const w1InputValue = parseFloat(w1Input.value);
+        if (!isNaN(w1InputValue) && w1InputValue > 0) {
+            w1Value = w1InputValue;
+            if (w1UnitBtn) {
+                w1Unit = w1UnitBtn.getAttribute('data-current-unit') || unit;
+            }
+        }
+    }
+
+    if (w2Input && w2Input.value && w2InputGroup && !w2InputGroup.classList.contains('hidden-step') && w2InputGroup.style.display !== 'none') {
+        const w2InputValue = parseFloat(w2Input.value);
+        if (!isNaN(w2InputValue) && w2InputValue > 0) {
+            w2Value = w2InputValue;
+            if (w2UnitBtn) {
+                w2Unit = w2UnitBtn.getAttribute('data-current-unit') || unit;
+            }
+        }
+    }
+    if (w3Input && w3Input.value && w3InputGroup && !w3InputGroup.classList.contains('hidden-step') && w3InputGroup.style.display !== 'none') {
+        const w3InputValue = parseFloat(w3Input.value);
+        if (!isNaN(w3InputValue) && w3InputValue > 0) {
+            w3Value = w3InputValue;
+            if (w3UnitBtn) {
+                w3Unit = w3UnitBtn.getAttribute('data-current-unit') || unit;
+            }
+        }
+    }
+
+    if (w2Input && w2Input.value && w2InputGroup && !w2InputGroup.classList.contains('hidden-step') && w2InputGroup.style.display !== 'none') {
+        const w2InputValue = parseFloat(w2Input.value);
+        if (!isNaN(w2InputValue) && w2InputValue > 0) {
+            w2Value = w2InputValue;
+            if (w2UnitBtn) {
+                w2Unit = w2UnitBtn.getAttribute('data-current-unit') || unit;
+            }
+        }
+    }
+
+    if (w3Input && w3Input.value && w3InputGroup && !w3InputGroup.classList.contains('hidden-step') && w3InputGroup.style.display !== 'none') {
+        const w3InputValue = parseFloat(w3Input.value);
+        if (!isNaN(w3InputValue) && w3InputValue > 0) {
+            w3Value = w3InputValue;
+            if (w3UnitBtn) {
+                w3Unit = w3UnitBtn.getAttribute('data-current-unit') || unit;
+            }
+        }
+    }
+
     if (h1Input && h1Input.value && h1InputGroup && !h1InputGroup.classList.contains('hidden-step') && h1InputGroup.style.display !== 'none') {
         const h1InputValue = parseFloat(h1Input.value);
         if (!isNaN(h1InputValue) && h1InputValue > 0) {
@@ -686,7 +983,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             }
         }
     }
-    
+
     if (h2Input && h2Input.value && h2InputGroup && !h2InputGroup.classList.contains('hidden-step') && h2InputGroup.style.display !== 'none') {
         const h2InputValue = parseFloat(h2Input.value);
         if (!isNaN(h2InputValue) && h2InputValue > 0) {
@@ -696,7 +993,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             }
         }
     }
-    
+
     console.log('[Konva] Transom heights:', { h1: h1Value, h1Unit, h2: h2Value, h2Unit, totalHeight: originalHeight, heightUnit });
 
     // Get Windows-specific panel configuration
@@ -706,18 +1003,18 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     // Parse Windows panel configuration (e.g., "S | S (Sliding | Sliding)" or "F | S | S | F (Fixed | Sliding | Sliding | Fixed)")
     if (panelConfig) {
         console.log('[Konva] Parsing panel configuration:', panelConfig);
-        
+
         // Remove the descriptive text in parentheses if present (e.g., "(Sliding | Sliding)")
         let configString = panelConfig.replace(/\([^)]*\)/g, '').trim();
-        
+
         // Split by pipe character and extract panel types
         const parts = configString.split('|').map(p => p.trim()).filter(p => p.length > 0);
-        
+
         panelTypes = parts.map(part => {
             // Check for 'S' or 'Sliding' (case insensitive)
             if (part.toUpperCase().includes('S') && !part.toUpperCase().includes('F')) {
                 return 'sliding';
-            } 
+            }
             // Check for 'F' or 'Fixed' (case insensitive)
             else if (part.toUpperCase().includes('F')) {
                 return 'fixed';
@@ -725,7 +1022,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             // Default to sliding if unclear
             return 'sliding';
         });
-        
+
         // Ensure we have the correct number of panels
         if (panelTypes.length !== numberOfPanels) {
             console.warn(`[Konva] Panel configuration has ${panelTypes.length} panels but numberOfPanels is ${numberOfPanels}. Adjusting...`);
@@ -741,7 +1038,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 panelTypes = panelTypes.slice(0, numberOfPanels);
             }
         }
-        
+
         console.log('[Konva] Parsed panel types:', panelTypes);
     } else {
         // Determine if panels are fixed or operable based on operation/configuration
@@ -754,11 +1051,11 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         panelTypes = new Array(numberOfPanels).fill(hasFixedPanels ? 'fixed' : 'sliding');
         console.log('[Konva] No panel configuration found, using defaults:', panelTypes);
     }
-    
+
     // Calculate panel dimensions
     const actualRatio = widthIn / heightIn;
     let totalWidth, totalHeight;
-    
+
     if (actualRatio > 1) {
         totalWidth = DRAWING_SIZE;
         totalHeight = DRAWING_SIZE / actualRatio;
@@ -766,21 +1063,21 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         totalHeight = DRAWING_SIZE;
         totalWidth = DRAWING_SIZE * actualRatio;
     }
-    
+
     const offsetX = (STAGE_SIZE - totalWidth) / 2;
     const offsetY = (STAGE_SIZE - totalHeight) / 2;
-    
+
     // Normalize styles
     const normalizedGlassType = normalizeGlassType(glassType);
     const normalizedFrameType = normalizeFrameType(frameType);
     const gStyle = glassStyles[normalizedGlassType] || glassStyles['clear'];
     let fStyle = frameStyles[normalizedFrameType];
-    
+
     // If frame style not found, try to create a sensible default based on color name
     if (!fStyle) {
         const colorName = normalizedFrameType.toLowerCase();
         let fallbackColor = '#FFFFFF'; // Default white
-        
+
         // Common color mappings
         const commonColors = {
             'gold': '#FFD700',
@@ -797,7 +1094,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             'gray': '#808080',
             'grey': '#808080'
         };
-        
+
         // Find matching color
         for (const [key, color] of Object.entries(commonColors)) {
             if (colorName.includes(key)) {
@@ -805,25 +1102,25 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 break;
             }
         }
-        
+
         fStyle = { color: fallbackColor, width: 4 };
         frameStyles[normalizedFrameType] = fStyle;
     }
-    
+
     // Calculate panel width (divide total width by number of panels)
     const panelWidth = totalWidth / numberOfPanels;
-    
+
     // Handle transom: split window into upper and lower sections
     let upperSectionHeight = 0;
     let lowerSectionHeight = totalHeight;
     let transomDividerY = 0;
     let actualInnerHeight = null; // Store the actual inner height for dimension display
-    
+
     if (hasTransom) {
         const totalHeightInMm = convertToMm(originalHeight, heightUnit);
         let transomHeightMm = null;
         let slidingHeightMm = null;
-        
+
         // Convert h1 and h2 to millimeters for calculation
         if (h1Value !== null && h1Value > 0) {
             slidingHeightMm = convertToMm(h1Value, h1Unit);
@@ -831,7 +1128,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         if (h2Value !== null && h2Value > 0) {
             transomHeightMm = convertToMm(h2Value, h2Unit);
         }
-        
+
         // Auto-adjust: if one is missing, calculate from the other
         if (transomHeightMm !== null && slidingHeightMm === null) {
             // h2 provided, calculate h1
@@ -844,7 +1141,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             transomHeightMm = totalHeightInMm * 0.3; // 30% for transom
             slidingHeightMm = totalHeightInMm * 0.7; // 70% for sliding
         }
-        
+
         // Ensure they don't exceed total height
         const sum = transomHeightMm + slidingHeightMm;
         if (sum > totalHeightInMm) {
@@ -853,15 +1150,15 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             transomHeightMm *= scale;
             slidingHeightMm *= scale;
         }
-        
+
         // Convert back to ratios for rendering
         const transomRatio = transomHeightMm / totalHeightInMm;
         const slidingRatio = slidingHeightMm / totalHeightInMm;
-        
+
         // Clamp ratios to valid range
         const clampedTransomRatio = Math.max(0.1, Math.min(0.9, transomRatio));
         const clampedSlidingRatio = Math.max(0.1, Math.min(0.9, slidingRatio));
-        
+
         if (isFixedTransomHead) {
             // Fixed transom at top, sliding section at bottom
             upperSectionHeight = totalHeight * clampedTransomRatio;
@@ -875,7 +1172,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             transomDividerY = offsetY + upperSectionHeight;
             actualInnerHeight = h1Value || (slidingHeightMm / (unitMap[h1Unit]?.toMm || 1)); // Store for dimension display
         }
-        
+
         console.log('[Konva] Transom rendering:', {
             transomRatio: clampedTransomRatio,
             slidingRatio: clampedSlidingRatio,
@@ -891,11 +1188,11 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         // Note: Transom section is always fixed glass, regardless of panel configuration
         const transomSectionY = isFixedTransomHead ? offsetY : offsetY + upperSectionHeight;
         const transomSectionHeight = isFixedTransomHead ? upperSectionHeight : lowerSectionHeight;
-        
+
         // Draw fixed panels in transom section (transom is always fixed)
         for (let i = 0; i < numberOfPanels; i++) {
             const panelX = offsetX + (i * panelWidth);
-            
+
             // Draw fixed transom panel (transom section is always fixed)
             const fixedRect = new Konva.Rect({
                 x: panelX,
@@ -925,7 +1222,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 listening: false,
             });
             layer.add(fixedLabel);
-            
+
             // Add panel divider (vertical line between panels)
             if (i < numberOfPanels - 1) {
                 const divider = new Konva.Line({
@@ -937,15 +1234,15 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 layer.add(divider);
             }
         }
-        
+
         // Draw main section (sliding panels)
         const mainSectionY = isFixedTransomHead ? offsetY + upperSectionHeight : offsetY;
         const mainSectionHeight = isFixedTransomHead ? lowerSectionHeight : upperSectionHeight;
-        
+
         for (let i = 0; i < numberOfPanels; i++) {
             const panelX = offsetX + (i * panelWidth);
             const panelType = panelTypes[i] || 'sliding'; // Default to sliding in main section
-            
+
             if (panelType === 'sliding') {
                 // Draw sliding panel (operable glass)
                 const glassRect = new Konva.Rect({
@@ -1013,7 +1310,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 });
                 layer.add(fixedLabel);
             }
-            
+
             // Add panel divider (vertical line between panels)
             if (i < numberOfPanels - 1) {
                 const divider = new Konva.Line({
@@ -1025,7 +1322,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 layer.add(divider);
             }
         }
-        
+
         // Draw horizontal divider between transom and main sections
         if (transomDividerY > 0) {
             const transomDivider = new Konva.Line({
@@ -1090,7 +1387,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 layer.add(glassRect);
 
             }
-            
+
             // Add panel divider (vertical line between panels)
             if (i < numberOfPanels - 1) {
                 const divider = new Konva.Line({
@@ -1103,7 +1400,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             }
         }
     }
-    
+
     // Draw outer frame
     const outerFrame = new Konva.Rect({
         x: offsetX,
@@ -1116,30 +1413,30 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         listening: false,
     });
     layer.add(outerFrame);
-    
+
     // Draw dimensions (same as single panel)
     // Dimension line defaults per KONVA_DEFAULT_OPTIONS_REFERENCE.md
     const dimColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-dark').trim() || '#333';
     const DIM_EXTENSION = 20; // Extension line length (pixels)
     const DIM_LINE_OFFSET = 15; // Distance from glass to dimension line
-    
+
     // Width dimension (top)
-    layer.add(new Konva.Line({ 
-        points: [offsetX, offsetY, offsetX, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION], 
-        stroke: dimColor, 
+    layer.add(new Konva.Line({
+        points: [offsetX, offsetY, offsetX, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION],
+        stroke: dimColor,
         strokeWidth: 1.5,
         listening: false
     }));
-    layer.add(new Konva.Line({ 
-        points: [offsetX + totalWidth, offsetY, offsetX + totalWidth, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION], 
-        stroke: dimColor, 
+    layer.add(new Konva.Line({
+        points: [offsetX + totalWidth, offsetY, offsetX + totalWidth, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION],
+        stroke: dimColor,
         strokeWidth: 1.5,
         listening: false
     }));
-    layer.add(new Konva.Line({ 
-        points: [offsetX, offsetY - DIM_LINE_OFFSET, offsetX + totalWidth, offsetY - DIM_LINE_OFFSET], 
-        stroke: dimColor, 
-        strokeWidth: 1.5, 
+    layer.add(new Konva.Line({
+        points: [offsetX, offsetY - DIM_LINE_OFFSET, offsetX + totalWidth, offsetY - DIM_LINE_OFFSET],
+        stroke: dimColor,
+        strokeWidth: 1.5,
         dash: [5, 3],
         listening: false
     }));
@@ -1156,24 +1453,24 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         offsetX: (widthText.length * 6) / 2,
         listening: false,
     }));
-    
+
     // Height dimension (right side)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + totalWidth, offsetY, offsetX + totalWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY], 
-        stroke: dimColor, 
+    layer.add(new Konva.Line({
+        points: [offsetX + totalWidth, offsetY, offsetX + totalWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY],
+        stroke: dimColor,
         strokeWidth: 1.5,
         listening: false
     }));
-    layer.add(new Konva.Line({ 
-        points: [offsetX + totalWidth, offsetY + totalHeight, offsetX + totalWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY + totalHeight], 
-        stroke: dimColor, 
+    layer.add(new Konva.Line({
+        points: [offsetX + totalWidth, offsetY + totalHeight, offsetX + totalWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY + totalHeight],
+        stroke: dimColor,
         strokeWidth: 1.5,
         listening: false
     }));
-    layer.add(new Konva.Line({ 
-        points: [offsetX + totalWidth + DIM_LINE_OFFSET, offsetY, offsetX + totalWidth + DIM_LINE_OFFSET, offsetY + totalHeight], 
-        stroke: dimColor, 
-        strokeWidth: 1.5, 
+    layer.add(new Konva.Line({
+        points: [offsetX + totalWidth + DIM_LINE_OFFSET, offsetY, offsetX + totalWidth + DIM_LINE_OFFSET, offsetY + totalHeight],
+        stroke: dimColor,
+        strokeWidth: 1.5,
         dash: [5, 3],
         listening: false
     }));
@@ -1191,13 +1488,13 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         offsetX: (heightText.length * 6) / 2,
         listening: false,
     }));
-    
+
     // Inner height dimension (h1) - shows height of sliding section when transom is present
     if (hasTransom) {
         // Use h1 input value if provided, otherwise calculate from ratio
         let innerHeightValue;
         let innerHeightUnit = heightUnit;
-        
+
         if (actualInnerHeight !== null) {
             // Use the h1 input value
             innerHeightValue = actualInnerHeight;
@@ -1208,36 +1505,36 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             const innerHeightRatio = 1 - transomHeightRatio;
             innerHeightValue = originalHeight * innerHeightRatio;
         }
-        
+
         // Determine the start and end Y positions for the inner height dimension
         const innerHeightStartY = isFixedTransomHead ? offsetY + upperSectionHeight : offsetY;
         const innerHeightEndY = isFixedTransomHead ? offsetY + totalHeight : offsetY + upperSectionHeight;
-        
+
         // Use blue color for inner height dimension (h1) as shown in the image
         const innerHeightColor = '#0066CC'; // Blue color for h1 dimension
-        
+
         // Draw inner height dimension on the left side
         const INNER_DIM_OFFSET = 25; // Offset from left edge
-        layer.add(new Konva.Line({ 
-            points: [offsetX, innerHeightStartY, offsetX - INNER_DIM_OFFSET - DIM_EXTENSION, innerHeightStartY], 
-            stroke: innerHeightColor, 
+        layer.add(new Konva.Line({
+            points: [offsetX, innerHeightStartY, offsetX - INNER_DIM_OFFSET - DIM_EXTENSION, innerHeightStartY],
+            stroke: innerHeightColor,
             strokeWidth: 1.5,
             listening: false
         }));
-        layer.add(new Konva.Line({ 
-            points: [offsetX, innerHeightEndY, offsetX - INNER_DIM_OFFSET - DIM_EXTENSION, innerHeightEndY], 
-            stroke: innerHeightColor, 
+        layer.add(new Konva.Line({
+            points: [offsetX, innerHeightEndY, offsetX - INNER_DIM_OFFSET - DIM_EXTENSION, innerHeightEndY],
+            stroke: innerHeightColor,
             strokeWidth: 1.5,
             listening: false
         }));
-        layer.add(new Konva.Line({ 
-            points: [offsetX - INNER_DIM_OFFSET, innerHeightStartY, offsetX - INNER_DIM_OFFSET, innerHeightEndY], 
-            stroke: innerHeightColor, 
-            strokeWidth: 1.5, 
+        layer.add(new Konva.Line({
+            points: [offsetX - INNER_DIM_OFFSET, innerHeightStartY, offsetX - INNER_DIM_OFFSET, innerHeightEndY],
+            stroke: innerHeightColor,
+            strokeWidth: 1.5,
             dash: [5, 3],
             listening: false
         }));
-        
+
         // Format inner height value (round to 1 decimal place)
         const formattedInnerHeight = innerHeightValue.toFixed(1);
         const innerHeightText = `${formattedInnerHeight}${innerHeightUnit}`;
@@ -1254,16 +1551,16 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             offsetX: (innerHeightText.length * 6) / 2,
             listening: false,
         }));
-        
+
         // Add h2 (fixed transom height) dimension display
         let transomHeightValue;
         let transomHeightUnit = heightUnit;
-        
+
         // Get h2 value from input if available
         const h2InputGroup = inputGroupH2 || document.getElementById('input-group-h2');
         const h2Input = inputH2 || document.getElementById('input-h2');
         const h2UnitBtn = btnUnitH2 || document.getElementById('btn-unit-h2');
-        
+
         if (h2Value !== null && h2Value > 0) {
             transomHeightValue = h2Value;
             transomHeightUnit = h2Unit;
@@ -1276,38 +1573,38 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
                 }
             }
         }
-        
+
         // If h2 value is available, display it
         if (transomHeightValue !== undefined && transomHeightValue > 0) {
             // Determine positions for transom height dimension
             const transomHeightStartY = isFixedTransomHead ? offsetY : offsetY + upperSectionHeight;
             const transomHeightEndY = isFixedTransomHead ? offsetY + upperSectionHeight : offsetY + totalHeight;
-            
+
             // Use a different color for h2 (e.g., green) to distinguish from h1
             const transomHeightColor = '#00AA00'; // Green color for h2 dimension
-            
+
             // Draw transom height dimension on the left side (offset further left than h1)
             const H2_DIM_OFFSET = 50; // Further left than h1
-            layer.add(new Konva.Line({ 
-                points: [offsetX, transomHeightStartY, offsetX - H2_DIM_OFFSET - DIM_EXTENSION, transomHeightStartY], 
-                stroke: transomHeightColor, 
+            layer.add(new Konva.Line({
+                points: [offsetX, transomHeightStartY, offsetX - H2_DIM_OFFSET - DIM_EXTENSION, transomHeightStartY],
+                stroke: transomHeightColor,
                 strokeWidth: 1.5,
                 listening: false
             }));
-            layer.add(new Konva.Line({ 
-                points: [offsetX, transomHeightEndY, offsetX - H2_DIM_OFFSET - DIM_EXTENSION, transomHeightEndY], 
-                stroke: transomHeightColor, 
+            layer.add(new Konva.Line({
+                points: [offsetX, transomHeightEndY, offsetX - H2_DIM_OFFSET - DIM_EXTENSION, transomHeightEndY],
+                stroke: transomHeightColor,
                 strokeWidth: 1.5,
                 listening: false
             }));
-            layer.add(new Konva.Line({ 
-                points: [offsetX - H2_DIM_OFFSET, transomHeightStartY, offsetX - H2_DIM_OFFSET, transomHeightEndY], 
-                stroke: transomHeightColor, 
-                strokeWidth: 1.5, 
+            layer.add(new Konva.Line({
+                points: [offsetX - H2_DIM_OFFSET, transomHeightStartY, offsetX - H2_DIM_OFFSET, transomHeightEndY],
+                stroke: transomHeightColor,
+                strokeWidth: 1.5,
                 dash: [5, 3],
                 listening: false
             }));
-            
+
             // Format transom height value (remove "h2:" prefix, just show value)
             const formattedTransomHeight = transomHeightValue.toFixed(1);
             const transomHeightText = `${formattedTransomHeight}${transomHeightUnit}`;
@@ -1326,7 +1623,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
             }));
         }
     }
-    
+
     // Annotations
     // Get frameColor from customizationValues (for sliding windows)
     let frameColorValue = customizationValues.frameColor || customizationValues.FrameColor || frameType || '';
@@ -1335,10 +1632,10 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
     }
     const formatFrame = frameColorValue ? String(frameColorValue) : '';
     const formatThickness = thickness.replace(/mm+$/g, '') + 'mm';
-    const annotationText = formatFrame ? 
-        `Thickness: ${formatThickness}  |  Frame: ${formatFrame}` : 
+    const annotationText = formatFrame ?
+        `Thickness: ${formatThickness}  |  Frame: ${formatFrame}` :
         `Thickness: ${formatThickness}`;
-    
+
     layer.add(new Konva.Text({
         x: offsetX + totalWidth / 2,
         y: offsetY + totalHeight + 15,
@@ -1350,7 +1647,7 @@ function renderMultiPanelProduct(widthIn, heightIn, unit, glassType, thickness, 
         offsetX: (annotationText.length * 6) / 2,
         listening: false,
     }));
-    
+
     layer.draw();
 }
 
@@ -1368,16 +1665,16 @@ function extractPanelCount(panelString) {
  */
 function shouldUseMultiPanelRendering(customizationValues = {}) {
     // Check if NumberOfPanels or similar field exists
-    const hasPanelField = customizationValues.numberOfPanels || 
-                         customizationValues.NumberOfPanels ||
-                         customizationValues.panelCount ||
-                         customizationValues.PanelCount;
-    
+    const hasPanelField = customizationValues.numberOfPanels ||
+        customizationValues.NumberOfPanels ||
+        customizationValues.panelCount ||
+        customizationValues.PanelCount;
+
     if (!hasPanelField) return false;
-    
+
     // Extract panel count
     const panelCount = extractPanelCount(hasPanelField);
-    
+
     // Use multi-panel if more than 1 panel
     return panelCount > 1;
 }
@@ -1388,8 +1685,9 @@ function shouldUseMultiPanelRendering(customizationValues = {}) {
  * Enhanced to support multi-panel configurations
  */
 function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edgeWork, frameType, originalWidth, originalHeight, heightUnit, cornerRadiusIn = 0) {
+    if (!layer) return; // Konva not initialized
     layer.destroyChildren();
-    
+
     // Check if we should use multi-panel rendering
     const customizationValues = window.selectedCustomizationValues || {};
     if (shouldUseMultiPanelRendering(customizationValues)) {
@@ -1435,7 +1733,7 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
         else if (tint.includes('grey') || tint.includes('gray') || tint.includes('smoked')) effectiveGlassType = 'mirror-grey-smoked';
         else if (tint === 'black') effectiveGlassType = 'mirror-black';
     }
-    
+
     const normalizedGlassType = normalizeGlassType(effectiveGlassType);
     const normalizedFrameType = normalizeFrameType(frameType);
     const normalizedShape = normalizeShape(shape);
@@ -1453,12 +1751,12 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
     // Styles - with fallback color handling
     const gStyle = glassStyles[normalizedGlassType] || glassStyles['clear'];
     let fStyle = frameStyles[normalizedFrameType];
-    
+
     // If frame style not found, try to create a sensible default based on color name
     if (!fStyle) {
         const colorName = normalizedFrameType.toLowerCase();
         let fallbackColor = '#FFFFFF'; // Default white
-        
+
         // Common color mappings
         const commonColors = {
             'gold': '#FFD700',
@@ -1475,7 +1773,7 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
             'gray': '#808080',
             'grey': '#808080'
         };
-        
+
         // Find matching color
         for (const [key, color] of Object.entries(commonColors)) {
             if (colorName.includes(key)) {
@@ -1483,14 +1781,14 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
                 break;
             }
         }
-        
+
         console.log(`[Konva] Frame style "${normalizedFrameType}" not found, using fallback color: ${fallbackColor}`);
         fStyle = { color: fallbackColor, width: 4 };
-        
+
         // Add to frameStyles for future use
         frameStyles[normalizedFrameType] = fStyle;
     }
-    
+
     // Override frame color if frameColor is specified separately (for mirrors)
     // Also try to get color directly from frameStyles if normalizeFrameColor returned null
     if (frameColorValue && !frameColor) {
@@ -1530,7 +1828,7 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
             }
         }
     }
-    
+
     if (frameColor && fStyle) {
         fStyle = { ...fStyle, color: frameColor };
         console.log(`[Konva] Applied frame color: ${frameColor}, width: ${fStyle.width}`);
@@ -1548,22 +1846,22 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
     // Support individual corner radius values or single value (linked mode)
     let cornerRadiusPx = 0;
     let cornerRadiusArray = null;
-    
+
     // Check if cornerRadiusIn is an object with individual corners
     // Also check customizationValues for corner radius data
     const cornerRadiusData = customizationValues?.cornerRadius || customizationValues?.CornerRadius || cornerRadiusIn;
-    
+
     if (typeof cornerRadiusData === 'object' && cornerRadiusData !== null && !Array.isArray(cornerRadiusData)) {
         // Individual corner radius values from object
         const pxPerInX = widthIn > 0 ? (windowWidth / widthIn) : 0;
         const pxPerInY = heightIn > 0 ? (windowHeight / heightIn) : 0;
         const pxPerIn = Math.min(pxPerInX || 0, pxPerInY || 0);
-        
+
         const topLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topLeft || 0)) * (pxPerIn || 0));
         const topRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.topRight || 0)) * (pxPerIn || 0));
         const bottomRight = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomRight || 0)) * (pxPerIn || 0));
         const bottomLeft = Math.min(minRadius, Math.max(0, parseFloat(cornerRadiusData.bottomLeft || 0)) * (pxPerIn || 0));
-        
+
         cornerRadiusArray = [topLeft, topRight, bottomRight, bottomLeft];
     } else {
         // Single value (linked mode) - convert to array format
@@ -1574,7 +1872,7 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
         cornerRadiusPx = Math.min(minRadius, safeCornerRadiusIn * (pxPerIn || 0));
         cornerRadiusArray = [cornerRadiusPx, cornerRadiusPx, cornerRadiusPx, cornerRadiusPx];
     }
-    
+
     if (normalizedShape === 'round' || normalizedShape === 'circle') {
         // Circle
         glassShape = new Konva.Circle({
@@ -1694,7 +1992,7 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
         const maxTopRadius = windowWidth / 2; // Maximum radius is half the width
         const topRadius = cornerRadiusPx > 0 ? Math.min(cornerRadiusPx, maxTopRadius) : maxTopRadius;
         const numPoints = 20; // Number of points for smooth corner arc
-        
+
         // Use Konva.Rect with individual corner radius
         // Top-left and top-right corners get the radius, bottom corners are 0
         glassShape = new Konva.Rect({
@@ -1726,18 +2024,35 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
         });
     }
     layer.add(glassShape);
-    
+
+    // Apply frosted overlay when glass color/type indicates frosted
+    try {
+        let glassColorValue = customizationValues.glassColor || customizationValues.GlassColor || currentGlassType || '';
+        if (Array.isArray(glassColorValue)) glassColorValue = glassColorValue[0] || '';
+        const glassColorLower = (glassColorValue || '').toString().toLowerCase();
+
+        const shouldFrost = glassColorLower.includes('frost') || normalizedGlassType === 'frosted' || (gStyle && gStyle.patternType === 'frosted');
+        if (shouldFrost) {
+            const patternDensity = (gStyle && gStyle.patternDensity) ? gStyle.patternDensity : 6;
+            // Choose a neutral pattern color that blends with most fills
+            const patternColor = (gStyle && typeof gStyle.fill === 'string' && gStyle.fill.indexOf('#') === 0) ? '#ffffff' : '#ffffff';
+            drawKonvaPatternOverlay(layer, offsetX, offsetY, windowWidth, windowHeight, 'frosted', patternDensity, patternColor);
+        }
+    } catch (e) {
+        console.warn('[Konva] Frost overlay error:', e && e.message);
+    }
+
     // Draw grid frame pattern if frame type is grid-frame
     if (normalizedFrameType === 'grid-frame' && fStyle.width > 0) {
         drawGridFrame(offsetX, offsetY, windowWidth, windowHeight, fStyle);
     }
-    
+
     // Apply lighting effects for mirrors (LED Backlight, LED Front Light)
     applyLightingEffects(glassShape, customizationValues, offsetX, offsetY, windowWidth, windowHeight);
-    
+
     // Apply orientation visualization (for mirrors)
     applyOrientationVisualization(customizationValues, offsetX, offsetY, windowWidth, windowHeight);
-    
+
     // Apply mounting method visualization (for mirrors)
     applyMountingMethodVisualization(customizationValues, offsetX, offsetY, windowWidth, windowHeight);
 
@@ -1748,24 +2063,24 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
 
     // Width Dimension (at top) - Reference: horizontal dashed line with "35in" label
     // Left extension line (vertical line extending upward from left corner)
-    layer.add(new Konva.Line({ 
-        points: [offsetX, offsetY, offsetX, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION], 
-        stroke: dimColor, 
+    layer.add(new Konva.Line({
+        points: [offsetX, offsetY, offsetX, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION],
+        stroke: dimColor,
         strokeWidth: 1.5,
         listening: false
     }));
     // Right extension line (vertical line extending upward from right corner)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + windowWidth, offsetY, offsetX + windowWidth, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION], 
-        stroke: dimColor, 
+    layer.add(new Konva.Line({
+        points: [offsetX + windowWidth, offsetY, offsetX + windowWidth, offsetY - DIM_LINE_OFFSET - DIM_EXTENSION],
+        stroke: dimColor,
         strokeWidth: 1.5,
         listening: false
     }));
     // Horizontal dashed dimension line (reference style)
-    layer.add(new Konva.Line({ 
-        points: [offsetX, offsetY - DIM_LINE_OFFSET, offsetX + windowWidth, offsetY - DIM_LINE_OFFSET], 
-        stroke: dimColor, 
-        strokeWidth: 1.5, 
+    layer.add(new Konva.Line({
+        points: [offsetX, offsetY - DIM_LINE_OFFSET, offsetX + windowWidth, offsetY - DIM_LINE_OFFSET],
+        stroke: dimColor,
+        strokeWidth: 1.5,
         dash: [5, 3],
         listening: false
     }));
@@ -1789,24 +2104,24 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
 
     // Height Dimension (on right side) - Reference: vertical dashed line with "45in" label
     // Top extension line (horizontal line extending rightward from top corner)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + windowWidth, offsetY, offsetX + windowWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY], 
-        stroke: dimColor, 
+    layer.add(new Konva.Line({
+        points: [offsetX + windowWidth, offsetY, offsetX + windowWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY],
+        stroke: dimColor,
         strokeWidth: 1.5,
         listening: false
     }));
     // Bottom extension line (horizontal line extending rightward from bottom corner)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + windowWidth, offsetY + windowHeight, offsetX + windowWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY + windowHeight], 
-        stroke: dimColor, 
+    layer.add(new Konva.Line({
+        points: [offsetX + windowWidth, offsetY + windowHeight, offsetX + windowWidth + DIM_LINE_OFFSET + DIM_EXTENSION, offsetY + windowHeight],
+        stroke: dimColor,
         strokeWidth: 1.5,
         listening: false
     }));
     // Vertical dashed dimension line (reference style)
-    layer.add(new Konva.Line({ 
-        points: [offsetX + windowWidth + DIM_LINE_OFFSET, offsetY, offsetX + windowWidth + DIM_LINE_OFFSET, offsetY + windowHeight], 
-        stroke: dimColor, 
-        strokeWidth: 1.5, 
+    layer.add(new Konva.Line({
+        points: [offsetX + windowWidth + DIM_LINE_OFFSET, offsetY, offsetX + windowWidth + DIM_LINE_OFFSET, offsetY + windowHeight],
+        stroke: dimColor,
+        strokeWidth: 1.5,
         dash: [5, 3],
         listening: false
     }));
@@ -1833,11 +2148,11 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
 
     // Draw corner radius annotations (if applicable)
     drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, windowWidth, windowHeight, normalizedShape);
-    
+
     // Annotations - Reference format: "Thickness: 6mm" and "Edge: Polished"
     const formatEdge = edgeWork.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
     const formatThickness = thickness.replace(/mm+$/g, '') + 'mm'; // Ensure mm format
-    
+
     // Display thickness and edge info below the glass panel
     const annotationText = `Thickness: ${formatThickness}  |  Edge: ${formatEdge}`;
 
@@ -1862,34 +2177,34 @@ function renderWindow(widthIn, heightIn, unit, shape, glassType, thickness, edge
  */
 function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, windowWidth, windowHeight, shape) {
     if (!customizationValues) return;
-    
+
     // Only show for rectangle/square shapes
     const rectangleShapes = ['rectangle', 'square'];
     const normalizedShapeLower = shape.toLowerCase();
-    const isRectangleShape = rectangleShapes.includes(shape) || 
-                             normalizedShapeLower.includes('rectangle') || 
-                             normalizedShapeLower.includes('square');
+    const isRectangleShape = rectangleShapes.includes(shape) ||
+        normalizedShapeLower.includes('rectangle') ||
+        normalizedShapeLower.includes('square');
     if (!isRectangleShape) return;
-    
+
     // Get corner radius data
     const cornerRadiusData = customizationValues.cornerRadius || customizationValues.CornerRadius || customizationValues.cornerRadiusIn;
     const cornerRadiusUnit = customizationValues.cornerRadius_unit || customizationValues.CornerRadius_unit || 'in';
-    
+
     if (!cornerRadiusData) return;
-    
+
     // Helper function to convert from inches to display unit
     function convertFromInches(value, unit) {
-        switch(unit) {
+        switch (unit) {
             case 'cm': return value * 2.54;
             case 'mm': return value * 25.4;
             default: return value; // inches
         }
     }
-    
+
     // Get the actual values in the selected unit
     let cornerValues = {};
     let isLinked = true;
-    
+
     if (typeof cornerRadiusData === 'object' && cornerRadiusData !== null && !Array.isArray(cornerRadiusData)) {
         // Individual corner values (stored in inches, need to convert to display unit)
         isLinked = false;
@@ -1910,15 +2225,15 @@ function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, wind
             bottomLeft: value
         };
     }
-    
+
     // Only draw if at least one corner has a radius > 0
     const hasRadius = Object.values(cornerValues).some(v => v > 0);
     if (!hasRadius) return;
-    
+
     const radiusColor = '#666666';
     const radiusLabelSize = 10;
     const radiusOffset = 12; // Distance from corner
-    
+
     // Draw corner radius indicators at each corner
     const corners = [
         { key: 'topLeft', x: offsetX, y: offsetY, labelX: offsetX + radiusOffset, labelY: offsetY + radiusOffset },
@@ -1926,7 +2241,7 @@ function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, wind
         { key: 'bottomRight', x: offsetX + windowWidth, y: offsetY + windowHeight, labelX: offsetX + windowWidth - radiusOffset, labelY: offsetY + windowHeight - radiusOffset },
         { key: 'bottomLeft', x: offsetX, y: offsetY + windowHeight, labelX: offsetX + radiusOffset, labelY: offsetY + windowHeight - radiusOffset }
     ];
-    
+
     corners.forEach(corner => {
         const radiusValue = cornerValues[corner.key];
         if (radiusValue > 0) {
@@ -1934,7 +2249,7 @@ function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, wind
             let labelX, labelY, arcX, arcY;
             const outsideOffset = 26;
             const labelNudge = 6;
-            
+
             if (corner.key === 'topLeft') {
                 labelX = offsetX - outsideOffset - labelNudge;
                 labelY = offsetY - outsideOffset - labelNudge;
@@ -1956,7 +2271,7 @@ function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, wind
                 arcX = offsetX;
                 arcY = offsetY + windowHeight;
             }
-            
+
             // Draw arc indicator at corner (visual representation of radius)
             const arcSize = Math.min(20, Math.max(8, radiusValue * 1.5)); // Visual arc size
             let arcRotation = 0;
@@ -1964,7 +2279,7 @@ function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, wind
             else if (corner.key === 'topRight') arcRotation = 270;
             else if (corner.key === 'bottomRight') arcRotation = 0;
             else arcRotation = 90; // bottomLeft
-            
+
             const arc = new Konva.Arc({
                 x: arcX,
                 y: arcY,
@@ -1978,7 +2293,7 @@ function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, wind
                 listening: false
             });
             layer.add(arc);
-            
+
             // Draw dashed line from corner to label
             layer.add(new Konva.Line({
                 points: [arcX, arcY, labelX, labelY],
@@ -1987,7 +2302,7 @@ function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, wind
                 dash: [4, 3],
                 listening: false
             }));
-            
+
             // Draw radius label with "R" prefix
             const labelText = `R ${radiusValue.toFixed(1)}${cornerRadiusUnit}`;
             const radiusLabel = new Konva.Text({
@@ -2006,18 +2321,18 @@ function drawCornerRadiusAnnotations(customizationValues, offsetX, offsetY, wind
             layer.add(radiusLabel);
         }
     });
-    
+
     // If all corners have the same value (linked), also show a summary label in the center
     if (isLinked && cornerValues.topLeft > 0) {
-        const allSame = cornerValues.topLeft === cornerValues.topRight && 
-                       cornerValues.topRight === cornerValues.bottomRight &&
-                       cornerValues.bottomRight === cornerValues.bottomLeft;
-        
+        const allSame = cornerValues.topLeft === cornerValues.topRight &&
+            cornerValues.topRight === cornerValues.bottomRight &&
+            cornerValues.bottomRight === cornerValues.bottomLeft;
+
         if (allSame) {
             const centerX = offsetX + windowWidth / 2;
             const centerY = offsetY + windowHeight / 2;
             const labelText = `Corner Radius: ${cornerValues.topLeft.toFixed(1)}${cornerRadiusUnit}`;
-            
+
             layer.add(new Konva.Text({
                 x: centerX,
                 y: centerY,
@@ -2047,7 +2362,7 @@ function drawGridFrame(offsetX, offsetY, windowWidth, windowHeight, fStyle) {
     const gridSpacing = Math.min(windowWidth, windowHeight) / 4; // 4x4 grid
     const gridColor = fStyle.color || '#333333';
     const gridWidth = 1.5;
-    
+
     // Draw vertical grid lines
     for (let i = 1; i < 4; i++) {
         const x = offsetX + (windowWidth / 4) * i;
@@ -2058,7 +2373,7 @@ function drawGridFrame(offsetX, offsetY, windowWidth, windowHeight, fStyle) {
             listening: false
         }));
     }
-    
+
     // Draw horizontal grid lines
     for (let i = 1; i < 4; i++) {
         const y = offsetY + (windowHeight / 4) * i;
@@ -2082,15 +2397,15 @@ function drawGridFrame(offsetX, offsetY, windowWidth, windowHeight, fStyle) {
  */
 function applyOrientationVisualization(customizationValues, offsetX, offsetY, windowWidth, windowHeight) {
     if (!customizationValues) return;
-    
+
     const orientation = (customizationValues.orientation || customizationValues.Orientation || '').toLowerCase();
     if (!orientation || orientation === 'full-body') return; // Full-body doesn't need indicator
-    
+
     const centerX = offsetX + windowWidth / 2;
     const centerY = offsetY + windowHeight / 2;
     const indicatorColor = '#666666';
     const indicatorSize = 8;
-    
+
     if (orientation === 'vertical') {
         // Draw vertical arrow indicator (pointing up/down)
         const arrowY = offsetY + 15;
@@ -2154,17 +2469,17 @@ function applyOrientationVisualization(customizationValues, offsetX, offsetY, wi
  */
 function applyMountingMethodVisualization(customizationValues, offsetX, offsetY, windowWidth, windowHeight) {
     if (!customizationValues) return;
-    
+
     const mountingMethod = (customizationValues.mountingMethod || customizationValues.MountingMethod || '').toLowerCase();
     if (!mountingMethod) return;
-    
+
     const indicatorColor = '#888888';
     const iconSize = 12;
-    
+
     // Position indicator at bottom-right corner
     const iconX = offsetX + windowWidth - 25;
     const iconY = offsetY + windowHeight - 25;
-    
+
     if (mountingMethod.includes('wall') || mountingMethod.includes('mounted')) {
         // Wall-mounted: Draw wall bracket icon
         layer.add(new Konva.Line({
@@ -2251,20 +2566,20 @@ function applyMountingMethodVisualization(customizationValues, offsetX, offsetY,
  */
 function applyLightingEffects(glassShape, customizationValues, offsetX, offsetY, windowWidth, windowHeight) {
     if (!customizationValues || !glassShape) return;
-    
+
     const lighting = (customizationValues.lighting || customizationValues.Lighting || '').toLowerCase();
     const ledColor = (customizationValues.ledColor || customizationValues.LEDColor || '').toLowerCase();
-    
+
     // If no lighting, return early
     if (!lighting || lighting === 'none') {
         return;
     }
-    
+
     // Determine shadow color based on LED color
     let shadowColor = '#FFFFFF'; // Default white
     let shadowBlur = 20;
     let shadowOpacity = 0.5;
-    
+
     if (ledColor) {
         switch (ledColor) {
             case 'warm white':
@@ -2291,7 +2606,7 @@ function applyLightingEffects(glassShape, customizationValues, offsetX, offsetY,
                 shadowColor = '#FFFFFF';
         }
     }
-    
+
     // Apply different shadow effects based on lighting type
     if (lighting.includes('backlight') || lighting === 'led backlight') {
         // Backlight: glow from behind (stronger, larger blur)
@@ -2308,7 +2623,7 @@ function applyLightingEffects(glassShape, customizationValues, offsetX, offsetY,
         glassShape.shadowOffsetX(0);
         glassShape.shadowOffsetY(0);
     }
-    
+
     // Add smart features badges if present
     const smartFeatures = customizationValues.smartFeatures || customizationValues.SmartFeatures;
     if (smartFeatures) {
@@ -2316,14 +2631,14 @@ function applyLightingEffects(glassShape, customizationValues, offsetX, offsetY,
         const centerX = offsetX + windowWidth / 2;
         const centerY = offsetY + windowHeight / 2;
         const badgeY = offsetY + 10; // Top of the panel
-        
+
         features.forEach((feature, index) => {
             if (!feature || feature.toLowerCase() === 'none') return;
-            
+
             const featureLower = feature.toLowerCase();
             let badgeText = '';
             let badgeColor = '#4CAF50';
-            
+
             if (featureLower.includes('dimmer') || featureLower.includes('touch')) {
                 badgeText = 'Dimmer';
                 badgeColor = '#FF9800';
@@ -2337,7 +2652,7 @@ function applyLightingEffects(glassShape, customizationValues, offsetX, offsetY,
                 badgeText = 'BT';
                 badgeColor = '#9C27B0';
             }
-            
+
             if (badgeText) {
                 const badgeX = offsetX + 10 + (index * 60);
                 const badge = new Konva.Circle({
@@ -2349,7 +2664,7 @@ function applyLightingEffects(glassShape, customizationValues, offsetX, offsetY,
                     listening: false
                 });
                 layer.add(badge);
-                
+
                 const badgeLabel = new Konva.Text({
                     x: badgeX,
                     y: badgeY,
@@ -2400,7 +2715,7 @@ function normalizeGlassType(glassType) {
         'smoked': 'mirror-smoked',
         'black': 'mirror-black'
     };
-    
+
     // Check if it's a mirror tint (from tint field)
     if (normalized.includes('bronze') && !normalized.includes('mirror')) {
         return 'mirror-bronze';
@@ -2414,7 +2729,7 @@ function normalizeGlassType(glassType) {
     if (normalized.includes('black') && !normalized.includes('mirror')) {
         return 'mirror-black';
     }
-    
+
     return mapping[normalized] || 'clear';
 }
 
@@ -2427,7 +2742,7 @@ function normalizeGlassType(glassType) {
 function normalizeFrameColor(frameColor) {
     if (!frameColor) return null;
     const normalized = frameColor.toLowerCase().replace(/\s+/g, '-');
-    
+
     const colorMap = {
         // Windows-specific frame colors (synced with KONVA_DEFAULT_OPTIONS_REFERENCE.md)
         'powder-coated-white': '#F8F8F8',
@@ -2447,19 +2762,19 @@ function normalizeFrameColor(frameColor) {
         'custom-color': '#888888',
         'custom': '#888888'
     };
-    
+
     // Try exact match first
     if (colorMap[normalized]) {
         return colorMap[normalized];
     }
-    
+
     // Try partial match
     for (const [key, color] of Object.entries(colorMap)) {
         if (normalized.includes(key) || key.includes(normalized)) {
             return color;
         }
     }
-    
+
     // If frame color exists in frameStyles, use its color
     if (typeof frameStyles !== 'undefined') {
         // Try the normalized key first (e.g. "matte-black")
@@ -2472,7 +2787,7 @@ function normalizeFrameColor(frameColor) {
             return frameStyles[spacedKey].color;
         }
     }
-    
+
     return null;
 }
 
@@ -2517,24 +2832,24 @@ function normalizeFrameType(frameType) {
         'grid-frame': 'grid-frame',
         'grid': 'grid-frame'
     };
-    
+
     // First try exact match
     if (mapping[normalized]) {
         return mapping[normalized];
     }
-    
+
     // Then try to find a partial match
     for (const key in mapping) {
         if (normalized.includes(key) || key.includes(normalized)) {
             return mapping[key];
         }
     }
-    
+
     // If frame type exists in frameStyles directly (could be dynamically added), use it
     if (typeof frameStyles !== 'undefined' && frameStyles[normalized]) {
         return normalized;
     }
-    
+
     return 'white'; // Default fallback
 }
 
@@ -2573,6 +2888,7 @@ function normalizeShape(shape) {
 
 // --- INITIAL RENDER & UPDATES ---
 function renderCustomState() {
+    if (!layer) return; // Konva not initialized
     // Quick sync: Check if the DOM has an active shape that differs from currentShape
     // This catches cases where the DOM was updated but currentShape wasn't synced
     const activeShapeCard = document.querySelector('[data-field-id="shape"] .option-card.active, .option-card[data-shape].active');
@@ -2584,13 +2900,13 @@ function renderCustomState() {
             window.currentShape = domShape;
         }
     }
-    
+
     // Convert dimensions to inches for rendering (visual size calculation)
     let widthIn = currentDimensions.width.value;
     let heightIn = currentDimensions.height.value;
     const widthUnit = currentDimensions.width.unit;
     const heightUnit = currentDimensions.height.unit;
-    
+
     // Convert width to inches
     if (widthUnit === 'cm') {
         widthIn /= 2.54;
@@ -2598,7 +2914,7 @@ function renderCustomState() {
         widthIn /= 25.4;
     }
     // If unit is 'in', no conversion needed
-    
+
     // Convert height to inches
     if (heightUnit === 'cm') {
         heightIn /= 2.54;
@@ -2606,18 +2922,18 @@ function renderCustomState() {
         heightIn /= 25.4;
     }
     // If unit is 'in', no conversion needed
-    
+
     // Get customization values
     const customizationValues = window.selectedCustomizationValues || {};
-    
+
     // Get product data
     const productData = window.selectedProduct || {};
-    
+
     // Check if we should use comprehensive renderer
     // Use comprehensive renderer if:
     // 1. Product has a category (Windows, Doors, Partitions, Specialty, Commercial)
     // 2. OR customization values contain product-specific fields
-    const shouldUseComprehensive = 
+    const shouldUseComprehensive =
         (productData.category && (
             productData.category.includes('Windows') ||
             productData.category.includes('Doors') ||
@@ -2670,15 +2986,15 @@ function renderCustomState() {
     } else {
         // Fall back to existing renderWindow function
         // Get corner radius from customizationValues if available, otherwise use currentCornerRadius
-        const cornerRadiusValue = (window.selectedCustomizationValues?.cornerRadius || 
-                                    window.selectedCustomizationValues?.CornerRadius || 
-                                    currentCornerRadius);
-        
+        const cornerRadiusValue = (window.selectedCustomizationValues?.cornerRadius ||
+            window.selectedCustomizationValues?.CornerRadius ||
+            currentCornerRadius);
+
         // Use frameColor from customizationValues if available, otherwise use currentFrameType
-        const frameTypeToUse = (customizationValues.frameColor || customizationValues.FrameColor) 
-            ? (customizationValues.frameColor || customizationValues.FrameColor) 
+        const frameTypeToUse = (customizationValues.frameColor || customizationValues.FrameColor)
+            ? (customizationValues.frameColor || customizationValues.FrameColor)
             : currentFrameType;
-        
+
         renderWindow(
             widthIn, // Converted to inches for visual size
             heightIn, // Converted to inches for visual size
@@ -2747,68 +3063,68 @@ window.cornerRadiusLinked = cornerRadiusLinked;
 window.dimensionsLocked = dimensionsLocked;
 
 // Initialize pricing database on load
-window.onload = function() {
+window.onload = function () {
     // Initialize pricing database first (will use defaults if productBasePrice not available)
     initializePricingDatabase();
-    
+
     // Initialize default dimensions and render initial state
     if (inputHeight && inputWidth) {
         // Ensure default values are set if inputs are empty
         if (!inputHeight.value || inputHeight.value === '') inputHeight.value = '45';
         if (!inputWidth.value || inputWidth.value === '') inputWidth.value = '35';
-        
+
         // Update currentDimensions with values from inputs (or defaults)
         const heightValue = parseFloat(inputHeight.value) || 45;
         const widthValue = parseFloat(inputWidth.value) || 35;
         const heightUnit = btnUnitHeight ? (btnUnitHeight.dataset.currentUnit || 'in') : 'in';
         const widthUnit = btnUnitWidth ? (btnUnitWidth.dataset.currentUnit || 'in') : 'in';
-        
+
         currentDimensions.height = { value: heightValue, unit: heightUnit };
         currentDimensions.width = { value: widthValue, unit: widthUnit };
     }
-    
+
     // Initial sync attempt - fields might not be rendered yet
     syncShapeFromActiveSelection();
-    
+
     // Check if initial shape is round and auto-lock dimensions
     setTimeout(() => {
         if (isRoundShape(currentShape)) {
             lockDimensionsForRoundShape();
         }
-        
+
         // Render initial Konva visualization with correct shape
         if (typeof renderCustomState === 'function') {
             renderCustomState();
         }
     }, 100);
-    
+
     // Delayed sync - ensures dynamic fields have been rendered
     // Dynamic fields are rendered with a 200ms delay after DOMContentLoaded
     // This sync runs after that to catch dynamically rendered shape options
     setTimeout(() => {
         console.log('[Init] Running delayed shape sync (500ms)...');
         syncShapeFromActiveSelection();
-        
+
         // Re-check dimension lock after sync
         if (isRoundShape(currentShape)) {
             lockDimensionsForRoundShape();
         }
-        
+
         // Re-render with synced state
         if (typeof renderCustomState === 'function') {
             renderCustomState();
         }
     }, 500);
-    
+
     // Final sync - catches any late-rendered fields
     setTimeout(() => {
         console.log('[Init] Running final shape sync (1200ms)...');
         syncShapeFromActiveSelection();
-        
+
         if (isRoundShape(currentShape)) {
             lockDimensionsForRoundShape();
         }
-        
+
         if (typeof renderCustomState === 'function') {
             renderCustomState();
         }
@@ -2832,7 +3148,7 @@ function syncShapeFromActiveSelection() {
             return;
         }
     }
-    
+
     // Check legacy shape cards (data-shape attribute)
     const legacyActiveShape = document.querySelector('.option-card[data-shape].active');
     if (legacyActiveShape) {
@@ -2842,7 +3158,7 @@ function syncShapeFromActiveSelection() {
         window.currentShape = shapeValue;
         return;
     }
-    
+
     // No active shape found, check if there are shape cards at all and make first one active
     const firstDynamicShapeCard = document.querySelector('[data-field-id="shape"] .option-card');
     if (firstDynamicShapeCard) {
@@ -2853,7 +3169,7 @@ function syncShapeFromActiveSelection() {
         window.currentShape = shapeValue;
         return;
     }
-    
+
     const firstLegacyShapeCard = document.querySelector('.option-card[data-shape]');
     if (firstLegacyShapeCard) {
         firstLegacyShapeCard.classList.add('active');
@@ -2876,7 +3192,7 @@ btnCustomize.addEventListener('click', () => {
     btnStandard.classList.remove('active'); btnStandard.classList.add('inactive');
     customWrapper.classList.remove('hidden-step'); standardWrapper.classList.add('hidden-step');
     priceBox.classList.remove('hidden-step'); standardSubtitle.classList.add('hidden-step');
-    updateBreadcrumbs(currentStep);
+    // Breadcrumbs are now managed dynamically
 
     // DRAWING UPDATE: Restore the User's Custom State
     renderCustomState();
@@ -2898,7 +3214,7 @@ btnStandard.addEventListener('click', () => {
     btnCustomize.classList.remove('active'); btnCustomize.classList.add('inactive');
     standardWrapper.classList.remove('hidden-step'); customWrapper.classList.add('hidden-step');
     priceBox.classList.add('hidden-step'); standardSubtitle.classList.remove('hidden-step');
-    resetBreadcrumbsToStandard();
+    // Breadcrumbs are now managed dynamically
 
     // DRAWING UPDATE: Force Standard Look
     // Get the currently selected standard card values
@@ -2938,17 +3254,17 @@ standardCards.forEach(card => {
 function updateDimensions(type, value, unit) {
     if (isNaN(value) || value <= 0) return;
     currentDimensions[type] = { value: parseFloat(value), unit };
-    
+
     // If dimensions are locked, update the other dimension to match
     if (dimensionsLocked) {
         const otherType = type === 'height' ? 'width' : 'height';
         const otherInput = type === 'height' ? inputWidth : inputHeight;
         const otherBtn = type === 'height' ? btnUnitWidth : btnUnitHeight;
-        
+
         // Convert value to the other dimension's unit if needed
         let convertedValue = parseFloat(value);
         const otherUnit = otherBtn ? otherBtn.dataset.currentUnit : unit;
-        
+
         if (unit !== otherUnit) {
             // Convert to millimeters first, then to target unit
             const unitMap = {
@@ -2959,13 +3275,13 @@ function updateDimensions(type, value, unit) {
             const valueInMm = convertedValue * (unitMap[unit]?.toMm || 1);
             convertedValue = valueInMm / (unitMap[otherUnit]?.toMm || 1);
         }
-        
+
         if (otherInput) {
             otherInput.value = Math.round(convertedValue * 100) / 100;
             currentDimensions[otherType] = { value: convertedValue, unit: otherUnit };
         }
     }
-    
+
     renderCustomState(); // Call the wrapper function
 }
 
@@ -2989,7 +3305,7 @@ if (inputH1) {
             }
         }
     });
-    
+
     // Also listen for blur to update when user finishes editing
     inputH1.addEventListener('blur', (e) => {
         const h1Value = parseFloat(inputH1.value) || 0;
@@ -3025,7 +3341,7 @@ if (inputH2) {
             }
         }
     });
-    
+
     // Also listen for blur to update when user finishes editing
     inputH2.addEventListener('blur', (e) => {
         const h2Value = parseFloat(inputH2.value) || 0;
@@ -3069,23 +3385,23 @@ if (dimensionLockBtn) {
             dimensionLockBtn.title = 'Dimensions are locked for round shapes';
             return; // Don't allow unlocking
         }
-        
+
         dimensionsLocked = !dimensionsLocked;
         const lockIcon = document.getElementById('lock-icon');
         const unlockIcon = document.getElementById('unlock-icon');
-        
+
         if (dimensionsLocked) {
             lockIcon.style.display = 'none';
             unlockIcon.style.display = 'block';
             dimensionLockBtn.classList.add('locked');
             dimensionLockBtn.title = 'Unlock dimensions to allow independent height and width';
-            
+
             // When locking, sync the current values (make width equal to height)
             if (inputHeight && inputWidth) {
                 const heightValue = parseFloat(inputHeight.value) || 0;
                 const heightUnit = btnUnitHeight ? btnUnitHeight.dataset.currentUnit : 'in';
                 const widthUnit = btnUnitWidth ? btnUnitWidth.dataset.currentUnit : 'in';
-                
+
                 // Convert height to width's unit
                 let convertedValue = heightValue;
                 if (heightUnit !== widthUnit) {
@@ -3097,7 +3413,7 @@ if (dimensionLockBtn) {
                     const valueInMm = heightValue * (unitMap[heightUnit]?.toMm || 1);
                     convertedValue = valueInMm / (unitMap[widthUnit]?.toMm || 1);
                 }
-                
+
                 inputWidth.value = Math.round(convertedValue * 100) / 100;
                 updateDimensions('width', convertedValue, widthUnit);
             }
@@ -3192,20 +3508,20 @@ function lockDimensionsForRoundShape() {
     const lockIcon = document.getElementById('lock-icon');
     const unlockIcon = document.getElementById('unlock-icon');
     const dimensionLockBtn = document.getElementById('dimension-lock-btn');
-    
+
     if (lockIcon && unlockIcon && dimensionLockBtn) {
         lockIcon.style.display = 'none';
         unlockIcon.style.display = 'block';
         dimensionLockBtn.classList.add('locked');
         dimensionLockBtn.title = 'Dimensions locked for round shapes';
     }
-    
+
     // Sync width to height when locking for round shape
     if (inputHeight && inputWidth) {
         const heightValue = parseFloat(inputHeight.value) || 0;
         const heightUnit = btnUnitHeight ? btnUnitHeight.dataset.currentUnit : 'in';
         const widthUnit = btnUnitWidth ? btnUnitWidth.dataset.currentUnit : 'in';
-        
+
         // Convert height to width's unit
         let convertedValue = heightValue;
         if (heightUnit !== widthUnit) {
@@ -3217,7 +3533,7 @@ function lockDimensionsForRoundShape() {
             const valueInMm = heightValue * (unitMap[heightUnit]?.toMm || 1);
             convertedValue = valueInMm / (unitMap[widthUnit]?.toMm || 1);
         }
-        
+
         inputWidth.value = Math.round(convertedValue * 100) / 100;
         updateDimensions('width', convertedValue, widthUnit);
     }
@@ -3234,7 +3550,7 @@ function unlockDimensionsIfNotRound() {
         const lockIcon = document.getElementById('lock-icon');
         const unlockIcon = document.getElementById('unlock-icon');
         const dimensionLockBtn = document.getElementById('dimension-lock-btn');
-        
+
         if (lockIcon && unlockIcon && dimensionLockBtn) {
             lockIcon.style.display = 'block';
             unlockIcon.style.display = 'none';
@@ -3252,14 +3568,14 @@ shapeCards.forEach(card => {
         this.classList.add('active');
         currentShape = this.dataset.shape;
         updateSelectedValueForLegacyField('shape', currentShape);
-        
+
         // Auto-lock dimensions for round shapes
         if (isRoundShape(currentShape)) {
             lockDimensionsForRoundShape();
         } else {
             unlockDimensionsIfNotRound();
         }
-        
+
         renderCustomState();
     });
 });
@@ -3321,7 +3637,7 @@ function setupUnitDropdown(btnId, dropdownId, inputId, dimensionType) {
     const dropdown = document.getElementById(dropdownId);
     const input = document.getElementById(inputId);
     if (!btn || !dropdown || !input) return;
-    
+
     btn.addEventListener('click', (e) => { e.stopPropagation(); document.querySelectorAll('.unit-dropdown').forEach(d => d !== dropdown && d.classList.add('hidden-step')); dropdown.classList.toggle('hidden-step'); });
     dropdown.querySelectorAll('.unit-option').forEach(opt => {
         opt.addEventListener('click', (e) => {
@@ -3353,9 +3669,9 @@ function setupUnitDropdown(btnId, dropdownId, inputId, dimensionType) {
 }
 setupUnitDropdown('btn-unit-height', 'dropdown-height', 'input-height', 'height');
 setupUnitDropdown('btn-unit-width', 'dropdown-width', 'input-width', 'width');
-if (btnUnitH1) {
+if (document.getElementById('btn-unit-h1')) {
     setupUnitDropdown('btn-unit-h1', 'dropdown-h1', 'input-h1', 'height');
-    
+
     // Add listener for h1 unit changes to trigger re-render
     const dropdownH1 = document.getElementById('dropdown-h1');
     if (dropdownH1) {
@@ -3376,9 +3692,9 @@ if (btnUnitH1) {
         });
     }
 }
-if (btnUnitH2) {
+if (document.getElementById('btn-unit-h2')) {
     setupUnitDropdown('btn-unit-h2', 'dropdown-h2', 'input-h2', 'height');
-    
+
     // Add listener for h2 unit changes to trigger re-render
     const dropdownH2 = document.getElementById('dropdown-h2');
     if (dropdownH2) {
@@ -3393,6 +3709,66 @@ if (btnUnitH2) {
                         renderCustomState();
                     } else if (typeof updateWindowVisualization === 'function') {
                         updateWindowVisualization();
+                    }
+                }, 100);
+            });
+        });
+    }
+}
+
+if (document.getElementById('btn-unit-w1')) {
+    setupUnitDropdown('btn-unit-w1', 'dropdown-w1', 'input-w1', 'width');
+    const dropdownW1 = document.getElementById('dropdown-w1');
+    if (dropdownW1) {
+        dropdownW1.querySelectorAll('.unit-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                // After unit change, auto-adjust and trigger re-render
+                setTimeout(() => {
+                    if (typeof adjustMullionWidths === 'function') {
+                        adjustMullionWidths();
+                    }
+                    if (typeof renderCustomState === 'function') {
+                        renderCustomState();
+                    } else if (typeof updateWindowVisualization === 'function') {
+                        updateWindowVisualization();
+                    }
+                }, 100);
+            });
+        });
+    }
+}
+
+if (document.getElementById('btn-unit-w2')) {
+    setupUnitDropdown('btn-unit-w2', 'dropdown-w2', 'input-w2', 'width');
+    const dropdownW2 = document.getElementById('dropdown-w2');
+    if (dropdownW2) {
+        dropdownW2.querySelectorAll('.unit-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                // After unit change, auto-adjust and trigger re-render
+                setTimeout(() => {
+                    if (typeof adjustMullionWidths === 'function') {
+                        adjustMullionWidths();
+                    }
+                    if (typeof renderCustomState === 'function') {
+                        renderCustomState();
+                    } else if (typeof updateWindowVisualization === 'function') {
+                        updateWindowVisualization();
+                    }
+                }, 100);
+            });
+        });
+    }
+
+    // Setup w3 unit dropdown
+    setupUnitDropdown('btn-unit-w3', 'dropdown-w3', 'input-w3', 'width');
+    const dropdownW3 = document.getElementById('dropdown-w3');
+    if (dropdownW3) {
+        dropdownW3.querySelectorAll('.unit-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                // After unit change, auto-adjust and trigger re-render
+                setTimeout(() => {
+                    if (typeof renderCustomState === 'function') {
+                        renderCustomState();
                     }
                 }, 100);
             });
@@ -3438,63 +3814,104 @@ backBtn.addEventListener('click', () => {
 });
 
 function goToStep(targetStep) {
-    // Hide all steps first
-    [step1, step2, step3].forEach(s => s.classList.add('hidden-step'));
+    // Hide all steps first (use querySelectorAll to handle dynamically created steps)
+    document.querySelectorAll('[id^="step-"]').forEach(s => s.classList.add('hidden-step'));
 
     // Show the target step
-    if (targetStep === 1) step1.classList.remove('hidden-step');
-    if (targetStep === 2) step2.classList.remove('hidden-step');
-    if (targetStep === 3) step3.classList.remove('hidden-step');
+    const targetStepEl = document.getElementById(`step-${targetStep}`);
+    if (targetStepEl) {
+        targetStepEl.classList.remove('hidden-step');
+    }
 
     // Update UI
     updateActionArea(targetStep);
-    updateBreadcrumbs(targetStep);
+    // Breadcrumbs are now managed dynamically
 
-    // Update currentStep AFTER UI
+    // Update currentStep AFTER UI (use window.currentStep as source of truth)
+    if (typeof window !== 'undefined') {
+        window.currentStep = targetStep;
+    }
+    // Keep local currentStep in sync
     currentStep = targetStep;
 }
 
 
 function updateActionArea(step) {
-    if (step === 1) { backGroup.classList.add('hidden-step'); nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`; nextNote.innerText = 'Glass Type & Thickness'; backNote.innerText = ''; }
-    if (step === 2) { backGroup.classList.remove('hidden-step'); nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`; backNote.innerText = 'Glass Shape'; nextNote.innerText = 'Edge Work & Frame Type'; }
-    if (step === 3) { backGroup.classList.remove('hidden-step'); nextBtn.innerHTML = `Finalize Order <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`; backNote.innerText = 'Type & Thickness'; nextNote.innerText = ''; }
+    const totalSteps = window.totalCustomizationSteps || 3;
+    if (step === 1) {
+        backGroup.classList.add('hidden-step');
+        nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+        nextNote.innerText = `Step ${step + 1}`;
+        backNote.innerText = '';
+    }
+    if (step === 2) {
+        backGroup.classList.remove('hidden-step');
+        nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+        backNote.innerText = `Step ${step - 1}`;
+        nextNote.innerText = step < totalSteps - 1 ? `Step ${step + 1}` : '';
+    }
+    if (step >= 3 && step < totalSteps) {
+        backGroup.classList.remove('hidden-step');
+        nextBtn.innerHTML = `Next <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>`;
+        backNote.innerText = `Step ${step - 1}`;
+        nextNote.innerText = step < totalSteps - 1 ? `Step ${step + 1}` : '';
+    }
+    if (step === totalSteps) {
+        backGroup.classList.remove('hidden-step');
+        nextBtn.innerHTML = `Finalize Order <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        backNote.innerText = `Step ${step - 1}`;
+        nextNote.innerText = '';
+    }
 }
 
-function updateBreadcrumbs(step) {
-    crumbMain.innerText = 'Glass Shape'; crumbMain.classList.add('active');
-    removeCrumb('crumb-step2'); removeCrumb('crumb-step3');
-    if (step >= 2) { crumbMain.classList.remove('active'); addBreadcrumb('Type & Thickness', 'crumb-step2', step === 2); }
-    if (step === 3) { document.getElementById('crumb-step2')?.classList.remove('active'); addBreadcrumb('Edge Work & Frame', 'crumb-step3', true); }
-}
-
-function resetBreadcrumbsToStandard() {
-    crumbMain.innerText = 'Standard';
-    crumbMain.classList.add('active');
-    removeCrumb('crumb-step2');
-    removeCrumb('crumb-step3');
-    currentStep = 1; // Reset currentStep for Standard Mode
-}
+// Breadcrumb management is now handled dynamically by updateDynamicBreadcrumbs() in dynamic_customization.js
 
 
-function addBreadcrumb(text, id, isActive) {
-    if (document.getElementById(id)) return;
-    const newChevron = document.createElement('span'); newChevron.className = 'chevron-right'; newChevron.id = 'chevron-' + id;
-    const newCrumb = document.createElement('span'); newCrumb.className = isActive ? 'active' : ''; newCrumb.id = id; newCrumb.innerText = text;
-    breadcrumbsContainer.appendChild(newChevron); breadcrumbsContainer.appendChild(newCrumb);
-}
-
-function removeCrumb(id) {
-    document.getElementById(id)?.remove();
-    document.getElementById('chevron-' + id)?.remove();
-}
+// Breadcrumb helper functions removed - now using dynamic breadcrumb system
 
 // Modal & File Logic
-function closeUploadModal() { uploadModal.classList.add('hidden-step'); }
-openModalBtn.addEventListener('click', () => { uploadModal.classList.remove('hidden-step'); });
-modalCloseBtn.addEventListener('click', closeUploadModal);
-modalCancelBtn.addEventListener('click', closeUploadModal);
-modalDoneBtn.addEventListener('click', closeUploadModal);
+function closeUploadModal() { 
+    if (uploadModal) uploadModal.classList.add('hidden-step'); 
+}
+
+if (openModalBtn) {
+    openModalBtn.addEventListener('click', () => { 
+        if (uploadModal) uploadModal.classList.remove('hidden-step'); 
+    });
+}
+if (modalCloseBtn) {
+    modalCloseBtn.addEventListener('click', closeUploadModal);
+}
+if (modalCancelBtn) {
+    modalCancelBtn.addEventListener('click', closeUploadModal);
+}
+if (modalDoneBtn) {
+    modalDoneBtn.addEventListener('click', closeUploadModal);
+}
+
+// Guest Authentication Modal Logic
+const guestAuthModal = document.getElementById('guest-auth-modal');
+const guestModalCloseBtn = document.getElementById('guest-modal-close-btn');
+
+function closeGuestAuthModal() { 
+    if (guestAuthModal) {
+        guestAuthModal.classList.add('hidden-step'); 
+        guestAuthModal.style.display = 'none';
+    }
+}
+
+if (guestModalCloseBtn) {
+    guestModalCloseBtn.addEventListener('click', closeGuestAuthModal);
+}
+
+// Close modal when clicking backdrop
+if (guestAuthModal) {
+    guestAuthModal.addEventListener('click', function(e) {
+        if (e.target === guestAuthModal) {
+            closeGuestAuthModal();
+        }
+    });
+}
 
 browseFilesBtn.addEventListener('click', () => { fileInput.click(); });
 fileInput.addEventListener('change', (e) => { handleFiles(e.target.files); fileInput.value = ''; });
@@ -3514,22 +3931,22 @@ function handleFiles(files) {
             console.error(`File type not supported`); return;
         }
         const newFile = {
-            id: Date.now() + Math.random(), 
-            name: file.name, 
-            size: file.size, 
+            id: Date.now() + Math.random(),
+            name: file.name,
+            size: file.size,
             progress: 0,
-            status: 'uploading', 
-            isError: file.size > MAX_FILE_SIZE_MB * 1024 * 1024, 
+            status: 'uploading',
+            isError: file.size > MAX_FILE_SIZE_MB * 1024 * 1024,
             extension: fileExtension,
             file: file  // Store the actual file object for upload
         };
         uploadedFiles.push(newFile);
         renderFileItem(newFile);
-        if (newFile.isError) { 
-            newFile.status = 'error'; 
-            updateFileItem(newFile); 
-        } else { 
-            uploadFileToServer(newFile); 
+        if (newFile.isError) {
+            newFile.status = 'error';
+            updateFileItem(newFile);
+        } else {
+            uploadFileToServer(newFile);
         }
     });
     // Update external file display after adding files
@@ -3546,7 +3963,14 @@ function uploadFileToServer(file) {
     }
 
     const formData = new FormData();
-    formData.append('file', file.file);
+    // Ensure we send a filename (some File/Blob objects may lack a name)
+    let filename = file.name || '';
+    if (!filename) {
+        // Derive extension from known properties
+        const extFromMeta = file.extension || (file.file && file.file.type ? file.file.type.split('/').pop() : 'png');
+        filename = `upload.${extFromMeta}`;
+    }
+    formData.append('file', file.file, filename);
     formData.append('customer_id', document.body.getAttribute('data-customer-id') || '');
 
     const xhr = new XMLHttpRequest();
@@ -3650,41 +4074,52 @@ function deleteFile(e) {
 function updateExternalFileDisplay() {
     const externalList = document.getElementById('external-uploaded-files-list');
     const externalContainer = document.getElementById('external-uploaded-files-container');
-    
+
     // If no external display container exists, skip (it's optional)
     if (!externalList || !externalContainer) {
         return;
     }
-    
+
     // Filter only completed files
     const completedFiles = uploadedFiles.filter(f => f.status === 'completed');
-    
+
     if (completedFiles.length === 0) {
         externalList.style.display = 'none';
         externalContainer.innerHTML = '<p class="placeholder-text" style="font-style: italic; color: #666; text-align: center; padding: 10px;">No files uploaded yet.</p>';
         return;
     }
-    
+
     externalList.style.display = 'block';
-    
+
     // Show max 4 files with scroll
     const filesToShow = completedFiles.slice(0, 4);
-    
+
     // Clear container
     externalContainer.innerHTML = '';
     externalContainer.style.cssText = 'display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; max-height: 120px;';
-    
+
     filesToShow.forEach(file => {
         const fileItem = document.createElement('div');
-        fileItem.style.cssText = 'min-width: 80px; text-align: center; padding: 8px; background: #f5f5f5; border-radius: 4px; flex-shrink: 0;';
+        fileItem.style.cssText = 'min-width: 80px; text-align: center; padding: 8px; background: #f5f5f5; border-radius: 4px; flex-shrink: 0; cursor: pointer;';
         const fileIcon = getFileIconSvg(file.extension);
-        fileItem.innerHTML = `
-            <div style="margin-bottom: 5px;">${fileIcon}</div>
-            <div style="font-size: 11px; word-break: break-word; max-width: 80px;">${file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name}</div>
-        `;
+        // If filePath exists, wrap icon and name in a link
+        if (file.filePath) {
+            const fileUrl = file.filePath.startsWith('http') ? file.filePath : (window.base_url || '') + file.filePath.replace(/^\/+/, '');
+            fileItem.innerHTML = `
+                <a href="${fileUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration: none; color: inherit; display: block;">
+                    <div style="margin-bottom: 5px;">${fileIcon}</div>
+                    <div style="font-size: 11px; word-break: break-word; max-width: 80px;">${file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name}</div>
+                </a>
+            `;
+        } else {
+            fileItem.innerHTML = `
+                <div style="margin-bottom: 5px;">${fileIcon}</div>
+                <div style="font-size: 11px; word-break: break-word; max-width: 80px;">${file.name.length > 15 ? file.name.substring(0, 12) + '...' : file.name}</div>
+            `;
+        }
         externalContainer.appendChild(fileItem);
     });
-    
+
     // Show/hide scroll arrows if more than 4 files
     const scrollNav = externalList.querySelector('.external-files-scroll-nav');
     if (scrollNav && completedFiles.length > 4) {
@@ -3697,8 +4132,7 @@ function updateExternalFileDisplay() {
 
 // --- PRICING LOGIC (Philippines Context) ---
 // Price per square inch based on product base price
-// Initialize pricingDatabase early to avoid hoisting issues
-let pricingDatabase = null;
+// pricingDatabase is declared at the top of the file to avoid temporal dead zone issues
 
 // Initialize pricing database (must be called after productBasePrice is available)
 function initializePricingDatabase() {
@@ -3709,21 +4143,21 @@ function initializePricingDatabase() {
     } else if (typeof productBasePrice !== 'undefined') {
         basePrice = productBasePrice;
     }
-    
+
     // Get tag prices from selectedProduct (from database)
     const product = getSelectedProduct();
     const tagPrices = (product && product.tagPrices) ? product.tagPrices : {};
-    
+
     // Calculate base rate per square inch (base price / 100)
     const BASE_PRICE_PER_SQ_IN = basePrice > 0 ? basePrice / 100 : 15; // Default to 15 if no base price
-    
+
     const db = {
         basePrice: basePrice,
         baseRatePerSqIn: BASE_PRICE_PER_SQ_IN,
         tagPrices: tagPrices, // Store database tag prices
         minimumPrice: basePrice > 0 ? basePrice : 1500 // Use base price as minimum, or 1500 default
     };
-    
+
     console.log("Pricing system initialized with base price:", basePrice, "from database");
     console.log("Tag prices from database:", tagPrices);
     pricingDatabase = db; // Assign to the global variable
@@ -3741,20 +4175,20 @@ function getPriceFromDatabase(fieldId, optionName) {
         console.log('No pricing database or tagPrices available');
         return 0;
     }
-    
+
     const fieldPrices = pricingDatabase.tagPrices[fieldId];
     if (!fieldPrices) {
         console.log(`No prices found for fieldId: ${fieldId}`);
         return 0;
     }
-    
+
     // Try exact match first
     if (fieldPrices[optionName] !== undefined) {
         const price = parseFloat(fieldPrices[optionName]) || 0;
         console.log(`Found exact match for ${fieldId}.${optionName}: ${price}`);
         return price;
     }
-    
+
     // Try case-insensitive match
     const lowerOption = optionName.toLowerCase().trim();
     for (const key in fieldPrices) {
@@ -3764,7 +4198,7 @@ function getPriceFromDatabase(fieldId, optionName) {
             return price;
         }
     }
-    
+
     // Try partial match (e.g., "Round" matches "round", "Round ", etc.)
     for (const key in fieldPrices) {
         if (key.toLowerCase().trim().includes(lowerOption) || lowerOption.includes(key.toLowerCase().trim())) {
@@ -3773,7 +4207,7 @@ function getPriceFromDatabase(fieldId, optionName) {
             return price;
         }
     }
-    
+
     console.log(`No price match found for ${fieldId}.${optionName}. Available options:`, Object.keys(fieldPrices));
     return 0;
 }
@@ -3791,7 +4225,7 @@ function getSelectedValueForField(fieldId) {
             return value;
         }
     }
-    
+
     // Fallback to legacy field mappings (for backward compatibility)
     const legacyMappings = {
         'shape': currentShape,
@@ -3802,7 +4236,7 @@ function getSelectedValueForField(fieldId) {
         'frameColor': currentFrameType,
         'edgeFinish': currentEdgeWork
     };
-    
+
     // Also try to get from DOM based on field type
     const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
     if (fieldContainer) {
@@ -3811,42 +4245,37 @@ function getSelectedValueForField(fieldId) {
         if (checkbox) {
             return checkbox.checked ? true : null;
         }
-        
+
         // Check for number fields
         const numberInput = fieldContainer.querySelector('input[type="number"]');
         if (numberInput && numberInput.value) {
             return numberInput.value;
         }
-        
+
         // Check for tag fields (option cards)
         const activeCard = fieldContainer.querySelector('.option-card.active');
         if (activeCard && activeCard.dataset.value) {
             return activeCard.dataset.value;
         }
     }
-    
+
     return legacyMappings[fieldId] || null;
 }
 
-// Store calculated price breakdown
-let priceBreakdown = {
-    baseArea: 0,
-    fieldPrices: {}, // Store prices for each field { fieldId: { option: price, label: "..." } }
-    total: 0
-};
+// priceBreakdown is declared at top of file to avoid temporal dead zone issues
 
 function calculateTotal() {
     // Initialize pricing database if not already done
-    if (!pricingDatabase) {
+    if (typeof pricingDatabase === 'undefined' || pricingDatabase === null) {
         initializePricingDatabase();
     }
-    
+
     // Safety check - if still null, use defaults
     if (!pricingDatabase) {
         console.warn('Pricing database not initialized, using defaults');
-        return pricingDatabase?.minimumPrice || 1500;
+        return 1500;
     }
-    
+
     // 1. Convert dimensions to Inches for calculation
     let h_in = currentDimensions.height.value;
     let w_in = currentDimensions.width.value;
@@ -3864,19 +4293,19 @@ function calculateTotal() {
 
     // 3. Get all selected customization field values and calculate their prices
     let totalFieldPrices = 0;
-    
+
     // Get product to access customization fields
     const product = getSelectedProduct();
-    
+
     // First, check all active option-cards in the DOM (most reliable source)
     // This ensures we catch all selections regardless of whether they have prices
     const allFieldContainers = document.querySelectorAll('[data-field-id]');
     const processedFieldIds = new Set();
-    
+
     allFieldContainers.forEach(container => {
         const fieldId = container.dataset.fieldId;
         if (!fieldId) return;
-        
+
         const activeCard = container.querySelector('.option-card.active');
         if (activeCard) {
             const optionValue = activeCard.dataset.value || activeCard.textContent.trim();
@@ -3892,7 +4321,7 @@ function calculateTotal() {
             }
         }
     });
-    
+
     // Second, check product.tagPrices for fields that might not be in DOM yet
     // or for fields that have prices but weren't captured above
     if (product && product.tagPrices) {
@@ -3916,7 +4345,7 @@ function calculateTotal() {
                 }
                 continue;
             }
-            
+
             // Process fields not yet captured
             const selectedValue = getSelectedValueForField(fieldId);
             if (selectedValue) {
@@ -3931,14 +4360,14 @@ function calculateTotal() {
             }
         }
     }
-    
+
     // Third, check all customization fields from configuration to ensure we capture
     // fields that might not have prices but are still selected
     if (product && product.customizationFields && Array.isArray(product.customizationFields)) {
         product.customizationFields.forEach(field => {
             const fieldId = field.id;
             if (!fieldId || processedFieldIds.has(fieldId)) return;
-            
+
             // Check DOM for this field
             const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
             if (fieldContainer) {
@@ -3972,7 +4401,7 @@ function calculateTotal() {
             }
         });
     }
-    
+
     // 4. Calculate total: base area cost + all field option prices
     let total = baseAreaCost + totalFieldPrices;
 
@@ -3996,22 +4425,35 @@ function formatPrice(amount) {
 
 // --- REAL-TIME PRICE UPDATE WITH BREAKDOWN ---
 function updateRealTimePriceDisplay() {
-    // Initialize pricing database if needed
-    if (!pricingDatabase) {
-        initializePricingDatabase();
+    // Price calculation has been disabled as price breakdown is no longer used
+    // The price is now static and determined by ocular visit
+    return;
+
+    // Old code preserved for reference:
+    /*
+    // Initialize pricing database if needed (guard against undefined access)
+    try {
+        if (typeof pricingDatabase === 'undefined' || !pricingDatabase) {
+            if (typeof initializePricingDatabase === 'function') {
+                initializePricingDatabase();
+            }
+        }
+    } catch (e) {
+        console.warn('Error initializing pricing database:', e);
     }
-    
+
     // 1. Calculate total (also updates priceBreakdown)
     const total = calculateTotal();
 
-    // 2. Update main price display
-    const priceValue = document.getElementById('total-price');
-    if (priceValue) {
-        priceValue.textContent = formatPrice(total);
-    }
+    // 2. Update main price display - DISABLED: Price is now static
+    // const priceValue = document.getElementById('total-price');
+    // if (priceValue) {
+    //     priceValue.textContent = formatPrice(total);
+    // }
 
-    // 3. Update breakdown details
-    updatePriceBreakdown();
+    // 3. Update breakdown details - DISABLED: Breakdown removed
+    // updatePriceBreakdown();
+    */
 }
 
 function updatePriceBreakdown() {
@@ -4019,13 +4461,13 @@ function updatePriceBreakdown() {
     if (!pricingDatabase) {
         initializePricingDatabase();
     }
-    
+
     // Safety check
     if (!pricingDatabase) {
         console.warn('Pricing database not available for breakdown');
         return;
     }
-    
+
     // Get product data to determine which fields to show
     const selectedProduct = getSelectedProduct();
     if (!selectedProduct) {
@@ -4037,10 +4479,10 @@ function updatePriceBreakdown() {
         if (estimatedCostArea) estimatedCostArea.textContent = formatPrice(priceBreakdown.baseArea);
         return;
     }
-    
+
     // Get customization fields configuration
     const customizationFields = selectedProduct.customizationFields || [];
-    
+
     // Update dimensions in estimated price section
     const estimatedDimension = document.getElementById('estimated-dimension');
     if (estimatedDimension && currentDimensions) {
@@ -4050,29 +4492,29 @@ function updatePriceBreakdown() {
         const heightUnit = currentDimensions.height.unit || 'in';
         estimatedDimension.textContent = `${widthValue}${widthUnit} × ${heightValue}${heightUnit}`;
     }
-    
+
     // Update base area cost in both sections
     const costArea = document.getElementById('cost-area');
     if (costArea) costArea.textContent = formatPrice(priceBreakdown.baseArea);
     const estimatedCostArea = document.getElementById('estimated-cost-area');
     if (estimatedCostArea) estimatedCostArea.textContent = formatPrice(priceBreakdown.baseArea);
-    
+
     // Get containers for dynamic rows (both sections)
     const dynamicContainer = document.getElementById('dynamic-breakdown-rows');
     const estimatedDynamicContainer = document.getElementById('estimated-dynamic-breakdown-rows');
-    
+
     // Debug: Check if containers exist
     console.log('🔍 updatePriceBreakdown - dynamicContainer:', !!dynamicContainer);
     console.log('🔍 updatePriceBreakdown - estimatedDynamicContainer:', !!estimatedDynamicContainer);
     console.log('🔍 updatePriceBreakdown - priceBreakdown.fieldPrices:', priceBreakdown.fieldPrices);
     console.log('🔍 updatePriceBreakdown - customizationFields count:', customizationFields.length);
-    
+
     // Don't return early - continue even if one container is missing
     if (!dynamicContainer && !estimatedDynamicContainer) {
         console.warn('Both breakdown containers not found');
         return;
     }
-    
+
     // Clear existing dynamic rows in both sections
     if (dynamicContainer) {
         dynamicContainer.innerHTML = '';
@@ -4080,7 +4522,7 @@ function updatePriceBreakdown() {
     if (estimatedDynamicContainer) {
         estimatedDynamicContainer.innerHTML = '';
     }
-    
+
     // Create a map of field IDs to field configurations for quick lookup
     const fieldConfigMap = {};
     if (Array.isArray(customizationFields) && customizationFields.length > 0) {
@@ -4090,7 +4532,7 @@ function updatePriceBreakdown() {
             }
         });
     }
-    
+
     // Get ALL fields from customization configuration, sorted by stepNumber
     // This ensures we show all fields defined for this product, not just those with prices
     let sortedFields = [];
@@ -4105,7 +4547,7 @@ function updatePriceBreakdown() {
                 return customizationFields.indexOf(a) - customizationFields.indexOf(b);
             });
     }
-    
+
     // Also include any fields in priceBreakdown that might not be in customizationFields
     // (for backward compatibility with legacy fields)
     if (priceBreakdown.fieldPrices) {
@@ -4120,26 +4562,26 @@ function updatePriceBreakdown() {
             }
         });
     }
-    
+
     console.log('🔍 updatePriceBreakdown - sortedFields count:', sortedFields.length);
-    
+
     // Render each field from the customization configuration
     let renderedCount = 0;
     sortedFields.forEach(field => {
         const fieldId = field.id;
         if (!fieldId) return;
-        
+
         // Get field configuration
         const fieldConfig = fieldConfigMap[fieldId] || field;
         const fieldType = fieldConfig.type || 'tags'; // Default to tags if not specified
-        
+
         // Get selected value for this field - check multiple sources
         let selectedValue = getSelectedValueForField(fieldId);
-        
+
         // Also check DOM directly based on field type
         let optionValueFromDOM = null;
         const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
-        
+
         if (fieldContainer) {
             if (fieldType === 'checkbox') {
                 // For checkbox fields, check if checkbox is checked
@@ -4176,20 +4618,20 @@ function updatePriceBreakdown() {
                 }
             }
         }
-        
+
         // Get price data if available
         const fieldData = priceBreakdown.fieldPrices && priceBreakdown.fieldPrices[fieldId];
-        
+
         // Determine option name and price
         let optionName = '';
         let priceText = '';
-        
+
         if (fieldType === 'checkbox') {
             // For checkbox, show "Yes" or field label if checked
             if (selectedValue || optionValueFromDOM) {
                 optionName = fieldConfig.label || fieldId;
                 priceText = 'Included';
-                
+
                 // Check if checkbox has a price
                 if (fieldData && fieldData.price !== undefined) {
                     const numPrice = parseFloat(fieldData.price) || 0;
@@ -4203,9 +4645,9 @@ function updatePriceBreakdown() {
                     const product = getSelectedProduct();
                     if (product && product.tagPrices && product.tagPrices[fieldId]) {
                         // Checkbox prices might be stored as "Yes" or fieldId itself
-                        const price = product.tagPrices[fieldId]['Yes'] || 
-                                     product.tagPrices[fieldId][fieldId] ||
-                                     product.tagPrices[fieldId][fieldConfig.label];
+                        const price = product.tagPrices[fieldId]['Yes'] ||
+                            product.tagPrices[fieldId][fieldId] ||
+                            product.tagPrices[fieldId][fieldConfig.label];
                         if (price !== undefined && price !== null) {
                             const numPrice = parseFloat(price) || 0;
                             if (numPrice > 0) {
@@ -4225,16 +4667,16 @@ function updatePriceBreakdown() {
             if (selectedValue || optionValueFromDOM) {
                 const numValue = selectedValue || optionValueFromDOM;
                 optionName = numValue;
-                
+
                 // Add unit if field has one (e.g., "in" for corner radius)
                 if (fieldId === 'cornerRadius' || fieldId === 'cornerRadiusIn') {
                     optionName = numValue + 'in';
                 } else if (fieldId === 'thickness' || fieldId.includes('Thickness')) {
                     optionName = numValue + 'mm';
                 }
-                
+
                 priceText = 'Included';
-                
+
                 // Check if number field has a price
                 if (fieldData && fieldData.price !== undefined) {
                     const numPrice = parseFloat(fieldData.price) || 0;
@@ -4266,7 +4708,7 @@ function updatePriceBreakdown() {
             // Field is selected but no price data yet - still show it
             optionName = selectedValue || optionValueFromDOM;
             priceText = 'Included'; // Default to included if no price
-            
+
             // Try to get price from database if available
             const product = getSelectedProduct();
             if (product && product.tagPrices && product.tagPrices[fieldId] && optionName) {
@@ -4285,36 +4727,36 @@ function updatePriceBreakdown() {
             console.log(`⏭️ Skipping field ${fieldId} - no selected value`);
             return;
         }
-        
+
         // If we have an option name, render the row in both sections
         if (optionName) {
             const fieldConfigForDisplay = fieldConfigMap[fieldId] || field;
             const displayName = fieldConfigForDisplay ? (fieldConfigForDisplay.label || fieldId) : getFieldDisplayName(fieldId);
-            
+
             // Format option name - handle various formats (skip for checkbox and number fields that already have proper formatting)
             if (fieldType !== 'checkbox' && fieldType !== 'number') {
                 // Preserve the original option name from database/selection, but format it nicely
                 // Remove camelCase conversion and keep original format from options
                 optionName = String(optionName);
-                
+
                 // Only format if it looks like camelCase or lowercase
                 if (/^[a-z]/.test(optionName) || /[a-z][A-Z]/.test(optionName)) {
                     optionName = optionName.replace(/([A-Z])/g, ' $1').trim();
                     optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1);
                 }
-                
+
                 // Capitalize first letter of each word
                 optionName = optionName.split(' ').map(word => {
                     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
                 }).join(' ');
             }
-            
+
             // Helper function to create a breakdown row
             const createBreakdownRow = () => {
                 const row = document.createElement('div');
                 row.className = 'breakdown-row';
                 row.dataset.fieldId = fieldId;
-                
+
                 // For checkbox, show just the label without option name in parentheses
                 if (fieldType === 'checkbox') {
                     row.innerHTML = `
@@ -4329,28 +4771,28 @@ function updatePriceBreakdown() {
                 }
                 return row;
             };
-            
+
             // Add to Price Breakdown section (collapsible)
             if (dynamicContainer) {
                 const row = createBreakdownRow();
                 dynamicContainer.appendChild(row);
             }
-            
+
             // Add to Estimated Price section (always visible)
             if (estimatedDynamicContainer) {
                 const estimatedRow = createBreakdownRow();
                 estimatedDynamicContainer.appendChild(estimatedRow);
                 renderedCount++;
             }
-            
+
             console.log(`✅ Rendering field: ${fieldId} = ${optionName} (${priceText})`);
         } else {
             console.log(`❌ Skipping field: ${fieldId} - no option name (selectedValue: ${selectedValue}, optionValueFromDOM: ${optionValueFromDOM}, fieldData:`, fieldData, ')');
         }
     });
-    
+
     console.log(`📊 Total fields rendered in estimated section: ${renderedCount}`);
-    
+
     // Show/hide total row
     const totalRow = document.getElementById('breakdown-total-row');
     if (totalRow) {
@@ -4375,7 +4817,7 @@ function getFieldDisplayName(fieldId) {
             }
         }
     }
-    
+
     // Fallback to common field name mappings based on CUSTOMIZATION_REFERENCE.md
     const commonNames = {
         'shape': 'Shape',
@@ -4417,7 +4859,7 @@ function getFieldDisplayName(fieldId) {
         'mounting': 'Mounting',
         'hardware': 'Hardware'
     };
-    
+
     return commonNames[fieldId] || fieldId.replace(/([A-Z])/g, ' $1').trim();
 }
 
@@ -4446,14 +4888,13 @@ if (breakdownToggle && breakdownDetails) {
 
 // Generate high-quality image from Konva stage
 function getKonvaImageData(pixelRatio = 3) {
-    return stage.toDataURL({ 
+    return stage.toDataURL({
         pixelRatio: pixelRatio,
         mimeType: 'image/png'
     });
 }
 
-// Store the design image data globally for cart submission
-let currentDesignImageData = null;
+// currentDesignImageData is declared at top of file to avoid temporal dead zone issues
 
 // --- SUMMARY VIEW LOGIC ---
 
@@ -4464,18 +4905,18 @@ function updateSummaryPriceBreakdown() {
         console.warn('Product data not available for dynamic summary breakdown');
         return;
     }
-    
+
     const customizationFields = selectedProduct.customizationFields || [];
     const dynamicSummaryContainer = document.getElementById('dynamic-summary-rows');
-    
+
     if (!dynamicSummaryContainer) {
         console.warn('Dynamic summary container not found');
         return;
     }
-    
+
     // Clear existing dynamic rows
     dynamicSummaryContainer.innerHTML = '';
-    
+
     // Create field config map
     const fieldConfigMap = {};
     if (Array.isArray(customizationFields) && customizationFields.length > 0) {
@@ -4485,7 +4926,7 @@ function updateSummaryPriceBreakdown() {
             }
         });
     }
-    
+
     // Get ALL fields from customization configuration, sorted by stepNumber
     // This ensures we show all fields defined for this product, not just those with prices
     let sortedFields = [];
@@ -4499,7 +4940,7 @@ function updateSummaryPriceBreakdown() {
                 return customizationFields.indexOf(a) - customizationFields.indexOf(b);
             });
     }
-    
+
     // Also include any fields in priceBreakdown that might not be in customizationFields
     // (for backward compatibility with legacy fields)
     if (priceBreakdown.fieldPrices) {
@@ -4514,15 +4955,15 @@ function updateSummaryPriceBreakdown() {
             }
         });
     }
-    
+
     // Render each field from the customization configuration
     sortedFields.forEach(field => {
         const fieldId = field.id;
         if (!fieldId) return;
-        
+
         // Get selected value for this field - check multiple sources
         let selectedValue = getSelectedValueForField(fieldId);
-        
+
         // Also check DOM directly for active option cards (most reliable)
         let optionValueFromDOM = null;
         const fieldContainer = document.querySelector(`[data-field-id="${fieldId}"]`);
@@ -4535,14 +4976,14 @@ function updateSummaryPriceBreakdown() {
                 }
             }
         }
-        
+
         // Get price data if available
         const fieldData = priceBreakdown.fieldPrices && priceBreakdown.fieldPrices[fieldId];
-        
+
         // Determine option name and price
         let optionName = '';
         let priceText = '';
-        
+
         if (fieldData && fieldData.option) {
             // Use data from priceBreakdown (has price info)
             optionName = fieldData.option;
@@ -4561,7 +5002,7 @@ function updateSummaryPriceBreakdown() {
             // Field is selected but no price data yet - still show it
             optionName = selectedValue || optionValueFromDOM;
             priceText = 'Included'; // Default to included if no price
-            
+
             // Try to get price from database if available
             const product = getSelectedProduct();
             if (product && product.tagPrices && product.tagPrices[fieldId] && optionName) {
@@ -4579,16 +5020,16 @@ function updateSummaryPriceBreakdown() {
             // Field is not selected - skip it (only show selected fields)
             return;
         }
-        
-        // If we have an option name, render the row
+
+        // If we have an option name, render the row (without price info)
         if (optionName) {
             const fieldConfig = fieldConfigMap[fieldId];
             const displayName = fieldConfig ? (fieldConfig.label || fieldId) : getFieldDisplayName(fieldId);
-            
+
             // Format option name - handle various formats
             optionName = String(optionName).replace(/([A-Z])/g, ' $1').trim();
             optionName = optionName.charAt(0).toUpperCase() + optionName.slice(1);
-            
+
             const row = document.createElement('div');
             row.className = 'summary-row';
             row.dataset.fieldId = fieldId;
@@ -4596,23 +5037,94 @@ function updateSummaryPriceBreakdown() {
                 <span class="spec-label">${escapeHtml(displayName)}:</span>
                 <span class="spec-value">
                     <span>${escapeHtml(optionName)}</span>
-                    <span class="price-addon">${priceText}</span>
                 </span>
             `;
-            
+
             dynamicSummaryContainer.appendChild(row);
         }
     });
-    
-    // Update total
-    const totalEl = document.getElementById('sum-total');
-    if (totalEl) {
-        const totalPrice = calculateTotal();
-        totalEl.textContent = formatPrice(totalPrice);
+
+    // Total row removed - price is now static
+}
+
+// Update the Quotation Preview section with current customization data
+function updateQuotationPreview(totalPrice) {
+    // Generate quotation number (random for now, would be server-generated in production)
+    const quotNumEl = document.getElementById('quotation-number');
+    if (quotNumEl && !quotNumEl.dataset.generated) {
+        const randomNum = Math.floor(100000 + Math.random() * 900000);
+        quotNumEl.textContent = randomNum;
+        quotNumEl.dataset.generated = 'true';
+    }
+
+    // Update dimensions in quotation
+    const quotDimensions = document.getElementById('quot-dimensions');
+    if (quotDimensions && currentDimensions) {
+        quotDimensions.textContent = `${currentDimensions.width.value}${currentDimensions.width.unit} × ${currentDimensions.height.value}${currentDimensions.height.unit}`;
+    }
+
+    // Update base price
+    const quotBasePrice = document.getElementById('quot-base-price');
+    if (quotBasePrice) {
+        quotBasePrice.textContent = formatPrice(priceBreakdown.baseArea || 0);
+    }
+
+    // Update quotation items table with dynamic fields
+    const quotItemsContainer = document.getElementById('quotation-items');
+    if (quotItemsContainer) {
+        // Keep only the first row (dimensions)
+        const firstRow = quotItemsContainer.querySelector('tr');
+        quotItemsContainer.innerHTML = '';
+        if (firstRow) {
+            quotItemsContainer.appendChild(firstRow);
+        }
+
+        // Add dynamic field rows from price breakdown
+        const selectedProduct = getSelectedProduct();
+        if (selectedProduct && selectedProduct.customizationFields) {
+            const customizationFields = selectedProduct.customizationFields;
+            const selectedValues = window.selectedCustomizationValues || {};
+
+            customizationFields.forEach(field => {
+                const fieldId = field.id;
+                const selectedValue = selectedValues[fieldId];
+                
+                if (selectedValue && fieldId !== 'dimensions') {
+                    const displayName = field.label || field.id.replace(/([A-Z])/g, ' $1').trim();
+                    let optionName = selectedValue;
+                    let priceAmount = 0;
+
+                    // Get price from priceBreakdown if available
+                    if (priceBreakdown.customizations && priceBreakdown.customizations[fieldId]) {
+                        priceAmount = priceBreakdown.customizations[fieldId];
+                    }
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${escapeHtml(displayName)}: ${escapeHtml(optionName)}</td>
+                        <td class="text-right">${formatPrice(priceAmount)}</td>
+                    `;
+                    quotItemsContainer.appendChild(row);
+                }
+            });
+        }
+    }
+
+    // Update subtotal and total
+    const quotSubtotal = document.getElementById('quot-subtotal');
+    const quotTotal = document.getElementById('quot-total');
+    if (quotSubtotal) {
+        quotSubtotal.textContent = formatPrice(totalPrice);
+    }
+    if (quotTotal) {
+        quotTotal.textContent = formatPrice(totalPrice);
     }
 }
 
 function showOrderSummary() {
+    // Store the current step before entering review
+    lastStepBeforeReview = window.currentStep || currentStep;
+
     // Hide testimonials section when finalize order is clicked
     const testimonialsSection = document.getElementById('testimonials-section');
     if (testimonialsSection) {
@@ -4628,10 +5140,28 @@ function showOrderSummary() {
     // --- Hide Related Products and Testimonials ---
     document.getElementById('related-products-section').classList.add('hidden-step');
 
+    // --- Hide Product Description Section ---
+    const productDescSection = document.getElementById('product-description-section');
+    if (productDescSection) {
+        productDescSection.style.display = 'none';
+    }
+
+    // --- Hide Order Type Note ---
+    const orderTypeNote = document.querySelector('.order-type-note');
+    if (orderTypeNote) {
+        orderTypeNote.style.display = 'none';
+    }
+
+    // --- Hide Guest Notice Banner ---
+    const guestNoticeBanner = document.getElementById('guest-notice-banner');
+    if (guestNoticeBanner) {
+        guestNoticeBanner.style.display = 'none';
+    }
+
     // 2. Show Summary UI
     const summaryWrapper = document.getElementById('summary-wrapper');
     summaryWrapper.classList.remove('hidden-step');
-    
+
     // Scroll to review section so user can see it
     setTimeout(() => {
         summaryWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -4645,8 +5175,14 @@ function showOrderSummary() {
     }
 
     // 4. Update Summary Data with dynamic price breakdown
+    // Force populate priceBreakdown.fieldPrices so updateSummaryPriceBreakdown shows fields
+    try {
+        calculateTotal(); // This will populate priceBreakdown.fieldPrices with selected values
+    } catch (e) {
+        console.warn('Calculate total failed, will show fields from DOM instead:', e);
+    }
     updateSummaryPriceBreakdown();
-    
+
     // Dimensions (always shown)
     const sumDimEl = document.getElementById('sum-dim');
     if (sumDimEl && currentDimensions) {
@@ -4673,15 +5209,36 @@ function showOrderSummary() {
         if (engravingRow) engravingRow.style.display = 'none';
     }
 
-    // 5. Update Total Price
-    const totalPrice = calculateTotal();
-    document.getElementById('sum-total').textContent = formatPrice(totalPrice);
+    // 5. Update Total Price - DISABLED: sum-total element removed, price is determined at ocular visit
+    // const totalPrice = calculateTotal();
+    // const sumTotalEl = document.getElementById('sum-total');
+    // if (sumTotalEl) {
+    //     sumTotalEl.textContent = formatPrice(totalPrice);
+    // }
 
-    // 6. Update Breadcrumbs
-    crumbMain.innerText = 'Review Order';
-    crumbMain.classList.add('active');
-    removeCrumb('crumb-step2');
-    removeCrumb('crumb-step3');
+    // 6. Update Quotation Preview Section - DISABLED: No price calculation
+    // updateQuotationPreview(totalPrice);
+
+    // 7. Update breadcrumbs to show Review Order (for site orders that were hidden until now)
+    const crumbReview = document.getElementById('crumb-review');
+    if (crumbReview) {
+        crumbReview.style.display = '';
+        crumbReview.classList.add('active');
+        // Clear active state from other crumbs - only Review Order should be active
+        const crumbStep1 = document.getElementById('crumb-step1');
+        const crumbStep2 = document.getElementById('crumb-step2');
+        if (crumbStep1) crumbStep1.classList.remove('active');
+        if (crumbStep2) crumbStep2.classList.remove('active');
+
+        // Clear active state from any intermediate steps
+        const intermediateSteps = document.querySelectorAll('[id^="crumb-step"]:not(#crumb-step1):not(#crumb-step2):not(#crumb-review)');
+        intermediateSteps.forEach(step => step.classList.remove('active'));
+
+        // Ensure there's a chevron connecting to Review Order
+        if (typeof ensureChevronBeforeReviewOrder === 'function') {
+            ensureChevronBeforeReviewOrder();
+        }
+    }
 }
 
 function editConfiguration() {
@@ -4692,6 +5249,37 @@ function editConfiguration() {
     document.getElementById('related-products-section').classList.remove('hidden-step');
     // Testimonials are always visible, no need to show/hide
 
+    // --- Show Product Description Section again ---
+    const productDescSection = document.getElementById('product-description-section');
+    if (productDescSection) {
+        productDescSection.style.display = 'block';
+    }
+
+    // --- Show Order Type Note again ---
+    const orderTypeNote = document.querySelector('.order-type-note');
+    if (orderTypeNote) {
+        orderTypeNote.style.display = 'block';
+    }
+
+    // --- Show Guest Notice Banner again ---
+    const guestNoticeBanner = document.getElementById('guest-notice-banner');
+    if (guestNoticeBanner) {
+        guestNoticeBanner.style.display = 'block';
+    }
+
+    // Hide Review Order in breadcrumbs when editing configuration
+    const crumbReview = document.getElementById('crumb-review');
+    if (crumbReview) {
+        crumbReview.style.display = 'none';
+        crumbReview.classList.remove('active');
+        // Also hide the chevron before Review Order if it exists
+        const reviewChevron = document.getElementById('chevron-crumb-review');
+        if (reviewChevron) reviewChevron.style.display = 'none';
+    }
+
+    // Keep all previous steps active to show progress, but remove active from current step if going back
+    // The breadcrumbs will be updated by the step navigation logic
+
     // Show Toggle and Subtitle
     document.querySelector('.build-toggle').classList.remove('hidden-step');
 
@@ -4699,11 +5287,19 @@ function editConfiguration() {
     if (isStandardMode) {
         standardWrapper.classList.remove('hidden-step');
         document.getElementById('standard-subtitle').classList.remove('hidden-step');
+        // Update breadcrumbs for standard mode (no steps)
+        // Breadcrumbs are managed dynamically
     } else {
         customWrapper.classList.remove('hidden-step');
         priceBox.classList.remove('hidden-step');
-        // Return to Step 3 to allow immediate editing
-        goToStep(3);
+        // Return to the IMMEDIATELY PREVIOUS step before review
+        // This preserves all selections and allows modification from that step onward
+        const previousStep = lastStepBeforeReview || 3; // Fallback to step 3 if not set
+        goToStep(previousStep);
+        // Update breadcrumbs to reflect the current step
+        if (typeof updateDynamicBreadcrumbs === 'function') {
+            updateDynamicBreadcrumbs(previousStep, window.totalCustomizationSteps || 3);
+        }
     }
 }
 
@@ -4718,22 +5314,71 @@ function formatText(str) {
 }
 
 // --- EVENT LISTENER UPDATES ---
+// Wrap in DOMContentLoaded to ensure elements exist
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // 2. Finalize Button (Standard Flow)
+    const stdFinalizeBtn = document.querySelector('#standard-wrapper .next-btn');
+    if (stdFinalizeBtn) {
+        stdFinalizeBtn.onclick = null; // Remove inline alert
+        stdFinalizeBtn.addEventListener('click', () => {
+            console.log("Finalizing Standard Order...");
+            showOrderSummary();
+            logOrderSummary();
+        });
+    }
 
-// 2. Finalize Button (Standard Flow)
-// FIND the onclick attribute in the HTML for the Standard finalize button
-// OR add this listener (recommended to remove onclick="alert..." from HTML first)
-const stdFinalizeBtn = document.querySelector('#standard-wrapper .next-btn');
-if (stdFinalizeBtn) {
-    stdFinalizeBtn.onclick = null; // Remove inline alert
-    stdFinalizeBtn.addEventListener('click', () => {
-        console.log("Finalizing Standard Order...");
-        showOrderSummary();
-        logOrderSummary();
-    });
-}
+    // Add listener for finalize button with specific ID
+    const finalizeOrderBtn = document.getElementById('finalize-order-btn');
+    if (finalizeOrderBtn) {
+        finalizeOrderBtn.addEventListener('click', () => {
+            console.log("Finalizing Order...");
+            showOrderSummary();
+            logOrderSummary();
+        });
+    }
 
-// 3. Edit Order Button
-document.getElementById('edit-order-btn').addEventListener('click', editConfiguration);
+    // 3. Edit Order Button - ensure it works
+    const editOrderBtn = document.getElementById('edit-order-btn');
+    if (editOrderBtn) {
+        console.log('Edit order button found, attaching event listener');
+        editOrderBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Edit configuration clicked');
+            editConfiguration();
+        });
+    } else {
+        console.warn('Edit order button not found!');
+    }
+
+    // 4. Design Preview Image Click to Enlarge (in review section)
+    const designPreviewImg = document.getElementById('design-preview-img');
+    if (designPreviewImg) {
+        designPreviewImg.style.cursor = 'pointer';
+        designPreviewImg.style.transition = 'transform 0.2s ease';
+        designPreviewImg.title = 'Click to enlarge';
+        
+        // Add hover effect
+        designPreviewImg.addEventListener('mouseenter', () => {
+            designPreviewImg.style.transform = 'scale(1.02)';
+        });
+        designPreviewImg.addEventListener('mouseleave', () => {
+            designPreviewImg.style.transform = 'scale(1)';
+        });
+        
+        designPreviewImg.addEventListener('click', () => {
+            const previewModal = document.getElementById('preview-modal');
+            const zoomedImg = document.getElementById('zoomed-preview-img');
+            if (previewModal && zoomedImg) {
+                // Use current design image data or generate new one
+                const dataUrl = currentDesignImageData || getKonvaImageData(3);
+                zoomedImg.src = dataUrl;
+                previewModal.classList.remove('hidden-step');
+            }
+        });
+    }
+
+});
 
 
 // --- 2D PREVIEW MODAL LOGIC ---
@@ -4746,27 +5391,51 @@ const downloadDesignBtn = document.getElementById('download-design-btn');
 
 // Check if elements exist to avoid errors
 if (previewLabel && previewModal && zoomedImg) {
-    // Open Modal
+    // Open Modal when clicking 2D Preview label
     previewLabel.addEventListener('click', () => {
+        // Check if custom wrapper is locked (incomplete setup users)
+        const customWrapper = document.getElementById('custom-wrapper');
+        if (customWrapper && customWrapper.classList.contains('custom-wrapper-locked')) {
+            // Don't open preview modal when locked
+            return;
+        }
+        
         // Generate a high-quality image from the Konva Stage
         const dataUrl = getKonvaImageData(3);
         zoomedImg.src = dataUrl;
         previewModal.classList.remove('hidden-step');
     });
 
-    // Close Modal (Click Outside)
+    // Close Modal (Click Outside) - improved event handling
     previewModal.addEventListener('click', (e) => {
-        if (e.target === previewModal) {
+        // Close if clicking the backdrop (modal itself) or any non-interactive area
+        if (e.target === previewModal || e.target.classList.contains('modal-backdrop')) {
             previewModal.classList.add('hidden-step');
         }
     });
 
+    // Prevent modal content clicks from bubbling up to backdrop
+    const previewContent = previewModal.querySelector('.preview-modal-content');
+    if (previewContent) {
+        previewContent.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
     // Close button
     if (previewCloseBtn) {
-        previewCloseBtn.addEventListener('click', () => {
+        previewCloseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             previewModal.classList.add('hidden-step');
         });
     }
+
+    // Close modal with ESC key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !previewModal.classList.contains('hidden-step')) {
+            previewModal.classList.add('hidden-step');
+        }
+    });
 
     // Download button
     if (downloadDesignBtn) {
@@ -4788,12 +5457,12 @@ function downloadDesign() {
 }
 
 // Make design image data accessible globally for cart submission
-window.getDesignImageData = function() {
+window.getDesignImageData = function () {
     return currentDesignImageData || getKonvaImageData(3);
 };
 
 // Get current customization state for cart
-window.getCustomizationState = function() {
+window.getCustomizationState = function () {
     return {
         shape: currentShape,
         glassType: currentGlassType,
@@ -4836,19 +5505,19 @@ function logOrderSummary() {
 }
 
 // Image Counter Update (for product gallery)
-(function() {
+(function () {
     let currentImageIndex = 1;
     const productImages = document.querySelectorAll('.main-product-image');
     const totalImages = productImages.length || 1;
     const imageCounter = document.getElementById('image-counter');
     const prevBtn = document.getElementById('prev-image');
     const nextBtn = document.getElementById('next-image');
-    
+
     function updateImageCounter() {
         if (imageCounter) {
             imageCounter.textContent = `${currentImageIndex}/${totalImages}`;
         }
-        
+
         // Show/hide images based on current index
         productImages.forEach((img, index) => {
             if (index + 1 === currentImageIndex) {
@@ -4859,7 +5528,7 @@ function logOrderSummary() {
                 img.classList.remove('active');
             }
         });
-        
+
         // Enable/disable navigation buttons
         if (prevBtn) {
             prevBtn.disabled = currentImageIndex === 1;
@@ -4870,7 +5539,7 @@ function logOrderSummary() {
             nextBtn.style.opacity = currentImageIndex === totalImages ? '0.5' : '1';
         }
     }
-    
+
     if (prevBtn) {
         prevBtn.addEventListener('click', () => {
             if (currentImageIndex > 1) {
@@ -4879,7 +5548,7 @@ function logOrderSummary() {
             }
         });
     }
-    
+
     if (nextBtn) {
         nextBtn.addEventListener('click', () => {
             if (currentImageIndex < totalImages) {
@@ -4888,7 +5557,7 @@ function logOrderSummary() {
             }
         });
     }
-    
+
     // Initialize counter and display
     updateImageCounter();
 })();

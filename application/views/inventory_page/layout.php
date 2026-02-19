@@ -63,6 +63,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
     <!-- Sidebar toggle JS -->
     <script src="<?= base_url('assets/js/includes/sidebar.js'); ?>"></script>
     
+    <!-- Toast Notification JS -->
+    <script src="<?= base_url('assets/js/toast-notification.js'); ?>"></script>
+    
+    <!-- Confirmation Dialog JS -->
+    <script src="<?= base_url('assets/js/confirmation-dialog.js'); ?>"></script>
+    
     <!-- Notification badge JS -->
     <script>
         window.BASE_URL = '<?= base_url(); ?>';

@@ -401,16 +401,16 @@ function submitDateChangeRequest(baseUrl) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Date change request submitted successfully! We will contact you to confirm the new date.');
+            showToast('Date change request submitted successfully! We will contact you to confirm the new date.', 'success');
             document.getElementById('dateChangeModal').style.display = 'none';
             form.reset();
         } else {
-            alert('Error: ' + (data.message || 'Failed to submit request'));
+            showToast('Error: ' + (data.message || 'Failed to submit request'), 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred. Please try again.');
+        showToast('An error occurred. Please try again.', 'error');
     });
 }
 </script>

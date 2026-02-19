@@ -62,8 +62,11 @@ class CustomizationCon extends CI_Controller
     public function upload_file() {
         header('Content-Type: application/json');
         try {
+            log_message('debug', 'CustomizationCon::upload_file called. POST: ' . print_r($this->input->post(), true));
+            log_message('debug', 'CustomizationCon::upload_file FILES: ' . print_r(isset($_FILES) ? array_keys($_FILES) : [], true));
             $customer_id = $this->session->userdata('customer_id');
             if (!$customer_id) {
+                log_message('warning', 'CustomizationCon::upload_file - no customer session');
                 echo json_encode(['status' => 'error', 'message' => 'User not logged in']);
                 return;
             }
@@ -89,16 +92,18 @@ class CustomizationCon extends CI_Controller
                 return;
             }
 
-            $upload_path = str_replace(['\\', '//'], ['/', '/'], FCPATH . 'uploads/issues/');
+            $upload_path = str_replace(['\\', '//'], ['/', '/'], FCPATH . 'uploads/products/');
             $upload_path = rtrim($upload_path, '/') . '/';
 
             if (!is_dir($upload_path)) {
                 if (!@mkdir($upload_path, 0755, true)) {
+                    log_message('error', 'CustomizationCon::upload_file - failed to create upload directory: ' . $upload_path);
                     echo json_encode(['status' => 'error', 'message' => 'Failed to create upload directory']);
                     return;
                 }
             }
             if (!is_writable($upload_path)) {
+                log_message('error', 'CustomizationCon::upload_file - upload directory not writable: ' . $upload_path);
                 echo json_encode(['status' => 'error', 'message' => 'Upload directory is not writable']);
                 return;
             }
@@ -113,14 +118,28 @@ class CustomizationCon extends CI_Controller
 
             if ($this->upload->do_upload('file')) {
                 $upload_data = $this->upload->data();
-                $file_path = 'uploads/issues/' . $upload_data['file_name'];
+                log_message('info', 'CustomizationCon::upload_file success. Upload data: ' . print_r($upload_data, true));
+                $file_path = 'uploads/products/' . ($upload_data['file_name'] ?? '');
+                // Prefer common keys for original filename; fall back to stored name
+                $originalName = '';
+                if (isset($upload_data['original_name'])) {
+                    $originalName = $upload_data['original_name'];
+                } elseif (isset($upload_data['orig_name'])) {
+                    $originalName = $upload_data['orig_name'];
+                } elseif (isset($upload_data['client_name'])) {
+                    $originalName = $upload_data['client_name'];
+                } elseif (isset($upload_data['file_name'])) {
+                    $originalName = $upload_data['file_name'];
+                }
+
                 echo json_encode([
                     'status' => 'success',
                     'file_path' => $file_path,
-                    'file_name' => $upload_data['original_name']
+                    'file_name' => $originalName
                 ]);
             } else {
                 $error = $this->upload->display_errors('', '');
+                log_message('error', 'CustomizationCon::upload_file - upload failed: ' . $error . ' FILES: ' . print_r($_FILES, true));
                 echo json_encode([
                     'status' => 'error',
                     'message' => $error ?: 'File upload failed'

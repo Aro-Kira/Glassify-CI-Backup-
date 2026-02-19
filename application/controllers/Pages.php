@@ -70,8 +70,21 @@ class Pages extends CI_Controller {
         // Get recent activity (most recent non-completed order)
         $data['recent_activity'] = $this->Order_model->get_recent_order_activity($customer_id);
         
-        // Get orders for the table
-        $data['orders'] = $this->Order_model->get_customer_orders_with_products($customer_id, 10);
+        // Pagination for Order Progress Overview
+        $orders_per_page = 5;
+        $current_order_page = $this->input->get('page') ? (int)$this->input->get('page') : 1;
+        $offset = ($current_order_page - 1) * $orders_per_page;
+        
+        // Get total number of orders
+        $total_orders = $this->Order_model->count_customer_orders($customer_id);
+        $total_order_pages = ceil($total_orders / $orders_per_page);
+        
+        // Get orders for the table with pagination
+        $data['orders'] = $this->Order_model->get_customer_orders_with_products($customer_id, $orders_per_page, $offset);
+        $data['current_order_page'] = $current_order_page;
+        $data['total_order_pages'] = $total_order_pages;
+        $data['total_orders'] = $total_orders;
+        $data['orders_per_page'] = $orders_per_page;
         
         // Get activity feed (fetch more for expandable list)
         $data['activity_feed'] = $this->Order_model->get_activity_feed($customer_id, 20);
@@ -84,6 +97,9 @@ class Pages extends CI_Controller {
         
         // Get next appointment (placeholder - using order dates for now)
         $data['next_appointment'] = $this->get_next_appointment($customer_id);
+
+        // Get appointments with staff names
+        $data['appointments'] = $this->get_customer_appointments($customer_id);
 
         $data['title'] = "Glassify - Home";
         $this->load->view('includes/header', $data);
@@ -346,6 +362,36 @@ class Pages extends CI_Controller {
         $this->load->view('includes/header', $data);
         $this->load->view('pages/test_email', $data);
         $this->load->view('includes/footer');
+    }
+
+    /**
+     * Helper function to get customer appointments
+     * Fetches all appointments for the customer with staff names
+     * @param int $customer_id Customer_ID
+     */
+    private function get_customer_appointments($customer_id) {
+        $this->load->database();
+        
+        // Get appointments with joined staff names
+        $this->db->select('
+            a.AppointmentID,
+            a.OrderID,
+            o.OrderNumber,
+            a.Service as ServiceType,
+            a.AppointmentDate,
+            a.AppointmentTime,
+            a.Status as AppointmentStatus,
+            COALESCE(u.First_Name, a.AssignedStaff) as AssignedStaff
+        ');
+        $this->db->from('appointments a');
+        $this->db->join('`order` o', 'a.OrderID = o.OrderID', 'left');
+        $this->db->join('user u', 'a.AssignedStaff_ID = u.UserID', 'left');
+        $this->db->where('a.Customer_ID', $customer_id);
+        $this->db->order_by('a.AppointmentDate', 'DESC');
+        $this->db->limit(50);
+        
+        $result = $this->db->get()->result();
+        return !empty($result) ? $result : [];
     }
     
 

@@ -1,9 +1,15 @@
+(function() {
+  // Deprecated: Inventory-new-filter.js (inventory page removed)
+  console.log('Deprecated: Inventory-new-filter.js (inventory)');
 document.addEventListener("DOMContentLoaded", () => {
   const rowsPerPageSelect = document.getElementById("rowsPerPageSelect");
   const paginationControls = document.querySelector(".pagination-controls");
   const tableBody = document.querySelector("table tbody");
   const showingInfo = document.getElementById("paginationInfo");
   const searchInput = document.getElementById("inventorySearch");
+
+  });
+})();
 
   if (!tableBody) return;
 

@@ -1,9 +1,11 @@
-<!-- Reports Section -->
+<?php
+// Inventory Reports page removed — redirecting to admin dashboard.
+header('Location: ' . base_url('admin-dashboard'));
+exit;
+?>
+
+<!-- Inventory reports deprecated -->
 <section class="order-list-section">
-  <div class="section-header">
-    <h2>Inventory Reports</h2>
-    <p>View and analyze inventory data and statistics</p>
-  </div>
 
   <!-- Report Filters -->
   <div class="controls-container">

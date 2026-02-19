@@ -242,7 +242,6 @@
         <p><span>Items:</span> <span id="summary-items">0</span></p>
         <p><span>Subtotal:</span> <span class="price-val">₱<span id="summary-subtotal">0.00</span></span></p>
         <p><span>Shipping Fee:</span> <span class="price-val">₱<span id="summary-shipping">0.00</span></span></p>
-        <p><span>Handling Fee:</span> <span class="price-val">₱<span id="summary-handling">0.00</span></span></p>
         <div class="summary-divider"></div>
         <p class="total"><span>Total:</span> <span class="price-val">₱<span id="summary-total">0.00</span></span></p>
         <div class="btn-container">
@@ -262,9 +261,8 @@
             <div class="order-summary-mobile-items">
               <span id="summary-items-mobile">0</span> item(s)
             </div>
-            <div class="order-summary-mobile-fees">
+              <div class="order-summary-mobile-fees">
               <span class="fee-item">Shipping: <span class="price-val">₱<span id="summary-shipping-mobile">0.00</span></span></span>
-              <span class="fee-item">Handling: <span class="price-val">₱<span id="summary-handling-mobile">0.00</span></span></span>
             </div>
             <div class="order-summary-mobile-total">
               Total: <span class="price-val">₱<span id="summary-total-mobile">0.00</span></span>

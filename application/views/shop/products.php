@@ -24,25 +24,48 @@
       <div class="filter-group">
         <h4>Category</h4>
         <?php
-        // Get unique categories from products
-        $categories = [];
+        // Get unique categories and their subcategories from products
+        $allCategories = [];
+        $subcategoriesByCategory = [];
+
         foreach ($products as $product) {
-          if (!empty($product->Category) && !in_array($product->Category, $categories)) {
-            $categories[] = $product->Category;
+          if (!empty($product->Category)) {
+            // Collect all unique categories
+            if (!in_array($product->Category, $allCategories)) {
+              $allCategories[] = $product->Category;
+            }
+
+            // Group subcategories by category
+            if (!empty($product->Subcategory)) {
+              if (!isset($subcategoriesByCategory[$product->Category])) {
+                $subcategoriesByCategory[$product->Category] = [];
+              }
+              if (!in_array($product->Subcategory, $subcategoriesByCategory[$product->Category])) {
+                $subcategoriesByCategory[$product->Category][] = $product->Subcategory;
+              }
+            }
           }
         }
-        sort($categories);
-        foreach ($categories as $category): ?>
-          <label><input type="checkbox" value="<?= htmlspecialchars($category); ?>"> <?= htmlspecialchars($category); ?></label>
+
+        sort($allCategories);
+
+        // Show all categories (radio buttons for single selection)
+        foreach ($allCategories as $category): ?>
+          <label class="category-radio">
+            <input type="radio" name="category" value="<?= htmlspecialchars($category); ?>">
+            <?= htmlspecialchars($category); ?>
+          </label>
         <?php endforeach; ?>
       </div>
 
-      <div class="filter-group">
-        <h4>Availability</h4>
-        <label><input type="checkbox" value="In Stock"> In Stock</label>
-        <label><input type="checkbox" value="Out of Stock"> Out of Stock</label>
-        <label><input type="checkbox" value="Low Stock"> Low Stock</label>
+      <!-- Subcategories will be shown here when a category is selected -->
+      <div class="filter-group subcategories-group" id="subcategories-group" style="display: none;">
+        <h4>Subcategories</h4>
+        <div id="subcategories-container">
+          <!-- Subcategories will be dynamically populated here -->
+        </div>
       </div>
+
     </aside>
 
     <!-- Products -->
@@ -54,6 +77,10 @@
         <a href="#" class="clear">Clear All</a>
       </div>
 
+      <script>
+        // Pass subcategories data to JavaScript
+        window.subcategoriesByCategory = <?php echo json_encode($subcategoriesByCategory); ?>;
+      </script>
       <script src="<?php echo base_url('assets/js/products-page/filters.js'); ?>"></script>
 
         <div class="product-grid">
@@ -152,10 +179,6 @@
               $imagePaths = [$placeholderSvg];
             }
             
-            // Get order type
-            $orderType = isset($p->OrderType) ? $p->OrderType : 'direct';
-            $orderTypeDisplay = (strtolower($orderType) === 'site-assessment' || strtolower($orderType) === 'site-assessed') ? 'Site Assessment' : 'Direct';
-            
             // Get series (if exists)
             $series = isset($p->series) && !empty($p->series) ? $p->series : [];
             
@@ -169,15 +192,11 @@
             $priceMax = isset($p->PriceMax) && $p->PriceMax > 0 ? floatval($p->PriceMax) : null;
             $price = isset($p->Price) && $p->Price > 0 ? floatval($p->Price) : null;
           ?>
-            <div class="product" data-category="<?= $p->Category ?>" data-material="<?= $p->Material ?>"
+            <div class="product" data-category="<?= $p->Category ?>" data-subcategory="<?= $p->Subcategory ?>" data-material="<?= $p->Material ?>"
               data-availability="<?= $status ?>">
 
               <!-- Image Slideshow -->
               <div class="product-image-slideshow" data-product-id="<?= $p->Product_ID ?>">
-                <!-- Status Badge -->
-                <span class="product-status-badge <?= $status_class; ?>" style="position: absolute; top: 10px; right: 10px; display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; color: white; background-color: <?= $status_color; ?>; z-index: 5; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);">
-                  <?= htmlspecialchars($status); ?>
-                </span>
                 <?php if (!empty($imagePaths)): ?>
                   <?php foreach ($imagePaths as $index => $imagePath): ?>
                     <img src="<?= htmlspecialchars($imagePath) ?>" 
@@ -202,22 +221,16 @@
 
               <p class="product-name"><?= htmlspecialchars($p->ProductName) ?></p>
               
-              <!-- Order Type -->
-              <div class="product-order-type">
-                <span class="order-type-label">Type:</span>
-                <span class="order-type-value"><?= htmlspecialchars($orderTypeDisplay) ?></span>
-              </div>
-              
               <!-- Series (if exists) -->
-              <?php if (!empty($series)): ?>
+              <!-- <?php if (!empty($series)): ?>
                 <div class="product-series">
                   <span class="series-label">Series:</span>
                   <span class="series-value"><?= htmlspecialchars(implode(', ', $series)) ?></span>
                 </div>
-              <?php endif; ?>
+              <?php endif; ?> -->
               
               <!-- Tags -->
-              <?php if (!empty($displayTags)): ?>
+             <!--  <?php if (!empty($displayTags)): ?>
                 <div class="product-tags">
                   <?php foreach ($displayTags as $tag): ?>
                     <span class="product-tag"><?= htmlspecialchars($tag) ?></span>
@@ -226,7 +239,7 @@
                     <span class="product-tag tag-others">+<?= $remainingTags ?> others</span>
                   <?php endif; ?>
                 </div>
-              <?php endif; ?>
+              <?php endif; ?> -->
               
               <!-- Price Range -->
               <div class="product-price-range">

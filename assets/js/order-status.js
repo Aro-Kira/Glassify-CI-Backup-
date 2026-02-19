@@ -5,11 +5,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const rawData = localStorage.getItem('glassOrderData');
     
     if (!rawData) {
-        console.error("No order data found in LocalStorage.");
+        // No local storage data — silently skip rendering 2D preview.
         return;
     }
 
-    const orderData = JSON.parse(rawData);
+    let orderData = null;
+    try {
+        orderData = JSON.parse(rawData);
+    } catch (err) {
+        // Invalid JSON in storage; clear the key to avoid repeated errors and exit
+        try { localStorage.removeItem('glassOrderData'); } catch (e) {}
+        return;
+    }
 
     // 2. POPULATE TEXT FIELDS
     // Helper functions to make text look nice (e.g. "vinyl" -> "Vinyl")
@@ -31,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     // 3. RENDER KONVA (THE 2D FIGURE)
-    const KONVA_CONTAINER_ID = 'konva-container';
+    var KONVA_CONTAINER_ID = 'konva-container';
     const konvaWrapper = document.getElementById(KONVA_CONTAINER_ID);
     
     if(konvaWrapper) {

@@ -612,8 +612,41 @@ $(document).ready(function () {
     }, 30000);
 
     // =============================
-    // ADD TO CART FROM WISHLIST
+    // BOOK NOW FROM WISHLIST
     // =============================
+    $(document).on('click', '.book-btn:not(.in-progress-state)', function () {
+        const btn = $(this);
+        const product_id = btn.data('product-id');
+        const customization_id = btn.data('customization-id');
+
+        // Don't proceed if already in progress state
+        if (btn.hasClass('in-progress-state')) {
+            return;
+        }
+
+        // Redirect to booking page with product and customization info
+        let bookingUrl = BASE_URL + 'booking';
+        
+        // Add parameters for product and customization
+        const params = new URLSearchParams();
+        if (product_id) {
+            params.append('product_id', product_id);
+        }
+        if (customization_id) {
+            params.append('customization_id', customization_id);
+        }
+        params.append('source', 'wishlist');
+        
+        if (params.toString()) {
+            bookingUrl += '?' + params.toString();
+        }
+        
+        // Redirect to booking page
+        window.location.href = bookingUrl;
+    });
+
+    // OLD ADD TO CART FUNCTIONALITY (KEPT FOR BACKWARDS COMPATIBILITY IF NEEDED)
+    // This will not be triggered as .add-cart-btn class is replaced with .book-btn
     $(document).on('click', '.add-cart-btn:not(.added-state)', function () {
         const btn = $(this);
         const row = btn.closest('tr');

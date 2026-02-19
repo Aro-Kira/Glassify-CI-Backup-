@@ -26,10 +26,8 @@
             // Example: Order Management → Orders → Direct Orders
             // ============================================
             
-            // Orders submenu path detection
-            $is_direct_orders = isset($active) && $active == 'direct-orders';
-            $is_site_assessed_orders = isset($active) && $active == 'site-assessed-orders';
-            $is_orders_path = $is_direct_orders || $is_site_assessed_orders;
+            // Orders path detection (unified - no more direct/site-assessed separation)
+            $is_orders_path = isset($active) && $active == 'orders';
             
             // Appointments submenu path detection
             $is_ocular_appointment = isset($active) && $active == 'ocular-appointment';
@@ -50,7 +48,7 @@
             $is_order_management_path = $is_orders_path || $is_appointments_path || $is_production_path || $is_quotations || $is_return_orders;
             
             // Expansion logic (for showing submenus, not for highlighting)
-            $is_orders_expanded = isset($active) && in_array($active, ['orders', 'direct-orders', 'site-assessed-orders']);
+            $is_orders_expanded = isset($active) && $active == 'orders';
             $is_appointments_expanded = isset($active) && in_array($active, ['appointment', 'ocular-appointment', 'installation-appointment']);
             $is_production_expanded = isset($active) && $active == 'fabrication-queue';
             ?>
@@ -61,23 +59,10 @@
                     <i class="fas fa-chevron-down submenu-icon"></i>
                 </a>
                 <ul class="submenu">
-                    <li class="submenu-item <?php echo $is_orders_expanded ? ($is_orders_path ? 'active ' : '') . 'expanded' : ''; ?>">
-                        <a href="#" class="submenu-header">
+                    <li class="submenu-item <?php echo $is_orders_path ? 'active' : ''; ?>">
+                        <a href="<?php echo base_url('admin-orders'); ?>">
                             <span>Orders</span>
-                            <i class="fas fa-chevron-down submenu-icon"></i>
                         </a>
-                        <ul class="submenu-nested">
-                            <li class="<?php echo (isset($active) && $active == 'direct-orders') ? 'active' : ''; ?>">
-                                <a href="<?php echo base_url('admin-orders?type=direct'); ?>">
-                                    <span>Direct Orders</span>
-                                </a>
-                            </li>
-                            <li class="<?php echo (isset($active) && $active == 'site-assessed-orders') ? 'active' : ''; ?>">
-                                <a href="<?php echo base_url('admin-orders?type=site-assessed'); ?>">
-                                    <span>Site-Assessed Orders</span>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                     <li class="submenu-item <?php echo $is_appointments_expanded ? ($is_appointments_path ? 'active ' : '') . 'expanded' : ''; ?>">
                         <a href="#" class="submenu-header">
@@ -97,29 +82,13 @@
                             </li>
                         </ul>
                     </li>
-                    <li class="submenu-item <?php echo $is_production_expanded ? ($is_production_path ? 'active ' : '') . 'expanded' : ''; ?>">
-                        <a href="#" class="submenu-header">
-                            <span>Production</span>
-                            <i class="fas fa-chevron-down submenu-icon"></i>
-                        </a>
-                        <ul class="submenu-nested">
-                            <li class="<?php echo (isset($active) && $active == 'fabrication-queue') ? 'active' : ''; ?>">
-                                <a href="<?php echo base_url('admin-production'); ?>">
-                                    <span>Fabrication Queue</span>
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="submenu-item <?php echo $is_quotations ? 'active' : ''; ?>">
-                        <a href="<?php echo base_url('admin-quotations'); ?>">
-                            <span>Quotations</span>
+                    <li class="submenu-item <?php echo $is_production_path ? 'active' : ''; ?>">
+                        <a href="<?php echo base_url('admin-production'); ?>">
+                            <span>Fabrication</span>
                         </a>
                     </li>
-                    <li class="submenu-item <?php echo $is_return_orders ? 'active' : ''; ?>">
-                        <a href="<?php echo base_url('admin-return-orders'); ?>">
-                            <span>Return Orders</span>
-                        </a>
-                    </li>
+                    <!-- Quotations removed -->
+                    <!-- Return Orders removed per request -->
                 </ul>
             </li>
             <li class="<?php echo (isset($active) && $active == 'payments') ? 'active' : ''; ?>">
@@ -160,24 +129,13 @@
     <div class="general-section">
         <span class="section-title">General</span>
         <ul>
-            <li class="<?php echo (isset($active) && $active == 'reports') ? 'active' : ''; ?>">
-                <a href="<?php echo base_url('admin-reports'); ?>">
-                    <img src="<?php echo base_url('assets/images/img_admin/reports.svg'); ?>" alt="Reports">
-                    <span>Reports</span>
-                </a>
-            </li>
             <li class="<?php echo (isset($active) && $active == 'product') ? 'active' : ''; ?>">
                 <a href="<?php echo base_url('admin-product'); ?>">
                     <img src="<?php echo base_url('assets/images/img_admin/products.svg'); ?>" alt="Products">
                     <span>Products</span>
                 </a>
             </li>
-            <li class="<?php echo (isset($active) && $active == 'inventory') ? 'active' : ''; ?>">
-                <a href="<?php echo base_url('admin-inventory'); ?>">
-                    <img src="<?php echo base_url('assets/images/img_admin/inventory.svg'); ?>" alt="Inventory">
-                    <span>Inventory</span>
-                </a>
-            </li>
+            <!-- Inventory removed -->
           
             <li class="<?php echo (isset($active) && $active == 'issues') ? 'active' : ''; ?>">
                 <a href="<?php echo base_url('admin-issues'); ?>">

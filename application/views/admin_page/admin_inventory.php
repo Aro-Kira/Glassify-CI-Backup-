@@ -129,12 +129,4 @@
 </main>
 </div>
 
-<script>
-  // Pass inventory data to JavaScript
-  const inventoryData = <?php echo json_encode($inventory_items); ?>;
-</script>
-<script src="<?php echo base_url(); ?>assets/js/inventory-js/inventory-new-filter.js"></script>
-<script src="<?php echo base_url(); ?>assets/js/order-popup.js"></script>
-<script src="<?php echo base_url(); ?>assets/js/search-inventory.js"></script>
-<script src="<?php echo base_url(); ?>assets/js/inventory-action.js"></script>
-<script src="<?php echo base_url(); ?>assets/js/inventory-filter.js"></script>
+<!-- Inventory scripts removed (Inventory Page deprecated) -->

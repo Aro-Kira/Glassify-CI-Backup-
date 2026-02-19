@@ -38,17 +38,17 @@ class WishlistCon extends CI_Controller
 
         $wishlist_items = $this->Wishlist_model->get_wishlist_items($customer_id);
 
-        // Check which wishlist items are currently in cart
-        $in_cart_wishlist_ids = [];
+        // Check which wishlist items are already booked (have orders in progress)
+        $booked_wishlist_ids = [];
         foreach ($wishlist_items as $item) {
-            if ($this->Wishlist_model->is_in_cart($item->Wishlist_ID, $customer_id)) {
-                $in_cart_wishlist_ids[] = $item->Wishlist_ID;
+            if ($this->Wishlist_model->is_booked($item->Wishlist_ID, $customer_id)) {
+                $booked_wishlist_ids[] = $item->Wishlist_ID;
             }
         }
 
         $data['title'] = "Glassify - MY WISHLIST";
         $data['wishlist_items'] = $wishlist_items;
-        $data['in_cart_wishlist_ids'] = $in_cart_wishlist_ids; // Pass cart status to view
+        $data['booked_wishlist_ids'] = $booked_wishlist_ids; // Pass booking status to view
 
         $this->load->view('includes/header', $data);
         $this->load->view('shop/wishlist', $data);

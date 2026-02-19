@@ -75,9 +75,12 @@ $query_builder = TRUE;
 
 $db['default'] = array(
 	'dsn'	=> '',
-	'hostname' => 'localhost',
-	'username' => 'admin_glassify',
-	'password' => 'glassifyAdmin',
+	'hostname' => '127.0.0.1',
+	'port' => 3306,
+	// Original credentials (backup): username => 'admin_glassify', password => 'glassifyAdmin'
+	// Changed to XAMPP local defaults for testing on localhost
+	'username' => 'root',
+	'password' => '',
 	'database' => 'latest_glassifydb',
 	'dbdriver' => 'mysqli',
 	'dbprefix' => '',

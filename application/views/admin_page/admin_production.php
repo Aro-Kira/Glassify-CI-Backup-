@@ -2,10 +2,10 @@
 defined('BASEPATH') or exit('No direct script access allowed');
 ?>
 
-<script>
+  <script>
   const baseUrl = "<?php echo base_url(); ?>";
   const getFabricationQueueUrl = "<?php echo base_url('AdminCon/get_fabrication_queue'); ?>";
-</script>
+ </script>
 
 <!-- Production / Fabrication Queue Section -->
 <section class="production-section">
@@ -18,6 +18,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
     <button class="toggle-btn active" data-view="kanban">Taskboard</button>
     <button class="toggle-btn" data-view="list">List View</button>
   </div>
+
+  
 
   <!-- Filters -->
   <div class="filters-container">
@@ -32,14 +34,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
         <option value="completed">Completed</option>
       </select>
     </div>
-    <div class="filter-group">
-      <label for="order-type-filter">Order Type:</label>
-      <select id="order-type-filter" class="filter-select">
-        <option value="all">All</option>
-        <option value="direct">Direct</option>
-        <option value="site-assessed">Site-Assessed</option>
-      </select>
-    </div>
+
     <div class="filter-group">
       <label for="staff-filter">Assigned Staff:</label>
       <select id="staff-filter" class="filter-select">
@@ -125,11 +120,9 @@ defined('BASEPATH') or exit('No direct script access allowed');
           <th>Client</th>
           <th>Product</th>
           <th>Quantity</th>
-          <th>Order Type</th>
           <th>Start Date</th>
           <th>End Date</th>
           <th>Assigned Staff</th>
-          <th>Progress</th>
           <th>Status</th>
           <th>Actions</th>
         </tr>

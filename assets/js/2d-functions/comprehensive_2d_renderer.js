@@ -60,10 +60,18 @@ function renderProduct2D(productData, dimensions, layer) {
 
     const productType = productData.productType || productData.type || '';
     const category = productData.category || '';
-    const customizationValues = productData.customizationValues || {};
+    // ✅ CRITICAL FIX: Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
+
+    console.log('[2D Renderer] Routing product:', {
+        category: category,
+        productType: productType,
+        hasCustomization: Object.keys(customizationValues).length > 0
+    });
 
     // Route to appropriate renderer based on product type
     if (category.includes('Windows')) {
+        console.log('[2D Renderer] Routing to Windows renderer');
         if (productType.includes('Sliding')) {
             renderWindowsSliding(productData, dimensions, layer, renderContext);
         } else if (productType.includes('Awning')) {
@@ -76,6 +84,7 @@ function renderProduct2D(productData, dimensions, layer) {
             renderGenericWindow(productData, dimensions, layer, renderContext);
         }
     } else if (category.includes('Doors')) {
+        console.log('[2D Renderer] Routing to Doors renderer');
         if (productType.includes('Sliding')) {
             renderDoorsSliding(productData, dimensions, layer, renderContext);
         } else if (productType.includes('Swing')) {
@@ -90,6 +99,7 @@ function renderProduct2D(productData, dimensions, layer) {
             renderGenericDoor(productData, dimensions, layer, renderContext);
         }
     } else if (category.includes('Partitions')) {
+        console.log('[2D Renderer] Routing to Partitions renderer');
         if (productType.includes('Frameless Glass')) {
             renderPartitionsFramelessGlass(productData, dimensions, layer, renderContext);
         } else if (productType.includes('Shower Enclosure') || productType.includes('Shower')) {
@@ -100,16 +110,22 @@ function renderProduct2D(productData, dimensions, layer) {
             renderGenericPartition(productData, dimensions, layer, renderContext);
         }
     } else if (category.includes('Specialty')) {
+        console.log('[2D Renderer] Routing to Specialty renderer for:', productType);
         if (productType.includes('Mirror')) {
+            console.log('[2D Renderer] Rendering Mirrors');
             renderSpecialtyMirrors(productData, dimensions, layer, renderContext);
         } else if (productType.includes('Top Glass')) {
+            console.log('[2D Renderer] Rendering Top Glass');
             renderSpecialtyTopGlass(productData, dimensions, layer, renderContext);
         } else if (productType.includes('Glass Board')) {
+            console.log('[2D Renderer] Rendering Glass Board');
             renderSpecialtyGlassBoard(productData, dimensions, layer, renderContext);
         } else {
+            console.log('[2D Renderer] Rendering Generic Specialty');
             renderGenericSpecialty(productData, dimensions, layer, renderContext);
         }
     } else if (category.includes('Commercial')) {
+        console.log('[2D Renderer] Routing to Commercial renderer');
         if (productType.includes('Storefront')) {
             renderCommercialStorefront(productData, dimensions, layer, renderContext);
         } else if (productType.includes('Balcony')) {
@@ -121,6 +137,7 @@ function renderProduct2D(productData, dimensions, layer) {
         }
     } else {
         // Fallback to generic renderer
+        console.warn('[2D Renderer] Category not recognized, using generic renderer. Category:', category);
         renderGenericProduct(productData, dimensions, layer, renderContext);
     }
 }
@@ -133,13 +150,12 @@ function renderProduct2D(productData, dimensions, layer) {
  * Render Windows Sliding configuration
  */
 function renderWindowsSliding(productData, dimensions, layer, renderContext) {
-    // Extract context values
+    // 1. EXTRACT CONTEXT & STYLES
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = renderContext || getGlobalStyles();
-    
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
-    
-    // Extract customization values
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
+
     const numberOfPanels = extractPanelCount(customizationValues.numberOfPanels || '2 Panels');
     const transomType = customizationValues.transomType || 'None';
     const trackSystem = customizationValues.trackSystem || '2 Tracks';
@@ -148,14 +164,11 @@ function renderWindowsSliding(productData, dimensions, layer, renderContext) {
     const glassType = customizationValues.glassType || 'Ordinary';
     const glassColor = customizationValues.glassColor || 'Clear';
     const glassThickness = customizationValues.glassThickness || '6mm';
-    const lockType = customizationValues.lockType || 'Center Lok 904 Big';
-    const rollerType = customizationValues.rollerType || 'Single Panel Roller';
     const screen = customizationValues.screen || 'Without Screen';
 
-    // Calculate dimensions
+    // 2. SCALE CALCULATIONS (Canvas Constraints)
     const actualRatio = width / height;
     let totalWidth, totalHeight;
-    
     if (actualRatio > 1) {
         totalWidth = DRAWING_SIZE;
         totalHeight = DRAWING_SIZE / actualRatio;
@@ -163,298 +176,120 @@ function renderWindowsSliding(productData, dimensions, layer, renderContext) {
         totalHeight = DRAWING_SIZE;
         totalWidth = DRAWING_SIZE * actualRatio;
     }
-    
     const offsetX = (STAGE_SIZE - totalWidth) / 2;
     const offsetY = (STAGE_SIZE - totalHeight) / 2;
 
-    // Get styles
     const gStyle = getGlassStyle(glassType, glassColor, glassStyles);
     const fStyle = getFrameStyle(frameColor, frameStyles);
-
-    // Parse panel configuration
     const panelTypes = parsePanelConfiguration(panelConfiguration, numberOfPanels);
+
+    // 3. TRANSOM CALCULATIONS (h1 vs h2 Logic)
     const hasTransom = transomType && transomType.toLowerCase() !== 'none';
     const isFixedTransomHead = hasTransom && transomType.toLowerCase().includes('head');
     const isFixedTransomSill = hasTransom && transomType.toLowerCase().includes('sill');
 
-    // Get original dimensions from productData or use current dimensions
-    const originalWidth = productData.originalWidth || dimensions.width;
-    const originalHeight = productData.originalHeight || dimensions.height;
-    const widthUnit = productData.widthUnit || dimensions.unit || 'in';
-    const heightUnit = productData.heightUnit || dimensions.unit || 'in';
-    const originalHeightUnit = heightUnit;
-    
-    // Handle transom - get h1 and h2 values from inputs if available
-    let h1Value = null;
-    let h1Unit = heightUnit;
-    let h2Value = null;
-    let h2Unit = heightUnit;
-    
-    // Check if h1 input exists and is visible
-    const h1InputGroup = typeof document !== 'undefined' ? (document.getElementById('input-group-h1') || null) : null;
-    const h1Input = typeof document !== 'undefined' ? (document.getElementById('input-h1') || null) : null;
-    const h1UnitBtn = typeof document !== 'undefined' ? (document.getElementById('btn-unit-h1') || null) : null;
-    
-    // Check if h2 input exists and is visible
-    const h2InputGroup = typeof document !== 'undefined' ? (document.getElementById('input-group-h2') || null) : null;
-    const h2Input = typeof document !== 'undefined' ? (document.getElementById('input-h2') || null) : null;
-    const h2UnitBtn = typeof document !== 'undefined' ? (document.getElementById('btn-unit-h2') || null) : null;
-    
-    if (h1Input && h1Input.value && h1InputGroup && !h1InputGroup.classList.contains('hidden-step') && h1InputGroup.style.display !== 'none') {
-        const h1InputValue = parseFloat(h1Input.value);
-        if (!isNaN(h1InputValue) && h1InputValue > 0) {
-            h1Value = h1InputValue;
-            if (h1UnitBtn) {
-                h1Unit = h1UnitBtn.getAttribute('data-current-unit') || heightUnit;
-            }
-        }
-    }
-    
-    if (h2Input && h2Input.value && h2InputGroup && !h2InputGroup.classList.contains('hidden-step') && h2InputGroup.style.display !== 'none') {
-        const h2InputValue = parseFloat(h2Input.value);
-        if (!isNaN(h2InputValue) && h2InputValue > 0) {
-            h2Value = h2InputValue;
-            if (h2UnitBtn) {
-                h2Unit = h2UnitBtn.getAttribute('data-current-unit') || heightUnit;
-            }
-        }
-    }
-    
-    // Convert to millimeters for calculation
-    const unitMap = {
-        'in': { toMm: 25.4 },
-        'cm': { toMm: 10 },
-        'mm': { toMm: 1 }
-    };
-    
-    function convertToMm(value, unit) {
-        const unitInfo = unitMap[unit.toLowerCase()] || unitMap['in'];
-        return value * unitInfo.toMm;
-    }
-    
-    let transomHeight = 0;
-    let mainHeight = totalHeight;
-    let transomY = 0;
-    
+    // Get input values directly from DOM for calculation
+    const h1Input = document.getElementById('input-h1');
+    const h2Input = document.getElementById('input-h2');
+    let h1Val = h1Input ? parseFloat(h1Input.value) : 0;
+    let h2Val = h2Input ? parseFloat(h2Input.value) : 0;
+    const totalInputHeight = height; // This is the master height (e.g., 45in)
+
+    let finalMainHeight, finalTransomHeight;
+
     if (hasTransom) {
-        const totalHeightInMm = convertToMm(originalHeight, originalHeightUnit);
-        let transomHeightMm = null;
-        let slidingHeightMm = null;
-        
-        // Convert h1 and h2 to millimeters for calculation
-        if (h1Value !== null && h1Value > 0) {
-            slidingHeightMm = convertToMm(h1Value, h1Unit);
+        // SCALING GUARD: Ensure h1 + h2 = Total Height
+        const sum = h1Val + h2Val;
+        if (sum > totalInputHeight || sum < totalInputHeight) {
+            // Scale proportionally to fit the total height
+            const scaleFactor = totalInputHeight / (sum || 1);
+            h1Val = h1Val * scaleFactor;
+            h2Val = h2Val * scaleFactor;
         }
-        if (h2Value !== null && h2Value > 0) {
-            transomHeightMm = convertToMm(h2Value, h2Unit);
-        }
-        
-        // Auto-adjust: if one is missing, calculate from the other
-        if (transomHeightMm !== null && slidingHeightMm === null) {
-            // h2 provided, calculate h1
-            slidingHeightMm = Math.max(0.1, totalHeightInMm - transomHeightMm);
-        } else if (slidingHeightMm !== null && transomHeightMm === null) {
-            // h1 provided, calculate h2
-            transomHeightMm = Math.max(0.1, totalHeightInMm - slidingHeightMm);
-        } else if (transomHeightMm === null && slidingHeightMm === null) {
-            // Neither provided, use default ratios
-            transomHeightMm = totalHeightInMm * 0.3; // 30% for transom
-            slidingHeightMm = totalHeightInMm * 0.7; // 70% for sliding
-        }
-        
-        // Ensure they don't exceed total height
-        const sum = transomHeightMm + slidingHeightMm;
-        if (sum > totalHeightInMm) {
-            // Scale both proportionally to fit
-            const scale = totalHeightInMm / sum;
-            transomHeightMm *= scale;
-            slidingHeightMm *= scale;
-        }
-        
-        // Convert back to ratios for rendering
-        const transomRatio = transomHeightMm / totalHeightInMm;
-        const slidingRatio = slidingHeightMm / totalHeightInMm;
-        
-        // Clamp ratios to valid range
-        const clampedTransomRatio = Math.max(0.1, Math.min(0.9, transomRatio));
-        const clampedSlidingRatio = Math.max(0.1, Math.min(0.9, slidingRatio));
-        
-        if (isFixedTransomHead) {
-            // Fixed transom at top, sliding section at bottom
-            transomHeight = totalHeight * clampedTransomRatio;
-            mainHeight = totalHeight * clampedSlidingRatio;
-            transomY = offsetY;
-        } else if (isFixedTransomSill) {
-            // Fixed transom at bottom, sliding section at top
-            transomHeight = totalHeight * clampedTransomRatio;
-            mainHeight = totalHeight * clampedSlidingRatio;
-            transomY = offsetY + mainHeight;
-        }
+
+        // Convert to canvas pixel dimensions
+        finalMainHeight = (h1Val / totalInputHeight) * totalHeight;
+        finalTransomHeight = (h2Val / totalInputHeight) * totalHeight;
+    } else {
+        finalMainHeight = totalHeight;
+        finalTransomHeight = 0;
     }
 
     const panelWidth = totalWidth / numberOfPanels;
 
-    // Draw transom section if present
-    if (hasTransom) {
-        for (let i = 0; i < numberOfPanels; i++) {
-            const panelX = offsetX + (i * panelWidth);
-            
-            // Transom is always fixed
-            const transomRect = new Konva.Rect({
-                x: panelX,
-                y: transomY,
-                width: panelWidth,
-                height: transomHeight,
-                fill: '#4A90E2',
-                opacity: 0.8,
-                stroke: fStyle.color,
-                strokeWidth: fStyle.width,
-                listening: false,
-            });
-            layer.add(transomRect);
-
-            // Add "F" label
-            const label = new Konva.Text({
-                x: panelX + panelWidth / 2,
-                y: transomY + transomHeight / 2,
-                text: 'F',
-                fontSize: Math.max(12, transomHeight / 10),
-                fontFamily: 'Arial',
-                fontStyle: 'bold',
-                fill: '#FFFFFF',
-                align: 'center',
-                offsetX: 6,
-                offsetY: 8,
-                listening: false,
-            });
-            layer.add(label);
-
-            // Panel divider
-            if (i < numberOfPanels - 1) {
-                const divider = new Konva.Line({
-                    points: [panelX + panelWidth, transomY, panelX + panelWidth, transomY + transomHeight],
-                    stroke: fStyle.color,
-                    strokeWidth: fStyle.width * 1.5,
-                    listening: false,
-                });
-                layer.add(divider);
-            }
-        }
-    }
-
-    // Draw main section
-    const mainY = hasTransom && isFixedTransomHead ? offsetY + transomHeight : offsetY;
-    
+    // 4. RENDERING PANELS
     for (let i = 0; i < numberOfPanels; i++) {
         const panelX = offsetX + (i * panelWidth);
         const panelType = panelTypes[i] || 'sliding';
 
-        if (panelType === 'fixed') {
-            // Fixed panel
-            const fixedRect = new Konva.Rect({
-                x: panelX,
-                y: mainY,
-                width: panelWidth,
-                height: mainHeight,
-                fill: '#4A90E2',
-                opacity: 0.8,
-                stroke: fStyle.color,
-                strokeWidth: fStyle.width,
-                listening: false,
-            });
-            layer.add(fixedRect);
-
-            // Centered, capped "F" label (prevent oversized letters on large panels)
-            const handleX = panelX + panelWidth / 2;
-            const handleY = mainY + mainHeight / 2;
-
-            // Use a fraction of panel height but cap to a maximum for visual consistency
-            const labelFontSize = Math.max(12, Math.min(mainHeight * 0.18, 24));
-
-            const label = new Konva.Text({
-                x: handleX,
-                y: handleY,
-                text: 'F',
-                fontSize: labelFontSize,
-                fontFamily: 'Arial',
-                fontStyle: 'bold',
-                fill: '#FFFFFF',
-                align: 'center',
-                listening: false,
-            });
-
-            // Precisely center text using measured dimensions instead of fixed offsets
-            label.offsetX(label.width() / 2);
-            label.offsetY(label.height() / 2);
-
-            layer.add(label);
-        } else {
-            // Sliding panel
-            const glassRect = new Konva.Rect({
-                x: panelX,
-                y: mainY,
-                width: panelWidth,
-                height: mainHeight,
-                fill: gStyle.fill,
-                opacity: gStyle.opacity,
-                stroke: fStyle.color,
-                strokeWidth: fStyle.width,
-                listening: false,
-            });
-            layer.add(glassRect);
-
-            // "S" label for sliding - only show when no transom is selected
-            if (!hasTransom || (hasTransom && (isFixedTransomHead || isFixedTransomSill))) {
-                const handleX = panelX + panelWidth / 2;
-                const handleY = mainY + mainHeight / 2;
-
-                // Cap the size of the "S" so it doesn't become oversized on large panels.
-                // Use a sensible fraction of the panel height and an upper bound.
-                const labelFontSize = Math.max(12, Math.min(mainHeight * 0.18, 24));
-
-                const label = new Konva.Text({
-                    x: handleX,
-                    y: handleY,
-                    text: 'S',
-                    fontSize: labelFontSize,
-                    fontFamily: 'Arial',
-                    fontStyle: 'bold',
-                    fill: '#333333',
-                    align: 'center',
-                    listening: false,
-                });
-
-                // Center the text precisely by using measured width/height
-                // (avoid relying on fixed offset multipliers that break on different fonts/sizes)
-                label.offsetX(label.width() / 2);
-                label.offsetY(label.height() / 2);
-
-                layer.add(label);
-            }
+        // Draw Transom Section
+        if (hasTransom) {
+            const transomY = isFixedTransomHead ? offsetY : offsetY + finalMainHeight;
+            layer.add(new Konva.Rect({
+                x: panelX, y: transomY, width: panelWidth, height: finalTransomHeight,
+                fill: '#5faaff', opacity: 1, stroke: fStyle.color, strokeWidth: fStyle.width
+            }));
+            // Apply pattern to transom (use product glassType/color)
+            applyGlassTypePattern(layer, panelX, transomY, panelWidth, finalTransomHeight, glassType, glassColor);
+            // Transom Label 'F'
+            addCenteredText(layer, panelX + panelWidth/2, transomY + finalTransomHeight/2, 'F', 14, '#FFFFFF');
         }
 
-        // Panel divider
+        // Draw Main Section
+        const mainY = isFixedTransomHead ? offsetY + finalTransomHeight : offsetY;
+        const isFixedMain = panelType === 'fixed';
+        
+        layer.add(new Konva.Rect({
+            x: panelX, y: mainY, width: panelWidth, height: finalMainHeight,
+            fill: isFixedMain ? '#5faaff' : gStyle.fill,
+            opacity: isFixedMain ? 0.5 : gStyle.opacity,
+            stroke: fStyle.color, strokeWidth: fStyle.width
+        }));
+
+        // Always apply glass type / visual pattern to the main section (including fixed panels)
+        applyGlassTypePattern(layer, panelX, mainY, panelWidth, finalMainHeight, glassType, glassColor);
+
+        // Main Label 'S' or 'F'
+        addCenteredText(layer, panelX + panelWidth/2, mainY + finalMainHeight/2, isFixedMain ? 'F' : 'S', 20, isFixedMain ? '#FFFFFF' : '#333333');
+
+        // Vertical Divider
         if (i < numberOfPanels - 1) {
-            const divider = new Konva.Line({
-                points: [panelX + panelWidth, mainY, panelX + panelWidth, mainY + mainHeight],
-                stroke: fStyle.color,
-                strokeWidth: fStyle.width * 1.5,
-                listening: false,
-            });
-            layer.add(divider);
+            layer.add(new Konva.Line({
+                points: [panelX + panelWidth, offsetY, panelX + panelWidth, offsetY + totalHeight],
+                stroke: fStyle.color, strokeWidth: fStyle.width * 1.5
+            }));
         }
     }
 
-    // Draw transom divider if present
+    // Horizontal Transom Divider
     if (hasTransom) {
-        const dividerY = isFixedTransomHead ? offsetY + transomHeight : offsetY + mainHeight;
-        const divider = new Konva.Line({
+        const dividerY = isFixedTransomHead ? offsetY + finalTransomHeight : offsetY + finalMainHeight;
+        layer.add(new Konva.Line({
             points: [offsetX, dividerY, offsetX + totalWidth, dividerY],
-            stroke: fStyle.color,
-            strokeWidth: fStyle.width * 1.5,
-            listening: false,
-        });
-        layer.add(divider);
+            stroke: fStyle.color, strokeWidth: fStyle.width * 1.5
+        }));
+    }
+
+    // 5. ANNOTATIONS (h1, h2, and Metadata)
+    if (hasTransom) {
+        drawTransomAnnotations(layer, offsetX, offsetY, finalMainHeight, finalTransomHeight, isFixedTransomHead, h1Val, h2Val, unit);
+    }
+
+    // Base Width/Height annotations
+    drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight, width, unit, height, unit, renderContext);
+
+    // Thickness & Frame Metadata
+    const annotationText = `Thickness: ${glassThickness}  |  Frame: ${frameColor}`;
+    layer.add(new Konva.Text({
+        x: offsetX + totalWidth / 2, y: offsetY + totalHeight + 25,
+        text: annotationText, fontSize: 11, fontStyle: 'bold', fill: '#555', align: 'center'
+    }).offsetX(annotationText.length * 3));
+
+
+
+    // 6. SCREEN PATTERN
+    if (screen && screen.toLowerCase().includes('with screen')) {
+        drawScreenPattern(layer, offsetX, offsetY, totalWidth, totalHeight);
     }
 
     // Add track system indicator
@@ -471,50 +306,42 @@ function renderWindowsSliding(productData, dimensions, layer, renderContext) {
             layer.add(trackLine);
         }
     }
+}
 
-    // Add screen indicator if present
-    if (screen && screen.toLowerCase().includes('with screen')) {
-        drawScreenPattern(layer, offsetX, mainY, totalWidth, mainHeight);
-    }
-    
-    // Draw dimension lines (measurement grid)
-    // originalWidth, originalHeight, widthUnit, and heightUnit are already declared above
-    drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight, 
-                       originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
-    
-    // Draw h1 and h2 transom dimensions if transom is present
-    if (hasTransom) {
-        drawTransomDimensions(layer, offsetX, offsetY, totalWidth, totalHeight,
-                              isFixedTransomHead, transomHeight, mainHeight,
-                              originalHeight, heightUnit, renderContext);
-    }
-    
-    // Draw annotations (thickness, frame color)
-    if (glassThickness || frameColor) {
-        const formatThickness = glassThickness || '6mm';
-        // Handle frameColor as string or array (tags field can be either)
-        let frameColorValue = frameColor;
-        if (Array.isArray(frameColorValue)) {
-            frameColorValue = frameColorValue[0] || '';
-        }
-        const formatFrame = frameColorValue ? String(frameColorValue) : '';
-        const annotationText = formatFrame ? 
-            `Thickness: ${formatThickness}  |  Frame: ${formatFrame}` : 
-            `Thickness: ${formatThickness}`;
-        
-        layer.add(new Konva.Text({
-            x: offsetX + totalWidth / 2,
-            y: offsetY + totalHeight + 15,
-            text: annotationText,
-            fontSize: 11,
-            fontStyle: 'bold',
-            fontFamily: 'Montserrat, Arial',
-            fill: '#555',
-            align: 'center',
-            offsetX: (annotationText.length * 6) / 2,
-            listening: false,
-        }));
-    }
+// HELPER: DRAW H1 & H2 DIMENSIONS
+function drawTransomAnnotations(layer, offsetX, offsetY, mainH_px, transH_px, isHead, h1Val, h2Val, unit) {
+    const xPos = offsetX - 10;
+    // Determine Y centers based on Sill vs Head
+    const h1_Y = isHead ? offsetY + transH_px + (mainH_px / 2) : offsetY + (mainH_px / 2);
+    const h2_Y = isHead ? offsetY + (transH_px / 2) : offsetY + mainH_px + (transH_px / 2);
+
+    const drawLine = (yCenter, heightPx, label, color) => {
+        if (heightPx <= 0) return;
+        const top = yCenter - heightPx/2;
+        const bottom = yCenter + heightPx/2;
+
+        layer.add(new Konva.Line({ points: [xPos, top, xPos, bottom], stroke: color, strokeWidth: 1, dash: [4, 2] }));
+        layer.add(new Konva.Line({ points: [xPos-5, top, xPos+5, top], stroke: color, strokeWidth: 1 }));
+        layer.add(new Konva.Line({ points: [xPos-5, bottom, xPos+5, bottom], stroke: color, strokeWidth: 1 }));
+        const txt = new Konva.Text({
+            x: xPos - 15, y: yCenter, text: `${label.toFixed(1)}${unit}`,
+            fontSize: 11, fontStyle: 'bold', fill: color, rotation: -90, align: 'center'
+        });
+        txt.offsetX(txt.width() / 2);
+        txt.offsetY(txt.height() / 2);
+        layer.add(txt);
+    };
+
+    drawLine(h1_Y, mainH_px, h1Val, '#4A90E2'); // h1 (Sliding/Blue)
+    drawLine(h2_Y, transH_px, h2Val, '#28a745'); // h2 (Transom/Green)
+}
+
+// HELPER: CENTERED TEXT
+function addCenteredText(layer, x, y, string, size, color) {
+    const t = new Konva.Text({ x: x, y: y, text: string, fontSize: size, fontStyle: 'bold', fill: color });
+    t.offsetX(t.width() / 2);
+    t.offsetY(t.height() / 2);
+    layer.add(t);
 }
 
 /**
@@ -525,7 +352,8 @@ function renderWindowsAwning(productData, dimensions, layer, renderContext) {
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const series = customizationValues.series || '38 Series';
     const glassType = customizationValues.glassType || 'Ordinary';
@@ -617,6 +445,9 @@ function renderWindowsAwning(productData, dimensions, layer, renderContext) {
                 listening: false,
             });
             layer.add(panelRect);
+
+            // Apply glass type pattern
+            applyGlassTypePattern(layer, panelX, panelY, panelWidth, panelHeight, glassType, glassColor);
 
             // Draw internal ^ pattern (inverted V shape)
             const centerX = panelX + panelWidth / 2;
@@ -728,14 +559,80 @@ function renderWindowsAwning(productData, dimensions, layer, renderContext) {
 /**
  * Render Windows Casement configuration
  */
-function renderWindowsCasement(productData, dimensions, layer, renderContext) {
+
+
+// Helper: "//" reflection marks - top-left and bottom-right corners, highly visible with adaptive colors
+// IMPORTANT: These are drawn in a SEPARATE GROUP with full opacity to avoid glass panel opacity affecting visibility
+function drawGlassReflections(layer, x, y, w, h, glassColor) {
+    // Create a SEPARATE GROUP for reflections with NO opacity inheritance from glass
+    const reflectionGroup = new Konva.Group({ 
+        x: 0, 
+        y: 0,
+        listening: false,
+        // CRITICAL: Group has full opacity so child lines aren't dimmed by parent glass opacity
+        opacity: 1
+    });
+    
+    // Determine stroke color based on glass color (adaptive for contrast)
+    let strokeColor = '#000000'; // Default to black
+    
+    if (glassColor) {
+        const gc = String(glassColor).toLowerCase();
+        // Light colors = use black stroke
+        if (gc.includes('clear')|| gc.includes('Clear') || gc.includes('frosted') || gc.includes('light') ) {
+            strokeColor = '#000000';
+        }
+        else if (gc.includes('bronze')) {
+            strokeColor = '#00000070';
+        }
+        // Dark colors = use white stroke
+        else if (gc.includes('smoked') || gc.includes('tinted') || gc.includes('dark')) {
+            strokeColor = '#00000070';
+        }
+    }
+    
+    // Maximum visibility: thick stroke, FULL opacity (not affected by glass opacity)
+    const config = { stroke: strokeColor, strokeWidth: 4, opacity: 1 };
+    
+    // TOP-LEFT CORNER
+    const tlX = x + 15;
+    const tlY = y + 15;
+    reflectionGroup.add(new Konva.Line({ points: [tlX - 12, tlY + 12, tlX + 4, tlY - 4], ...config }));
+    reflectionGroup.add(new Konva.Line({ points: [tlX - 4, tlY + 12, tlX + 12, tlY - 4], ...config }));
+    
+    // BOTTOM-RIGHT CORNER
+    const brX = x + w - 15;
+    const brY = y + h - 15;
+    reflectionGroup.add(new Konva.Line({ points: [brX - 12, brY + 12, brX + 4, brY - 4], ...config }));
+    reflectionGroup.add(new Konva.Line({ points: [brX - 4, brY + 12, brX + 12, brY - 4], ...config }));
+    
+    // Add to layer
+    layer.add(reflectionGroup);
+    
+    // Move to top of layer so it's rendered last (on top)
+    reflectionGroup.moveToTop();
+}
+
+// Helper: Bottom Text Annotation
+function renderBottomLabel(layer, offsetX, offsetY, totalWidth, totalHeight, thickness, frameColor) {
+    const formatThickness = String(thickness).replace(/mm$/i, '') + 'mm';
+    const label = `Thickness: ${formatThickness}  |  Frame: ${frameColor}`;
+    layer.add(new Konva.Text({
+        x: offsetX, y: offsetY + totalHeight + 25,
+        width: totalWidth, text: label,
+        fontSize: 12, fontStyle: 'bold', fontFamily: 'Arial',
+        fill: '#444', align: 'center', listening: false
+    }));
+}
+
+/* function renderWindowsCasement(productData, dimensions, layer, renderContext) {
     const ctx = getRenderContext(renderContext);
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
-    const series = customizationValues.series || '38 Series';
     const glassType = customizationValues.glassType || 'Ordinary';
     const glassColor = customizationValues.glassColor || 'Clear';
     const frameColor = customizationValues.frameColor || 'Powder Coated White';
@@ -859,17 +756,166 @@ function renderWindowsCasement(productData, dimensions, layer, renderContext) {
     
     drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight, 
                        originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
-}
+} */
 
 /**
  * Render Windows Fixed Glass configuration
  */
+
+
+function renderWindowsCasement(productData, dimensions, layer, renderContext) {
+    const ctx = getRenderContext(renderContext);
+    const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
+    
+    const { width, height } = dimensions;
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
+    
+    // ✅ FIXED: Use same pattern as sliding/awning to ensure proper glass type/color separation
+    const glassType = customizationValues.glassType || 'Ordinary';
+    const glassColor = customizationValues.glassColor || 'Clear';
+    const frameColor = customizationValues.frameColor || 'Hanalok';
+    const transomType = customizationValues.transomType || 'None';
+    const numberOfPanels = parseInt(customizationValues.panelConfiguration) || 1;
+    const thickness = customizationValues.thickness || '6mm';
+    
+    // Calculate Drawing Bounds
+    const actualRatio = width / height;
+    let totalWidth, totalHeight;
+    if (actualRatio > 1) {
+        totalWidth = DRAWING_SIZE;
+        totalHeight = DRAWING_SIZE / actualRatio;
+    } else {
+        totalHeight = DRAWING_SIZE;
+        totalWidth = DRAWING_SIZE * actualRatio;
+    }
+    
+    const offsetX = (STAGE_SIZE - totalWidth) / 2;
+    const offsetY = (STAGE_SIZE - totalHeight) / 2;
+
+    const gStyle = getGlassStyle(glassType, glassColor, glassStyles);
+    const fStyle = getFrameStyle(frameColor, frameStyles);
+
+    // --- H1/H2 LOGIC PORTED FROM SLIDING ---
+    const hasTransom = transomType && transomType.toLowerCase() !== 'none';
+    const originalHeight = productData.originalHeight || dimensions.height;
+    const heightUnit = productData.heightUnit || dimensions.unit || 'in';
+    
+    let h1Value = null; // Main section height
+    let h2Value = null; // Transom height
+    
+    const h1Input = typeof document !== 'undefined' ? document.getElementById('input-h1') : null;
+    const h2Input = typeof document !== 'undefined' ? document.getElementById('input-h2') : null;
+    
+    if (h1Input && h1Input.value) h1Value = parseFloat(h1Input.value);
+    if (h2Input && h2Input.value) h2Value = parseFloat(h2Input.value);
+
+    const unitMap = { 'in': 25.4, 'cm': 10, 'mm': 1 };
+    const toMm = (val, unit) => val * (unitMap[unit.toLowerCase()] || 25.4);
+    
+    let transomHeight = 0;
+    let mainHeight = totalHeight;
+
+    if (hasTransom) {
+        const totalHeightInMm = toMm(originalHeight, heightUnit);
+        let transomHeightMm = null;
+        let mainHeightMm = null;
+
+        if (h1Value) mainHeightMm = toMm(h1Value, heightUnit);
+        if (h2Value) transomHeightMm = toMm(h2Value, heightUnit);
+
+        // Auto-calculation logic
+        if (transomHeightMm && !mainHeightMm) {
+            mainHeightMm = Math.max(0.1, totalHeightInMm - transomHeightMm);
+        } else if (mainHeightMm && !transomHeightMm) {
+            transomHeightMm = Math.max(0.1, totalHeightInMm - mainHeightMm);
+        } else if (!transomHeightMm && !mainHeightMm) {
+            transomHeightMm = totalHeightInMm * 0.3;
+            mainHeightMm = totalHeightInMm * 0.7;
+        }
+
+        const transomRatio = transomHeightMm / (transomHeightMm + mainHeightMm);
+        const mainRatio = mainHeightMm / (transomHeightMm + mainHeightMm);
+
+        transomHeight = totalHeight * transomRatio;
+        mainHeight = totalHeight * mainRatio;
+    }
+
+    const panelWidth = totalWidth / numberOfPanels;
+
+    // 1. Draw Transom Panels (Top)
+    if (hasTransom) {
+        for (let i = 0; i < numberOfPanels; i++) {
+            const tx = offsetX + (i * panelWidth);
+            
+            // Draw glass fill rect with reduced opacity so pattern shows through
+            layer.add(new Konva.Rect({
+                x: tx, y: offsetY,
+                width: panelWidth, height: transomHeight,
+                fill: gStyle.fill, opacity: gStyle.opacity * 0.7, stroke: fStyle.color,
+                strokeWidth: fStyle.width, listening: false
+            }));
+            
+            // Then apply glass type pattern on top for visibility
+            applyGlassTypePattern(layer, tx, offsetY, panelWidth, transomHeight, glassType, glassColor);
+        }
+    }
+
+    // 2. Draw Main Casement Panels (Bottom)
+    const mainOffsetY = offsetY + transomHeight;
+    for (let i = 0; i < numberOfPanels; i++) {
+        const px = offsetX + (i * panelWidth);
+        
+        // Draw glass fill rect with reduced opacity so pattern shows through
+        layer.add(new Konva.Rect({
+            x: px, y: mainOffsetY,
+            width: panelWidth, height: mainHeight,
+            fill: gStyle.fill, opacity: gStyle.opacity * 0.7, stroke: fStyle.color,
+            strokeWidth: fStyle.width, listening: false
+        }));
+
+        // Then apply glass type pattern on top for visibility
+        applyGlassTypePattern(layer, px, mainOffsetY, panelWidth, mainHeight, glassType, glassColor);
+
+        // Dashed "V" opening indicator (Casement Style)
+        const padding = 15;
+        layer.add(new Konva.Line({
+            points: [
+                px + padding, mainOffsetY + padding,
+                px + panelWidth - padding, mainOffsetY + (mainHeight / 2),
+                px + padding, mainOffsetY + mainHeight - padding
+            ],
+            stroke: fStyle.color, strokeWidth: 1.5, dash: [8, 5], listening: false
+        }));
+    }
+
+    // 3. Final Outer Frame
+    layer.add(new Konva.Rect({
+        x: offsetX - 2, y: offsetY - 2,
+        width: totalWidth + 4, height: totalHeight + 4,
+        stroke: fStyle.color, strokeWidth: fStyle.width, listening: false
+    }));
+
+    // 4. Annotations & Dimensions
+    if (hasTransom) {
+        drawTransomDimensions(layer, offsetX, offsetY, totalWidth, totalHeight,
+                                true, transomHeight, mainHeight,
+                                originalHeight, heightUnit, renderContext);
+    }
+
+    drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight, 
+                       width, dimensions.unit, height, dimensions.unit, renderContext);
+
+    renderBottomLabel(layer, offsetX, offsetY, totalWidth, totalHeight, thickness, frameColor);
+}
+
 function renderWindowsFixedGlass(productData, dimensions, layer, renderContext) {
     const ctx = getRenderContext(renderContext);
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const glassType = customizationValues.glassType || 'Clear';
     const frameColor = customizationValues.frameColor || 'White';
@@ -912,6 +958,9 @@ function renderWindowsFixedGlass(productData, dimensions, layer, renderContext) 
     });
     layer.add(glassRect);
 
+    // Apply glass type pattern (pass panel fill to allow pattern color adaptation)
+    applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight, glassType, gStyle.fill);
+
     // Add "FIXED" label
     const fixedLabel = new Konva.Text({
         x: offsetX + totalWidth / 2,
@@ -950,26 +999,26 @@ function renderWindowsFixedGlass(productData, dimensions, layer, renderContext) 
 /**
  * Render Doors Sliding configuration
  */
-function renderDoorsSliding(productData, dimensions, layer, renderContext) {
-    const ctx = getRenderContext(renderContext);
-    const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
-    
+function renderDoorsSliding(productData, dimensions, layer, renderContext) {    
+    const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = renderContext || getGlobalStyles();
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
-    const glassType = customizationValues.glassType || 'Clear';
-    const frameColor = customizationValues.frameColor || 'Aluminum';
-    const panelCount = extractPanelCount(customizationValues.panelCount || '2-panel');
-    const operation = customizationValues.operation || 'Sliding (single)';
-    const panelConfiguration = customizationValues.panelConfiguration || 'All sliding';
-    const handleType = customizationValues.handleType || 'Various pull handles';
-    const hardwareFinish = customizationValues.hardwareFinish || 'Chrome/Stainless Steel';
-    const softClose = customizationValues.softClose || false;
+    // Extract customization values
+    const numberOfPanels = extractPanelCount(customizationValues.numberOfPanels || '2 Panels');
+    const transomType = customizationValues.transomType || 'None';
+    const trackSystem = customizationValues.trackSystem || '2 Tracks';
+    const panelConfiguration = customizationValues.panelConfiguration || 'S | S (Sliding | Sliding)';
+    const frameColor = customizationValues.frameColor || 'Powder Coated White';
+    const glassType = customizationValues.glassType || 'Ordinary';
+    const glassColor = customizationValues.glassColor || 'Clear';
+    const glassThickness = customizationValues.glassThickness || '6mm';
+    const screen = customizationValues.screen || 'Without Screen';
 
-    // Calculate dimensions
+    // Calculate canvas ratios
     const actualRatio = width / height;
     let totalWidth, totalHeight;
-    
     if (actualRatio > 1) {
         totalWidth = DRAWING_SIZE;
         totalHeight = DRAWING_SIZE / actualRatio;
@@ -981,120 +1030,106 @@ function renderDoorsSliding(productData, dimensions, layer, renderContext) {
     const offsetX = (STAGE_SIZE - totalWidth) / 2;
     const offsetY = (STAGE_SIZE - totalHeight) / 2;
 
-    // Get styles
-    const gStyle = getGlassStyle(glassType);
-    const fStyle = getFrameStyle(frameColor);
+    const gStyle = getGlassStyle(glassType, glassColor, glassStyles);
+    const fStyle = getFrameStyle(frameColor, frameStyles);
+    const panelTypes = parsePanelConfiguration(panelConfiguration, numberOfPanels);
+    
+    const hasTransom = transomType && transomType.toLowerCase() !== 'none';
+    const isFixedTransomHead = hasTransom && transomType.toLowerCase().includes('head');
+    const isFixedTransomSill = hasTransom && transomType.toLowerCase().includes('sill');
 
-    // Parse panel configuration
-    const panelTypes = parsePanelConfiguration(panelConfiguration, panelCount);
-    const panelWidth = totalWidth / panelCount;
+    const originalHeight = productData.originalHeight || dimensions.height;
+    const heightUnit = productData.heightUnit || dimensions.unit || 'in';
+    
+    // --- TRANSOM HEIGHT LOGIC ---
+    let h1Value = null; let h2Value = null;
+    const h1Input = typeof document !== 'undefined' ? document.getElementById('input-h1') : null;
+    const h2Input = typeof document !== 'undefined' ? document.getElementById('input-h2') : null;
 
-    // Draw panels
-    for (let i = 0; i < panelCount; i++) {
-        const panelX = offsetX + (i * panelWidth);
-        const panelType = panelTypes[i] || 'sliding';
+    if (h1Input && h1Input.value) h1Value = parseFloat(h1Input.value);
+    if (h2Input && h2Input.value) h2Value = parseFloat(h2Input.value);
 
-        if (panelType === 'fixed') {
-            // Fixed panel
-            const fixedRect = new Konva.Rect({
-                x: panelX,
-                y: offsetY,
-                width: panelWidth,
-                height: totalHeight,
-                fill: '#4A90E2',
-                opacity: 0.8,
-                stroke: fStyle.color,
-                strokeWidth: fStyle.width,
-                listening: false,
-            });
-            layer.add(fixedRect);
+    const unitMap = { 'in': 25.4, 'cm': 10, 'mm': 1 };
+    function convertToMm(val, u) { return val * (unitMap[u.toLowerCase()] || 25.4); }
+    
+    let transomHeight = 0;
+    let mainHeight = totalHeight;
+    let transomY = 0;
 
-            const label = new Konva.Text({
-                x: panelX + panelWidth / 2,
-                y: offsetY + totalHeight / 2,
-                text: 'F',
-                fontSize: Math.max(14, totalHeight / 10),
-                fontFamily: 'Arial',
-                fontStyle: 'bold',
-                fill: '#FFFFFF',
-                align: 'center',
-                offsetX: 6,
-                offsetY: 8,
-                listening: false,
-            });
-            layer.add(label);
-        } else {
-            // Sliding panel
-            const glassRect = new Konva.Rect({
-                x: panelX,
-                y: offsetY,
-                width: panelWidth,
-                height: totalHeight,
-                fill: gStyle.fill,
-                opacity: gStyle.opacity,
-                stroke: fStyle.color,
-                strokeWidth: fStyle.width,
-                listening: false,
-            });
-            layer.add(glassRect);
+    if (hasTransom) {
+        const totalHeightMm = convertToMm(originalHeight, heightUnit);
+        let tHeightMm = h2Value ? convertToMm(h2Value, heightUnit) : (h1Value ? totalHeightMm - convertToMm(h1Value, heightUnit) : totalHeightMm * 0.3);
+        let sHeightMm = totalHeightMm - tHeightMm;
 
-            // Handle indicator
-            const handleX = panelX + panelWidth / 2;
-            const handleY = offsetY + totalHeight / 2;
-            
-            const handleRect = new Konva.Rect({
-                x: handleX - 15,
-                y: handleY - 3,
-                width: 30,
-                height: 6,
-                fill: '#333333',
-                opacity: 0,
-                cornerRadius: 3,
-                listening: false,
-            });
-            layer.add(handleRect);
+        const tRatio = tHeightMm / totalHeightMm;
+        const sRatio = sHeightMm / totalHeightMm;
 
-            // "S" label
-            const labelFontSize = Math.max(12, totalHeight / 6);
-            const label = new Konva.Text({
-                x: handleX,
-                y: handleY,
-                text: 'S',
-                fontSize: labelFontSize,
-                fontFamily: 'Arial',
-                fontStyle: 'bold',
-                fill: '#333333',
-                align: 'center',
-                verticalAlign: 'middle',
-                offsetX: labelFontSize * 0.35,
-                offsetY: labelFontSize * 0.5,
-                listening: false,
-            });
-            layer.add(label);
-        }
+        transomHeight = totalHeight * tRatio;
+        mainHeight = totalHeight * sRatio;
+        transomY = isFixedTransomHead ? offsetY : offsetY + mainHeight;
 
-        // Panel divider
-        if (i < panelCount - 1) {
-            const divider = new Konva.Line({
-                points: [panelX + panelWidth, offsetY, panelX + panelWidth, offsetY + totalHeight],
-                stroke: fStyle.color,
-                strokeWidth: fStyle.width * 1.5,
-                listening: false,
-            });
-            layer.add(divider);
+        // Set display values for annotations if they weren't explicitly provided
+        if (h1Value === null) h1Value = originalHeight * sRatio;
+        if (h2Value === null) h2Value = originalHeight * tRatio;
+    }
+
+    const panelWidth = totalWidth / numberOfPanels;
+
+    // --- DRAWING: TRANSOM ---
+    if (hasTransom) {
+        for (let i = 0; i < numberOfPanels; i++) {
+            const panelX = offsetX + (i * panelWidth);
+            layer.add(new Konva.Rect({
+                x: panelX, y: transomY, width: panelWidth, height: transomHeight,
+                fill: '#4A90E2', opacity: 0.8, stroke: fStyle.color, strokeWidth: fStyle.width
+            }));
+            // Apply pattern to transom
+            applyGlassTypePattern(layer, panelX, transomY, panelWidth, transomHeight, glassType, glassColor);
+            addCenteredText(layer, panelX + panelWidth/2, transomY + transomHeight/2, 'F', Math.max(10, transomHeight/5), '#FFF');
         }
     }
 
-    // Draw track at bottom
-    const trackY = offsetY + totalHeight;
-    const trackLine = new Konva.Line({
-        points: [offsetX, trackY, offsetX + totalWidth, trackY],
-        stroke: '#666666',
-        strokeWidth: 3,
-        listening: false,
-    });
-    layer.add(trackLine);
+    // --- DRAWING: MAIN PANELS ---
+    const mainY = (hasTransom && isFixedTransomHead) ? offsetY + transomHeight : offsetY;
+    for (let i = 0; i < numberOfPanels; i++) {
+        const panelX = offsetX + (i * panelWidth);
+        const type = panelTypes[i] || 'sliding';
+        
+        layer.add(new Konva.Rect({
+            x: panelX, y: mainY, width: panelWidth, height: mainHeight,
+            fill: type === 'fixed' ? '#4A90E2' : gStyle.fill,
+            opacity: type === 'fixed' ? 0.8 : gStyle.opacity,
+            stroke: fStyle.color, strokeWidth: fStyle.width
+        }));
+
+        // Always apply glass type / visual pattern (including fixed panels)
+        applyGlassTypePattern(layer, panelX, mainY, panelWidth, mainHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
+        const label = type === 'fixed' ? 'F' : 'S';
+        const labelColor = type === 'fixed' ? '#FFF' : '#333';
+        addCenteredText(layer, panelX + panelWidth/2, mainY + mainHeight/2, label, Math.min(mainHeight * 0.18, 24), labelColor);
+    }
+
+    // --- DRAWING: ANNOTATIONS & DIMENSIONS ---
+    drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight, dimensions.width, dimensions.unit, originalHeight, heightUnit, renderContext);
+    
+    if (hasTransom) {
+        drawTransomAnnotations(layer, offsetX, offsetY, mainHeight, transomHeight, isFixedTransomHead, h1Value, h2Value, heightUnit);
+    }
+
+    // Screen Pattern
+    if (screen && screen.toLowerCase().includes('with screen')) {
+        drawScreenPattern(layer, offsetX, mainY, totalWidth, mainHeight);
+    }
+
+    const annotationText = `Thickness: ${glassThickness}  |  Frame: ${frameColor}`;
+    layer.add(new Konva.Text({
+        x: offsetX + totalWidth / 2, y: offsetY + totalHeight + 25,
+        text: annotationText, fontSize: 11, fontStyle: 'bold', fill: '#555', align: 'center'
+    }).offsetX(annotationText.length * 3));
+
 }
+
 
 /**
  * Render Doors Swing Door configuration
@@ -1104,7 +1139,8 @@ function renderDoorsSwing(productData, dimensions, layer, renderContext) {
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const series = customizationValues.series || '68 Series';
     const glassType = customizationValues.glassType || 'Ordinary';
@@ -1145,6 +1181,9 @@ function renderDoorsSwing(productData, dimensions, layer, renderContext) {
     });
     layer.add(doorRect);
 
+    // Apply glass type pattern
+    applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
     // Draw hinge on left side
     const hingeLine = new Konva.Line({
         points: [offsetX, offsetY, offsetX, offsetY + totalHeight],
@@ -1179,7 +1218,8 @@ function renderDoorsBifold(productData, dimensions, layer, renderContext) {
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const series = customizationValues.series || '45 Series';
     const glassType = customizationValues.glassType || 'Ordinary';
@@ -1222,6 +1262,8 @@ function renderDoorsBifold(productData, dimensions, layer, renderContext) {
         listening: false,
     });
     layer.add(leftPanel);
+    // Apply pattern to fixed left panel
+    applyGlassTypePattern(layer, offsetX, offsetY, panelWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
 
     // Draw right panel (folding)
     const rightPanel = new Konva.Rect({
@@ -1236,6 +1278,9 @@ function renderDoorsBifold(productData, dimensions, layer, renderContext) {
         listening: false,
     });
     layer.add(rightPanel);
+
+    // Apply glass type pattern to folding panel
+    applyGlassTypePattern(layer, offsetX + panelWidth, offsetY, panelWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
 
     // Draw center hinge
     const centerHinge = new Konva.Line({
@@ -1267,10 +1312,283 @@ function renderDoorsBifold(productData, dimensions, layer, renderContext) {
  */
 function renderDoorsFrameless(productData, dimensions, layer, renderContext) {
     const ctx = getRenderContext(renderContext);
-    const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
-    
+    const { DRAWING_SIZE, STAGE_SIZE } = ctx;
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
+
+    const glassType = customizationValues.glassType || 'Clear';
+    const doorType = customizationValues.doorType || 'Single swing';
+    const doorSwing = customizationValues.doorSwing || 'Left swing';
+    const fixedPanels = customizationValues.fixedPanels || 'None';
+    const hardwareFinish = customizationValues.hardwareFinish || 'Polished Chrome/Stainless Steel';
+
+    const getVal = (id) => {
+        const el = document.getElementById(`input-${id}`);
+        if (el && el.value) {
+            return parseFloat(el.value);
+        }
+        return null;
+    };
+
+    const isVisible = (id) => {
+        const group = document.getElementById(`input-group-${id}`);
+        return group && !group.classList.contains('hidden-step');
+    };
+
+    const h1Val = getVal('h1'); // Door Height
+    const h2Val = getVal('h2'); // Transom Height
+    const w1Val = getVal('w1'); // Door Width (Now correctly mapped to w1)
+    const w2Val = getVal('w2'); // Left Panel Width
+    const w3Val = getVal('w3'); // Right Panel Width
+
+    const h1Visible = isVisible('h1');
+    const h2Visible = isVisible('h2');
+    const w1Visible = isVisible('w1');
+    const w2Visible = isVisible('w2');
+    const w3Visible = isVisible('w3');
+    
+    // DEBUG: Log all values
+    console.log('🚪 [renderDoorsFrameless] h1Val:', h1Val, 'h1Visible:', h1Visible, 'h2Val:', h2Val, 'h2Visible:', h2Visible);
+    console.log('🚪 [renderDoorsFrameless] w1Val:', w1Val, 'w1Visible:', w1Visible, 'w2Val:', w2Val, 'w2Visible:', w2Visible, 'w3Val:', w3Val, 'w3Visible:', w3Visible);
+
+    const actualRatio = width / height;
+    let totalWidth = actualRatio > 1 ? DRAWING_SIZE : DRAWING_SIZE * actualRatio;
+    let totalHeight = actualRatio > 1 ? DRAWING_SIZE / actualRatio : DRAWING_SIZE;
+    const startX = (STAGE_SIZE - totalWidth) / 2;
+    const startY = (STAGE_SIZE - totalHeight) / 2;
+
+    const gStyle = getGlassStyle(glassType);
+    const hardwareColor = hardwareFinish.toLowerCase().includes('black') ? '#333333' : '#A0A0A0';
+
+    const hasTransom = fixedPanels === 'Transom Only' || fixedPanels === 'Both';
+    let transomHeight, mainAreaHeight;
+
+    if (hasTransom && h1Val && h2Val) {
+        const ratio = h2Val / (h1Val + h2Val);
+        transomHeight = totalHeight * ratio;
+        mainAreaHeight = totalHeight - transomHeight;
+    } else {
+        transomHeight = hasTransom ? totalHeight * 0.20 : 0;
+        mainAreaHeight = totalHeight - transomHeight;
+    }
+
+    const isDoubleDoor = doorType.toLowerCase().includes('double');
+    const isLeftHinged = doorSwing.toLowerCase().includes('left');
+    let panels = [];
+
+    // Helper: w1 (Door) is always the primary reference for the ratio
+    const getWidthRatio = (val, fallback) => {
+        const sum = (w1Val || 0) + (w2Val || 0) + (w3Val || 0);
+        return (val && sum > 0) ? (val / sum) : fallback;
+    };
+
+    if (fixedPanels === '2 Panels' || fixedPanels === 'Both') {
+        const leftW = totalWidth * getWidthRatio(w2Val, 0.25);
+        const rightW = totalWidth * getWidthRatio(w3Val, 0.25);
+        const doorW = totalWidth - leftW - rightW;
+        
+        panels.push({ type: 'fixed', width: leftW, label: 'w2', dimensionValue: w2Val }); // Left
+        addDoorLeafs(panels, doorW, isDoubleDoor, isLeftHinged, 'w1', w1Val); // Door
+        panels.push({ type: 'fixed', width: rightW, label: 'w3', dimensionValue: w3Val }); // Right
+
+    } else if (fixedPanels === 'Fixed Side (Left)') {
+        const leftW = totalWidth * getWidthRatio(w2Val, 0.30);
+        const doorW = totalWidth - leftW;
+        panels.push({ type: 'fixed', width: leftW, label: 'w2', dimensionValue: w2Val });
+        addDoorLeafs(panels, doorW, isDoubleDoor, isLeftHinged, 'w1', w1Val);
+
+    } else if (fixedPanels === 'Fixed Side (Right)') {
+        const rightW = totalWidth * getWidthRatio(w3Val, 0.30);
+        const doorW = totalWidth - rightW;
+        addDoorLeafs(panels, doorW, isDoubleDoor, isLeftHinged, 'w1', w1Val);
+        panels.push({ type: 'fixed', width: rightW, label: 'w3', dimensionValue: w3Val });
+
+    } else {
+        addDoorLeafs(panels, totalWidth, isDoubleDoor, isLeftHinged, 'w1', w1Val);
+    }
+
+    function addDoorLeafs(targetArray, availableWidth, isDouble, leftHinged, label, dimensionValue) {
+        if (isDouble) {
+            targetArray.push({ type: 'door', width: availableWidth / 2, hinge: 'left', label: label, dimensionValue: dimensionValue });
+            targetArray.push({ type: 'door', width: availableWidth / 2, hinge: 'right', label: label, dimensionValue: dimensionValue });
+        } else {
+            targetArray.push({ type: 'door', width: availableWidth, hinge: leftHinged ? 'left' : 'right', label: label, dimensionValue: dimensionValue });
+        }
+    }
+
+    if (hasTransom) {
+        drawFixedPanel(startX, startY, totalWidth, transomHeight);
+        // Always show h2 annotation if h2 has a value, otherwise use fallback
+        const h2Display = h2Val !== null && h2Val > 0 ? h2Val.toFixed(2) : (height * 0.2).toFixed(1);
+        if (h2Visible || h2Val !== null) {
+            console.log('🚪 [Annotation] Drawing h2 with value:', h2Display, 'visible:', h2Visible);
+            drawSubDimension(layer, startX - 20, startY, transomHeight, 'h2', h2Display, 'vertical');
+        }
+    }
+
+    let currentX = startX;
+    const mainY = startY + transomHeight;
+    // Always show h1 annotation if h1 has a value, otherwise use fallback
+    const h1Display = h1Val !== null && h1Val > 0 ? h1Val.toFixed(2) : (height - (hasTransom ? height*0.2 : 0)).toFixed(1);
+    if (h1Visible || h1Val !== null) {
+        console.log('🚪 [Annotation] Drawing h1 with value:', h1Display, 'visible:', h1Visible);
+        drawSubDimension(layer, startX - 20, mainY, mainAreaHeight, 'h1', h1Display, 'vertical');
+    }
+
+    panels.forEach(p => {
+        if (p.type === 'door') {
+            drawDoorPanel(currentX, mainY, p.width, mainAreaHeight, p.hinge);
+        } else {
+            drawFixedPanel(currentX, mainY, p.width, mainAreaHeight);
+        }
+        
+        if (p.label) {
+            // Always draw annotation if input has a value OR is visible
+            let displayVal = "—"; // default fallback
+            
+            if (p.label === 'w1') {
+                // Use dimensionValue if available (actual input value), otherwise use calculated value
+                displayVal = p.dimensionValue !== null && p.dimensionValue > 0 ? p.dimensionValue.toFixed(2) : "Door";
+                if (p.dimensionValue !== null || w1Visible) {
+                    console.log('🚪 [Annotation] Drawing w1 with dimensionValue:', p.dimensionValue, 'displayVal:', displayVal, 'visible:', w1Visible);
+                    drawSubDimension(layer, currentX, mainY + mainAreaHeight + 20, p.width, p.label, displayVal, 'horizontal');
+                }
+            } else if (p.label === 'w2') {
+                displayVal = p.dimensionValue !== null && p.dimensionValue > 0 ? p.dimensionValue.toFixed(2) : "—";
+                if (p.dimensionValue !== null || w2Visible) {
+                    console.log('🚪 [Annotation] Drawing w2 with dimensionValue:', p.dimensionValue, 'displayVal:', displayVal, 'visible:', w2Visible);
+                    drawSubDimension(layer, currentX, mainY + mainAreaHeight + 20, p.width, p.label, displayVal, 'horizontal');
+                }
+            } else if (p.label === 'w3') {
+                displayVal = p.dimensionValue !== null && p.dimensionValue > 0 ? p.dimensionValue.toFixed(2) : "—";
+                if (p.dimensionValue !== null || w3Visible) {
+                    console.log('🚪 [Annotation] Drawing w3 with dimensionValue:', p.dimensionValue, 'displayVal:', displayVal, 'visible:', w3Visible);
+                    drawSubDimension(layer, currentX, mainY + mainAreaHeight + 20, p.width, p.label, displayVal, 'horizontal');
+                }
+            }
+        }
+        currentX += p.width;
+    });
+
+    drawDimensionLines(layer, startX, startY, totalWidth, totalHeight, width, 'in', height, 'in', renderContext);
+
+    function drawSubDimension(layer, x, y, length, label, value, orientation) {
+        // Corrected Color Mapping to match your screenshots
+        let color = '#999'; 
+        if (orientation === 'vertical') {
+            color = (label === 'h1') ? '#00AA00' : '#FF4444'; // h1=Green, h2=Red
+        } else {
+            if (label === 'w1') color = '#00aeff'; // Door = Blue
+            if (label === 'w2') color = '#ffa600'; // Left = Orange
+            if (label === 'w3') color = '#ff00dd'; // Right = Yellow
+        }
+        
+        const points = orientation === 'vertical' ? [x, y, x, y + length] : [x, y, x + length, y];
+        layer.add(new Konva.Line({ points: points, stroke: color, strokeWidth: 2, dash: [2, 2] }));
+
+        layer.add(new Konva.Text({
+            x: orientation === 'vertical' ? x - 45 : x + length / 2 - 20,
+            y: orientation === 'vertical' ? y + length / 2 - 5 : y + 5,
+            text: `${label}: ${value}`,
+            fontSize: 10,
+            fontStyle: 'bold',
+            fill: color,
+            listening: false
+        }));
+    }
+
+    function drawDoorPanel(x, y, w, h, hingeSide) {
+        layer.add(new Konva.Rect({ x, y, width: w, height: h, fill: gStyle.fill, opacity: gStyle.opacity, stroke: '#ccc', strokeWidth: 1 }));
+        
+        // Apply glass type pattern
+        applyGlassTypePattern(layer, x, y, w, h, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+        
+        const fitW = 20, fitH = 8, fitX = hingeSide === 'left' ? x : x + w - fitW;
+        layer.add(new Konva.Rect({ x: fitX, y: y, width: fitW, height: fitH, fill: hardwareColor }));
+        layer.add(new Konva.Rect({ x: fitX, y: y + h - fitH, width: fitW, height: fitH, fill: hardwareColor }));
+        const handleX = hingeSide === 'left' ? x + w - 15 : x + 15;
+        layer.add(new Konva.Rect({ x: handleX - 2, y: y + h * 0.3, width: 4, height: h * 0.4, fill: hardwareColor, cornerRadius: 2 }));
+        const midY = y + (h / 2);
+        const pts = hingeSide === 'left' ? [x, midY, x + w, y, x + w, y + h, x, midY] : [x + w, midY, x, y, x, y + h, x + w, midY];
+        layer.add(new Konva.Line({ points: pts, stroke: 'red', strokeWidth: 1.2, dash: [6, 4] }));
+    }
+
+    function drawFixedPanel(x, y, w, h) {
+        layer.add(new Konva.Rect({ x, y, width: w, height: h, fill: gStyle.fill, opacity: gStyle.opacity, stroke: '#ccc', strokeWidth: 1 }));
+        // Apply glass type pattern for fixed panel
+        applyGlassTypePattern(layer, x, y, w, h, glassType, (gStyle && gStyle.fill) || '');
+        const cW = 12;
+        layer.add(new Konva.Rect({ x: x + (w - cW) / 2, y, width: cW, height: 4, fill: hardwareColor }));
+        layer.add(new Konva.Rect({ x: x + (w - cW) / 2, y: y + h - 4, width: cW, height: 4, fill: hardwareColor }));
+    }
+}
+
+// ============================================================================
+// HELPER FUNCTION: Update input visibility for door sub-dimensions
+// ============================================================================
+/**
+ * Function to update input visibility for h1, h2, w1, w2, w3 inputs
+ * Called when Fixed Panels selection changes in renderDoorsFrameless
+ * @param {string} selectedOption - The selected Fixed Panels option
+ */
+function updateInputVisibility(selectedOption) {
+    console.log('🚪 [updateInputVisibility] Called with option:', selectedOption);
+    
+    const allGroups = ['h1', 'h2', 'w1', 'w2', 'w3'];
+    const normalizedOption = selectedOption ? selectedOption.toString().trim() : '';
+    
+    const visibilityMap = {
+        'None': [],
+        'Fixed Side (Left)': ['w1', 'w2'],
+        'Fixed Side (Right)': ['w1', 'w3'],
+        '2 Panels': ['w1', 'w2', 'w3'],
+        'Transom Only': ['h1', 'h2'],   
+        'Both': ['h1', 'h2', 'w1', 'w2', 'w3']
+    };
+
+    let visibleInputs = visibilityMap[normalizedOption] || [];
+    console.log('🚪 [updateInputVisibility] Normalized option:', normalizedOption);
+    console.log('🚪 [updateInputVisibility] Visible inputs should be:', visibleInputs);
+    
+    // NOTE: We DO NOT touch the main .dimensions-container (Height/Width inputs)
+    // Those always stay visible. We only manage the sub-dimensions (h1, h2, w1, w2, w3)
+
+    // 2. Show/Hide individual sub-dimension groups
+    allGroups.forEach(id => {
+        const group = document.getElementById(`input-group-${id}`);
+        console.log(`🚪 [updateInputVisibility] input-group-${id} found:`, !!group);
+        
+        if (group) {
+            if (visibleInputs.includes(id)) {
+                group.classList.remove('hidden-step');
+                // Force visibility with inline styles
+                group.style.display = 'flex';
+                group.style.visibility = 'visible';
+                group.style.opacity = '1';
+                console.log(`🚪 [updateInputVisibility] ✅ input-group-${id} made VISIBLE`);
+            } else {
+                group.classList.add('hidden-step');
+                // Force hidden with inline styles
+                group.style.display = 'none';
+                console.log(`🚪 [updateInputVisibility] ❌ input-group-${id} made HIDDEN`);
+                const input = document.getElementById(`input-${id}`);
+                if (input) input.value = ''; 
+            }
+        } else {
+            console.log(`🚪 [updateInputVisibility] ⚠️ input-group-${id} element NOT found in DOM`);
+        }
+    });
+    
+    console.log('🚪 [updateInputVisibility] Complete');
+}
+
+/* function renderDoorsFrameless(productData, dimensions, layer, renderContext) {
+    const ctx = getRenderContext(renderContext);
+    const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
+    const { width, height, unit } = dimensions;
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const glassType = customizationValues.glassType || 'Clear';
     const doorType = customizationValues.doorType || 'Single swing';
@@ -1397,7 +1715,7 @@ function renderDoorsFrameless(productData, dimensions, layer, renderContext) {
     const heightUnit = productData.heightUnit || dimensions.unit || 'in';
     drawDimensionLines(layer, offsetX, offsetY, totalWidth, totalHeight,
                        originalWidth, widthUnit, originalHeight, heightUnit, renderContext);
-}
+} */
 
 /**
  * Render Doors Patch Fitting configuration
@@ -1407,7 +1725,8 @@ function renderDoorsPatchFitting(productData, dimensions, layer, renderContext) 
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
 
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
 
     const series = customizationValues.series || 'Frameless Door';
     const glassType = customizationValues.glassType || 'Tempered';
@@ -1453,6 +1772,9 @@ function renderDoorsPatchFitting(productData, dimensions, layer, renderContext) 
         listening: false,
     });
     layer.add(doorRect);
+
+    // Apply glass type pattern
+    applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
 
     // Draw patch fittings (small hardware points)
     const patchSize = 8;
@@ -1587,7 +1909,8 @@ function renderPartitionsFramelessGlass(productData, dimensions, layer, renderCo
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const layout = customizationValues.layout || 'Straight';
     const glassType = customizationValues.glassType || 'Clear';
@@ -1630,6 +1953,9 @@ function renderPartitionsFramelessGlass(productData, dimensions, layer, renderCo
     });
     layer.add(glassRect);
 
+    // Apply glass type pattern
+    applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
     // Draw mounting hardware (clamps/brackets)
     const clampSize = 6;
     const clamps = [
@@ -1661,7 +1987,8 @@ function renderPartitionsShowerEnclosure(productData, dimensions, layer, renderC
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const series = customizationValues.series || 'Fixed Frameless Shower Partition';
     const layout = customizationValues.layout || 'Straight';
@@ -1720,6 +2047,9 @@ function renderPartitionsShowerEnclosure(productData, dimensions, layer, renderC
             });
             layer.add(panelRect);
 
+            // Apply glass type pattern
+            applyGlassTypePattern(layer, panelX, offsetY, panelWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
             // Handle indicator
             if (i < panelCount - 1) {
                 const handleX = panelX + panelWidth / 2;
@@ -1773,6 +2103,9 @@ function renderPartitionsShowerEnclosure(productData, dimensions, layer, renderC
         });
         layer.add(doorRect);
 
+        // Apply glass type pattern
+        applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
         // Draw hinge
         const isLeftHinged = doorSwing.toLowerCase().includes('left');
         const hingeX = isLeftHinged ? offsetX : offsetX + totalWidth;
@@ -1808,7 +2141,8 @@ function renderPartitionsFixedGlass(productData, dimensions, layer, renderContex
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const layout = customizationValues.layout || 'Straight';
     const glassType = customizationValues.glassType || 'Clear';
@@ -1851,6 +2185,9 @@ function renderPartitionsFixedGlass(productData, dimensions, layer, renderContex
     });
     layer.add(glassRect);
 
+    // Apply glass type pattern
+    applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
     // Draw mounting hardware
     const clampSize = 6;
     const clamps = [
@@ -1886,7 +2223,8 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const series = customizationValues.series || 'Rectangle/Square Framed Mirror';
     const shape = customizationValues.shape || 'Rectangle';
@@ -1895,7 +2233,6 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
     const frameColor = customizationValues.frameColor || 'White';
     const glassType = customizationValues.glassType || 'Copper Free and Lead Free Mirror';
     const thickness = customizationValues.thickness || '6mm';
-    const tintFinish = customizationValues.tintFinish || '';
     const orientation = customizationValues.orientation || 'Vertical';
     const style = customizationValues.style || '';
     const gridPattern = customizationValues.gridPattern || '';
@@ -1923,7 +2260,7 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
     const offsetY = (STAGE_SIZE - totalHeight) / 2;
 
     // Get styles
-    const gStyle = getGlassStyle(glassType, tintFinish);
+    const gStyle = getGlassStyle(glassType);
     const fStyle = getFrameStyle(frameColor);
     const isFrameless = frameType.toLowerCase().includes('frameless');
 
@@ -2002,6 +2339,9 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
     }
     layer.add(mirrorShape);
 
+    // Apply glass type pattern to mirror
+    applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
     // Add grid pattern if specified
     if (gridPattern) {
         drawGridPattern(layer, offsetX, offsetY, totalWidth, totalHeight, gridPattern);
@@ -2033,30 +2373,11 @@ function renderSpecialtyMirrors(productData, dimensions, layer, renderContext) {
     let annotationParts = [`Thickness: ${formatThickness}`];
     
     if (isFrameless) {
-        // For frameless mirrors, show edge finish
-        // Check frameColor first (since edge options are stored there when frameless)
-        // Then check edgeFinish/edgeWork as fallback
-        let edgeFinish = '';
-        const frameColorValue = (frameColor || '').toLowerCase();
-        const edgeOptions = ['machine polished edges', 'beveled edge'];
-        
-        // Check if frameColor contains an edge finish option
-        const isEdgeInFrameColor = frameColor && (
-            frameColorValue.includes('polished') || 
-            frameColorValue.includes('beveled') ||
-            edgeOptions.some(opt => frameColorValue === opt.toLowerCase() || frameColorValue.includes(opt.toLowerCase()))
-        );
-        
-        if (isEdgeInFrameColor) {
-            edgeFinish = frameColor;
-        } else {
-            edgeFinish = customizationValues.edgeFinish || customizationValues.edgeWork || '';
-        }
+        // For frameless mirrors, show edge finish from the edgeFinish field
+        let edgeFinish = customizationValues.edgeFinish || customizationValues.edgeWork || '';
         
         if (edgeFinish) {
-            const formatEdge = edgeFinish.split('-').map(word => 
-                word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || edgeFinish;
-            annotationParts.push(`Edge: ${formatEdge}`);
+            annotationParts.push(`Edge: ${edgeFinish}`);
         }
     } else {
         // For framed mirrors, show frame color
@@ -2278,7 +2599,8 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
 
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
 
     // Use same comprehensive logic as mirrors but with top glass defaults
     const series = customizationValues.series || 'Top Glass';
@@ -2288,7 +2610,6 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
     const frameColor = customizationValues.frameColor || 'Polished'; // Edge finish stored here for frameless
     const glassType = customizationValues.glassType || 'Clear'; // Top glass is typically clear
     const thickness = customizationValues.thickness || '6mm';
-    const tintFinish = customizationValues.tintFinish || '';
     const orientation = customizationValues.orientation || 'Horizontal'; // Top glass often horizontal
     const style = customizationValues.style || '';
     const gridPattern = customizationValues.gridPattern || '';
@@ -2299,6 +2620,8 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
     const additionalFeatures = customizationValues.additionalFeatures || '';
     const mountingMethod = customizationValues.mountingMethod || 'Wall-mounted';
     const quantity = customizationValues.quantity || '';
+
+    console.log('[2D Renderer] renderSpecialtyTopGlass - shape:', shape, 'glassType:', glassType, 'frameType:', frameType);
 
     // Calculate dimensions
     const actualRatio = width / height;
@@ -2316,15 +2639,19 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
     const offsetY = (STAGE_SIZE - totalHeight) / 2;
 
     // Get styles
-    const gStyle = getGlassStyle(glassType, tintFinish);
+    const gStyle = getGlassStyle(glassType);
     const fStyle = getFrameStyle(frameColor);
     const isFrameless = frameType.toLowerCase().includes('frameless');
+    
+    console.log('[2D Renderer] TopGlass styles loaded - gStyle:', gStyle, 'fStyle:', fStyle);
 
     // Draw glass based on shape
     let glassShape;
     const centerX = offsetX + totalWidth / 2;
     const centerY = offsetY + totalHeight / 2;
     const minRadius = Math.min(totalWidth, totalHeight) / 2;
+
+    console.log('[2D Renderer] TopGlass dimensions - width:', width, 'height:', height, 'totalWidth:', totalWidth, 'totalHeight:', totalHeight, 'minRadius:', minRadius, 'gStyle:', gStyle);
 
     if (shape.toLowerCase().includes('round') || shape.toLowerCase().includes('circle')) {
         glassShape = new Konva.Circle({
@@ -2337,6 +2664,7 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
             strokeWidth: isFrameless ? 0 : fStyle.width,
             listening: false,
         });
+        console.log('[2D Renderer] Created Circle shape - centerX:', centerX, 'centerY:', centerY, 'radius:', minRadius, 'fill:', gStyle.fill, 'opacity:', gStyle.opacity);
     } else if (shape.toLowerCase().includes('oval') || shape.toLowerCase().includes('ellipse')) {
         glassShape = new Konva.Ellipse({
             x: centerX,
@@ -2349,6 +2677,7 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
             strokeWidth: isFrameless ? 0 : fStyle.width,
             listening: false,
         });
+        console.log('[2D Renderer] Created Ellipse shape - centerX:', centerX, 'centerY:', centerY, 'radiusX:', totalWidth / 2, 'radiusY:', totalHeight / 2);
     } else {
         // Rectangle/Square - Support individual corner radius values
         let cornerRadiusPx = 0;
@@ -2394,6 +2723,10 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
         });
     }
     layer.add(glassShape);
+    console.log('[2D Renderer] Added glassShape to layer');
+
+    // Apply glass type pattern
+    applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
 
     // Add grid pattern if specified
     if (gridPattern) {
@@ -2426,30 +2759,11 @@ function renderSpecialtyTopGlass(productData, dimensions, layer, renderContext) 
     let annotationParts = [`Thickness: ${formatThickness}`];
 
     if (isFrameless) {
-        // For frameless top glass, show edge finish
-        // Check frameColor first (since edge options are stored there when frameless)
-        // Then check edgeFinish/edgeWork as fallback
-        let edgeFinish = '';
-        const frameColorValue = (frameColor || '').toLowerCase();
-        const edgeOptions = ['machine polished edges', 'beveled edge'];
-
-        // Check if frameColor contains an edge finish option
-        const isEdgeInFrameColor = frameColor && (
-            frameColorValue.includes('polished') ||
-            frameColorValue.includes('beveled') ||
-            edgeOptions.some(opt => frameColorValue === opt.toLowerCase() || frameColorValue.includes(opt.toLowerCase()))
-        );
-
-        if (isEdgeInFrameColor) {
-            edgeFinish = frameColor;
-        } else {
-            edgeFinish = customizationValues.edgeFinish || customizationValues.edgeWork || '';
-        }
-
+        // For frameless top glass, show edge finish from the edgeFinish field
+        let edgeFinish = customizationValues.edgeFinish || customizationValues.edgeWork || '';
+        
         if (edgeFinish) {
-            const formatEdge = edgeFinish.split('-').map(word =>
-                word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || edgeFinish;
-            annotationParts.push(`Edge: ${formatEdge}`);
+            annotationParts.push(`Edge: ${edgeFinish}`);
         }
     } else {
         // For framed top glass, show frame color
@@ -2492,7 +2806,8 @@ function renderSpecialtyGlassBoard(productData, dimensions, layer, renderContext
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
 
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
 
     // Use same comprehensive logic as mirrors but with glass board defaults
     const series = customizationValues.series || 'Glass Board';
@@ -2502,7 +2817,6 @@ function renderSpecialtyGlassBoard(productData, dimensions, layer, renderContext
     const frameColor = customizationValues.frameColor || 'Polished'; // Edge finish stored here for frameless
     const glassType = customizationValues.glassType || 'Clear'; // Glass boards are typically clear
     const thickness = customizationValues.thickness || '6mm';
-    const tintFinish = customizationValues.tintFinish || '';
     const orientation = customizationValues.orientation || 'Vertical'; // Glass boards often vertical
     const style = customizationValues.style || '';
     const gridPattern = customizationValues.gridPattern || '';
@@ -2530,7 +2844,7 @@ function renderSpecialtyGlassBoard(productData, dimensions, layer, renderContext
     const offsetY = (STAGE_SIZE - totalHeight) / 2;
 
     // Get styles
-    const gStyle = getGlassStyle(glassType, tintFinish);
+    const gStyle = getGlassStyle(glassType);
     const fStyle = getFrameStyle(frameColor);
     const isFrameless = frameType.toLowerCase().includes('frameless');
 
@@ -2609,6 +2923,9 @@ function renderSpecialtyGlassBoard(productData, dimensions, layer, renderContext
     }
     layer.add(glassBoardShape);
 
+    // Apply glass type pattern
+    applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
     // Add grid pattern if specified
     if (gridPattern) {
         drawGridPattern(layer, offsetX, offsetY, totalWidth, totalHeight, gridPattern);
@@ -2640,30 +2957,11 @@ function renderSpecialtyGlassBoard(productData, dimensions, layer, renderContext
     let annotationParts = [`Thickness: ${formatThickness}`];
 
     if (isFrameless) {
-        // For frameless glass board, show edge finish
-        // Check frameColor first (since edge options are stored there when frameless)
-        // Then check edgeFinish/edgeWork as fallback
-        let edgeFinish = '';
-        const frameColorValue = (frameColor || '').toLowerCase();
-        const edgeOptions = ['machine polished edges', 'beveled edge'];
-
-        // Check if frameColor contains an edge finish option
-        const isEdgeInFrameColor = frameColor && (
-            frameColorValue.includes('polished') ||
-            frameColorValue.includes('beveled') ||
-            edgeOptions.some(opt => frameColorValue === opt.toLowerCase() || frameColorValue.includes(opt.toLowerCase()))
-        );
-
-        if (isEdgeInFrameColor) {
-            edgeFinish = frameColor;
-        } else {
-            edgeFinish = customizationValues.edgeFinish || customizationValues.edgeWork || '';
-        }
-
+        // For frameless glass board, show edge finish from the edgeFinish field
+        let edgeFinish = customizationValues.edgeFinish || customizationValues.edgeWork || '';
+        
         if (edgeFinish) {
-            const formatEdge = edgeFinish.split('-').map(word =>
-                word.charAt(0).toUpperCase() + word.slice(1)).join(' ') || edgeFinish;
-            annotationParts.push(`Edge: ${formatEdge}`);
+            annotationParts.push(`Edge: ${edgeFinish}`);
         }
     } else {
         // For framed glass board, show frame color
@@ -2710,7 +3008,8 @@ function renderCommercialStorefront(productData, dimensions, layer, renderContex
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const glassType = customizationValues.glassType || 'Clear';
     const safetyGlassType = customizationValues.safetyGlassType || 'Tempered';
@@ -2757,6 +3056,9 @@ function renderCommercialStorefront(productData, dimensions, layer, renderContex
         });
         layer.add(panelRect);
 
+        // Apply glass type pattern
+        applyGlassTypePattern(layer, panelX, offsetY, panelWidth, totalHeight, glassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
         // Panel divider
         if (i < panelCount - 1) {
             const divider = new Konva.Line({
@@ -2788,7 +3090,8 @@ function renderCommercialGlassBalcony(productData, dimensions, layer, renderCont
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const safetyGlassType = customizationValues.safetyGlassType || 'Tempered';
     const handrailType = customizationValues.handrailType || 'Stainless steel';
@@ -2833,6 +3136,9 @@ function renderCommercialGlassBalcony(productData, dimensions, layer, renderCont
         });
         layer.add(panelRect);
 
+        // Apply glass type pattern
+        applyGlassTypePattern(layer, panelX, offsetY, panelWidth, totalHeight, safetyGlassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
+
         // Panel divider
         if (i < panelCount - 1) {
             const divider = new Konva.Line({
@@ -2864,7 +3170,8 @@ function renderCommercialStairRailings(productData, dimensions, layer, renderCon
     const { DRAWING_SIZE, STAGE_SIZE, glassStyles, frameStyles } = ctx;
     
     const { width, height, unit } = dimensions;
-    const customizationValues = productData.customizationValues || {};
+    // ✅ Use window.selectedCustomizationValues (live UI state) instead of productData.customizationValues (stale)
+    const customizationValues = window.selectedCustomizationValues || {};
     
     const safetyGlassType = customizationValues.safetyGlassType || 'Tempered';
     const handrailType = customizationValues.handrailType || 'Stainless steel';
@@ -2902,6 +3209,9 @@ function renderCommercialStairRailings(productData, dimensions, layer, renderCon
         listening: false,
     });
     layer.add(railingRect);
+
+    // Apply glass type pattern
+    applyGlassTypePattern(layer, offsetX, offsetY, totalWidth, totalHeight * 0.3, safetyGlassType, (typeof glassColor !== 'undefined' ? glassColor : (gStyle && gStyle.fill) || ''));
 
     // Draw handrail on top
     const handrailY = offsetY;
@@ -3232,10 +3542,30 @@ function parsePanelConfiguration(configString, panelCount) {
  * Get glass style based on type and color
  */
 function getGlassStyle(glassType, glassColor, styles = null) {
-    const glassStyles = styles || window.glassStyles || {};
+    const DEFAULT_GLASS = { fill: '#E0F2F1', opacity: 0.9 };
+    let glassStyles = styles || window.glassStyles || {};
+    
+    // Ensure glassStyles has at least default values if empty
+    if (!glassStyles || Object.keys(glassStyles).length === 0) {
+        glassStyles = {
+            'clear': { fill: '#E0F2F1', opacity: 0.9 },
+            'tempered': { fill: '#E0F2F1', opacity: 0.9 },
+            'laminated': { fill: '#CFD8DC', opacity: 0.95 },
+            'double': { fill: '#B2DFDB', opacity: 0.9 },
+            'low-e': { fill: '#Dcedc8', opacity: 0.85 },
+            'tinted': { fill: '#546E7A', opacity: 0.7 },
+            'frosted': { fill: '#FFFFFF', opacity: 0.95 }
+        };
+    }
+    
     const normalizedType = (glassType || '').toLowerCase();
     const normalizedColor = (glassColor || '').toLowerCase();
     
+    // Also check windowsVisualConfigs for glass styles
+    const wvc = (typeof window !== 'undefined' && window.windowsVisualConfigs) || {};
+    const wvcGlass = wvc.glassType || {};
+    const wvcColor = wvc.glassColor || {};
+
     // Try combined lookup
     const combinedKey = `${normalizedType} ${normalizedColor}`.trim();
     if (glassStyles[combinedKey]) {
@@ -3249,26 +3579,102 @@ function getGlassStyle(glassType, glassColor, styles = null) {
     if (normalizedColor === 'clear' && glassStyles['clear']) {
         return glassStyles['clear'];
     }
-    if (normalizedColor.includes('frosted') || normalizedColor.includes('smoked')) {
-        return glassStyles['frosted'] || glassStyles['clear'];
+    if (normalizedColor.includes('frosted') || normalizedColor.includes('frost')) {
+        const result = glassStyles['frosted'] || glassStyles['clear'];
+        if (result) return result;
     }
     if (normalizedColor.includes('smoked')){
-        return glassStyles['smoked'] || glassStyles['clear'];
+        const result = glassStyles['smoked'] || glassStyles['clear'];
+        if (result) return result;
     }
     // Try type lookup
     if (glassStyles[normalizedType]) {
         return glassStyles[normalizedType];
     }
 
-    // Default
-    return glassStyles['clear'] || { fill: '#E0F2F1', opacity: 0.9 };
+    // Try windowsVisualConfigs lookup (case-insensitive)
+    for (const [key, val] of Object.entries(wvcGlass)) {
+        if (key.toLowerCase() === normalizedType && val && val.fill !== undefined) return val;
+    }
+    for (const [key, val] of Object.entries(wvcColor)) {
+        if (key.toLowerCase() === normalizedColor && val && val.fill !== undefined) return val;
+    }
+
+    // Default – guaranteed valid object
+    return glassStyles['clear'] || DEFAULT_GLASS;
 }
+
+/**
+ * Determine a pattern stroke color that contrasts with the glass fill.
+ * Accepts hex (#RRGGBB) or rgb(...) strings and returns an rgba(...) string.
+ */
+/**
+ * Calculate relative luminance of a color
+ * Uses WCAG 2.0 formula for better contrast determination
+ */
+function calculateLuminance(r, g, b) {
+    // Convert to 0-1 range
+    const [rs, gs, bs] = [r/255, g/255, b/255];
+    
+    // Apply gamma correction
+    const rLinear = rs <= 0.03928 ? rs / 12.92 : Math.pow((rs + 0.055) / 1.055, 2.4);
+    const gLinear = gs <= 0.03928 ? gs / 12.92 : Math.pow((gs + 0.055) / 1.055, 2.4);
+    const bLinear = bs <= 0.03928 ? bs / 12.92 : Math.pow((bs + 0.055) / 1.055, 2.4);
+    
+    // WCAG 2.0 luminance formula
+    return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+}
+
+/**
+ * Parse color string to RGB values
+ */
+function parseColorToRGB(fillColor) {
+    let r = 224, g = 242, b = 241; // default light cyan
+    
+    try {
+        const fc = String(fillColor).trim();
+        if (fc.startsWith('#')) {
+            const hex = fc.substring(1);
+            if (hex.length === 3) {
+                r = parseInt(hex[0] + hex[0], 16);
+                g = parseInt(hex[1] + hex[1], 16);
+                b = parseInt(hex[2] + hex[2], 16);
+            } else if (hex.length >= 6) {
+                r = parseInt(hex.substring(0,2), 16);
+                g = parseInt(hex.substring(2,4), 16);
+                b = parseInt(hex.substring(4,6), 16);
+            }
+        } else if (fc.startsWith('rgb')) {
+            const nums = fc.replace(/[^0-9,]/g, '').split(',').map(n=>parseInt(n,10)||0);
+            r = nums[0]||r; 
+            g = nums[1]||g; 
+            b = nums[2]||b;
+        }
+    } catch (e) {
+        console.warn('Error parsing color:', fillColor);
+    }
+    
+    return { r, g, b };
+}
+
 
 /**
  * Get frame style based on color/material
  */
 function getFrameStyle(frameColor, styles = null) {
-    const frameStyles = styles || window.frameStyles || {};
+    const DEFAULT_FRAME = { color: '#FFFFFF', width: 4 };
+    let frameStyles = styles || window.frameStyles || {};
+    
+    // Ensure frameStyles has at least default values if empty
+    if (!frameStyles || Object.keys(frameStyles).length === 0) {
+        frameStyles = {
+            'vinyl': { color: '#333333', width: 4 },
+            'aluminum': { color: '#90A4AE', width: 3 },
+            'wood': { color: '#795548', width: 6 },
+            'polished': { color: 'transparent', width: 0 },
+            'beveled': { color: 'transparent', width: 0 }
+        };
+    }
     
     // Handle array input (tags field can be an array)
     if (Array.isArray(frameColor)) {
@@ -3278,6 +3684,10 @@ function getFrameStyle(frameColor, styles = null) {
     // Normalize the frame color string
     const normalized = (frameColor || '').toLowerCase().trim();
     
+    // Also check windowsVisualConfigs for frame styles
+    const wvc = (typeof window !== 'undefined' && window.windowsVisualConfigs) || {};
+    const wvcFrame = wvc.frameColor || {};
+
     // Direct match
     if (frameStyles[normalized]) {
         return frameStyles[normalized];
@@ -3293,6 +3703,17 @@ function getFrameStyle(frameColor, styles = null) {
         }
     }
     
+    // Try windowsVisualConfigs lookup (case-insensitive)
+    for (const [key, val] of Object.entries(wvcFrame)) {
+        if (key.toLowerCase() === normalized && val && val.color !== undefined) return val;
+    }
+    for (const [key, val] of Object.entries(wvcFrame)) {
+        const keyLc = key.toLowerCase();
+        if (normalized.includes(keyLc) || keyLc.includes(normalized)) {
+            if (val && val.color !== undefined) return val;
+        }
+    }
+
     // Try common variations and mappings
     const colorMappings = {
         'powder coated white': ['powder coated white', 'powder-coated-white', 'white'],
@@ -3310,8 +3731,8 @@ function getFrameStyle(frameColor, styles = null) {
         }
     }
 
-    // Default fallback
-    return frameStyles['white'] || frameStyles['powder coated white'] || { color: '#FFFFFF', width: 4 };
+    // Default fallback – guaranteed valid object
+    return frameStyles['white'] || frameStyles['powder coated white'] || DEFAULT_FRAME;
 }
 
 /**
@@ -3382,6 +3803,220 @@ function drawGridPattern(layer, x, y, width, height, patternType) {
     }
 
     layer.add(gridGroup);
+}
+
+/**
+ * Draw frosted glass pattern overlay - uses light blue fill with diagonal dashes
+ */
+function drawFrostedGlassPattern(layer, x, y, width, height, glassColor) {
+    console.log('🔍 Drawing Frosted Pattern - x:', x, 'y:', y, 'width:', width, 'height:', height);
+    
+    const patternGroup = new Konva.Group({
+        x: x,
+        y: y,
+        listening: false,
+    });
+    
+    // Add light blue background fill
+    patternGroup.add(new Konva.Rect({ 
+        x: 0, y: 0, width: width, height: height, 
+        fill: '#D0E8F2', 
+        opacity: 0.2, 
+        listening: false 
+    }));
+    
+    // Responsive spacing based on panel size (similar to tempered pattern)
+    const minDim = Math.min(Math.max(8, Math.floor(Math.min(width, height))), 200);
+    const dashLength = Math.max(8, Math.round(minDim * 0.12));
+    const verticalSpacing = Math.max(10, Math.round(minDim * 0.16));
+    const horizontalSpacing = Math.max(10, Math.round(minDim * 0.18));
+
+    // Pattern color for frosted glass - subtle and light
+    let strokeColor = 'rgba(0, 41, 54, 0.99)'; // Light blue-gray
+    let lineOpacity = 0.6;
+    
+    if (glassColor) {
+        const gc = String(glassColor).toLowerCase().trim();
+        if (gc.includes('bronze') || gc.includes('tinted') || gc.includes('smoked') || gc.includes('dark')) {
+            // Lighter pattern for dark glass colors
+            strokeColor = 'rgb(34, 170, 224)';
+            lineOpacity = 0.7;
+        } else {
+            // Blue pattern for clear/light glass colors
+            strokeColor = 'rgb(2, 90, 134)';
+            lineOpacity = 0.6;
+        }
+    }
+
+    // Create scattered diagonal pattern with pseudo-random offsets
+    for (let py = 0; py < height; py += verticalSpacing) {
+        for (let px = 0; px < width; px += horizontalSpacing) {
+            // Offset some dashes pseudo-randomly for natural scattered look
+            const offset = ((px + 1) * (py + 1)) % 11;
+            const dashX = px + (offset > 6 ? Math.round(minDim * 0.03) : 0);
+            const dashY = py + (offset > 4 ? Math.round(minDim * 0.02) : 0);
+            
+            if (dashX < width && dashY < height) {
+                const line = new Konva.Line({
+                    points: [dashX, dashY, dashX + dashLength, dashY + (dashLength * 0.3)], // Slight diagonal
+                    stroke: strokeColor,
+                    strokeWidth: Math.max(2, Math.round(dashLength * 0.15)),
+                    opacity: lineOpacity,
+                    listening: false,
+                });
+                patternGroup.add(line);
+            }
+        }
+    }
+
+    // Clip pattern to panel bounds to avoid overflow
+    patternGroup.clipX(0);
+    patternGroup.clipY(0);
+    patternGroup.clipWidth(width);
+    patternGroup.clipHeight(height);
+
+    layer.add(patternGroup);
+    console.log('✅ Frosted pattern added to layer with light blue fill');
+}
+
+/**
+ * Draw tempered glass pattern overlay - scattered horizontal dashes
+ * Matches reference: scattered ---- marks across surface
+ */
+function drawTemperedGlassPattern(layer, x, y, width, height, glassColor) {
+    console.log('🔍 Drawing Tempered Pattern - x:', x, 'y:', y, 'width:', width, 'height:', height, 'glassColor:', glassColor);
+    
+    const patternGroup = new Konva.Group({
+        x: x,
+        y: y,
+        listening: false,
+    });
+    
+    // Responsive spacing based on panel size
+    const minDim = Math.min(Math.max(8, Math.floor(Math.min(width, height))), 200);
+    const dashLength = Math.max(8, Math.round(minDim * 0.12));
+    const verticalSpacing = Math.max(10, Math.round(minDim * 0.16));
+    const horizontalSpacing = Math.max(10, Math.round(minDim * 0.18));
+
+    // Determine pattern color based on glass color - visible on both clear and bronze
+    let strokeColor = '#000000';  // Default dark color for clear glass
+    let lineOpacity = 0.9;
+    
+    if (glassColor) {
+        const gc = String(glassColor).toLowerCase().trim();
+        if (gc.includes('bronze') || gc.includes('tinted') || gc.includes('smoked') || gc.includes('dark')) {
+            // Light pattern for dark glass colors
+            strokeColor = '#C8B4A0';  // Light tan/beige
+            lineOpacity = 0.85;
+        } else {
+            // Dark pattern for clear/light glass colors
+            strokeColor = '#000000';  // Pure black for maximum contrast
+            lineOpacity = 0.9;
+        }
+    }
+
+    // Create scattered pattern with irregular offsets for natural look
+    for (let py = 0; py < height; py += verticalSpacing) {
+        for (let px = 0; px < width; px += horizontalSpacing) {
+            // Offset some dashes pseudo-randomly for natural scattered look
+            const offset = ((px + 1) * (py + 1)) % 11;
+            const dashX = px + (offset > 6 ? Math.round(minDim * 0.03) : 0);
+            const dashY = py + (offset > 4 ? Math.round(minDim * 0.02) : 0);
+            
+            if (dashX < width && dashY < height) {
+                const line = new Konva.Line({
+                    points: [dashX, dashY, dashX + dashLength, dashY],
+                    stroke: strokeColor,
+                    strokeWidth: Math.max(2, Math.round(dashLength * 0.15)),
+                    opacity: lineOpacity,
+                    listening: false,
+                });
+                patternGroup.add(line);
+            }
+        }
+    }
+
+    // Clip pattern to panel bounds to avoid overflow
+    patternGroup.clipX(0);
+    patternGroup.clipY(0);
+    patternGroup.clipWidth(width);
+    patternGroup.clipHeight(height);
+
+    layer.add(patternGroup);
+    console.log('✅ Tempered pattern added to layer with color:', strokeColor);
+}
+
+/**
+ * Draw glass type pattern based on glass type
+ * Applies appropriate visual representation for different glass types
+ */
+function applyGlassTypePattern(layer, x, y, width, height, glassType, glassColor) {
+    if (!glassType) {
+        console.log('⚠️ No glassType provided to applyGlassTypePattern');
+        return;
+    }
+
+    const glassTypeLower = String(glassType).toLowerCase().trim();
+    console.log('🎨 applyGlassTypePattern - glassType:', glassType, 'normalized:', glassTypeLower);
+    
+    if (glassTypeLower.includes('frosted')) {
+        console.log('→ Drawing FROSTED pattern');
+        drawFrostedGlassPattern(layer, x, y, width, height, glassColor);
+    } else if (glassTypeLower.includes('tempered')) {
+        console.log('→ Drawing TEMPERED pattern');
+        drawTemperedGlassPattern(layer, x, y, width, height, glassColor);
+    } else if (glassTypeLower.includes('reflective')) {
+        console.log('→ Drawing REFLECTIVE pattern');
+        // Reflective uses enhanced reflection marks
+        drawEnhancedGlassReflections(layer, x, y, width, height, glassColor);
+    } else {
+        console.log('→ No pattern for type:', glassTypeLower);
+    }
+    // 'Ordinary', 'Clear' and other types don't have special patterns
+
+    // Ensure frame strokes (rect outlines) remain on top of any newly added pattern.
+    // Move any Rect with a stroke that intersects this pattern area to the top of the layer.
+    try {
+        const rectsIntersect = (ax, ay, aw, ah, bx, by, bw, bh) => {
+            return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+        };
+
+        if (layer && typeof layer.getChildren === 'function') {
+            const children = layer.getChildren();
+            // children is an array, iterate using standard for loop
+            for (let i = 0; i < children.length; i++) {
+                const child = children[i];
+                try {
+                    if (!child) continue;
+                    if (child.getClassName && child.getClassName() === 'Rect') {
+                        // check if rect has a stroke defined
+                        const stroke = child.stroke ? child.stroke() : (child.attrs && child.attrs.stroke);
+                        if (stroke) {
+                            const cx = (typeof child.x === 'function') ? child.x() : (child.attrs && child.attrs.x) || 0;
+                            const cy = (typeof child.y === 'function') ? child.y() : (child.attrs && child.attrs.y) || 0;
+                            const cw = (typeof child.width === 'function') ? child.width() : (child.attrs && child.attrs.width) || 0;
+                            const ch = (typeof child.height === 'function') ? child.height() : (child.attrs && child.attrs.height) || 0;
+                            if (rectsIntersect(cx, cy, cw, ch, x, y, width, height)) {
+                                child.moveToTop();
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // ignore per-instance errors; do not break render
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('applyGlassTypePattern: error while reordering strokes', err);
+    }
+}
+
+/**
+ * Draw enhanced reflection marks for reflective glass
+ * Uses simple "//" marks at center of panel
+ */
+function drawEnhancedGlassReflections(layer, x, y, width, height, glassColor) {
+    drawGlassReflections(layer, x, y, width, height, glassColor);
 }
 
 /**
@@ -3500,4 +4135,7 @@ if (typeof window !== 'undefined') {
         renderCommercialGlassBalcony,
         renderCommercialStairRailings,
     };
+    
+    // Also export updateInputVisibility globally for dynamic form field visibility control
+    window.updateInputVisibility = updateInputVisibility;
 }

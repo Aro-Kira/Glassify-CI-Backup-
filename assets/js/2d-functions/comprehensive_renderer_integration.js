@@ -45,11 +45,17 @@ function renderWithComprehensiveRenderer(options) {
     }
 
     // Prepare product data structure
+    // Handle both capitalized (Backend) and lowercase (Frontend) property names
     const productInfo = {
-        productType: productData.productType || productData.type || productData.name || '',
-        category: productData.category || '',
+        productType: productData.productType || productData.Subcategory || productData.type || productData.name || '',
+        category: productData.category || productData.Category || '',
         customizationValues: customizationValues
     };
+
+    console.log('[2D Integration] Rendering with product info:', {
+        category: productInfo.category,
+        productType: productInfo.productType
+    });
 
     // Use comprehensive renderer
     if (typeof Comprehensive2DRenderer !== 'undefined' && Comprehensive2DRenderer.renderProduct2D) {
@@ -59,7 +65,10 @@ function renderWithComprehensiveRenderer(options) {
         // Retry after a short delay in case scripts are still loading
         setTimeout(() => {
             if (typeof Comprehensive2DRenderer !== 'undefined' && Comprehensive2DRenderer.renderProduct2D) {
+                console.log('[2D Integration] Retrying render after script load');
                 Comprehensive2DRenderer.renderProduct2D(productInfo, dimensions, targetLayer);
+            } else {
+                console.error('[2D Integration] Comprehensive2DRenderer still not available after retry');
             }
         }, 100);
     }
@@ -126,12 +135,15 @@ function autoRenderFromCustomization(customizationValues, dimensions, layer = nu
     }
     // Check for Specialty-specific fields
     else if (customizationValues.shape || customizationValues.frameType || 
-             customizationValues.lighting || customizationValues.mountingMethod) {
+             customizationValues.lighting || customizationValues.mountingMethod ||
+             customizationValues.edgeFinish || customizationValues.cornerRadius) {
         category = 'Specialty';
         if (customizationValues.frameType || customizationValues.lighting) {
             productType = 'Mirrors';
-        } else if (customizationValues.edgeFinish && !customizationValues.cornerRadius) {
+        } else if ((customizationValues.edgeFinish || customizationValues.cornerRadius) && !customizationValues.lighting) {
             productType = 'Top Glass';
+        } else if (customizationValues.mountingMethod) {
+            productType = 'Glass Board';
         } else {
             productType = 'Glass Board';
         }

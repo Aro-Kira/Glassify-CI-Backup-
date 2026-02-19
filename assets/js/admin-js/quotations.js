@@ -299,11 +299,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 populateQuotationDetailsModal(data.quotation);
                 quotationDetailsModal.classList.add('active');
             } else {
-                alert('Error loading quotation details: ' + (data.message || 'Unknown error'));
+                showToast('Error loading quotation details: ' + (data.message || 'Unknown error'), 'error');
             }
         } catch (error) {
             console.error("Error loading quotation details:", error);
-            alert('Error loading quotation details. Please try again.');
+            showToast('Error loading quotation details. Please try again.', 'error');
         }
     }
     
@@ -400,7 +400,8 @@ document.addEventListener('DOMContentLoaded', function() {
     async function approveQuotation() {
         if (!currentQuotation) return;
         
-        if (!confirm('Are you sure you want to approve this quotation?')) return;
+        const confirmed = await showConfirmationAsync('Are you sure you want to approve this quotation?');
+        if (!confirmed) return;
         
         try {
             const response = await fetch(approveQuotationUrl, {
@@ -413,15 +414,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Quotation approved successfully');
+                showToast('Quotation approved successfully', 'success');
                 quotationDetailsModal.classList.remove('active');
                 loadQuotations();
             } else {
-                alert('Error: ' + (data.message || 'Failed to approve quotation'));
+                showToast('Error: ' + (data.message || 'Failed to approve quotation'), 'error');
             }
         } catch (error) {
             console.error('Error approving quotation:', error);
-            alert('Error approving quotation');
+            showToast('Error approving quotation', 'error');
         }
     }
     
@@ -430,7 +431,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const reason = document.getElementById('rejection-reason-textarea')?.value;
         if (!reason || reason.trim() === '') {
-            alert('Please provide a rejection reason');
+            showToast('Please provide a rejection reason', 'warning');
             return;
         }
         
@@ -446,23 +447,24 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Quotation rejected successfully');
+                showToast('Quotation rejected successfully', 'success');
                 quotationDetailsModal.classList.remove('active');
                 document.getElementById('rejection-reason-group').style.display = 'none';
                 loadQuotations();
             } else {
-                alert('Error: ' + (data.message || 'Failed to reject quotation'));
+                showToast('Error: ' + (data.message || 'Failed to reject quotation'), 'error');
             }
         } catch (error) {
             console.error('Error rejecting quotation:', error);
-            alert('Error rejecting quotation');
+            showToast('Error rejecting quotation', 'error');
         }
     }
     
     async function convertToOrder() {
         if (!currentQuotation) return;
         
-        if (!confirm('Are you sure you want to convert this quotation to an order?')) return;
+        const confirmed = await showConfirmationAsync('Are you sure you want to convert this quotation to an order?');
+        if (!confirmed) return;
         
         try {
             const response = await fetch(convertToOrderUrl, {
@@ -475,15 +477,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Quotation converted to order successfully');
+                showToast('Quotation converted to order successfully', 'success');
                 quotationDetailsModal.classList.remove('active');
                 loadQuotations();
             } else {
-                alert('Error: ' + (data.message || 'Failed to convert quotation'));
+                showToast('Error: ' + (data.message || 'Failed to convert quotation'), 'error');
             }
         } catch (error) {
             console.error('Error converting quotation:', error);
-            alert('Error converting quotation to order');
+            showToast('Error converting quotation to order', 'error');
         }
     }
     
@@ -504,13 +506,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Notes saved successfully');
+                showToast('Notes saved successfully', 'success');
             } else {
-                alert('Error: ' + (data.message || 'Failed to save notes'));
+                showToast('Error: ' + (data.message || 'Failed to save notes'), 'error');
             }
         } catch (error) {
             console.error('Error saving notes:', error);
-            alert('Error saving notes');
+            showToast('Error saving notes', 'error');
         }
     }
     

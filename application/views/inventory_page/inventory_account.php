@@ -14,9 +14,13 @@ $date_created = $inventory_officer ? date('F d, Y', strtotime($inventory_officer
 
 <!-- Accounts -->
 <section class="account-section">
-        <div class="section-header">
-            <h1 class="page-title">Account</h1>
-            <i class="fas fa-user-circle"></i>
+<?php
+// Inventory Account page removed — redirecting to admin dashboard.
+header('Location: ' . base_url('admin-dashboard'));
+exit;
+?>
+
+<div class="account-page">
         </div>
 
   <div class="account-card">

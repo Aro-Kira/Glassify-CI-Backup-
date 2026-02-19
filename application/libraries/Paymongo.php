@@ -134,8 +134,23 @@ class Paymongo
             ]
         ];
         
-        if (!empty($metadata)) {
-            $data['data']['attributes']['metadata'] = $metadata;
+        if (!empty($metadata) && is_array($metadata)) {
+            // PayMongo requires metadata to be flat key => string. Sanitize values.
+            $flat = [];
+            foreach ($metadata as $k => $v) {
+                if (is_array($v) || is_object($v)) {
+                    // convert nested structures to JSON string
+                    $flat[$k] = json_encode($v);
+                } elseif (is_null($v)) {
+                    // skip nulls to avoid sending nested/empty values
+                    continue;
+                } else {
+                    $flat[$k] = (string)$v;
+                }
+            }
+            if (!empty($flat)) {
+                $data['data']['attributes']['metadata'] = $flat;
+            }
         }
         
         $response = $this->make_request('/payment_intents', 'POST', $data, true);
@@ -163,10 +178,23 @@ class Paymongo
         $response = $this->make_request('/payment_intents/' . $payment_intent_id, 'GET', null, true);
         
         if ($response['success'] && isset($response['data']['data'])) {
+            $pi = $response['data']['data'];
+            $payment_id = null;
+
+            // Try common locations for the associated payment id (PayMongo responses vary)
+            if (isset($pi['attributes']['payments']['data'][0]['id'])) {
+                $payment_id = $pi['attributes']['payments']['data'][0]['id'];
+            } elseif (isset($pi['relationships']['payments']['data'][0]['id'])) {
+                $payment_id = $pi['relationships']['payments']['data'][0]['id'];
+            } elseif (isset($pi['attributes']['charges']['data'][0]['id'])) {
+                $payment_id = $pi['attributes']['charges']['data'][0]['id'];
+            }
+
             return [
                 'success' => true,
-                'payment_intent' => $response['data']['data'],
-                'status' => $response['data']['data']['attributes']['status']
+                'payment_intent' => $pi,
+                'status' => $pi['attributes']['status'],
+                'payment_id' => $payment_id
             ];
         }
         
@@ -198,13 +226,23 @@ class Paymongo
         $response = $this->make_request('/payment_intents/' . $payment_intent_id . '/attach', 'POST', $data, true);
         
         if ($response['success'] && isset($response['data']['data'])) {
+            $pi = $response['data']['data'];
+            $payment_id = null;
+
+            if (isset($pi['attributes']['payments']['data'][0]['id'])) {
+                $payment_id = $pi['attributes']['payments']['data'][0]['id'];
+            } elseif (isset($pi['relationships']['payments']['data'][0]['id'])) {
+                $payment_id = $pi['relationships']['payments']['data'][0]['id'];
+            } elseif (isset($pi['attributes']['charges']['data'][0]['id'])) {
+                $payment_id = $pi['attributes']['charges']['data'][0]['id'];
+            }
+
             return [
                 'success' => true,
-                'payment_intent' => $response['data']['data'],
-                'status' => $response['data']['data']['attributes']['status'],
-                'next_action' => isset($response['data']['data']['attributes']['next_action']) 
-                    ? $response['data']['data']['attributes']['next_action'] 
-                    : null
+                'payment_intent' => $pi,
+                'status' => $pi['attributes']['status'],
+                'next_action' => isset($pi['attributes']['next_action']) ? $pi['attributes']['next_action'] : null,
+                'payment_id' => $payment_id
             ];
         }
         
@@ -219,5 +257,21 @@ class Paymongo
     public function get_public_key()
     {
         return $this->public_key;
+    }
+
+    /**
+     * Retrieve a PayMongo Payment resource
+     * @param string $payment_id
+     * @return array
+     */
+    public function retrieve_payment($payment_id)
+    {
+        $response = $this->make_request('/payments/' . $payment_id, 'GET', null, true);
+
+        if ($response['success'] && isset($response['data']['data'])) {
+            return ['success' => true, 'payment' => $response['data']['data']];
+        }
+
+        return $response;
     }
 }

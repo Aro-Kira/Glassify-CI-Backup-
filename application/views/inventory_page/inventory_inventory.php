@@ -56,24 +56,11 @@
     <button class="add-btn" id="addItemBtn">+ Add New Item</button>
   </div>
 
-  <div id="addItemPopup" class="popup-overlay">
-    <div class="popup">
-      <button class="close-btn" id="closeAddBtn">&times;</button>
-      <h3>Add New Inventory Item</h3>
-
-      <form id="addItemForm">
-        <div class="form-group">
-          <label>Item Name:</label>
-          <input type="text" id="itemName" class="input-text" placeholder="e.g., Tempered Glass 6mm" required />
-        </div>
-
-        <div class="form-group">
-          <label>Category:</label>
-          <select id="itemCategory" class="input-text" required>
-            <option value="" disabled selected>Select Category</option>
-            <option value="door">Door</option>
-            <option value="mirror">Mirror</option>
-            <option value="partition">Partition</option>
+    <?php
+    // Inventory Page removed — deprecated. Redirect to admin dashboard.
+    header('Location: ' . base_url('admin-dashboard'));
+    exit;
+    ?>
             <option value="railings">Railings</option>
             <option value="window">Window</option>
           </select>

@@ -1,10 +1,71 @@
 <link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/checkout_style.css'); ?>">
 <script>
     const BASE_URL = "<?= base_url(); ?>";
+    const CUSTOMER_ROLE = "<?= isset($customer_role) ? $customer_role : '' ?>";
+    const IS_BEGINNER = CUSTOMER_ROLE === 'beginner';
+    
+    // PHP-provided beginner booking data (most reliable)
+    const PHP_BEGINNER_BOOKING = <?= isset($beginner_booking) && $beginner_booking ? 'true' : 'false' ?>;
+    const PHP_BEGINNER_PRODUCT_ID = "<?= isset($beginner_product_id) ? $beginner_product_id : '' ?>";
+    const PHP_BEGINNER_PRODUCT_NAME = "<?= isset($beginner_product_name) ? addslashes($beginner_product_name) : '' ?>";
+    
+    console.log('🔧 PHP Variables:');
+    console.log('   PHP_BEGINNER_BOOKING:', PHP_BEGINNER_BOOKING);
+    console.log('   PHP_BEGINNER_PRODUCT_ID:', PHP_BEGINNER_PRODUCT_ID);
+    console.log('   PHP_BEGINNER_PRODUCT_NAME:', PHP_BEGINNER_PRODUCT_NAME);
+    console.log('   CUSTOMER_ROLE:', CUSTOMER_ROLE);
     
     // Get selected cart IDs from URL parameter
     const urlParams = new URLSearchParams(window.location.search);
     const SELECTED_CART_IDS = urlParams.get('selected') || '';
+    
+    // Beginner mode: Get product info - prefer PHP data, fallback to URL/localStorage
+    let BEGINNER_PRODUCT_ID = PHP_BEGINNER_PRODUCT_ID || urlParams.get('product_id') || '';
+    let BEGINNER_PRODUCT_NAME = PHP_BEGINNER_PRODUCT_NAME || urlParams.get('product_name') || '';
+    const BEGINNER_SOURCE = urlParams.get('source') || '';
+    
+    console.log('🔍 After PHP fallback:');
+    console.log('   BEGINNER_PRODUCT_ID:', BEGINNER_PRODUCT_ID);
+    console.log('   BEGINNER_PRODUCT_NAME:', BEGINNER_PRODUCT_NAME);
+    
+    // Fallback: Check localStorage if still missing
+    if (!BEGINNER_PRODUCT_ID) {
+        try {
+            const storedProduct = localStorage.getItem('bookingProduct');
+            if (storedProduct) {
+                const parsed = JSON.parse(storedProduct);
+                if (parsed && parsed.id) {
+                    BEGINNER_PRODUCT_ID = parsed.id;
+                    BEGINNER_PRODUCT_NAME = parsed.name || '';
+                    console.log('✅ Loaded product from localStorage:', parsed);
+                }
+            }
+        } catch (e) {
+            console.log('Error reading localStorage:', e);
+        }
+    }
+    
+    // Final beginner booking detection - simplified and more robust
+    const IS_BEGINNER_BOOKING = PHP_BEGINNER_BOOKING || !!BEGINNER_PRODUCT_ID || (IS_BEGINNER && BEGINNER_SOURCE === 'beginner_booking');
+    
+    console.log('🎯 FINAL DETECTION:');
+    console.log('   IS_BEGINNER_BOOKING:', IS_BEGINNER_BOOKING);
+    console.log('   BEGINNER_PRODUCT_ID:', BEGINNER_PRODUCT_ID);
+    console.log('   BEGINNER_PRODUCT_NAME:', BEGINNER_PRODUCT_NAME);
+    console.log('   URL:', window.location.href);
+    console.log('💾 localStorage beginner_selected_product:', localStorage.getItem('beginner_selected_product'));
+    console.log('💾 localStorage beginner_booking_mode:', localStorage.getItem('beginner_booking_mode'));
+    console.log('💾 localStorage bookingProduct:', localStorage.getItem('bookingProduct'));
+    
+    // Check if we're coming from 2D modeling page
+    console.log('🔍 Document referrer:', document.referrer);
+    console.log('=====================================');
+    
+    // Force detection if we have localStorage data but URL params are missing
+    if (!IS_BEGINNER_BOOKING && localStorage.getItem('beginner_booking_mode') === 'true') {
+        console.log('🚨 FORCING BEGINNER BOOKING MODE - found localStorage flag but not detected via other methods');
+        window.FORCE_BEGINNER_BOOKING = true;
+    }
 </script>
 
 
@@ -14,15 +75,15 @@
 <div class="checkout-header">
     <!-- Back button -->
     <div class="back-btn">
-        <a href="<?php echo base_url('addtocart'); ?>">
+        <a href="javascript:history.back()">
             <img src="<?php echo base_url('assets/images/img-page/back_button.png'); ?>" alt="Back Icon">
             <span>Back</span>
         </a>
     </div>
 
     <!-- Progress nav -->
-    <div class="progress-nav">
-        <div class="step completed">Cart</div>
+    <div class="progress-nav" style="display:flex; justify-content:center; gap:12px; align-items:center;">
+        <div class="step completed">Review</div>
         <div class="divider"></div>
         <div class="step active">Booking</div>
         <div class="divider"></div>
@@ -35,7 +96,7 @@
 
     <!-- Title outside sections -->
     <div class="info-title">
-        <h2>Shipping information</h2>
+        <h2>Booking Details</h2>
         <div class="title-divider"></div>
     </div>
 
@@ -43,27 +104,27 @@
     <div class="info-container">
         <section class="info-section">
             <form id="profileForm" method="POST" action="<?= base_url('usercon/update_profile'); ?>">
-                <!-- Shipping Address -->
+                <!-- Site Address -->
                 <div class="shipping-address-title">
-                    <h3>Shipping Address</h3>
+                    <h3>Site Address</h3>
                 </div>
                 
                 <!-- User Info -->
                 <div class="form-row">
                     <div class="form-group">
-                        <label>First Name <span style="color: red;">*</span></label>
+                        <label>First Name</label>
                         <input type="text" name="firstname" value="<?= htmlspecialchars($user->First_Name ?? '') ?>"
-                            placeholder="Enter your first name" required>
+                            placeholder="Enter your first name" readonly style="background-color: #f5f5f5; cursor: not-allowed;" required>
                     </div>
                     <div class="form-group">
                         <label>Middle Name</label>
                         <input type="text" name="middlename" value="<?= htmlspecialchars($user->Middle_Name ?? '') ?>"
-                            placeholder="Enter your middle name (optional)">
+                            readonly style="background-color: #f5f5f5; cursor: not-allowed;">
                     </div>
                     <div class="form-group">
-                        <label>Last Name <span style="color: red;">*</span></label>
+                        <label>Last Name</label>
                         <input type="text" name="lastname" value="<?= htmlspecialchars($user->Last_Name ?? '') ?>"
-                            placeholder="Enter your last name" required>
+                            placeholder="Enter your last name" readonly style="background-color: #f5f5f5; cursor: not-allowed;" required>
                     </div>
                 </div>
 
@@ -103,6 +164,7 @@
                                 $addressLabel = implode(', ', $parts);
                             } else {
                                 $addressLabel = $addr->AddressLine ?? 'Address #' . $addr->AddressID;
+                                            
                             }
                             ?>
                             <option value="<?= $addr->AddressID ?>" 
@@ -119,7 +181,7 @@
                 </div>
                 <?php endif; ?>
                 
-                <!-- Shipping Address Form Fields (hidden by default if saved addresses exist) -->
+                <!-- Site Address Form Fields (hidden by default if saved addresses exist) -->
                 <div id="shipping-address-fields" style="<?= (isset($all_addresses) && !empty($all_addresses)) ? 'display: none;' : '' ?>">
                 
                 <div class="form-row">
@@ -204,13 +266,13 @@
                 </div>
 
                 </div>
-                <!-- End Shipping Address Form Fields -->
+                <!-- End Site Address Form Fields -->
                 
                 <!-- Special Instructions / Note (Always visible, not tied to saved address) -->
                 <div class="form-row">
                     <div class="form-group full-width">
                         <label>Special Instructions / Note</label>
-                        <textarea name="note" rows="3" placeholder="Add special instructions or notes for delivery (optional)"><?= htmlspecialchars($addresses['Shipping']->Note ?? '') ?></textarea>
+                        <textarea name="note" rows="3" placeholder="Add notes or special instructions (e.g., access details, preferences)"><?= htmlspecialchars($addresses['Shipping']->Note ?? '') ?></textarea>
                     </div>
                 </div>
                 
@@ -235,6 +297,30 @@
                         </small>
                     </div>
                 </div>
+                
+                <!-- Preferred Time for Ocular Visit -->
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label>Preferred Time <span style="color: red;">*</span></label>
+                        <select name="preferred_time" id="preferred_time" style="width: 100%; padding: 12px 15px; border: 1px solid #ccc; border-radius: 6px; background: white; color: #0f2b46; font-weight: 500;" required>
+                            <option value="">Select preferred time</option>
+                            <option value="08:00">8:00 AM</option>
+                            <option value="09:00">9:00 AM</option>
+                            <option value="10:00">10:00 AM</option>
+                            <option value="11:00">11:00 AM</option>
+                            <option value="12:00">12:00 PM</option>
+                            <option value="13:00">1:00 PM</option>
+                            <option value="14:00">2:00 PM</option>
+                            <option value="15:00">3:00 PM</option>
+                            <option value="16:00">4:00 PM</option>
+                            <option value="17:00">5:00 PM</option>
+                        </select>
+                        <small style="color: #666; font-size: 0.9em; display: block; margin-top: 8px; line-height: 1.4;">
+                            <i class="fas fa-clock" style="color: #0f2b46;"></i> 
+                            Available hours: <b>8:00 AM to 5:00 PM</b>
+                        </small>
+                    </div>
+                </div>
 
             </form>
         </section>
@@ -243,36 +329,68 @@
         <!-- Order Summary Section -->
         <section class="order-summary">
             <div class="order-summary-content">
-                <h3>Order Summary</h3>
+                <h3>Product Details</h3>
                 
                 <!-- Itemized List -->
-                <div id="summary-items-list" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px; padding-bottom: 10px;">
+                <div id="summary-items-list" style="max-height: 350px; overflow-y: auto; margin-bottom: 4px; padding-bottom: 4px;">
                     <!-- Items will be dynamically populated -->
-                    <div style="text-align: center; color: #888; padding: 10px;">Loading items...</div>
+                    <?php if (isset($customer_role) && $customer_role === 'beginner'): ?>
+                    <div style="text-align: center; color: #888; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 2px dashed #dee2e6;">
+                        <i class="fas fa-spinner fa-spin" style="margin-bottom: 10px; font-size: 1.2rem; color: #007bff;"></i>
+                        <div>Loading your selected product...</div>
+                        <div style="font-size: 0.8rem; color: #666; margin-top: 5px;">Please wait while we fetch your product details</div>
+                    </div>
+                    <?php else: ?>
+                    <div style="background: #ffffff; border-radius: 10px; padding: 12px; display:flex; gap:12px; align-items:center; border:1px solid #eef6fb; box-shadow: 0 2px 6px rgba(15,43,70,0.03);">
+                        <img src="<?php echo base_url('uploads/products/0070987d24e7c87bd317ac520a9872f5.jpg'); ?>" alt="Glass Board" style="width:72px; height:72px; object-fit:cover; border-radius:6px; border:1px solid #e6eef7;">
+                        <div style="flex:1;">
+                            <div style="font-weight:700; color:#1b6fb3; font-size:1.05rem;">Glass Board</div>
+                            <div style="color:#2e7d32; font-weight:600; margin-top:4px;">₱4,000 - ₱6,000</div>
+                            <div style="color:#666; margin-top:6px;">Mirrors & Specialty Glass</div>
+                            <div style="color:#888; font-style:italic; margin-top:4px;">Glass Board</div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
 
-                <div class="summary-totals-box" style="padding-top: 15px;">
-                    <p style="color: #666; font-size: 0.9em; margin-bottom: 10px;">
-                        <strong>Note:</strong> For Site Assessment Orders, final pricing will be confirmed after the ocular visit.
-                    </p>
-                    <p><span>Price Range:</span> <span id="summary-price-range" style="font-weight: 600; color: #0f2b46;">Contact for pricing</span></p>
-                    <p style="font-size: 0.85em; color: #888; font-style: italic; margin-top: 10px;">
-                        Estimated price shown above. Final quotation provided after site assessment.
-                    </p>
+                <?php if (!isset($customer_role) || $customer_role !== 'beginner'): ?>
+                <div class="summary-totals-box cart-only" style="padding-top: 4px;">
+                    <p style="display:none;"><span>Items:</span> <span id="summary-items" style="font-weight: 600; color: #0f2b46;">0</span></p>
+                    <p style="display:none;"><span>Price Range:</span> <span id="summary-price-range" style="font-weight: 600; color: #0f2b46;"></span></p>
+                    <div id="estimated-price-note" style="margin-top:4px; padding:10px; background:#fff3cd; color:#856404; border-left:4px solid #ffc107; border-radius:6px; display:flex; gap:8px; align-items:flex-start;">
+                        <div style="font-size:0.95em;">
+                            <em><strong>Note:</strong> The price shown above is an estimate. The final quotation will be provided after the site assessment.</em>
+                        </div>
+                    </div>
                 </div>
+                <?php else: ?>
+                <div class="beginner-only" style="margin-top:1rem; padding:15px; background:#e8f5e8; color:#2e7d2e; border-left:4px solid #28a745; border-radius:8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <i class="fas fa-calendar-check" style="margin-top: 2px; color: #28a745;"></i>
+                        <div style="font-size:0.95em; line-height: 1.5;">
+                            <strong>What to expect:</strong><br>
+                            Our team will visit your location to assess your needs, take measurements, and provide personalized recommendations for your selected product. No payment is required at this time.
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
-            <div class="payment-section">
+                <div class="payment-section">
+                <!-- Validation notice will be injected here when needed -->
+                <div class="terms" style="margin:0 0 8px;">
+                    <input type="checkbox" id="accept-terms">
+                    <label for="accept-terms">
+                        I have read and agree to Glassify's
+                        <a href="<?php echo base_url('terms_order'); ?>">Terms and Conditions of Purchase</a>
+                    </label>
+                </div>
                 <!-- Payment methods removed - Site Assessment Orders do not require payment at booking -->
                 <!-- Static price range displayed in order summary above -->
-                <button class="placeOrder-btn" id="confirmBookingBtn">Confirm Booking</button>
-            </div>
-
-            <div class="terms">
-                <input type="checkbox" id="accept-terms">
-                <label for="accept-terms">
-                    I have read and agree to Glassify's
-                    <a href="<?php echo base_url('terms_order'); ?>">Terms and Conditions of Purchase</a>
-                </label>
+                <?php if (isset($customer_role) && $customer_role === 'beginner'): ?>
+                <button class="placeOrder-btn" id="confirmBookingBtn">Review Booking Details</button>
+                <?php else: ?>
+                <button class="placeOrder-btn" id="confirmBookingBtn">Review Booking Details</button>
+                <?php endif; ?>
             </div>
         </section>
     </div>
@@ -296,6 +414,7 @@
 </main>
 
 
+                        
 
 
 <!-- Calendar Modal -->
@@ -354,71 +473,105 @@
 <!-- Order Confirmation Modal -->
 <div id="orderConfirmModal" class="modal">
   <div class="modal-overlay"></div>
-  <div class="modal-content">
-    <button class="modal-close" id="closeConfirmModal">&times;</button>
+    <div class="modal-content">
+        <button class="modal-close" id="closeConfirmModal">&times;</button>
 
-    <div class="modal-header">
-      <h2>📋 Order Summary</h2>
-      <span class="modal-subtitle">Please review your order before confirming</span>
-    </div>
-
-    <div class="modal-body">
-      <!-- Customer & Shipping Info -->
-      <div class="confirm-section">
-        <h4 class="confirm-section-title">
-          <span class="icon">📍</span> Shipping Details
-        </h4>
-        <div class="confirm-info-grid">
-          <div class="confirm-info-item">
-            <span class="info-label">Name</span>
-            <span class="info-value" id="confirm-name"></span>
-          </div>
-          <div class="confirm-info-item">
-            <span class="info-label">Email</span>
-            <span class="info-value" id="confirm-email"></span>
-          </div>
-          <div class="confirm-info-item">
-            <span class="info-label">Phone</span>
-            <span class="info-value" id="confirm-phone"></span>
-          </div>
-          <div class="confirm-info-item full-width">
-            <span class="info-label">Shipping Address</span>
-            <span class="info-value" id="confirm-address"></span>
-          </div>
+        <div class="modal-header">
+            <h2>📋 Review Booking Details</h2>
+            <span class="modal-subtitle">Please review your booking details before confirming</span>
         </div>
-      </div>
 
-      <!-- Payment Method removed - Site Assessment Orders do not require payment at booking -->
+                <div class="modal-body">
+            <!-- Site Address Info -->
+            <div class="confirm-section">
+                <h4 class="confirm-section-title">
+                    <span class="icon">📍</span> Site Address Details
+                </h4>
+                <div class="confirm-info-grid">
+                    <div class="confirm-info-item">
+                        <span class="info-label">Name</span>
+                        <span class="info-value" id="confirm-name"></span>
+                    </div>
+                    <div class="confirm-info-item">
+                        <span class="info-label">Email</span>
+                        <span class="info-value" id="confirm-email"></span>
+                    </div>
+                    <div class="confirm-info-item">
+                        <span class="info-label">Phone</span>
+                        <span class="info-value" id="confirm-phone"></span>
+                    </div>
+                    <div class="confirm-info-item full-width">
+                        <span class="info-label">Site Address</span>
+                        <span class="info-value" id="confirm-address"></span>
+                    </div>
+                </div>
+            </div>
+
+                    <!-- Special Instructions / Note (show under Site Address Details) -->
+                    <div class="confirm-section">
+                        <h4 class="confirm-section-title">
+                            <span class="icon">📝</span> Special Instructions / Note
+                        </h4>
+                        <div class="confirm-info-grid">
+                            <div class="confirm-info-item full-width">
+                                <span class="info-value" id="confirm-note"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Design Preview Modal -->
+                    <div id="designPreviewModal" class="modal" style="z-index:12000;">
+                        <div class="modal-overlay" onclick="closeDesignModal()"></div>
+                        <div class="modal-content" style="position:relative; max-width: 900px; width: 90%; border-radius: 8px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.3);">
+                            <div class="design-modal-header" style="background: #0f2b46; color: #fff; padding: 12px 14px; display:flex; align-items:center; justify-content:space-between;">
+                                <h3 style="margin:0; font-size:1rem; font-weight:600;">Design Preview</h3>
+                                <button onclick="closeDesignModal()" aria-label="Close design preview" style="background: rgba(255,255,255,0.12); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; box-shadow: 0 6px 14px rgba(15,43,70,0.35);">×</button>
+                            </div>
+                            <div class="modal-body" style="background: #fff; padding: 12px; display:flex; justify-content:center; align-items:center;">
+                                <img id="designPreviewImage" src="" alt="Design Preview" style="max-width: 100%; max-height: 75vh; border-radius:6px; box-shadow: 0 6px 18px rgba(0,0,0,0.15);">
+                            </div>
+                            <!-- Footer intentionally removed: header provides close control and no footer is required for design preview -->
+                        </div>
+                    </div>
+
+            <!-- Payment Method removed - Site Assessment Orders do not require payment at booking -->
       
-      <!-- Preferred Ocular Visit Date -->
-      <div class="confirm-section" id="confirm-installation-date-section" style="display: none;">
-        <h4 class="confirm-section-title">
-          <span class="icon">📅</span> Preferred Ocular Visit Date
-        </h4>
-        <div class="confirm-info-grid">
-          <div class="confirm-info-item full-width">
-            <span class="info-label">Date</span>
-            <span class="info-value" id="confirm-installation-date"></span>
-          </div>
-        </div>
-      </div>
+            <!-- Preferred Ocular Visit Date -->
+            <div class="confirm-section" id="confirm-installation-date-section" style="display: none;">
+                <h4 class="confirm-section-title">
+                    <span class="icon">📅</span> Preferred Ocular Visit Date
+                </h4>
+                <div class="confirm-info-grid">
+                    <div class="confirm-info-item">
+                        <span class="info-label">Date</span>
+                        <span class="info-value" id="confirm-installation-date"></span>
+                    </div>
+                    <div class="confirm-info-item">
+                        <span class="info-label">Time</span>
+                        <span class="info-value" id="confirm-installation-time"></span>
+                    </div>
+                </div>
+            </div>
 
-
-      <!-- Order Items -->
+            <!-- Order Items -->
       <div class="confirm-section">
         <h4 class="confirm-section-title">
           <span class="icon">🛒</span> Order Items
         </h4>
         <div class="confirm-items-container">
-          <table class="confirm-items-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Customization</th>
-                <th>Qty</th>
-                <th>Price</th>
-              </tr>
-            </thead>
+                        <table class="confirm-items-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <?php if (isset($customer_role) && $customer_role === 'beginner'): ?>
+                                <th style="text-align: left;">Price Range</th>
+                                <?php else: ?>
+                                <th>Customization</th>
+                                <th>Qty</th>
+                                <th style="text-align: left;">Price Range</th>
+                                <?php endif; ?>
+                            </tr>
+                        </thead>
             <tbody id="confirm-items-body">
               <!-- Items will be dynamically populated -->
             </tbody>
@@ -426,33 +579,101 @@
         </div>
       </div>
 
-      <!-- Order Total Summary -->
-      <div class="confirm-totals">
-        <div class="confirm-total-row">
-          <span>Subtotal</span>
-          <span id="confirm-subtotal">₱0.00</span>
-        </div>
-        <div class="confirm-total-row">
-          <span>Shipping Fee</span>
-          <span id="confirm-shipping">₱0.00</span>
-        </div>
-        <div class="confirm-total-row">
-          <span>Handling Fee</span>
-          <span id="confirm-handling">₱0.00</span>
-        </div>
-        <div class="confirm-total-row grand-total">
-          <span>Total Amount</span>
-          <span id="confirm-total">₱0.00</span>
-        </div>
-      </div>
+            <!-- Order Total Summary removed for professional bookings (Price Range not shown here) -->
     </div>
 
-    <div class="modal-footer confirm-footer">
-      <button class="btn-cancel" id="cancelOrderBtn">Cancel</button>
-      <button class="btn-confirm-order" id="confirmOrderBtn">Confirm & Place Order</button>
-    </div>
-  </div>
+        <div class="modal-footer confirm-footer">
+            <button class="btn-cancel" id="cancelOrderBtn">Cancel</button>
+            <button class="btn-confirm-order" id="confirmOrderBtn">Confirm Booking</button>
+        </div>
 </div>
+</div>
+
+<!-- Tweak sizes in the Review Booking Details modal (increase readable text and image sizes; leave buttons as-is) -->
+<style>
+    /* Make the Review Booking Details modal wider */
+    #orderConfirmModal .modal-content {
+        max-width: 1100px !important;
+        width: 95% !important;
+    }
+    /* Target the order confirmation modal only */
+    #orderConfirmModal .confirm-info-grid .info-label {
+        font-size: 0.92rem;
+        color: #374151;
+    }
+
+    #orderConfirmModal .confirm-info-grid .info-value {
+        font-size: 0.99rem;
+        color: #0f2b46;
+        font-weight: 600;
+        line-height: 1.26;
+    }
+
+    #orderConfirmModal .confirm-section-title {
+        font-size: 1.02rem;
+    }
+
+    /* Slightly smaller product thumbnail for balance */
+    #orderConfirmModal .product-thumb {
+        width: 60px !important;
+        height: 60px !important;
+        object-fit: cover !important;
+        border-radius: 6px !important;
+    }
+
+    #orderConfirmModal .product-name {
+        display: inline-block;
+        font-size: 0.98rem;
+        font-weight: 600;
+        margin-left: 10px;
+        color: #0f2b46;
+    }
+
+    /* Make customization text slightly bigger for readability */
+    #orderConfirmModal .custom-tag,
+    #orderConfirmModal .confirm-custom-tag,
+    #orderConfirmModal .view-design-text {
+        font-size: 11px !important;
+    }
+
+    /* Ensure custom details and tags container use a readable base size */
+    #orderConfirmModal .custom-details,
+    #orderConfirmModal .confirm-tags-box,
+    #orderConfirmModal .confirm-custom-tag {
+        font-size: 0.98rem !important;
+    }
+
+    /* Make table cell text slightly smaller but readable */
+    #orderConfirmModal .confirm-items-table td,
+    #orderConfirmModal .confirm-items-table th {
+        font-size: 0.94rem;
+        vertical-align: middle;
+    }
+
+    /* Remove outer lining (borders/box-shadow) around order items section */
+    #orderConfirmModal .confirm-items-container,
+    #orderConfirmModal .confirm-items-table {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    /* Remove thumbnail/thumbnail-wrapper borders to avoid inner outlines */
+    #orderConfirmModal .design-thumbnail-wrapper,
+    #orderConfirmModal .design-thumbnail-wrapper img,
+    #orderConfirmModal .product-thumb {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    /* Keep modal buttons unchanged */
+    #orderConfirmModal .modal-footer .btn-cancel,
+    #orderConfirmModal .modal-footer .btn-confirm-order {
+        font-size: inherit;
+    }
+</style>
 
 <script>
 // =============================
@@ -617,12 +838,54 @@ $(document).ready(function() {
     // LOAD SELECTED ITEMS SUMMARY
     // =============================
     function loadSelectedSummary() {
-        // Check if we have selected items
+        console.log('=== loadSelectedSummary START ===');
+        console.log('IS_BEGINNER_BOOKING:', IS_BEGINNER_BOOKING);
+        console.log('BEGINNER_PRODUCT_ID:', BEGINNER_PRODUCT_ID);
+        console.log('SELECTED_CART_IDS:', SELECTED_CART_IDS);
+        
+        // BEGINNER MODE: Handle direct product booking (no cart required)
+        // Use PHP-detected beginner booking as primary source (most reliable)
+        // Fallback to JavaScript detection if PHP didn't catch it
+        const isBeginnerBookingMode = PHP_BEGINNER_BOOKING || IS_BEGINNER_BOOKING || !!BEGINNER_PRODUCT_ID || localStorage.getItem('bookingProduct') || window.FORCE_BEGINNER_BOOKING;
+        
+        console.log('🔍 loadSelectedSummary - isBeginnerBookingMode:', isBeginnerBookingMode);
+        console.log('   PHP_BEGINNER_BOOKING:', PHP_BEGINNER_BOOKING);
+        console.log('   IS_BEGINNER_BOOKING:', IS_BEGINNER_BOOKING);
+        console.log('   BEGINNER_PRODUCT_ID:', BEGINNER_PRODUCT_ID);
+        
+        if (isBeginnerBookingMode) {
+            console.log('✅ Beginner booking mode CONFIRMED: Loading product directly');
+            
+            // Hide cart-related elements for beginners
+            const cartElements = document.querySelectorAll('.cart-only, .summary-totals-box');
+            cartElements.forEach(el => el.style.display = 'none');
+            
+            // Show beginner-specific elements
+            const beginnerElements = document.querySelectorAll('.beginner-only');
+            beginnerElements.forEach(el => el.style.display = 'block');
+            
+            loadBeginnerProductSummary();
+            return;
+        }
+        
+        console.log('❌ Regular booking mode: Checking cart items');
+        
+        // Check if we have selected items (for non-beginner or cart-based booking)
         if (!SELECTED_CART_IDS) {
-            showToast('No items selected. Redirecting to cart...', 'warning', 2000);
-            setTimeout(() => {
-                window.location.href = BASE_URL + 'addtocart';
-            }, 2000);
+            console.log('❌ No cart items selected');
+            
+            // Show more informative message for different scenarios
+            if (IS_BEGINNER) {
+                showToast('Please select a product first.', 'warning', 3000);
+                setTimeout(() => {
+                    window.location.href = BASE_URL + 'productpage';
+                }, 3000);
+            } else {
+                showToast('No items selected. Redirecting to cart...', 'warning', 2000);
+                setTimeout(() => {
+                    window.location.href = BASE_URL + 'addtocart';
+                }, 2000);
+            }
             return;
         }
 
@@ -631,10 +894,11 @@ $(document).ready(function() {
             method: "GET",
             data: { selected: SELECTED_CART_IDS },
             dataType: "json",
+            xhrFields: { withCredentials: true }, // Ensure session cookies are sent
             success: function(res) {
                 if (res.status === 'success') {
-                    const summary = res.summary;
-                    const items = res.items;
+                    const summary = (res && res.summary) ? res.summary : null;
+                    const items = res && res.items ? res.items : [];
 
                     // Update order summary - ensure elements exist
                     const itemsEl = document.getElementById('summary-items');
@@ -643,14 +907,18 @@ $(document).ready(function() {
                     
                     if (itemsEl) itemsEl.textContent = summary.items || 0;
                     
-                    // Display price range for Site Assessment Orders
-                    if (priceRangeEl && summary.price_range_min !== undefined && summary.price_range_max !== undefined) {
-                        const priceMin = parseFloat(summary.price_range_min) || 0;
-                        const priceMax = parseFloat(summary.price_range_max) || 0;
-                        if (priceMin > 0 && priceMax > 0) {
+                    // Display price range for Site Assessment Orders - prefer admin-provided values
+                    if (priceRangeEl && summary) {
+                        if (summary.price_range_min !== undefined && summary.price_range_max !== undefined) {
+                            const priceMinRaw = parseFloat(summary.price_range_min);
+                            const priceMaxRaw = parseFloat(summary.price_range_max);
+                            const priceMin = isNaN(priceMinRaw) ? 0 : priceMinRaw;
+                            const priceMax = isNaN(priceMaxRaw) ? 0 : priceMaxRaw;
                             priceRangeEl.textContent = `₱${priceMin.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} - ₱${priceMax.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                        } else if (summary.price_range) {
+                            priceRangeEl.textContent = summary.price_range;
                         } else {
-                            priceRangeEl.textContent = 'Contact for pricing';
+                            priceRangeEl.textContent = document.getElementById('summary-price-range')?.textContent || '';
                         }
                     }
 
@@ -663,13 +931,54 @@ $(document).ready(function() {
                                 itemDiv.className = 'summary-item-row';
                                 itemDiv.style.cssText = 'display: flex; gap: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 10px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02); align-items: center; position: relative;';
                                 
-                                itemDiv.innerHTML = `
-                                    <img src="${item.image}" alt="${item.description}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; flex-shrink: 0;">
-                                    <div class="summary-item-info">
-                                        <h4>${item.description}</h4>
-                                        <span class="summary-item-qty">Qty: ${item.quantity}</span>
-                                    </div>
-                                `;
+                                if (IS_BEGINNER) {
+                                    // Simplified view for beginners - only product name and image
+                                    itemDiv.innerHTML = `
+                                        <img src="${item.image}" alt="${item.description}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; flex-shrink: 0;">
+                                        <div class="summary-item-info">
+                                            <h4 style="margin: 0 0 6px 0; color: #333;">${item.description}</h4>
+                                            ${item.category ? `<p style="margin: 0; color: #666; font-size: 0.9rem;">${item.category}</p>` : ''}
+                                        </div>
+                                    `;
+                                } else {
+                                    // Full view for professional users — use beginner-style product card with fallbacks
+                                    const rawImage = item.image || item.ImageUrl || item.Image || item.ImageURL || '';
+                                    const profImageUrl = rawImage ? (rawImage.startsWith('http') ? rawImage : BASE_URL + rawImage) : (BASE_URL + 'assets/images/placeholder.png');
+
+                                    const priceMinVal = (typeof item.PriceMin !== 'undefined') ? item.PriceMin : (typeof item.price_min !== 'undefined' ? item.price_min : null);
+                                    const priceMaxVal = (typeof item.PriceMax !== 'undefined') ? item.PriceMax : (typeof item.price_max !== 'undefined' ? item.price_max : null);
+                                    const priceVal = (typeof item.Price !== 'undefined') ? item.Price : (typeof item.price !== 'undefined' ? item.price : null);
+                                    const priceRangeField = (typeof item.price_range !== 'undefined') ? item.price_range : (typeof item.PriceRange !== 'undefined' ? item.PriceRange : (typeof item.priceRange !== 'undefined' ? item.priceRange : null));
+
+                                    let priceDisplay = 'Price TBD after assessment';
+                                    // Prefer summary price range (site-assessment range) when available
+                                    if (typeof summary !== 'undefined' && summary && typeof summary.price_range_min !== 'undefined' && typeof summary.price_range_max !== 'undefined' && summary.price_range_min !== null && summary.price_range_max !== null) {
+                                        const pMin = parseFloat(summary.price_range_min);
+                                        const pMax = parseFloat(summary.price_range_max);
+                                        if (!isNaN(pMin) && !isNaN(pMax)) {
+                                            priceDisplay = `₱${pMin.toLocaleString()} - ₱${pMax.toLocaleString()}`;
+                                        }
+                                    } else if (priceMinVal !== null && priceMaxVal !== null) {
+                                        priceDisplay = `₱${parseFloat(priceMinVal).toLocaleString()} - ₱${parseFloat(priceMaxVal).toLocaleString()}`;
+                                    } else if (priceRangeField) {
+                                        priceDisplay = priceRangeField;
+                                    } else if (priceVal) {
+                                        priceDisplay = `Starting at ₱${parseFloat(priceVal).toLocaleString()}`;
+                                    }
+
+                                    const categoryText = item.category || item.Category || item.CategoryName || '';
+                                    const subcategoryText = item.subcategory || item.Subcategory || item.SubcategoryName || item.subCategory || '';
+
+                                    itemDiv.innerHTML = `
+                                        <img src="${profImageUrl}" alt="${item.description}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 10px; border: 2px solid #e3f2fd; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.src='${BASE_URL}assets/images/placeholder.png'">
+                                        <div class="summary-item-info" style="flex-grow: 1;">
+                                            <h4 style="margin: 0 0 8px 0; color: #1976d2; font-size: 1.1rem; font-weight: 600;">${item.description}</h4>
+                                            <p style="margin: 0 0 6px 0; color: #28a745; font-size: 1rem; font-weight: 600;">${priceDisplay}</p>
+                                            ${categoryText ? `<p style="margin: 0 0 2px 0; color: #666; font-size: 0.9rem;">${categoryText}</p>` : ''}
+                                            ${subcategoryText ? `<p style="margin: 0; color: #888; font-size: 0.85rem; font-style: italic;">${subcategoryText}</p>` : ''}
+                                        </div>
+                                    `;
+                                }
                                 itemsListEl.appendChild(itemDiv);
                             });
                         } else {
@@ -691,7 +1000,7 @@ $(document).ready(function() {
                     const priceRangeEl = document.getElementById('summary-price-range');
                     
                     if (itemsEl) itemsEl.textContent = '0';
-                    if (priceRangeEl) priceRangeEl.textContent = 'Contact for pricing';
+                    if (priceRangeEl) priceRangeEl.textContent = '';
                 }
             },
             error: function(xhr, status, error) {
@@ -701,7 +1010,233 @@ $(document).ready(function() {
                 const priceRangeEl = document.getElementById('summary-price-range');
                 
                 if (itemsEl) itemsEl.textContent = '0';
-                if (priceRangeEl) priceRangeEl.textContent = 'Contact for pricing';
+                if (priceRangeEl) priceRangeEl.textContent = '';
+            }
+        });
+    }
+    
+    // =============================
+    // BEGINNER MODE: Load product directly (no cart)
+    // =============================
+    function loadBeginnerProductSummary() {
+        console.log('=== loadBeginnerProductSummary START ===');
+        
+        // Priority order for product ID:
+        // 1. PHP-provided (most reliable)
+        // 2. JavaScript BEGINNER_PRODUCT_ID (from URL)
+        // 3. localStorage
+        let productId = PHP_BEGINNER_PRODUCT_ID || BEGINNER_PRODUCT_ID || '';
+        let productName = PHP_BEGINNER_PRODUCT_NAME || BEGINNER_PRODUCT_NAME || '';
+        
+        console.log('Initial productId:', productId, 'from:', 
+            PHP_BEGINNER_PRODUCT_ID ? 'PHP' : 
+            BEGINNER_PRODUCT_ID ? 'URL' : 'none');
+        
+        if (!productId) {
+            try {
+                const storedProduct = localStorage.getItem('bookingProduct');
+                if (storedProduct) {
+                    const parsed = JSON.parse(storedProduct);
+                    if (parsed && parsed.id) {
+                        productId = parsed.id;
+                        productName = parsed.name || '';
+                        console.log('✅ Using product from localStorage:', parsed);
+                    }
+                }
+            } catch (e) {
+                console.error('Error reading localStorage:', e);
+            }
+        }
+        
+        console.log('Final product ID to load:', productId);
+        console.log('Final product name:', productName);
+        
+        if (!productId) {
+            console.error('❌ No product ID available for beginner booking');
+            // Fallback: show generic product entry
+            const itemsEl = document.getElementById('summary-items');
+            const priceRangeEl = document.getElementById('summary-price-range');
+            const itemsListEl = document.getElementById('summary-items-list');
+            
+            if (itemsEl) itemsEl.textContent = '1';
+            if (priceRangeEl) priceRangeEl.textContent = 'Price TBD after assessment';
+            
+            if (itemsListEl) {
+                itemsListEl.innerHTML = `
+                    <div class="summary-item-row beginner-product-item" style="display: flex; gap: 15px; padding: 20px; border: 1px solid #e3f2fd; border-radius: 12px; margin-bottom: 15px; background: linear-gradient(135deg, #fff 0%, #f8faff 100%); box-shadow: 0 4px 12px rgba(0,123,255,0.08); align-items: center;">
+                        <div class="placeholder-icon" style="width: 90px; height: 90px; background: #f8f9fa; border-radius: 10px; border: 2px solid #e3f2fd; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="fas fa-cube" style="font-size: 2rem; color: #ccc;"></i>
+                        </div>
+                        <div class="summary-item-info">
+                            <h4 style="margin: 0 0 6px 0; color: #333;">Selected Product</h4>
+                            <p style="margin: 0; color: #666; font-size: 0.9rem;">Product details will be confirmed during ocular visit</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Set up minimal product info for booking
+            window.beginnerBookingProduct = {
+                id: 'unknown',
+                name: 'Selected Product',
+                category: '',
+                subcategory: '',
+                imageUrl: '',
+                priceRange: 'Price TBD after assessment'
+            };
+            return;
+        }
+        
+        console.log('Loading beginner product summary for product ID:', productId);
+        
+        // Fetch product details from API
+        $.ajax({
+            url: BASE_URL + "ProductCon/get_product_details",
+            method: "GET",
+            data: { product_id: productId },
+            dataType: "json",
+            success: function(res) {
+                console.log('✅ Product details response:', res);
+                
+                const itemsEl = document.getElementById('summary-items');
+                const priceRangeEl = document.getElementById('summary-price-range');
+                const itemsListEl = document.getElementById('summary-items-list');
+                
+                if (res.status === 'success' && res.product) {
+                    const product = res.product;
+                    
+                    // Update summary count
+                    if (itemsEl) itemsEl.textContent = '1';
+                    
+                    // Update price range (use product's price range if available)
+                    if (priceRangeEl) {
+                        if (product.PriceMin && product.PriceMax) {
+                            priceRangeEl.textContent = `₱${parseFloat(product.PriceMin).toLocaleString()} - ₱${parseFloat(product.PriceMax).toLocaleString()}`;
+                        } else if (product.Price) {
+                            priceRangeEl.textContent = `Starting at ₱${parseFloat(product.Price).toLocaleString()}`;
+                        } else {
+                            priceRangeEl.textContent = 'Price TBD after assessment';
+                        }
+                    }
+                    
+                    // Populate product in list
+                    if (itemsListEl) {
+                        const imageUrl = product.ImageUrl ? 
+                            (product.ImageUrl.startsWith('http') ? product.ImageUrl : BASE_URL + product.ImageUrl) :
+                            BASE_URL + 'assets/images/placeholder.png';
+                        
+                        // Build price range display
+                        let priceDisplay = 'Price TBD after assessment';
+                        if (product.PriceMin && product.PriceMax) {
+                            priceDisplay = `₱${parseFloat(product.PriceMin).toLocaleString()} - ₱${parseFloat(product.PriceMax).toLocaleString()}`;
+                        } else if (product.Price) {
+                            priceDisplay = `Starting at ₱${parseFloat(product.Price).toLocaleString()}`;
+                        }
+                        
+                        itemsListEl.innerHTML = `
+                            <div class="summary-item-row beginner-product-item" style="display: flex; gap: 15px; padding: 20px; border: 1px solid #e3f2fd; border-radius: 12px; margin-bottom: 15px; background: linear-gradient(135deg, #fff 0%, #f8faff 100%); box-shadow: 0 4px 12px rgba(0,123,255,0.08); align-items: center; transition: transform 0.2s;">
+                                <img src="${imageUrl}" alt="${product.ProductName}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 10px; border: 2px solid #e3f2fd; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.src='${BASE_URL}assets/images/placeholder.png'">
+                                <div class="summary-item-info" style="flex-grow: 1;">
+                                    <h4 style="margin: 0 0 8px 0; color: #1976d2; font-size: 1.1rem; font-weight: 600;">${product.ProductName}</h4>
+                                    <p style="margin: 0 0 6px 0; color: #28a745; font-size: 1rem; font-weight: 600;">${priceDisplay}</p>
+                                    ${product.Category ? `<p style="margin: 0 0 2px 0; color: #666; font-size: 0.9rem;">${product.Category}</p>` : ''}
+                                    ${product.Subcategory ? `<p style="margin: 0; color: #888; font-size: 0.85rem; font-style: italic;">${product.Subcategory}</p>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Store product info for booking submission
+                    const productImageUrl = product.ImageUrl ? 
+                        (product.ImageUrl.startsWith('http') ? product.ImageUrl : BASE_URL + product.ImageUrl) :
+                        BASE_URL + 'assets/images/placeholder.png';
+                    
+                    let productPriceRange = 'Price TBD after assessment';
+                    if (product.PriceMin && product.PriceMax) {
+                        productPriceRange = `₱${parseFloat(product.PriceMin).toLocaleString()} - ₱${parseFloat(product.PriceMax).toLocaleString()}`;
+                    } else if (product.Price) {
+                        productPriceRange = `Starting at ₱${parseFloat(product.Price).toLocaleString()}`;
+                    }
+                    
+                    window.beginnerBookingProduct = {
+                        id: product.Product_ID,
+                        name: product.ProductName,
+                        category: product.Category || '',
+                        subcategory: product.Subcategory || '',
+                        imageUrl: productImageUrl,
+                        priceRange: productPriceRange
+                    };
+                    
+                } else {
+                    // Product not found - use URL parameters as fallback
+                    console.log('⚠️ Product not found in API, using fallback data');
+                    
+                    if (itemsEl) itemsEl.textContent = '1';
+                    if (priceRangeEl) priceRangeEl.textContent = 'Price TBD after assessment';
+                    
+                    if (itemsListEl) {
+                        itemsListEl.innerHTML = `
+                            <div class="summary-item-row beginner-product-item" style="display: flex; gap: 15px; padding: 20px; border: 1px solid #e3f2fd; border-radius: 12px; margin-bottom: 15px; background: linear-gradient(135deg, #fff 0%, #f8faff 100%); box-shadow: 0 4px 12px rgba(0,123,255,0.08); align-items: center;">
+                                <div class="placeholder-icon" style="width: 90px; height: 90px; background: #f8f9fa; border-radius: 10px; border: 2px solid #e3f2fd; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                    <i class="fas fa-cube" style="font-size: 2rem; color: #1976d2;"></i>
+                                </div>
+                                <div class="summary-item-info">
+                                    <h4 style="margin: 0 0 6px 0; color: #333;">${decodeURIComponent(productName) || 'Selected Product'}</h4>
+                                    <p style="margin: 0; color: #666; font-size: 0.9rem;">Product ID: ${productId}</p>
+                                    <div style="margin-top: 8px; display: flex; align-items: center; color: #28a745;">
+                                        <i class="fas fa-check-circle" style="margin-right: 6px;"></i>
+                                        <span style="font-size: 0.85rem; font-weight: 500;">Ready for ocular visit</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Store product info for booking submission
+                    window.beginnerBookingProduct = {
+                        id: productId,
+                        name: decodeURIComponent(productName) || 'Selected Product',
+                        category: '',
+                        subcategory: '',
+                        imageUrl: '',
+                        priceRange: 'Price TBD after assessment'
+                    };
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ Failed to load product details:', error);
+                console.error('XHR Status:', xhr.status, 'Response:', xhr.responseText);
+                
+                // Fallback: use available data
+                const itemsEl = document.getElementById('summary-items');
+                const priceRangeEl = document.getElementById('summary-price-range');
+                const itemsListEl = document.getElementById('summary-items-list');
+                
+                if (itemsEl) itemsEl.textContent = '1';
+                if (priceRangeEl) priceRangeEl.textContent = 'Price TBD after assessment';
+                
+                if (itemsListEl) {
+                    itemsListEl.innerHTML = `
+                        <div class="summary-item-row beginner-product-item" style="display: flex; gap: 15px; padding: 20px; border: 1px solid #fff3cd; border-radius: 12px; margin-bottom: 15px; background: linear-gradient(135deg, #fff 0%, #fffbf0 100%); box-shadow: 0 4px 12px rgba(255,193,7,0.08); align-items: center;">
+                            <div class="placeholder-icon" style="width: 90px; height: 90px; background: #fff3cd; border-radius: 10px; border: 2px solid #ffc107; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #856404;"></i>
+                            </div>
+                            <div class="summary-item-info">
+                                <h4 style="margin: 0 0 6px 0; color: #333;">${decodeURIComponent(productName) || 'Selected Product'}</h4>
+                                <p style="margin: 0; color: #666; font-size: 0.9rem;">Product details will be confirmed during ocular visit</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                window.beginnerBookingProduct = {
+                    id: productId || 'unknown',
+                    name: decodeURIComponent(productName) || 'Selected Product',
+                    category: '',
+                    subcategory: '',
+                    imageUrl: '',
+                    priceRange: 'Price TBD after assessment'
+                };
             }
         });
     }
@@ -1247,39 +1782,118 @@ $(document).ready(function() {
         const lastname = form.querySelector("input[name='lastname']").value;
         const email = form.querySelector("input[name='email']").value;
         const phone = form.querySelector("input[name='phone']").value;
-        
-        // Get all address fields
-        const unitHouseNumber = form.querySelector("input[name='unit_house_number']")?.value || '';
-        const street = form.querySelector("input[name='street']")?.value || '';
-        const subdivision = form.querySelector("input[name='subdivision']")?.value || '';
-        const barangay = form.querySelector("input[name='barangay']")?.value || '';
-        const city = form.querySelector("input[name='city']")?.value || '';
-        const province = form.querySelector("input[name='province']")?.value || '';
-        const region = form.querySelector("input[name='region']")?.value || '';
-        const zipcode = form.querySelector("input[name='zipcode']")?.value || '';
-        const country = form.querySelector("input[name='country']")?.value || 'Philippines';
+
+        // Get all address fields (use let for fields we may override from saved-address data)
+        let unitHouseNumber = form.querySelector("input[name='unit_house_number']")?.value || '';
+        let street = form.querySelector("input[name='street']")?.value || '';
+        let subdivision = form.querySelector("input[name='subdivision']")?.value || '';
+        let barangay = form.querySelector("input[name='barangay']")?.value || '';
+        let city = form.querySelector("[name='city']")?.value || '';
+        let province = form.querySelector("[name='province']")?.value || '';
+        let region = form.querySelector("[name='region']")?.value || '';
+        let zipcode = form.querySelector("input[name='zipcode']")?.value || '';
+        let country = form.querySelector("input[name='country']")?.value || 'Philippines';
         const preferredInstallationDate = form.querySelector("input[name='preferred_installation_date']")?.value || '';
 
-        // Build complete address
-        const addressParts = [
-            unitHouseNumber,
-            street,
-            subdivision,
-            barangay,
-            city,
-            province,
-            region,
-            country,
-            zipcode
-        ].filter(Boolean);
-        const fullAddress = addressParts.join(', ');
+        // If user selected a saved address and shipping form is hidden, prefer saved-address data
+        const savedAddressDropdownEl = document.getElementById('saved-address-dropdown');
+        const shippingFieldsEl = document.getElementById('shipping-address-fields');
+        let selectedSavedAddressLabel = null;
+        if (savedAddressDropdownEl && savedAddressDropdownEl.value && shippingFieldsEl && shippingFieldsEl.style.display === 'none') {
+            const selectedOption = savedAddressDropdownEl.options[savedAddressDropdownEl.selectedIndex];
+            selectedSavedAddressLabel = selectedOption?.textContent?.trim() || null;
+            const addressDataRaw = selectedOption?.getAttribute('data-address') || null;
+            if (addressDataRaw) {
+                try {
+                    const addressData = JSON.parse(addressDataRaw);
+                    console.log('Booking confirm modal - parsed saved address:', addressData);
+
+                    // Helper to read multiple possible key names (case-insensitive and common variants)
+                    function readField(obj, ...keys) {
+                        if (!obj) return undefined;
+                        // direct keys first
+                        for (const k of keys) {
+                            if (obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== '') return obj[k];
+                        }
+                        // try lowercase variants
+                        const lowerMap = {};
+                        Object.keys(obj).forEach(k => { lowerMap[k.toLowerCase()] = obj[k]; });
+                        for (const k of keys) {
+                            const lk = k.toLowerCase();
+                            if (lowerMap[lk] !== undefined && lowerMap[lk] !== null && String(lowerMap[lk]).trim() !== '') return lowerMap[lk];
+                        }
+                        return undefined;
+                    }
+
+                    unitHouseNumber = readField(addressData, 'UnitHouseNumber', 'Unit', 'unit_house_number') || unitHouseNumber;
+                    street = readField(addressData, 'Street', 'street') || street;
+                    subdivision = readField(addressData, 'Subdivision', 'subdivision') || subdivision;
+                    barangay = readField(addressData, 'Barangay', 'barangay') || barangay;
+                    city = readField(addressData, 'City', 'city', 'Municipality') || city;
+                    province = readField(addressData, 'Province', 'province', 'State', 'state') || province;
+                    region = readField(addressData, 'Region', 'region') || region;
+                    zipcode = readField(addressData, 'ZipCode', 'zipcode', 'PostalCode', 'postal_code') || zipcode;
+                    country = readField(addressData, 'Country', 'country') || country;
+                } catch (err) {
+                    console.error('Failed to parse saved address JSON for confirm modal:', err);
+                }
+            }
+        }
+
+        // Build formatted address lines according to required system format:
+        // Line1: Unit/House Number, Street, Subdivision
+        // Line2: Barangay, City/Municipality, State/Province, Region, Postal Code, Country (Full Name)
+        function escapeHtml(str) {
+            if (!str && str !== 0) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        const line1Parts = [unitHouseNumber, street, subdivision].filter(Boolean);
+        const line2Parts = [barangay, city, province, region, zipcode, country].filter(Boolean);
+        const line1 = line1Parts.join(', ');
+        // If city/province missing, try to fallback to saved option label which often includes them
+        let line2 = line2Parts.join(', ');
+        if (( !city || !province ) && selectedSavedAddressLabel) {
+            // Use the saved option label as a best-effort fallback
+            line2 = selectedSavedAddressLabel + (zipcode ? (', ' + zipcode) : '') + (country ? (', ' + country) : '');
+        }
 
         // Populate shipping details
         const fullName = middlename ? `${firstname} ${middlename} ${lastname}` : `${firstname} ${lastname}`;
         document.getElementById('confirm-name').textContent = fullName;
         document.getElementById('confirm-email').textContent = email;
         document.getElementById('confirm-phone').textContent = phone;
-        document.getElementById('confirm-address').textContent = fullAddress;
+
+        const addressEl = document.getElementById('confirm-address');
+        if (addressEl) {
+            if (line1 && line2) {
+                addressEl.innerHTML = escapeHtml(line1) + '<br>' + escapeHtml(line2);
+            } else if (line1) {
+                addressEl.textContent = line1;
+            } else if (line2) {
+                addressEl.textContent = line2;
+            } else {
+                addressEl.textContent = '';
+            }
+        }
+
+        // Populate special instructions / note
+        const noteEl = document.getElementById('confirm-note');
+        const noteValue = form.querySelector("textarea[name='note']")?.value || '';
+        if (noteEl) {
+            if (noteValue && String(noteValue).trim() !== '') {
+                // Preserve line breaks and escape HTML
+                noteEl.innerHTML = escapeHtml(noteValue).replace(/\n/g, '<br>');
+            } else {
+                // Show placeholder when there's no note
+                noteEl.innerHTML = '<span style="color: #999; font-style: italic;">No notes or special instructions</span>';
+            }
+        }
 
         // Payment method not needed for Site Assessment Orders
         const paymentSection = document.getElementById('confirm-payment-section');
@@ -1290,6 +1904,10 @@ $(document).ready(function() {
         // Preferred Ocular Visit Date (for booking page)
         const installationDateSection = document.getElementById('confirm-installation-date-section');
         const installationDateValue = document.getElementById('confirm-installation-date');
+        const preferredTimeValue = document.getElementById('confirm-installation-time');
+        const preferredTimeSelect = form.querySelector("select[name='preferred_time']");
+        const preferredTime = preferredTimeSelect ? preferredTimeSelect.options[preferredTimeSelect.selectedIndex]?.text : '';
+        
         if (preferredInstallationDate) {
             const formattedDate = new Date(preferredInstallationDate).toLocaleDateString('en-US', {
                 year: 'numeric',
@@ -1298,6 +1916,9 @@ $(document).ready(function() {
             });
             if (installationDateValue) {
                 installationDateValue.textContent = formattedDate;
+            }
+            if (preferredTimeValue && preferredTime) {
+                preferredTimeValue.textContent = preferredTime;
             }
             if (installationDateSection) {
                 installationDateSection.style.display = 'block';
@@ -1310,13 +1931,91 @@ $(document).ready(function() {
 
         // Fetch SELECTED cart items from server via AJAX
         const itemsBody = document.getElementById('confirm-items-body');
-        itemsBody.innerHTML = '<tr><td colspan="4" class="no-items">Loading items...</td></tr>';
+        
+        // Check if this is a beginner booking
+        const isBeginnerMode = PHP_BEGINNER_BOOKING || IS_BEGINNER_BOOKING || !!BEGINNER_PRODUCT_ID;
+        
+        if (isBeginnerMode && window.beginnerBookingProduct) {
+            // Beginner mode: Show product with 2 columns (Product, Price Range)
+            console.log('📋 Modal: Beginner mode - showing product with price range');
+            const product = window.beginnerBookingProduct;
+            
+            const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+            
+            const productImage = product.imageUrl || placeholderSvg;
+            const priceRange = product.priceRange || 'Price TBD after assessment';
+            
+            itemsBody.innerHTML = `
+                <tr>
+                    <td class="product-cell">
+                        <div class="product-info" style="display: flex; align-items: center; gap: 12px;">
+                            <img src="${productImage}" alt="${product.name}" class="product-thumb" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #e0e0e0;" onerror="this.onerror=null; this.src='${placeholderSvg}';">
+                            <div>
+                                <span class="product-name" style="font-weight: 600; color: #333; display: block;">${product.name}</span>
+                                ${product.category ? `<span style="font-size: 0.85rem; color: #666;">${product.category}${product.subcategory ? ' - ' + product.subcategory : ''}</span>` : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="price-range-cell" style="text-align: left; font-weight: 600; color: #0f2b46;">
+                        ${priceRange}
+                    </td>
+                </tr>
+            `;
+            
+            // Hide the price range footer for beginners (already shown in table)
+            const confirmTotalsEl = document.querySelector('.confirm-totals');
+            if (confirmTotalsEl) {
+                confirmTotalsEl.style.display = 'none';
+            }
+        } else {
+            // Regular cart-based booking
+            itemsBody.innerHTML = '<tr><td colspan="4" class="no-items">Loading items...</td></tr>';
 
         $.getJSON(BASE_URL + "CartCon/get_selected_cart_ajax?selected=" + SELECTED_CART_IDS, function(res) {
             if (res.status === 'success') {
                 itemsBody.innerHTML = '';
                 
-                res.items.forEach(item => {
+                // Helper: prefer structured `final-specs` JSON when available, else fallback to customization string
+                function getSpecsFromFinalOrString(customizationString, breakdownFields) {
+                    console.log('getSpecsFromFinalOrString called with:', {
+                        customizationString: customizationString,
+                        breakdownFields: breakdownFields,
+                        isArray: Array.isArray(breakdownFields),
+                        length: breakdownFields ? breakdownFields.length : 0
+                    });
+                    
+                    // First priority: use server-provided breakdown fields (from Customization JSON in database)
+                    if (Array.isArray(breakdownFields) && breakdownFields.length) {
+                        console.log('🔍 Breakdown fields details:', JSON.stringify(breakdownFields, null, 2));
+                        const result = breakdownFields.map(f => {
+                            const label = f.label || '';
+                            const value = f.value || f.val || '';
+                            const formatted = `${label}: ${value}`;
+                            console.log(`  Field: ${label} = "${value}" → "${formatted}"`);
+                            return formatted;
+                        });
+                        console.log('Using breakdown fields, result:', result);
+                        return result;
+                    }
+
+                    // Fallback: parse provided customization string (legacy)
+                    if (!customizationString) return [];
+                    const result = customizationString.split(' | ').map(p => p && p.trim()).filter(Boolean);
+                    console.log('Using customization string fallback, result:', result);
+                    return result;
+                }
+
+                res.items.forEach((item, itemIndex) => {
+                    console.log(`Processing item ${itemIndex}:`, {
+                        cart_id: item.cart_id,
+                        customization: item.customization,
+                        customization_breakdown: item.customization_breakdown,
+                        has_breakdown: !!item.customization_breakdown,
+                        breakdown_length: item.customization_breakdown ? item.customization_breakdown.length : 0,
+                        breakdown_detail: item.customization_breakdown
+                    });
+                    console.log('🔍 Full breakdown array:', JSON.stringify(item.customization_breakdown, null, 2));
+                    
                     const row = document.createElement('tr');
                     const customizationString = item.customization || 'Standard';
                     const productImage = item.image || BASE_URL + 'assets/images/default-product.png';
@@ -1324,7 +2023,7 @@ $(document).ready(function() {
                     // Format customization - show 2D preview if available, otherwise show tags
                     let customHtml = '';
 
-                    if (item.has_design && item.design_ref) {
+                            if (item.has_design && item.design_ref) {
                         // Show 2D preview
                         customHtml = `
                             <div class="custom-layout" style="display: flex; align-items: center; gap: 8px;">
@@ -1341,10 +2040,25 @@ $(document).ready(function() {
                         `;
 
                         if (customizationString !== 'Standard') {
-                            const parts = customizationString.split(' | ');
-                            parts.forEach(part => {
-                                customHtml += `<span class="custom-tag" style="display: inline-block; background: #e8f4f8; color: #0c2c3a; padding: 2px 6px; border-radius: 3px; font-size: 9px; font-family: 'DM Sans', sans-serif; border: 1px solid #b8d4e3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${part}</span>`;
-                            });
+                            const parts = getSpecsFromFinalOrString(customizationString, item.customization_breakdown || []);
+                            // Display only first 2 specs to avoid overcrowding
+                            const displayParts = parts.slice(0, 2);
+                            const remainingCount = parts.length - 2;
+                            let displayText = displayParts.length ? displayParts.join(' • ') : 'View customization';
+                            if (remainingCount > 0) {
+                                displayText += `<br><span style="font-size:12px; color:#4b5563;">and ${remainingCount} more</span>`;
+                            }
+                            displayText += `<br><span style="font-size:11px; opacity:0.7;">▼ Click to expand</span>`;
+                            
+                            // Add indicator if using legacy fallback data vs actual 2D data
+                            const hasActual2DData = Array.isArray(item.customization_breakdown) && item.customization_breakdown.length > 0;
+                            if (!hasActual2DData && parts.length > 0) {
+                                console.warn('Using legacy field fallback for Cart_ID:', item.cart_id);
+                                displayText = '⚠️ ' + displayText + ' (legacy data)';
+                            }
+                            
+                            const breakdownPayload = hasActual2DData ? encodeURIComponent(JSON.stringify(item.customization_breakdown)) : encodeURIComponent(customizationString);
+                            customHtml += `<button type="button" class="view-more-specs open-breakdown" data-breakdown="${breakdownPayload}" data-customization="${encodeURIComponent(customizationString)}" data-item-index="${itemIndex}" style="display:inline-block; text-align:left; padding:10px 14px; border-radius:6px; border:2px solid #3b82f6; background:#eff6ff; color:#1e40af; cursor:pointer; font-size:13px; line-height:1.6; max-width:100%; word-wrap:break-word; white-space:normal; transition:all 0.2s ease; font-weight:600; box-shadow:0 2px 4px rgba(59,130,246,0.1);" onmouseover="this.style.backgroundColor='#dbeafe'; this.style.borderColor='#2563eb'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 6px rgba(59,130,246,0.2)';" onmouseout="this.style.backgroundColor='#eff6ff'; this.style.borderColor='#3b82f6'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(59,130,246,0.1)';" onclick="console.log('🖱️ Customization button clicked!', {breakdown: '${breakdownPayload}'.substring(0,100)});">${displayText}</button>`;
                         }
 
                         customHtml += `
@@ -1358,10 +2072,25 @@ $(document).ready(function() {
                         `;
 
                         if (customizationString !== 'Standard') {
-                            const parts = customizationString.split(' | ');
-                            parts.forEach(part => {
-                                customHtml += `<span class="confirm-custom-tag" style="display: inline-block; background: #e3f2fd; color: #0f2b46; padding: 4px 12px; border-radius: 6px; font-size: 12px; border: 1px solid #bbdefb; font-weight: 500;">${part}</span>`;
-                            });
+                            const parts = getSpecsFromFinalOrString(customizationString, item.customization_breakdown || []);
+                            // Display only first 2 specs to avoid overcrowding
+                            const displayParts = parts.slice(0, 2);
+                            const remainingCount = parts.length - 2;
+                            let displayText = displayParts.length ? displayParts.join(' • ') : 'View customization';
+                            if (remainingCount > 0) {
+                                displayText += `<br><span style="font-size:12px; color:#4b5563;">and ${remainingCount} more</span>`;
+                            }
+                            displayText += `<br><span style="font-size:11px; opacity:0.7;">▼ Click to expand</span>`;
+                            
+                            // Add indicator if using legacy fallback data vs actual 2D data
+                            const hasActual2DData = Array.isArray(item.customization_breakdown) && item.customization_breakdown.length > 0;
+                            if (!hasActual2DData && parts.length > 0) {
+                                console.warn('Using legacy field fallback for Cart_ID:', item.cart_id);
+                                displayText = '⚠️ ' + displayText + ' (legacy data)';
+                            }
+                            
+                            const breakdownPayload = hasActual2DData ? encodeURIComponent(JSON.stringify(item.customization_breakdown)) : encodeURIComponent(customizationString);
+                            customHtml += `<button type="button" class="view-more-specs open-breakdown" data-breakdown="${breakdownPayload}" data-customization="${encodeURIComponent(customizationString)}" data-item-index="${itemIndex}" style="display:inline-block; text-align:left; padding:10px 14px; border-radius:6px; border:2px solid #3b82f6; background:#eff6ff; color:#1e40af; cursor:pointer; font-size:13px; line-height:1.6; max-width:100%; word-wrap:break-word; white-space:normal; transition:all 0.2s ease; font-weight:600; box-shadow:0 2px 4px rgba(59,130,246,0.1);" onmouseover="this.style.backgroundColor='#dbeafe'; this.style.borderColor='#2563eb'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 6px rgba(59,130,246,0.2)';" onmouseout="this.style.backgroundColor='#eff6ff'; this.style.borderColor='#3b82f6'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(59,130,246,0.1)';" onclick="console.log('🖱️ Customization button clicked!', {breakdown: '${breakdownPayload}'.substring(0,100)});">${displayText}</button>`;
                         } else {
                             customHtml += '<span style="color: #888; font-size: 12px;">Standard</span>';
                         }
@@ -1374,57 +2103,201 @@ $(document).ready(function() {
                     // Placeholder SVG for missing images
                     const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
                     
+                    // Determine item-level price range
+                    let priceRangeText = '';
+                    try {
+                        const pMin = (item.PriceMin !== undefined) ? parseFloat(item.PriceMin) : (item.price_min !== undefined ? parseFloat(item.price_min) : null);
+                        const pMax = (item.PriceMax !== undefined) ? parseFloat(item.PriceMax) : (item.price_max !== undefined ? parseFloat(item.price_max) : null);
+                        if (pMin != null && pMax != null && !isNaN(pMin) && !isNaN(pMax)) {
+                            priceRangeText = `₱${pMin.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} - ₱${pMax.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+                        } else if (pMin != null && !isNaN(pMin)) {
+                            priceRangeText = `Starting at ₱${pMin.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+                        } else if (item.Price !== undefined || item.price !== undefined || item.total !== undefined) {
+                            const single = item.Price !== undefined ? parseFloat(item.Price) : (item.price !== undefined ? parseFloat(item.price) : parseFloat(item.total || 0));
+                            if (!isNaN(single)) priceRangeText = `₱${single.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}`;
+                        }
+                    } catch (e) { console.warn('Price range parse error', e); }
+
                     row.innerHTML = `
                         <td class="product-cell">
                             <div class="product-info">
                                 <img src="${productImage}" alt="${item.description}" class="product-thumb" onerror="this.onerror=null; this.src='${placeholderSvg}';">
-                                <span class="product-name">${item.description}</span>
+                                <div style="display:flex; flex-direction:column;">
+                                    <span class="product-name">${item.description}</span>
+                                    ${item.category ? `<span style="font-size: 0.85rem; color: #666; margin-top:4px;">${item.category}${item.subcategory ? ' - ' + item.subcategory : ''}</span>` : ''}
+                                </div>
                             </div>
                         </td>
                         <td class="customization-cell">${customHtml}</td>
                         <td class="qty-cell">${item.quantity}</td>
-                        <td class="price-cell">₱${itemTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        <td class="price-range-cell" style="text-align: left; font-weight:600; color:#0f2b46;">${priceRangeText}</td>
                     `;
                     itemsBody.appendChild(row);
                 });
 
-                // Update totals from server response
-                const summary = res.summary;
-                document.getElementById('confirm-subtotal').textContent = '₱' + (summary.subtotal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                document.getElementById('confirm-shipping').textContent = '₱' + (summary.shipping || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                document.getElementById('confirm-handling').textContent = '₱' + (summary.handling || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                document.getElementById('confirm-total').textContent = '₱' + (summary.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                // Update price range from server response (defensive) - always prefer admin-provided values
+                const summary = (res && res.summary) ? res.summary : null;
+                const confirmPriceEl = document.getElementById('confirm-price-range');
+                if (confirmPriceEl) {
+                    if (summary) {
+                        if (summary.price_range_min !== undefined && summary.price_range_max !== undefined) {
+                            const priceMinRaw = parseFloat(summary.price_range_min);
+                            const priceMaxRaw = parseFloat(summary.price_range_max);
+                            const priceMin = isNaN(priceMinRaw) ? 0 : priceMinRaw;
+                            const priceMax = isNaN(priceMaxRaw) ? 0 : priceMaxRaw;
+                            confirmPriceEl.textContent = `₱${priceMin.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} - ₱${priceMax.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                        } else if (summary.price_range) {
+                            confirmPriceEl.textContent = summary.price_range;
+                        } else {
+                            confirmPriceEl.textContent = document.getElementById('summary-price-range')?.textContent || '';
+                        }
+                    } else {
+                        confirmPriceEl.textContent = document.getElementById('summary-price-range')?.textContent || '';
+                    }
+                }
             } else {
                 // Fallback: Get totals from page summary (already includes peso sign)
-                const subtotal = document.getElementById('summary-subtotal').textContent;
-                const shipping = document.getElementById('summary-shipping').textContent;
-                const handling = document.getElementById('summary-handling').textContent;
-                const total = document.getElementById('summary-total').textContent;
+                const summaryPriceRange = document.getElementById('summary-price-range')?.textContent || '';
                 const itemCount = document.querySelectorAll('.summary-item-row').length;
-
-                document.getElementById('confirm-subtotal').textContent = subtotal;
-                document.getElementById('confirm-shipping').textContent = shipping;
-                document.getElementById('confirm-handling').textContent = handling;
-                document.getElementById('confirm-total').textContent = total;
+                const confirmPriceEl = document.getElementById('confirm-price-range');
+                if (confirmPriceEl) confirmPriceEl.textContent = summaryPriceRange;
                 
                 itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
             }
         }).fail(function() {
             // Fallback on AJAX failure (values already include peso sign)
-            const subtotal = document.getElementById('summary-subtotal').textContent;
-            const shipping = document.getElementById('summary-shipping').textContent;
-            const handling = document.getElementById('summary-handling').textContent;
-            const total = document.getElementById('summary-total').textContent;
+            const summaryPriceRange = document.getElementById('summary-price-range')?.textContent || '';
             const itemCount = document.querySelectorAll('.summary-item-row').length;
-
-            document.getElementById('confirm-subtotal').textContent = subtotal;
-            document.getElementById('confirm-shipping').textContent = shipping;
-            document.getElementById('confirm-handling').textContent = handling;
-            document.getElementById('confirm-total').textContent = total;
-            
+            const confirmPriceEl = document.getElementById('confirm-price-range');
+            if (confirmPriceEl) confirmPriceEl.textContent = summaryPriceRange;
             itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
         });
+        } // End of else block for regular cart booking
     }
+
+    // Design preview helper
+    window.showDesignModal = function(url) {
+        try {
+            const modal = document.getElementById('designPreviewModal');
+            const img = document.getElementById('designPreviewImage');
+            if (!modal || !img) return;
+            img.src = url || '';
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        } catch (e) {
+            console.error('Failed to open design preview modal', e);
+        }
+    };
+
+    window.closeDesignModal = function() {
+        const modal = document.getElementById('designPreviewModal');
+        const img = document.getElementById('designPreviewImage');
+        if (!modal) return;
+        modal.classList.remove('show');
+        if (img) img.src = '';
+        document.body.style.overflow = '';
+    };
+
+    // Close design modal when clicking overlay
+    document.getElementById('designPreviewModal')?.querySelector('.modal-overlay')?.addEventListener('click', closeDesignModal);
+
+    // Close design modal on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.getElementById('designPreviewModal')?.classList.contains('show')) {
+            closeDesignModal();
+        }
+    });
+
+    // View more specs handler - opens breakdown modal showing full 2D customization breakdown
+    $(document).on('click', '.view-more-specs', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🔍 Modal trigger clicked!');
+        const btn = $(this);
+        const encodedBreakdown = btn.data('breakdown') || btn.attr('data-breakdown') || '';
+        const encoded = btn.data('customization') || btn.attr('data-customization') || '';
+        const customizationString = decodeURIComponent(String(encoded || ''));
+        console.log('📦 Breakdown payload:', encodedBreakdown.substring(0, 200));
+
+        // Attempt to use structured breakdown (JSON) first, fallback to string parsing
+        let breakdownObj = null;
+        if (encodedBreakdown) {
+            try {
+                const decoded = decodeURIComponent(String(encodedBreakdown || ''));
+                breakdownObj = JSON.parse(decoded);
+            } catch (e) {
+                breakdownObj = null;
+            }
+        }
+
+        let contentHtml = '';
+
+        if (Array.isArray(breakdownObj) && breakdownObj.length) {
+            contentHtml += '<div class="breakdown-list" style="padding:0;">';
+            breakdownObj.forEach(entry => {
+                const label = entry.label || '';
+                const value = entry.value || entry.val || '';
+                // Skip entries with no value
+                if (!value || value === '' || value === 'None') {
+                    contentHtml += `<div style="margin-bottom:16px; padding:12px; background:#f9fafb; border-left:4px solid #d1d5db; border-radius:4px;"><strong style="display:block;color:#1f2937; margin-bottom:6px; font-size:14px;">${label}</strong><div style="color:#9ca3af; font-style:italic; font-size:13px;">Not specified</div></div>`;
+                } else {
+                    contentHtml += `<div style="margin-bottom:16px; padding:12px; background:#f0f9ff; border-left:4px solid:#3b82f6; border-radius:4px;"><strong style="display:block;color:#1e40af; margin-bottom:6px; font-size:14px;">${label}</strong><div style="color:#1f2937; font-size:14px; font-weight:500;">${value}</div></div>`;
+                }
+            });
+            contentHtml += '</div>';
+        } else if (breakdownObj && typeof breakdownObj === 'object' && Object.keys(breakdownObj).length) {
+            contentHtml += '<div class="breakdown-list" style="padding:0;">';
+            Object.keys(breakdownObj).forEach(k => {
+                const label = k;
+                const value = breakdownObj[k];
+                contentHtml += `<div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #e5e7eb;"><strong style="display:block;color:#0f2b46; margin-bottom:4px;">${label}</strong><div style="color:#374151;">${value}</div></div>`;
+            });
+            contentHtml += '</div>';
+        } else {
+            // Fallback: parse customization string parts
+            const parts = customizationString ? customizationString.split(' | ').map(p => p && p.trim()).filter(Boolean) : [];
+            if (parts.length > 0) {
+                contentHtml += '<div class="breakdown-list" style="padding:0;">';
+                parts.forEach(p => {
+                    const colonIdx = p.indexOf(':');
+                    if (colonIdx > 0) {
+                        const label = p.substring(0, colonIdx).trim();
+                        const value = p.substring(colonIdx + 1).trim();
+                        contentHtml += `<div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #e5e7eb;"><strong style="display:block;color:#0f2b46; margin-bottom:4px;">${label}</strong><div style="color:#374151;">${value}</div></div>`;
+                    } else {
+                        contentHtml += `<div style="margin-bottom:12px; padding-bottom:12px; border-bottom:1px solid #e5e7eb;"><div style="color:#374151;">${p}</div></div>`;
+                    }
+                });
+                contentHtml += '</div>';
+            } else {
+                contentHtml = '<p style="color:#6b7280;">No customization details available.</p>';
+            }
+        }
+
+        // Insert into modal body and show
+        let modal = document.getElementById('breakdownModal');
+        if (!modal) {
+            // create modal markup if not present
+            const modalHtml = `
+                <div id="breakdownModal" class="modal-backdrop" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;">
+                    <div class="modal-content" style="max-width:720px;width:90%;max-height:85vh;overflow-y:auto;background:#fff;border-radius:12px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);">
+                        <div class="modal-header" style="background:#1e3a8a;color:#fff;padding:16px 20px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;">
+                            <h3 style="margin:0;font-size:20px;font-weight:700;">2D Customization Breakdown</h3>
+                            <button class="modal-close" id="breakdownModalClose" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:28px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)';" onmouseout="this.style.background='rgba(255,255,255,0.2)';">&times;</button>
+                        </div>
+                        <div class="modal-body" id="breakdownModalBody" style="padding:24px;background:#fff;border-radius:0 0 12px 12px;">${contentHtml}</div>
+                    </div>
+                </div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            modal = document.getElementById('breakdownModal');
+            // attach close
+            document.getElementById('breakdownModalClose')?.addEventListener('click', function() { modal.remove(); document.body.style.overflow=''; });
+        } else {
+            document.getElementById('breakdownModalBody').innerHTML = contentHtml;
+        }
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    });
 
     // === Custom Calendar Logic ===
     let calCurrentDate = new Date();
@@ -1682,7 +2555,24 @@ $(document).ready(function() {
                 validationNotice.style.cssText = 'margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px; color: #856404;';
                 const buttonParent = confirmBookingBtn.parentElement;
                 if (buttonParent) {
-                    buttonParent.insertBefore(validationNotice, confirmBookingBtn);
+                    // Prefer inserting the validation notice immediately after the Terms
+                    // checkbox so the order is: [Terms checkbox] -> [validation notice] -> [Review Booking button]
+                    const termsEl = buttonParent.querySelector('.terms');
+                    try {
+                        if (termsEl && typeof termsEl.insertAdjacentElement === 'function') {
+                            termsEl.insertAdjacentElement('afterend', validationNotice);
+                        } else if (termsEl) {
+                            // fallback: append after terms
+                            buttonParent.insertBefore(validationNotice, termsEl.nextSibling);
+                        } else {
+                            // final fallback: put at top
+                            buttonParent.insertBefore(validationNotice, buttonParent.firstChild);
+                        }
+                    } catch (ex) {
+                        // In case insertAdjacentElement fails in older environments, fallback
+                        if (termsEl) buttonParent.insertBefore(validationNotice, termsEl.nextSibling);
+                        else buttonParent.insertBefore(validationNotice, buttonParent.firstChild);
+                    }
                 }
             }
             
@@ -1768,8 +2658,26 @@ $(document).ready(function() {
             formData.append('preferred_installation_date', preferredDateInput.value);
         }
         
-        // Add selected cart IDs
-        formData.append('selected_cart_ids', SELECTED_CART_IDS);
+        // Add preferred time
+        const preferredTimeSelect = form.querySelector("select[name='preferred_time']");
+        if (preferredTimeSelect && preferredTimeSelect.value) {
+            formData.append('preferred_time', preferredTimeSelect.value);
+        }
+        
+        // Add selected cart IDs or beginner product info
+        if (IS_BEGINNER_BOOKING && window.beginnerBookingProduct) {
+            // Beginner booking: send product info instead of cart IDs
+            formData.append('is_beginner_booking', 'true');
+            formData.append('beginner_product_id', window.beginnerBookingProduct.id);
+            formData.append('beginner_product_name', window.beginnerBookingProduct.name);
+            formData.append('beginner_product_category', window.beginnerBookingProduct.category);
+            formData.append('beginner_product_subcategory', window.beginnerBookingProduct.subcategory);
+            // Don't need cart IDs for beginner booking
+            formData.append('selected_cart_ids', '');
+            console.log('Beginner booking - Product:', window.beginnerBookingProduct);
+        } else {
+            formData.append('selected_cart_ids', SELECTED_CART_IDS);
+        }
         formData.append('terms_accepted', termsAccepted ? 'true' : 'false');
         
         // Disable button and show loading state
@@ -1807,7 +2715,8 @@ $(document).ready(function() {
         fetch(BASE_URL + 'shopcon/confirm_booking', {
             method: 'POST',
             body: formData,
-            signal: controller.signal
+            signal: controller.signal,
+            credentials: 'include' // Ensure session cookies are sent
         })
         .then(async response => {
             const contentType = response.headers.get('content-type');
@@ -1844,7 +2753,18 @@ $(document).ready(function() {
             if (data.status === 'success') {
                 // Show success message briefly before redirect
                 console.log('Redirecting to:', data.redirect_url);
-                window.location.href = data.redirect_url;
+                // Fallback: if server did not provide a redirect, send to complete booking page for site-assessment
+                let redirectUrl = data.redirect_url;
+                if (!redirectUrl) {
+                    const isSite = data.is_site_assessment || data.order_type === 'site-assessment' || data.order_type === 'site_assessment';
+                    const orderId = data.order_id || data.OrderID || data.orderID || '';
+                    if (isSite) {
+                        redirectUrl = BASE_URL + 'complete_booking' + (orderId ? ('?order=' + orderId) : '');
+                    } else {
+                        redirectUrl = BASE_URL + 'complete' + (orderId ? ('?order=' + orderId) : '');
+                    }
+                }
+                window.location.href = redirectUrl;
             } else {
                 // Show error message with debug info
                 let errorMsg = data.message || 'An error occurred. Please try again.';

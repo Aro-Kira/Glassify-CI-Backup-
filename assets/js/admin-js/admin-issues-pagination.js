@@ -470,8 +470,9 @@
     /**
      * Mark issue as resolved
      */
-    function markIssueResolved(issueId) {
-        if (!confirm('Are you sure you want to mark this issue as resolved?')) {
+    async function markIssueResolved(issueId) {
+        const confirmed = await showConfirmationAsync('Are you sure you want to mark this issue as resolved?');
+        if (!confirmed) {
             return;
         }
 
@@ -636,14 +637,22 @@
      * Show error message
      */
     function showError(message) {
-        alert('Error: ' + message); // Can be replaced with a toast notification
+        if (typeof showToast === 'function') {
+            showToast(message, 'error');
+        } else {
+            console.error('Error:', message);
+        }
     }
 
     /**
      * Show success message
      */
     function showSuccess(message) {
-        alert('Success: ' + message); // Can be replaced with a toast notification
+        if (typeof showToast === 'function') {
+            showToast(message, 'success');
+        } else {
+            console.log('Success:', message);
+        }
     }
 
 })();

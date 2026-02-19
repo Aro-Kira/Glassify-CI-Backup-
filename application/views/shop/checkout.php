@@ -5,7 +5,129 @@
     // Get selected cart IDs from URL parameter
     const urlParams = new URLSearchParams(window.location.search);
     const SELECTED_CART_IDS = urlParams.get('selected') || '';
+
+    // Stage payment mode flag (from Track Order Pay Now)
+    const IS_STAGE_PAYMENT = <?= !empty($stage_payment) ? 'true' : 'false' ?>;
+    
+    // Global variable to store loaded cart items for modal reuse
+    window.loadedCartItems = null;
+    window.loadedCartSummary = null;
+    
+    <?php if (!empty($stage_payment)): ?>
+    // Stage payment data
+    window.stagePaymentData = {
+        order_id: "<?= $stage_payment['order_id'] ?>",
+        order_number: "<?= htmlspecialchars($stage_payment['order_number']) ?>",
+        stage: "<?= $stage_payment['stage'] ?>",
+        stage_label: "<?= htmlspecialchars($stage_payment['stage_label']) ?>",
+        amount: <?= $stage_payment['amount'] ?>,
+        items: <?= json_encode(array_map(function($item) {
+            return [
+                'ProductName' => $item->ProductName ?? '',
+                'ImageUrl' => $item->ImageUrl ?? '',
+                'Category' => $item->Category ?? '',
+                'Subcategory' => $item->Subcategory ?? '',
+                'PriceMin' => $item->PriceMin ?? null,
+                'PriceMax' => $item->PriceMax ?? null,
+                'Quantity' => intval($item->Quantity ?? 1),
+                'Customization' => $item->Customization ?? '',
+                'DesignRef' => $item->DesignRef ?? '',
+                'Dimensions' => $item->Dimensions ?? ''
+            ];
+        }, $stage_payment['items'])) ?>
+    };
+    <?php endif; ?>
 </script>
+
+<!-- Make the Order Summary modal match Review Booking Details modal sizing and typography -->
+<style>
+    /* Make the Order Summary / Confirm modal wider */
+    #orderConfirmModal .modal-content {
+        max-width: 1100px !important;
+        width: 95% !important;
+    }
+
+    #orderConfirmModal .confirm-info-grid .info-label {
+        font-size: 0.92rem;
+        color: #374151;
+    }
+
+    #orderConfirmModal .confirm-info-grid .info-value {
+        font-size: 0.99rem;
+        color: #0f2b46;
+        font-weight: 600;
+        line-height: 1.26;
+    }
+
+    #orderConfirmModal .confirm-section-title {
+        font-size: 1.02rem;
+    }
+
+    #orderConfirmModal .product-thumb {
+        width: 60px !important;
+        height: 60px !important;
+        object-fit: cover !important;
+        border-radius: 6px !important;
+    }
+
+    #orderConfirmModal .product-info {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    #orderConfirmModal .product-details {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    #orderConfirmModal .product-name {
+        font-size: 0.98rem;
+        font-weight: 600;
+        color: #1976d2;
+        line-height: 1.3;
+    }
+
+    #orderConfirmModal .custom-tag,
+    #orderConfirmModal .confirm-custom-tag,
+    #orderConfirmModal .view-design-text {
+        font-size: 11px !important;
+    }
+
+    #orderConfirmModal .custom-details,
+    #orderConfirmModal .confirm-tags-box,
+    #orderConfirmModal .confirm-custom-tag {
+        font-size: 0.98rem !important;
+    }
+
+    #orderConfirmModal .confirm-items-table td,
+    #orderConfirmModal .confirm-items-table th {
+        font-size: 0.94rem;
+        vertical-align: middle;
+    }
+
+    #orderConfirmModal .confirm-items-container,
+    #orderConfirmModal .confirm-items-table {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+
+    #orderConfirmModal .design-thumbnail-wrapper,
+    #orderConfirmModal .design-thumbnail-wrapper img,
+    #orderConfirmModal .product-thumb {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    #orderConfirmModal .modal-footer .btn-cancel,
+    #orderConfirmModal .modal-footer .btn-confirm-order {
+        font-size: inherit;
+    }
+</style>
 
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -14,7 +136,7 @@
 <div class="checkout-header">
     <!-- Back button -->
     <div class="back-btn">
-        <a href="<?php echo base_url('addtocart'); ?>">
+        <a href="javascript:history.back()">
             <img src="<?php echo base_url('assets/images/img-page/back_button.png'); ?>" alt="Back Icon">
             <span>Back</span>
         </a>
@@ -22,11 +144,20 @@
 
     <!-- Progress nav -->
     <div class="progress-nav">
-        <div class="step completed">Cart</div>
-        <div class="divider"></div>
-        <div class="step active">Payment</div>
-        <div class="divider"></div>
-        <div class="step">Complete</div>
+        <?php $origin = isset($payment_origin) ? $payment_origin : 'cart'; ?>
+        <?php if ($origin === 'stage_payment'): ?>
+            <div class="step completed">Track Order</div>
+            <div class="divider"></div>
+            <div class="step active">Payment</div>
+            <div class="divider"></div>
+            <div class="step">Complete</div>
+        <?php else: ?>
+            <div class="step completed"><?= ($origin === 'review') ? 'Review' : 'Cart' ?></div>
+            <div class="divider"></div>
+            <div class="step active">Order & Payment</div>
+            <div class="divider"></div>
+            <div class="step">Complete</div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -35,7 +166,7 @@
 
     <!-- Title outside sections -->
     <div class="info-title">
-        <h2>Shipping information</h2>
+        <h2>Order & Payment Details</h2>
         <div class="title-divider"></div>
     </div>
 
@@ -52,36 +183,50 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>First Name <span style="color: red;">*</span></label>
-                        <input type="text" name="firstname" value="<?= htmlspecialchars($user->First_Name ?? '') ?>"
-                            placeholder="Enter your first name" required>
+                        <input type="text" name="firstname" value="<?= htmlspecialchars(!empty($stage_payment) ? ($stage_payment['customer']['first_name'] ?? $user->First_Name ?? '') : ($user->First_Name ?? '')) ?>"
+                            placeholder="Enter your first name" required <?= !empty($stage_payment) ? 'readonly style="background: #f5f5f5; cursor: not-allowed;"' : '' ?>>
                     </div>
                     <div class="form-group">
                         <label>Middle Name</label>
                         <input type="text" name="middlename" value="<?= htmlspecialchars($user->Middle_Name ?? '') ?>"
-                            placeholder="Enter your middle name (optional)">
+                            placeholder="Enter your middle name (optional)" <?= !empty($stage_payment) ? 'readonly style="background: #f5f5f5; cursor: not-allowed;"' : '' ?>>
                     </div>
                     <div class="form-group">
                         <label>Last Name <span style="color: red;">*</span></label>
-                        <input type="text" name="lastname" value="<?= htmlspecialchars($user->Last_Name ?? '') ?>"
-                            placeholder="Enter your last name" required>
+                        <input type="text" name="lastname" value="<?= htmlspecialchars(!empty($stage_payment) ? ($stage_payment['customer']['last_name'] ?? $user->Last_Name ?? '') : ($user->Last_Name ?? '')) ?>"
+                            placeholder="Enter your last name" required <?= !empty($stage_payment) ? 'readonly style="background: #f5f5f5; cursor: not-allowed;"' : '' ?>>
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Email address <span style="color: red;">*</span></label>
-                        <input type="email" name="email" value="<?= htmlspecialchars($user->Email) ?>"
-                            placeholder="Enter your email address" required>
+                        <input type="email" name="email" value="<?= htmlspecialchars(!empty($stage_payment) ? ($stage_payment['customer']['email'] ?? $user->Email) : $user->Email) ?>"
+                            placeholder="Enter your email address" required <?= !empty($stage_payment) ? 'readonly style="background: #f5f5f5; cursor: not-allowed;"' : '' ?>>
                     </div>
                     <div class="form-group">
                         <label>Phone number <span style="color: red;">*</span></label>
-                        <input type="tel" name="phone" value="<?= htmlspecialchars($user->PhoneNum) ?>" maxlength="11"
-                            placeholder="Enter your phone number" required>
+                        <input type="tel" name="phone" value="<?= htmlspecialchars(!empty($stage_payment) ? ($stage_payment['customer']['phone'] ?? $user->PhoneNum) : $user->PhoneNum) ?>" maxlength="11"
+                            placeholder="Enter your phone number" required <?= !empty($stage_payment) ? 'readonly style="background: #f5f5f5; cursor: not-allowed;"' : '' ?>>
                     </div>
                 </div>
                 
-                <!-- Saved Address Selector -->
-                <?php if (isset($all_addresses) && !empty($all_addresses)): ?>
+                <!-- Saved Address Selector (Hidden for stage payment) -->
+                <?php if (!empty($stage_payment)): ?>
+                    <!-- Stage Payment - Show full address as readonly text input -->
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label>Address <span style="color: red;">*</span></label>
+                            <input type="text" name="shipping_address" value="<?= htmlspecialchars($stage_payment['address_parts']['full_address'] ?? '') ?>" readonly style="background: #f5f5f5; cursor: not-allowed;">
+                        </div>
+                    </div>
+                    <!-- Hidden fields for barangay, city and province so they appear in the order review modal -->
+                    <input type="hidden" name="barangay" value="<?= htmlspecialchars($stage_payment['address_parts']['barangay'] ?? '') ?>">
+                    <input type="hidden" name="city" value="<?= htmlspecialchars($stage_payment['address_parts']['city'] ?? '') ?>">
+                    <input type="hidden" name="province" value="<?= htmlspecialchars($stage_payment['address_parts']['province'] ?? '') ?>">
+                    <input type="hidden" name="zipcode" value="<?= htmlspecialchars($stage_payment['address_parts']['zipcode'] ?? '') ?>">
+                    <input type="hidden" name="country" value="<?= htmlspecialchars($stage_payment['address_parts']['country'] ?? 'Philippines') ?>">
+                <?php elseif (isset($all_addresses) && !empty($all_addresses)): ?>
                 <div class="saved-address-selector" style="margin-bottom: 20px;">
                     <label for="saved-address-dropdown" style="display: block; margin-bottom: 8px; font-weight: 600; color: #0f2b46;">
                         Select from Saved Addresses
@@ -119,8 +264,8 @@
                 </div>
                 <?php endif; ?>
                 
-                <!-- Shipping Address Form Fields (hidden by default if saved addresses exist) -->
-                <div id="shipping-address-fields" style="<?= (isset($all_addresses) && !empty($all_addresses)) ? 'display: none;' : '' ?>">
+                <!-- Shipping Address Form Fields (hidden for stage payment and when saved addresses exist) -->
+                <div id="shipping-address-fields" style="<?= !empty($stage_payment) ? 'display: none;' : ((isset($all_addresses) && !empty($all_addresses)) ? 'display: none;' : '') ?>">
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -275,36 +420,222 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Country <span style="color: red;">*</span></label>
-                            <input type="text" name="billing_country" id="billing-country"
-                                value="Philippines"
-                                placeholder="Country" required readonly>
+                            <select name="billing_country" id="billing-country" required>
+                                <option value="">Select Country</option>
+                                <option value="Afghanistan">Afghanistan</option>
+                                <option value="Albania">Albania</option>
+                                <option value="Algeria">Algeria</option>
+                                <option value="Andorra">Andorra</option>
+                                <option value="Angola">Angola</option>
+                                <option value="Antigua and Barbuda">Antigua and Barbuda</option>
+                                <option value="Argentina">Argentina</option>
+                                <option value="Armenia">Armenia</option>
+                                <option value="Australia">Australia</option>
+                                <option value="Austria">Austria</option>
+                                <option value="Azerbaijan">Azerbaijan</option>
+                                <option value="Bahamas">Bahamas</option>
+                                <option value="Bahrain">Bahrain</option>
+                                <option value="Bangladesh">Bangladesh</option>
+                                <option value="Barbados">Barbados</option>
+                                <option value="Belarus">Belarus</option>
+                                <option value="Belgium">Belgium</option>
+                                <option value="Belize">Belize</option>
+                                <option value="Benin">Benin</option>
+                                <option value="Bhutan">Bhutan</option>
+                                <option value="Bolivia">Bolivia</option>
+                                <option value="Bosnia and Herzegovina">Bosnia and Herzegovina</option>
+                                <option value="Botswana">Botswana</option>
+                                <option value="Brazil">Brazil</option>
+                                <option value="Brunei">Brunei</option>
+                                <option value="Bulgaria">Bulgaria</option>
+                                <option value="Burkina Faso">Burkina Faso</option>
+                                <option value="Burundi">Burundi</option>
+                                <option value="Cabo Verde">Cabo Verde</option>
+                                <option value="Cambodia">Cambodia</option>
+                                <option value="Cameroon">Cameroon</option>
+                                <option value="Canada">Canada</option>
+                                <option value="Central African Republic">Central African Republic</option>
+                                <option value="Chad">Chad</option>
+                                <option value="Chile">Chile</option>
+                                <option value="China">China</option>
+                                <option value="Colombia">Colombia</option>
+                                <option value="Comoros">Comoros</option>
+                                <option value="Congo, Democratic Republic of the">Congo, Democratic Republic of the</option>
+                                <option value="Congo, Republic of the">Congo, Republic of the</option>
+                                <option value="Costa Rica">Costa Rica</option>
+                                <option value="Côte d'Ivoire">Côte d'Ivoire</option>
+                                <option value="Croatia">Croatia</option>
+                                <option value="Cuba">Cuba</option>
+                                <option value="Cyprus">Cyprus</option>
+                                <option value="Czech Republic">Czech Republic</option>
+                                <option value="Denmark">Denmark</option>
+                                <option value="Djibouti">Djibouti</option>
+                                <option value="Dominica">Dominica</option>
+                                <option value="Dominican Republic">Dominican Republic</option>
+                                <option value="Ecuador">Ecuador</option>
+                                <option value="Egypt">Egypt</option>
+                                <option value="El Salvador">El Salvador</option>
+                                <option value="Equatorial Guinea">Equatorial Guinea</option>
+                                <option value="Eritrea">Eritrea</option>
+                                <option value="Estonia">Estonia</option>
+                                <option value="Eswatini">Eswatini</option>
+                                <option value="Ethiopia">Ethiopia</option>
+                                <option value="Fiji">Fiji</option>
+                                <option value="Finland">Finland</option>
+                                <option value="France">France</option>
+                                <option value="Gabon">Gabon</option>
+                                <option value="Gambia">Gambia</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Germany">Germany</option>
+                                <option value="Ghana">Ghana</option>
+                                <option value="Greece">Greece</option>
+                                <option value="Grenada">Grenada</option>
+                                <option value="Guatemala">Guatemala</option>
+                                <option value="Guinea">Guinea</option>
+                                <option value="Guinea-Bissau">Guinea-Bissau</option>
+                                <option value="Guyana">Guyana</option>
+                                <option value="Haiti">Haiti</option>
+                                <option value="Honduras">Honduras</option>
+                                <option value="Hungary">Hungary</option>
+                                <option value="Iceland">Iceland</option>
+                                <option value="India">India</option>
+                                <option value="Indonesia">Indonesia</option>
+                                <option value="Iran">Iran</option>
+                                <option value="Iraq">Iraq</option>
+                                <option value="Ireland">Ireland</option>
+                                <option value="Israel">Israel</option>
+                                <option value="Italy">Italy</option>
+                                <option value="Jamaica">Jamaica</option>
+                                <option value="Japan">Japan</option>
+                                <option value="Jordan">Jordan</option>
+                                <option value="Kazakhstan">Kazakhstan</option>
+                                <option value="Kenya">Kenya</option>
+                                <option value="Kiribati">Kiribati</option>
+                                <option value="Korea, North">Korea, North</option>
+                                <option value="Korea, South">Korea, South</option>
+                                <option value="Kuwait">Kuwait</option>
+                                <option value="Kyrgyzstan">Kyrgyzstan</option>
+                                <option value="Laos">Laos</option>
+                                <option value="Latvia">Latvia</option>
+                                <option value="Lebanon">Lebanon</option>
+                                <option value="Lesotho">Lesotho</option>
+                                <option value="Liberia">Liberia</option>
+                                <option value="Libya">Libya</option>
+                                <option value="Liechtenstein">Liechtenstein</option>
+                                <option value="Lithuania">Lithuania</option>
+                                <option value="Luxembourg">Luxembourg</option>
+                                <option value="Madagascar">Madagascar</option>
+                                <option value="Malawi">Malawi</option>
+                                <option value="Malaysia">Malaysia</option>
+                                <option value="Maldives">Maldives</option>
+                                <option value="Mali">Mali</option>
+                                <option value="Malta">Malta</option>
+                                <option value="Marshall Islands">Marshall Islands</option>
+                                <option value="Mauritania">Mauritania</option>
+                                <option value="Mauritius">Mauritius</option>
+                                <option value="Mexico">Mexico</option>
+                                <option value="Micronesia">Micronesia</option>
+                                <option value="Moldova">Moldova</option>
+                                <option value="Monaco">Monaco</option>
+                                <option value="Mongolia">Mongolia</option>
+                                <option value="Montenegro">Montenegro</option>
+                                <option value="Morocco">Morocco</option>
+                                <option value="Mozambique">Mozambique</option>
+                                <option value="Myanmar">Myanmar</option>
+                                <option value="Namibia">Namibia</option>
+                                <option value="Nauru">Nauru</option>
+                                <option value="Nepal">Nepal</option>
+                                <option value="Netherlands">Netherlands</option>
+                                <option value="New Zealand">New Zealand</option>
+                                <option value="Nicaragua">Nicaragua</option>
+                                <option value="Niger">Niger</option>
+                                <option value="Nigeria">Nigeria</option>
+                                <option value="North Macedonia">North Macedonia</option>
+                                <option value="Norway">Norway</option>
+                                <option value="Oman">Oman</option>
+                                <option value="Pakistan">Pakistan</option>
+                                <option value="Palau">Palau</option>
+                                <option value="Panama">Panama</option>
+                                <option value="Papua New Guinea">Papua New Guinea</option>
+                                <option value="Paraguay">Paraguay</option>
+                                <option value="Peru">Peru</option>
+                                <option value="Philippines" selected>Philippines</option>
+                                <option value="Poland">Poland</option>
+                                <option value="Portugal">Portugal</option>
+                                <option value="Qatar">Qatar</option>
+                                <option value="Romania">Romania</option>
+                                <option value="Russia">Russia</option>
+                                <option value="Rwanda">Rwanda</option>
+                                <option value="Saint Kitts and Nevis">Saint Kitts and Nevis</option>
+                                <option value="Saint Lucia">Saint Lucia</option>
+                                <option value="Saint Vincent and the Grenadines">Saint Vincent and the Grenadines</option>
+                                <option value="Samoa">Samoa</option>
+                                <option value="San Marino">San Marino</option>
+                                <option value="Sao Tome and Principe">Sao Tome and Principe</option>
+                                <option value="Saudi Arabia">Saudi Arabia</option>
+                                <option value="Senegal">Senegal</option>
+                                <option value="Serbia">Serbia</option>
+                                <option value="Seychelles">Seychelles</option>
+                                <option value="Sierra Leone">Sierra Leone</option>
+                                <option value="Singapore">Singapore</option>
+                                <option value="Slovakia">Slovakia</option>
+                                <option value="Slovenia">Slovenia</option>
+                                <option value="Solomon Islands">Solomon Islands</option>
+                                <option value="Somalia">Somalia</option>
+                                <option value="South Africa">South Africa</option>
+                                <option value="South Sudan">South Sudan</option>
+                                <option value="Spain">Spain</option>
+                                <option value="Sri Lanka">Sri Lanka</option>
+                                <option value="Sudan">Sudan</option>
+                                <option value="Suriname">Suriname</option>
+                                <option value="Sweden">Sweden</option>
+                                <option value="Switzerland">Switzerland</option>
+                                <option value="Syria">Syria</option>
+                                <option value="Taiwan">Taiwan</option>
+                                <option value="Tajikistan">Tajikistan</option>
+                                <option value="Tanzania">Tanzania</option>
+                                <option value="Thailand">Thailand</option>
+                                <option value="Timor-Leste">Timor-Leste</option>
+                                <option value="Togo">Togo</option>
+                                <option value="Tonga">Tonga</option>
+                                <option value="Trinidad and Tobago">Trinidad and Tobago</option>
+                                <option value="Tunisia">Tunisia</option>
+                                <option value="Turkey">Turkey</option>
+                                <option value="Turkmenistan">Turkmenistan</option>
+                                <option value="Tuvalu">Tuvalu</option>
+                                <option value="Uganda">Uganda</option>
+                                <option value="Ukraine">Ukraine</option>
+                                <option value="United Arab Emirates">United Arab Emirates</option>
+                                <option value="United Kingdom">United Kingdom</option>
+                                <option value="United States">United States</option>
+                                <option value="Uruguay">Uruguay</option>
+                                <option value="Uzbekistan">Uzbekistan</option>
+                                <option value="Vanuatu">Vanuatu</option>
+                                <option value="Vatican City">Vatican City</option>
+                                <option value="Venezuela">Venezuela</option>
+                                <option value="Vietnam">Vietnam</option>
+                                <option value="Yemen">Yemen</option>
+                                <option value="Zambia">Zambia</option>
+                                <option value="Zimbabwe">Zimbabwe</option>
+                            </select>
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label>Region <span style="color: red;">*</span></label>
-                            <select name="billing_region" id="billing-region" required>
-                                <option value="" <?= (!isset($addresses['Billing']->Region) || empty($addresses['Billing']->Region)) ? 'selected' : '' ?>>Select Region</option>
-                                <option value="NCR" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'NCR') ? 'selected' : '' ?>>NCR (National Capital Region)</option>
-                                <option value="Region III" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'Region III') ? 'selected' : '' ?>>Region III (Central Luzon)</option>
-                                <option value="Region IV-A" <?= (isset($addresses['Billing']->Region) && $addresses['Billing']->Region === 'Region IV-A') ? 'selected' : '' ?>>Region IV-A (CALABARZON)</option>
-                            </select>
+                            <input type="text" name="billing_region" id="billing-region" value="" placeholder="Enter region" required>
                         </div>
                         <div class="form-group">
                             <label>Province <span style="color: red;">*</span></label>
-                            <select name="billing_province" id="billing-province" required>
-                                <option value="">Select Province</option>
-                            </select>
+                            <input type="text" name="billing_province" id="billing-province" value="" placeholder="Enter province" required>
                         </div>
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
                             <label>City/Municipality <span style="color: red;">*</span></label>
-                            <select name="billing_city" id="billing-city" required>
-                                <option value="">Select City/Municipality</option>
-                            </select>
+                            <input type="text" name="billing_city" id="billing-city" value="" placeholder="Enter city/municipality" required>
                         </div>
                     </div>
 
@@ -364,7 +695,85 @@
         <section class="order-summary">
             <div class="order-summary-content">
                 <h3>Order Summary</h3>
-                
+
+                <?php if (!empty($stage_payment)): ?>
+                <!-- ========== STAGE PAYMENT SUMMARY (from Track Order Pay Now) ========== -->
+                <div style="margin-bottom: 16px; padding: 14px; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 4px;">
+                    <div style="font-size: 0.82rem; color: #6b7280; margin-bottom: 4px;">Order #<?= htmlspecialchars($stage_payment['order_number']) ?></div>
+                    <div style="font-size: 1rem; font-weight: 700; color: #1e3a8a;"><?= htmlspecialchars($stage_payment['stage_label']) ?></div>
+                </div>
+
+                <!-- Order Items -->
+                <div id="summary-items-list" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px; padding-bottom: 10px;">
+                    <?php if (!empty($stage_payment['items'])): ?>
+                        <?php foreach ($stage_payment['items'] as $item): ?>
+                            <?php
+                                // Parse image URL (may be JSON array)
+                                $imageUrl = $item->ImageUrl ?? '';
+                                if (!empty($imageUrl) && strpos($imageUrl, '[') === 0) {
+                                    $parsed = json_decode($imageUrl, true);
+                                    if (is_array($parsed) && !empty($parsed)) $imageUrl = $parsed[0];
+                                }
+                                // Build full URL: check if absolute or starts with uploads/assets
+                                if (!empty($imageUrl)) {
+                                    if (strpos($imageUrl, 'http') === 0) {
+                                        // Already absolute URL
+                                        $imageUrl = $imageUrl;
+                                    } elseif (strpos($imageUrl, 'uploads/') === 0 || strpos($imageUrl, 'assets/') === 0) {
+                                        // Has path prefix
+                                        $imageUrl = base_url($imageUrl);
+                                    } else {
+                                        // Just filename - assume uploads/products/
+                                        $imageUrl = base_url('uploads/products/' . basename($imageUrl));
+                                    }
+                                } else {
+                                    $imageUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+                                }
+                                
+                                // Get price range from item - prefer product table data over order_items
+                                $priceMin = $item->PriceMin ?? null;
+                                $priceMax = $item->PriceMax ?? null;
+                                $priceDisplay = 'Price TBD after assessment';
+                                if ($priceMin && $priceMax) {
+                                    $priceDisplay = '₱' . number_format((float)$priceMin, 0) . ' - ₱' . number_format((float)$priceMax, 0);
+                                } elseif ($priceMin) {
+                                    $priceDisplay = 'Starting at ₱' . number_format((float)$priceMin, 0);
+                                }
+                                
+                                $quantity = intval($item->Quantity ?? 1);
+                            ?>
+                        <div class="summary-item-row" style="display: flex; gap: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 10px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02); align-items: center;">
+                            <img src="<?= $imageUrl ?>" alt="<?= htmlspecialchars($item->ProductName ?? 'Product') ?>" style="width: 90px; height: 90px; object-fit: cover; border-radius: 10px; border: 2px solid #e3f2fd; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
+                            <div class="summary-item-info" style="flex-grow: 1;">
+                                <h4 style="margin: 0 0 8px 0; color: #1976d2; font-size: 1.1rem; font-weight: 600;"><?= htmlspecialchars($item->ProductName ?? 'Custom Glass Product') ?></h4>
+                                <p style="margin: 0 0 6px 0; color: #28a745; font-size: 1rem; font-weight: 600;"><?= $priceDisplay ?></p>
+                                <?php if (!empty($item->Category)): ?>
+                                    <p style="margin: 0 0 2px 0; color: #666; font-size: 0.9rem;"><?= htmlspecialchars($item->Category) ?></p>
+                                <?php endif; ?>
+                                <?php if (!empty($item->Subcategory)): ?>
+                                    <p style="margin: 0 0 4px 0; color: #888; font-size: 0.85rem; font-style: italic;"><?= htmlspecialchars($item->Subcategory) ?></p>
+                                <?php endif; ?>
+                                <p style="margin: 0; color: #666; font-size: 0.9rem;">Qty: <?= $quantity ?></p>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <div style="text-align: center; color: #888; padding: 10px;">Order items</div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="summary-totals-box" style="padding-top: 15px;">
+                    <p class="total" style="font-size: 1.15rem;"><span>Amount:</span> <span id="summary-total">₱<?= number_format($stage_payment['amount'], 2) ?></span></p>
+                </div>
+
+                <!-- Hidden fields for stage payment processing -->
+                <input type="hidden" id="stage-payment-order-id" value="<?= $stage_payment['order_id'] ?>">
+                <input type="hidden" id="stage-payment-stage" value="<?= $stage_payment['stage'] ?>">
+                <input type="hidden" id="stage-payment-amount" value="<?= $stage_payment['amount'] ?>">
+                <!-- END STAGE PAYMENT SUMMARY -->
+
+                <?php else: ?>
+                <!-- ========== NORMAL CART SUMMARY ========== -->
                 <!-- Itemized List -->
                 <div id="summary-items-list" style="max-height: 350px; overflow-y: auto; margin-bottom: 15px; padding-bottom: 10px;">
                     <!-- Items will be dynamically populated -->
@@ -373,10 +782,11 @@
 
                 <div class="summary-totals-box" style="padding-top: 15px;">
                     <p><span>Subtotal:</span> <span id="summary-subtotal">₱0.00</span></p>
-                    <p><span>Shipping Fee:</span> <span id="summary-shipping">₱0.00</span></p>
-                    <p><span>Handling Fee:</span> <span id="summary-handling">₱0.00</span></p>
+                    <!-- Shipping fee removed per requirements -->
                     <p class="total"><span>Total:</span> <span id="summary-total">₱0.00</span></p>
                 </div>
+                <!-- END NORMAL CART SUMMARY -->
+                <?php endif; ?>
             </div>
             <div class="payment-section">
                 <div class="payment-method-content">
@@ -398,21 +808,16 @@
                     </p>
                 </div>
 
-                <!-- Inline error message for payment method -->
-                <div id="payment-method-error" class="inline-error" style="display: none; margin-top: 10px; padding: 8px 12px; background: #fff3cd; border-left: 3px solid #dc3545; border-radius: 4px;">
-                    <span style="color: #dc3545; font-size: 0.9em;">⚠ Please select a payment method before placing order.</span>
+                <div class="terms" style="margin-top: 20px; margin-bottom: 15px;">
+                    <input type="checkbox" id="accept-terms">
+                    <label for="accept-terms">
+                        I have read and agree to Glassify's
+                        <a href="<?php echo base_url('terms_order'); ?>">Terms and Conditions of Purchase</a>
+                    </label>
                 </div>
 
                 <!-- Removed <a> and kept only button -->
-                <button class="placeOrder-btn" id="placeOrderBtn">Place Order</button>
-            </div>
-
-            <div class="terms">
-                <input type="checkbox" id="accept-terms">
-                <label for="accept-terms">
-                    I have read and agree to Glassify's
-                    <a href="<?php echo base_url('terms_order'); ?>">Terms and Conditions of Purchase</a>
-                </label>
+                <button class="placeOrder-btn" id="placeOrderBtn">Review Order</button>
             </div>
         </section>
     </div>
@@ -430,6 +835,26 @@
             if (target) {
                 // Small delay to ensure any dynamic content/page change has started
                 setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+            }
+        });
+        // Show shipping row only when shipping > 0.00
+        document.addEventListener('DOMContentLoaded', function() {
+            const row = document.getElementById('summary-shipping-row');
+            const shipEl = document.getElementById('summary-shipping');
+            if (row && shipEl) {
+                let val = shipEl.textContent.replace(/[^0-9.\-]+/g,'');
+                val = parseFloat(val) || 0;
+                if (val > 0) row.style.display = 'block';
+                else row.style.display = 'none';
+            }
+            // Observe changes to shipping value and toggle visibility
+            if (row && shipEl && window.MutationObserver) {
+                const obs = new MutationObserver(() => {
+                    let v = shipEl.textContent.replace(/[^0-9.\-]+/g,'');
+                    v = parseFloat(v) || 0;
+                    row.style.display = (v > 0) ? 'block' : 'none';
+                });
+                obs.observe(shipEl, { childList: true, characterData: true, subtree: true });
             }
         });
     </script>
@@ -498,7 +923,7 @@
     <button class="modal-close" id="closeConfirmModal">&times;</button>
 
     <div class="modal-header">
-      <h2>📋 Order Summary</h2>
+      <h2>📋 Review Order Details</h2>
       <span class="modal-subtitle">Please review your order before confirming</span>
     </div>
 
@@ -528,6 +953,43 @@
         </div>
       </div>
 
+      <!-- Billing Details -->
+      <div class="confirm-section">
+        <h4 class="confirm-section-title">
+          <span class="icon">💳</span> Billing Details
+        </h4>
+        <div class="confirm-info-grid">
+          <div class="confirm-info-item">
+            <span class="info-label">Name</span>
+            <span class="info-value" id="confirm-billing-name"></span>
+          </div>
+          <div class="confirm-info-item">
+            <span class="info-label">Email</span>
+            <span class="info-value" id="confirm-billing-email"></span>
+          </div>
+          <div class="confirm-info-item">
+            <span class="info-label">Phone</span>
+            <span class="info-value" id="confirm-billing-phone"></span>
+          </div>
+          <div class="confirm-info-item full-width">
+            <span class="info-label">Billing Address</span>
+            <span class="info-value" id="confirm-billing-address"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Special Instructions / Note -->
+      <div class="confirm-section">
+        <h4 class="confirm-section-title">
+          <span class="icon">📝</span> Special Instructions / Note
+        </h4>
+        <div class="confirm-info-grid">
+          <div class="confirm-info-item full-width">
+            <span class="info-value" id="confirm-special-note" style="padding: 12px; background: #f8f9fa; border-radius: 6px; display: block; min-height: 40px; color: #666; font-style: italic;">No special instructions provided</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Payment Method -->
       <div class="confirm-section">
         <h4 class="confirm-section-title">
@@ -552,7 +1014,7 @@
                 <th>Product</th>
                 <th>Customization</th>
                 <th>Qty</th>
-                <th>Price</th>
+                <th>Subtotal</th>
               </tr>
             </thead>
             <tbody id="confirm-items-body">
@@ -561,36 +1023,65 @@
           </table>
         </div>
       </div>
-
-      <!-- Order Total Summary -->
-      <div class="confirm-totals">
-        <div class="confirm-total-row">
-          <span>Subtotal</span>
-          <span id="confirm-subtotal">₱0.00</span>
-        </div>
-        <div class="confirm-total-row">
-          <span>Shipping Fee</span>
-          <span id="confirm-shipping">₱0.00</span>
-        </div>
-        <div class="confirm-total-row">
-          <span>Handling Fee</span>
-          <span id="confirm-handling">₱0.00</span>
-        </div>
-        <div class="confirm-total-row grand-total">
-          <span>Total Amount</span>
-          <span id="confirm-total">₱0.00</span>
-        </div>
-      </div>
     </div>
 
     <div class="modal-footer confirm-footer">
       <button class="btn-cancel" id="cancelOrderBtn">Cancel</button>
-      <button class="btn-confirm-order" id="confirmOrderBtn">Confirm & Place Order</button>
+      <button class="btn-confirm-order" id="confirmOrderBtn">Place Order</button>
     </div>
   </div>
 </div>
 
+<!-- Design Preview Modal -->
+<div id="designPreviewModal" class="modal" style="z-index:12000;">
+    <div class="modal-overlay" onclick="closeDesignModal()"></div>
+    <div class="modal-content" style="position:relative; max-width: 900px; width: 90%; border-radius: 8px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.3);">
+        <div class="design-modal-header" style="background: #0f2b46; color: #fff; padding: 12px 14px; display:flex; align-items:center; justify-content:space-between;">
+            <h3 style="margin:0; font-size:1rem; font-weight:600;">Design Preview</h3>
+            <button onclick="closeDesignModal()" aria-label="Close design preview" style="background: rgba(255,255,255,0.12); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; box-shadow: 0 6px 14px rgba(15,43,70,0.35);">×</button>
+        </div>
+        <div class="modal-body" style="background: #fff; padding: 12px; display:flex; justify-content:center; align-items:center;">
+            <img id="designPreviewImage" src="" alt="Design Preview" style="max-width: 100%; max-height: 75vh; border-radius:6px; box-shadow: 0 6px 18px rgba(0,0,0,0.15);">
+        </div>
+    </div>
+</div>
+
 <script>
+// =============================
+// DESIGN PREVIEW MODAL
+// =============================
+window.showDesignModal = function(url) {
+    try {
+        const modal = document.getElementById('designPreviewModal');
+        const img = document.getElementById('designPreviewImage');
+        if (!modal || !img) return;
+        img.src = url || '';
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    } catch (e) {
+        console.error('Failed to open design preview modal', e);
+    }
+};
+
+window.closeDesignModal = function() {
+    const modal = document.getElementById('designPreviewModal');
+    const img = document.getElementById('designPreviewImage');
+    if (!modal) return;
+    modal.classList.remove('show');
+    if (img) img.src = '';
+    document.body.style.overflow = '';
+};
+
+// Close design modal when clicking overlay or pressing Escape
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('designPreviewModal')?.querySelector('.modal-overlay')?.addEventListener('click', closeDesignModal);
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.getElementById('designPreviewModal')?.classList.contains('show')) {
+            closeDesignModal();
+        }
+    });
+});
+
 // =============================
 // TOAST NOTIFICATION SYSTEM
 // =============================
@@ -753,6 +1244,10 @@ $(document).ready(function() {
     // LOAD SELECTED ITEMS SUMMARY
     // =============================
     function loadSelectedSummary() {
+        // In stage payment mode, summary is already server-rendered — skip AJAX loading
+        if (IS_STAGE_PAYMENT) {
+            return;
+        }
         // Check if we have selected items
         if (!SELECTED_CART_IDS) {
             showToast('No items selected. Redirecting to cart...', 'warning', 2000);
@@ -771,6 +1266,10 @@ $(document).ready(function() {
                 if (res.status === 'success') {
                     const summary = res.summary;
                     const items = res.items;
+                    
+                    // Store globally for modal reuse
+                    window.loadedCartItems = items;
+                    window.loadedCartSummary = summary;
 
                     // Update order summary - ensure elements exist
                     const itemsEl = document.getElementById('summary-items');
@@ -795,11 +1294,47 @@ $(document).ready(function() {
                                 itemDiv.className = 'summary-item-row';
                                 itemDiv.style.cssText = 'display: flex; gap: 15px; padding: 15px; border: 1px solid #f0f0f0; border-radius: 10px; margin-bottom: 12px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.02); align-items: center; position: relative;';
                                 
+                                // Parse image if it's a JSON array
+                                let itemImage = item.image || '';
+                                try {
+                                    if (typeof itemImage === 'string' && itemImage.trim().startsWith('[')) {
+                                        const parsed = JSON.parse(itemImage);
+                                        if (Array.isArray(parsed) && parsed.length > 0) itemImage = parsed[0];
+                                    }
+                                } catch (e) { /* ignore */ }
+                                
+                                // Build full image URL
+                                if (itemImage) {
+                                    if (itemImage.startsWith('http')) {
+                                        // Already absolute
+                                    } else if (itemImage.startsWith('uploads/') || itemImage.startsWith('assets/')) {
+                                        itemImage = BASE_URL + itemImage;
+                                    } else {
+                                        // Just filename - assume uploads/products/
+                                        itemImage = BASE_URL + 'uploads/products/' + itemImage.split('/').pop();
+                                    }
+                                } else {
+                                    itemImage = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==';
+                                }
+                                
+                                // Build price display
+                                let priceDisplay = 'Price TBD after assessment';
+                                if (item.price_min && item.price_max) {
+                                    priceDisplay = `₱${parseFloat(item.price_min).toLocaleString()} - ₱${parseFloat(item.price_max).toLocaleString()}`;
+                                } else if (item.price) {
+                                    priceDisplay = `Starting at ₱${parseFloat(item.price).toLocaleString()}`;
+                                }
+                                
+                                const categoryText = item.category || item.Category || '';
+                                const subcategoryText = item.subcategory || item.Subcategory || '';
+                                
                                 itemDiv.innerHTML = `
-                                    <img src="${item.image}" alt="${item.description}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; flex-shrink: 0;">
-                                    <div class="summary-item-info">
-                                        <h4>${item.description}</h4>
-                                        <span class="summary-item-qty">Qty: ${item.quantity}</span>
+                                    <img src="${itemImage}" alt="${item.description}" style="width: 90px; height: 90px; object-fit: cover; border-radius: 10px; border: 2px solid #e3f2fd; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
+                                    <div class="summary-item-info" style="flex-grow: 1;">
+                                        <h4 style="margin: 0 0 8px 0; color: #1976d2; font-size: 1.1rem; font-weight: 600;">${item.description}</h4>
+                                        <p style="margin: 0 0 6px 0; color: #28a745; font-size: 1rem; font-weight: 600;">${priceDisplay}</p>
+                                        ${categoryText ? `<p style="margin: 0 0 2px 0; color: #666; font-size: 0.9rem;">${categoryText}</p>` : ''}
+                                        ${subcategoryText ? `<p style="margin: 0; color: #888; font-size: 0.85rem; font-style: italic;">${subcategoryText}</p>` : ''}
                                     </div>
                                 `;
                                 itemsListEl.appendChild(itemDiv);
@@ -815,6 +1350,19 @@ $(document).ready(function() {
                         setTimeout(() => {
                             window.location.href = BASE_URL + 'addtocart';
                         }, 2000);
+                    }
+                    
+                    // All orders now follow unified flow - show notice about ocular visit
+                    const paymentSectionEl = document.querySelector('.payment-section');
+                    if (paymentSectionEl) {
+                        let notice = document.getElementById('unified-order-notice');
+                        if (!notice) {
+                            notice = document.createElement('div');
+                            notice.id = 'unified-order-notice';
+                            notice.style.cssText = 'padding:12px; background:#e3f2fd; border:1px solid #90caf9; border-radius:6px; color:#1565c0; margin-bottom:12px;';
+                            notice.innerHTML = '<strong>📋 Order Process:</strong> All orders require an ocular visit for site assessment before production. Final pricing will be confirmed after the site visit.';
+                            paymentSectionEl.insertBefore(notice, paymentSectionEl.firstChild);
+                        }
                     }
                 } else {
                     console.error('Failed to load summary:', res.message || 'Unknown error');
@@ -1023,34 +1571,68 @@ $(document).ready(function() {
                     // Copy address fields
                     const shippingFields = ['unit_house_number', 'street', 'subdivision', 'barangay', 'country', 'zipcode'];
                     shippingFields.forEach(field => {
-                        const shippingInput = form.querySelector(`input[name='${field}']`);
-                        const billingInput = billingForm.querySelector(`input[name='billing_${field}']`);
+                        const shippingInput = form.querySelector(`[name='${field}']`);
+                        const billingInput = billingForm.querySelector(`[name='billing_${field}']`);
                         if (shippingInput && billingInput) {
                             billingInput.value = shippingInput.value || '';
                         }
                     });
-                    
-                    // Copy region, province, city (select dropdowns)
-                    const shippingRegion = form.querySelector("select[name='region']");
-                    const billingRegion = billingForm.querySelector("select[name='billing_region']");
-                    if (shippingRegion && billingRegion && shippingRegion.value) {
-                        billingRegion.value = shippingRegion.value;
-                        billingRegion.dispatchEvent(new Event('change'));
-                        setTimeout(() => {
-                            const shippingProvince = form.querySelector("select[name='province']");
-                            const billingProvince = billingForm.querySelector("select[name='billing_province']");
-                            if (shippingProvince && billingProvince && shippingProvince.value) {
-                                billingProvince.value = shippingProvince.value;
-                                billingProvince.dispatchEvent(new Event('change'));
-                                setTimeout(() => {
-                                    const shippingCity = form.querySelector("select[name='city']");
-                                    const billingCity = billingForm.querySelector("select[name='billing_city']");
-                                    if (shippingCity && billingCity && shippingCity.value) {
-                                        billingCity.value = shippingCity.value;
-                                    }
-                                }, 100);
+
+                    // Prefer saved-address dropdown data if present (saved addresses may keep the region/province/city)
+                    const savedDropdown = document.getElementById('saved-address-dropdown');
+                    const useDifferentShipping = document.getElementById('use-different-shipping-address')?.checked || false;
+                    let sd_region = '';
+                    let sd_province = '';
+                    let sd_city = '';
+                    if (savedDropdown && savedDropdown.value && !useDifferentShipping) {
+                        try {
+                            const selectedOpt = savedDropdown.options[savedDropdown.selectedIndex];
+                            const addr = JSON.parse(selectedOpt.getAttribute('data-address') || '{}');
+                            sd_region = addr.Region || addr.region || '';
+                            sd_province = addr.Province || addr.province || '';
+                            sd_city = addr.City || addr.city || '';
+                            // Also copy unit/street/subdivision/barangay/zipcode if available
+                            if (addr.UnitHouseNumber || addr.Unit) {
+                                const billingUnit = billingForm.querySelector("[name='billing_unit_house_number']");
+                                if (billingUnit) billingUnit.value = addr.UnitHouseNumber || addr.Unit || '';
                             }
-                        }, 100);
+                            if (addr.Street) {
+                                const billingStreet = billingForm.querySelector("[name='billing_street']");
+                                if (billingStreet) billingStreet.value = addr.Street || '';
+                            }
+                            if (addr.Subdivision) {
+                                const billingSub = billingForm.querySelector("[name='billing_subdivision']");
+                                if (billingSub) billingSub.value = addr.Subdivision || '';
+                            }
+                            if (addr.Barangay) {
+                                const billingBarangay = billingForm.querySelector("[name='billing_barangay']");
+                                if (billingBarangay) billingBarangay.value = addr.Barangay || '';
+                            }
+                            if (addr.ZipCode || addr.Zipcode) {
+                                const billingZip = billingForm.querySelector("[name='billing_zipcode']");
+                                if (billingZip) billingZip.value = addr.ZipCode || addr.Zipcode || '';
+                            }
+                        } catch (e) {
+                            console.error('Error parsing saved address for same-billing copy', e);
+                        }
+                    }
+
+                    // Copy region, province, city from shipping to billing (work with inputs or selects)
+                    const shippingRegion = form.querySelector("[name='region']");
+                    const shippingProvince = form.querySelector("[name='province']");
+                    const shippingCity = form.querySelector("[name='city']");
+                    const billingRegion = billingForm.querySelector("[name='billing_region']");
+                    const billingProvince = billingForm.querySelector("[name='billing_province']");
+                    const billingCity = billingForm.querySelector("[name='billing_city']");
+
+                    if (billingRegion) {
+                        billingRegion.value = sd_region || (shippingRegion ? shippingRegion.value || '' : '');
+                    }
+                    if (billingProvince) {
+                        billingProvince.value = sd_province || (shippingProvince ? shippingProvince.value || '' : '');
+                    }
+                    if (billingCity) {
+                        billingCity.value = sd_city || (shippingCity ? shippingCity.value || '' : '');
                     }
                 }
             } else {
@@ -1387,40 +1969,173 @@ $(document).ready(function() {
         const middlename = form.querySelector("input[name='middlename']")?.value || '';
         const lastname = form.querySelector("input[name='lastname']").value;
         const email = form.querySelector("input[name='email']").value;
-        const phone = form.querySelector("input[name='phone']").value;
-        
-        // Get all address fields
-        const unitHouseNumber = form.querySelector("input[name='unit_house_number']")?.value || '';
-        const street = form.querySelector("input[name='street']")?.value || '';
-        const subdivision = form.querySelector("input[name='subdivision']")?.value || '';
-        const barangay = form.querySelector("input[name='barangay']")?.value || '';
-        const city = form.querySelector("input[name='city']")?.value || '';
-        const province = form.querySelector("input[name='province']")?.value || '';
-        const region = form.querySelector("input[name='region']")?.value || '';
-        const zipcode = form.querySelector("input[name='zipcode']")?.value || '';
-        const country = form.querySelector("input[name='country']")?.value || 'Philippines';
+        const phone = form.querySelector("input[name='phone']")?.value || '';
+
+        // If a saved address is selected and 'use-different-shipping-address' is not checked,
+        // prefer values from the selected option's data-address payload so City/Province are accurate.
+        const savedDropdown = document.getElementById('saved-address-dropdown');
+        const useDifferent = document.getElementById('use-different-shipping-address')?.checked || false;
+
+        let unitHouseNumber = '';
+        let street = '';
+        let subdivision = '';
+        let barangay = '';
+        let city = '';
+        let province = '';
+        let region = '';
+        let zipcode = '';
+        let country = 'Philippines';
+
+        if (savedDropdown && savedDropdown.value && !useDifferent) {
+            try {
+                const selectedOpt = savedDropdown.options[savedDropdown.selectedIndex];
+                const addr = JSON.parse(selectedOpt.getAttribute('data-address') || '{}');
+                unitHouseNumber = addr.UnitHouseNumber || addr.Unit || '';
+                street = addr.Street || '';
+                subdivision = addr.Subdivision || '';
+                barangay = addr.Barangay || '';
+                city = addr.City || '';
+                province = addr.Province || '';
+                region = addr.Region || '';
+                zipcode = addr.ZipCode || addr.Zipcode || '';
+                country = addr.Country || 'Philippines';
+            } catch (e) {
+                // fallback to form fields below
+            }
+        }
+
+        // If not populated from saved address, read from form fields (handles selects and inputs)
+        if (!unitHouseNumber) unitHouseNumber = form.querySelector("[name='unit_house_number']")?.value || '';
+        if (!street) street = form.querySelector("[name='street']")?.value || '';
+        if (!subdivision) subdivision = form.querySelector("[name='subdivision']")?.value || '';
+        if (!barangay) barangay = form.querySelector("[name='barangay']")?.value || '';
+        if (!city) city = form.querySelector("[name='city']")?.value || '';
+        if (!province) province = form.querySelector("[name='province']")?.value || '';
+        if (!region) region = form.querySelector("[name='region']")?.value || '';
+        if (!zipcode) zipcode = form.querySelector("[name='zipcode']")?.value || '';
+        if (!country) country = form.querySelector("[name='country']")?.value || 'Philippines';
         const preferredInstallationDate = form.querySelector("input[name='preferred_installation_date']")?.value || '';
 
-        // Build complete address
-        const addressParts = [
-            unitHouseNumber,
-            street,
-            subdivision,
-            barangay,
-            city,
-            province,
-            region,
-            country,
-            zipcode
-        ].filter(Boolean);
-        const fullAddress = addressParts.join(', ');
+        // Build formatted address lines according to required system format:
+        // Line1: Unit/House Number, Street, Subdivision
+        // Line2: Barangay, City/Municipality, State/Province, Region, Postal Code, Country (Full Name)
+        function escapeHtml(str) {
+            if (!str && str !== 0) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        const line1Parts = [unitHouseNumber, street, subdivision].filter(Boolean);
+        const line2Parts = [barangay, city, province, region, zipcode, country].filter(Boolean);
+        const line1 = line1Parts.join(', ');
+        const line2 = line2Parts.join(', ');
 
         // Populate shipping details
         const fullName = middlename ? `${firstname} ${middlename} ${lastname}` : `${firstname} ${lastname}`;
         document.getElementById('confirm-name').textContent = fullName;
         document.getElementById('confirm-email').textContent = email;
         document.getElementById('confirm-phone').textContent = phone;
-        document.getElementById('confirm-address').textContent = fullAddress;
+
+        // Set address with explicit two-line format. Use innerHTML with escaped content and <br> between lines.
+        const addressEl = document.getElementById('confirm-address');
+        if (addressEl) {
+            if (line1 && line2) {
+                addressEl.innerHTML = escapeHtml(line1) + '<br>' + escapeHtml(line2);
+            } else if (line1) {
+                addressEl.textContent = line1;
+            } else if (line2) {
+                addressEl.textContent = line2;
+            } else {
+                addressEl.textContent = '';
+            }
+        }
+
+        // Billing address
+        const sameBilling = document.getElementById('same-billing')?.checked || false;
+        const billingAddressEl = document.getElementById('confirm-billing-address');
+        const billingNameEl = document.getElementById('confirm-billing-name');
+        const billingEmailEl = document.getElementById('confirm-billing-email');
+        const billingPhoneEl = document.getElementById('confirm-billing-phone');
+        
+        if (sameBilling) {
+            // Use same data as shipping
+            if (billingNameEl) billingNameEl.textContent = fullName;
+            if (billingEmailEl) billingEmailEl.textContent = email;
+            if (billingPhoneEl) billingPhoneEl.textContent = phone;
+            if (billingAddressEl) {
+                if (line1 && line2) {
+                    billingAddressEl.innerHTML = escapeHtml(line1) + '<br>' + escapeHtml(line2);
+                } else if (line1) {
+                    billingAddressEl.textContent = line1;
+                } else if (line2) {
+                    billingAddressEl.textContent = line2;
+                } else {
+                    billingAddressEl.textContent = 'Same as shipping address';
+                }
+            }
+        } else {
+            // Get billing info fields
+            const billingFirstname = document.getElementById('billing_firstname')?.value || '';
+            const billingMiddlename = document.getElementById('billing_middlename')?.value || '';
+            const billingLastname = document.getElementById('billing_lastname')?.value || '';
+            const billingEmail = document.getElementById('billing_email')?.value || '';
+            const billingPhone = document.getElementById('billing_phone')?.value || '';
+            
+            const billingFullName = billingMiddlename 
+                ? `${billingFirstname} ${billingMiddlename} ${billingLastname}` 
+                : `${billingFirstname} ${billingLastname}`;
+            
+            if (billingNameEl) billingNameEl.textContent = billingFullName.trim() || 'Not provided';
+            if (billingEmailEl) billingEmailEl.textContent = billingEmail || 'Not provided';
+            if (billingPhoneEl) billingPhoneEl.textContent = billingPhone || 'Not provided';
+            
+            // Get billing address fields
+            const billingUnit = document.getElementById('billing_unit_house_number')?.value || '';
+            const billingStreet = document.getElementById('billing_street')?.value || '';
+            const billingSubdivision = document.getElementById('billing_subdivision')?.value || '';
+            const billingBarangay = document.getElementById('billing_barangay')?.value || '';
+            const billingCity = document.getElementById('billing-city')?.value || '';
+            const billingProvince = document.getElementById('billing-province')?.value || '';
+            const billingRegion = document.getElementById('billing-region')?.value || '';
+            const billingZipcode = document.getElementById('billing_zipcode')?.value || '';
+            const billingCountry = document.getElementById('billing-country')?.value || 'Philippines';
+            
+            const billingLine1Parts = [billingUnit, billingStreet, billingSubdivision].filter(Boolean);
+            const billingLine2Parts = [billingBarangay, billingCity, billingProvince, billingRegion, billingZipcode, billingCountry].filter(Boolean);
+            const billingLine1 = billingLine1Parts.join(', ');
+            const billingLine2 = billingLine2Parts.join(', ');
+            
+            if (billingAddressEl) {
+                if (billingLine1 && billingLine2) {
+                    billingAddressEl.innerHTML = escapeHtml(billingLine1) + '<br>' + escapeHtml(billingLine2);
+                } else if (billingLine1) {
+                    billingAddressEl.textContent = billingLine1;
+                } else if (billingLine2) {
+                    billingAddressEl.textContent = billingLine2;
+                } else {
+                    billingAddressEl.textContent = 'No billing address provided';
+                }
+            }
+        }
+
+        // Special Instructions / Note
+        const specialNote = form.querySelector("textarea[name='note']")?.value || '';
+        const specialNoteEl = document.getElementById('confirm-special-note');
+        if (specialNoteEl) {
+            if (specialNote.trim()) {
+                specialNoteEl.textContent = specialNote;
+                specialNoteEl.style.fontStyle = 'normal';
+                specialNoteEl.style.color = '#333';
+            } else {
+                specialNoteEl.textContent = 'No special instructions provided';
+                specialNoteEl.style.fontStyle = 'italic';
+                specialNoteEl.style.color = '#666';
+            }
+        }
 
         // Payment method
         const card = document.getElementById("card-radio")?.checked || false;
@@ -1445,18 +2160,238 @@ $(document).ready(function() {
             installationDateSection.style.display = 'none';
         }
 
-        // Fetch SELECTED cart items from server via AJAX
+        // Fetch SELECTED cart items from server via AJAX or use cached data
         const itemsBody = document.getElementById('confirm-items-body');
         itemsBody.innerHTML = '<tr><td colspan="4" class="no-items">Loading items...</td></tr>';
+        
+        // Check if this is stage payment mode - use stage payment data
+        if (IS_STAGE_PAYMENT && window.stagePaymentData) {
+            console.log('Using stage payment data for modal:', window.stagePaymentData);
+            populateModalItemsFromStagePayment(window.stagePaymentData);
+            return;
+        }
+        
+        // Check if we already have loaded cart items (from page load)
+        if (window.loadedCartItems && window.loadedCartItems.length > 0) {
+            console.log('Using cached cart items for modal:', window.loadedCartItems);
+            populateModalItems(window.loadedCartItems, window.loadedCartSummary);
+            return;
+        }
 
         $.getJSON(BASE_URL + "CartCon/get_selected_cart_ajax?selected=" + SELECTED_CART_IDS, function(res) {
             if (res.status === 'success') {
-                itemsBody.innerHTML = '';
+                // Store for future use
+                window.loadedCartItems = res.items;
+                window.loadedCartSummary = res.summary;
+                populateModalItems(res.items, res.summary);
+            } else {
+                // Fallback: Get total from page summary
+                const total = document.getElementById('summary-total')?.textContent || '₱0.00';
+                const itemCount = document.querySelectorAll('.summary-item-row').length;
                 
-                res.items.forEach(item => {
+                itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
+                
+                // Add Total row
+                const totalRow = document.createElement('tr');
+                totalRow.style.borderTop = '2px solid #ddd';
+                totalRow.innerHTML = `
+                    <td colspan="3" style="text-align: right; padding: 18px; font-weight: 700; font-size: 1.05rem; color: #0f2b46;">Total:</td>
+                    <td style="text-align: right; padding: 18px; font-weight: 700; font-size: 1.05rem; color: #0f2b46;">${total}</td>
+                `;
+                itemsBody.appendChild(totalRow);
+            }
+        }).fail(function() {
+            // Fallback on AJAX failure
+            const total = document.getElementById('summary-total')?.textContent || '₱0.00';
+            const itemCount = document.querySelectorAll('.summary-item-row').length;
+            
+            itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
+            
+            // Add Total row
+            const totalRow = document.createElement('tr');
+            totalRow.style.borderTop = '2px solid #ddd';
+            totalRow.innerHTML = `
+                <td colspan="3" style="text-align: right; padding: 18px; font-weight: 700; font-size: 1.05rem; color: #0f2b46;">Total:</td>
+                <td style="text-align: right; padding: 18px; font-weight: 700; font-size: 1.05rem; color: #0f2b46;">${total}</td>
+            `;
+            itemsBody.appendChild(totalRow);
+        });
+    }
+    
+    // Helper function to populate modal items from stage payment data
+    function populateModalItemsFromStagePayment(stageData) {
+        const itemsBody = document.getElementById('confirm-items-body');
+        if (!itemsBody) return;
+        
+        itemsBody.innerHTML = '';
+        
+        if (!stageData.items || stageData.items.length === 0) {
+            itemsBody.innerHTML = '<tr><td colspan="4" class="no-items">No items found</td></tr>';
+            return;
+        }
+        
+        stageData.items.forEach(item => {
+            const row = document.createElement('tr');
+            
+            // Parse image URL (may be JSON array)
+            let imageUrl = item.ImageUrl || '';
+            try {
+                if (typeof imageUrl === 'string' && imageUrl.trim().startsWith('[')) {
+                    const parsed = JSON.parse(imageUrl);
+                    if (Array.isArray(parsed) && parsed.length > 0) imageUrl = parsed[0];
+                }
+            } catch (e) { /* ignore */ }
+            
+            // Build full URL
+            if (imageUrl) {
+                if (imageUrl.startsWith('http')) {
+                    // Already absolute
+                } else if (imageUrl.startsWith('uploads/') || imageUrl.startsWith('assets/')) {
+                    imageUrl = BASE_URL + imageUrl;
+                } else {
+                    imageUrl = BASE_URL + 'uploads/products/' + imageUrl.split('/').pop();
+                }
+            } else {
+                imageUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+            }
+            
+            // Build price range string
+            let priceRangeHtml = '';
+            if (item.PriceMin && item.PriceMax) {
+                priceRangeHtml = `<div style="color: #28a745; font-size: 0.9rem; font-weight: 600; margin: 4px 0;">₱${Number(item.PriceMin).toLocaleString()} - ₱${Number(item.PriceMax).toLocaleString()}</div>`;
+            } else if (item.PriceMin) {
+                priceRangeHtml = `<div style="color: #28a745; font-size: 0.9rem; font-weight: 600; margin: 4px 0;">Starting at ₱${Number(item.PriceMin).toLocaleString()}</div>`;
+            } else {
+                priceRangeHtml = `<div style="color: #888; font-size: 0.85rem; font-style: italic; margin: 4px 0;">Price TBD after assessment</div>`;
+            }
+            
+            // Build category/subcategory string
+            let categoryHtml = '';
+            if (item.Category) {
+                categoryHtml += `<div style="color: #666; font-size: 0.85rem; margin: 2px 0;">${item.Category}</div>`;
+            }
+            if (item.Subcategory) {
+                categoryHtml += `<div style="color: #888; font-size: 0.8rem; font-style: italic; margin: 2px 0;">${item.Subcategory}</div>`;
+            }
+            
+            // Build customization HTML - mimic track order page with 2D preview
+            let customHtml = '<span style="color: #888; font-size: 12px;">Standard</span>';
+            
+            // Build breakdown fields array from Customization JSON
+            const breakdownFields = [];
+            if (item.Customization) {
+                try {
+                    const customData = JSON.parse(item.Customization);
+                    if (customData && typeof customData === 'object') {
+                        // Add Dimension first if available
+                        if (item.Dimensions) {
+                            breakdownFields.push({label: 'Dimension', value: item.Dimensions});
+                        }
+                        // Add other fields from JSON
+                        for (const [key, value] of Object.entries(customData)) {
+                            if (!value || value === 'None' || value === '' || ['Dimension', 'Dimensions', 'product_id', 'product_name', 'total_quotation', 'quantity', 'price_breakdown', 'customization'].includes(key)) continue;
+                            
+                            // Convert camelCase to proper labels
+                            const label = key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ').replace(/([A-Z])/g, ' $1').trim();
+                            breakdownFields.push({label: label, value: value});
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse customization JSON:', e);
+                }
+            }
+            
+            // If we have customization data, show it like track order page
+            if (breakdownFields.length > 0) {
+                customHtml = '<div class="custom-layout" style="display: flex; align-items: center; gap: 8px;">';
+                
+                // Add 2D design thumbnail if available
+                if (item.DesignRef) {
+                    const designUrl = item.DesignRef.startsWith('http') ? item.DesignRef : BASE_URL + item.DesignRef;
+                    customHtml += `
+                        <div class="design-thumbnail-wrapper" style="flex-shrink: 0;">
+                            <img src="${designUrl}"
+                                 alt="Custom Design"
+                                 class="design-thumbnail"
+                                 style="width: 50px; height: 50px; object-fit: contain; border: 2px solid #0d3d4d; border-radius: 4px; cursor: pointer; transition: all 0.2s ease; background: #f8f8f8; padding: 2px;"
+                                 onclick="showDesignModal('${designUrl}')"
+                                 onerror="this.style.display='none';">
+                            <span class="view-design-text" style="display: block; font-size: 8px; color: #0d3d4d; margin-top: 2px; font-weight: 500; text-align: center;">Click to view</span>
+                        </div>
+                    `;
+                }
+                
+                // Show first 2 specs in compact format
+                const displayParts = breakdownFields.slice(0, 2);
+                const remainingCount = breakdownFields.length - 2;
+                const displayText = displayParts.map(f => `${f.label}: ${f.value}`).join(' • ');
+                const breakdownJson = JSON.stringify(breakdownFields).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+                
+                customHtml += `
+                    <button type="button" class="view-breakdown-btn" data-breakdown="${breakdownJson}" style="display:inline-block; text-align:left; padding:10px 14px; border-radius:6px; border:2px solid #3b82f6; background:#eff6ff; color:#1e40af; cursor:pointer; font-size:13px; line-height:1.6; word-wrap:break-word; white-space:normal; transition:all 0.2s ease; font-weight:600; box-shadow:0 2px 4px rgba(59,130,246,0.1);" onmouseover="this.style.backgroundColor='#dbeafe'; this.style.borderColor='#2563eb';" onmouseout="this.style.backgroundColor='#eff6ff'; this.style.borderColor='#3b82f6';">
+                        ${displayText}
+                        ${remainingCount > 0 ? `<br><span style="font-size:12px; color:#4b5563;">and ${remainingCount} more</span>` : ''}
+                        <br><span style="font-size:11px; opacity:0.7;">▼ Click to expand</span>
+                    </button>
+                `;
+                customHtml += '</div>';
+            }
+            
+            const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+            
+            row.innerHTML = `
+                <td class="product-cell">
+                    <div class="product-info">
+                        <img src="${imageUrl}" alt="${item.ProductName || 'Product'}" class="product-thumb" onerror="this.onerror=null; this.src='${placeholderSvg}';">
+                        <div class="product-details">
+                            <div class="product-name" style="color: #1976d2; font-weight: 600; margin-bottom: 4px;">${item.ProductName || 'Product'}</div>
+                            ${priceRangeHtml}
+                            ${categoryHtml}
+                        </div>
+                    </div>
+                </td>
+                <td class="customization-cell">${customHtml}</td>
+                <td class="qty-cell">${item.Quantity || 1}</td>
+                <td class="price-cell">-</td>
+            `;
+            itemsBody.appendChild(row);
+        });
+        
+        // Add Total row
+        const totalRow = document.createElement('tr');
+        totalRow.style.borderTop = '2px solid #ddd';
+        totalRow.innerHTML = `
+            <td colspan="3" style="text-align: right; padding: 18px; font-weight: 700; font-size: 1.05rem; color: #0f2b46;">Total:</td>
+            <td style="text-align: right; padding: 18px; font-weight: 700; font-size: 1.05rem; color: #0f2b46;">₱${Number(stageData.amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        `;
+        itemsBody.appendChild(totalRow);
+    }
+    
+    // Helper function to populate modal items
+    function populateModalItems(items, summary) {
+        const itemsBody = document.getElementById('confirm-items-body');
+        if (!itemsBody) return;
+        
+        itemsBody.innerHTML = '';
+                
+        items.forEach(item => {
+                    // Sanitize image/design refs which may be stored as JSON arrays in DB
+                    try {
+                        if (item.design_ref && typeof item.design_ref === 'string' && item.design_ref.trim().startsWith('[')) {
+                            const parsed = JSON.parse(item.design_ref);
+                            if (Array.isArray(parsed) && parsed.length > 0) item.design_ref = parsed[0];
+                        }
+                    } catch (e) { /* leave as-is if parsing fails */ }
+                    try {
+                        if (item.image && typeof item.image === 'string' && item.image.trim().startsWith('[')) {
+                            const parsedImg = JSON.parse(item.image);
+                            if (Array.isArray(parsedImg) && parsedImg.length > 0) item.image = parsedImg[0];
+                        }
+                    } catch (e) { /* ignore */ }
+
                     const row = document.createElement('tr');
                     const customizationString = item.customization || 'Standard';
-                    const productImage = item.image || BASE_URL + 'assets/images/default-product.png';
+                    const productImage = item.image || (BASE_URL + 'assets/images/default-product.png');
 
                     // Format customization - show 2D preview if available, otherwise show tags
                     let customHtml = '';
@@ -1508,6 +2443,25 @@ $(document).ready(function() {
 
                     const itemTotal = Number(item.total) || 0;
                     
+                    // Build price range string
+                    let priceRangeHtml = '';
+                    if (item.price_min && item.price_max) {
+                        priceRangeHtml = `<div style="color: #28a745; font-size: 0.9rem; font-weight: 600; margin: 4px 0;">₱${Number(item.price_min).toLocaleString()} - ₱${Number(item.price_max).toLocaleString()}</div>`;
+                    } else if (item.price_min) {
+                        priceRangeHtml = `<div style="color: #28a745; font-size: 0.9rem; font-weight: 600; margin: 4px 0;">Starting at ₱${Number(item.price_min).toLocaleString()}</div>`;
+                    } else {
+                        priceRangeHtml = `<div style="color: #888; font-size: 0.85rem; font-style: italic; margin: 4px 0;">Price TBD after assessment</div>`;
+                    }
+                    
+                    // Build category/subcategory string
+                    let categoryHtml = '';
+                    if (item.category) {
+                        categoryHtml += `<div style="color: #666; font-size: 0.85rem; margin: 2px 0;">${item.category}</div>`;
+                    }
+                    if (item.subcategory) {
+                        categoryHtml += `<div style="color: #888; font-size: 0.8rem; font-style: italic; margin: 2px 0;">${item.subcategory}</div>`;
+                    }
+                    
                     // Placeholder SVG for missing images
                     const placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
                     
@@ -1515,7 +2469,11 @@ $(document).ready(function() {
                         <td class="product-cell">
                             <div class="product-info">
                                 <img src="${productImage}" alt="${item.description}" class="product-thumb" onerror="this.onerror=null; this.src='${placeholderSvg}';">
-                                <span class="product-name">${item.description}</span>
+                                <div class="product-details">
+                                    <div class="product-name" style="color: #1976d2; font-weight: 600; margin-bottom: 4px;">${item.description}</div>
+                                    ${priceRangeHtml}
+                                    ${categoryHtml}
+                                </div>
                             </div>
                         </td>
                         <td class="customization-cell">${customHtml}</td>
@@ -1525,42 +2483,14 @@ $(document).ready(function() {
                     itemsBody.appendChild(row);
                 });
 
-                // Update totals from server response
-                const summary = res.summary;
-                document.getElementById('confirm-subtotal').textContent = '₱' + (summary.subtotal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                document.getElementById('confirm-shipping').textContent = '₱' + (summary.shipping || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                document.getElementById('confirm-handling').textContent = '₱' + (summary.handling || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-                document.getElementById('confirm-total').textContent = '₱' + (summary.total || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
-            } else {
-                // Fallback: Get totals from page summary (already includes peso sign)
-                const subtotal = document.getElementById('summary-subtotal').textContent;
-                const shipping = document.getElementById('summary-shipping').textContent;
-                const handling = document.getElementById('summary-handling').textContent;
-                const total = document.getElementById('summary-total').textContent;
-                const itemCount = document.querySelectorAll('.summary-item-row').length;
-
-                document.getElementById('confirm-subtotal').textContent = subtotal;
-                document.getElementById('confirm-shipping').textContent = shipping;
-                document.getElementById('confirm-handling').textContent = handling;
-                document.getElementById('confirm-total').textContent = total;
-                
-                itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
-            }
-        }).fail(function() {
-            // Fallback on AJAX failure (values already include peso sign)
-            const subtotal = document.getElementById('summary-subtotal').textContent;
-            const shipping = document.getElementById('summary-shipping').textContent;
-            const handling = document.getElementById('summary-handling').textContent;
-            const total = document.getElementById('summary-total').textContent;
-            const itemCount = document.querySelectorAll('.summary-item-row').length;
-
-            document.getElementById('confirm-subtotal').textContent = subtotal;
-            document.getElementById('confirm-shipping').textContent = shipping;
-            document.getElementById('confirm-handling').textContent = handling;
-            document.getElementById('confirm-total').textContent = total;
-            
-            itemsBody.innerHTML = `<tr><td colspan="4" class="no-items">${itemCount} item(s) in your cart</td></tr>`;
-        });
+        // Add Total row at the end of the table
+        const totalRow = document.createElement('tr');
+        totalRow.style.borderTop = '2px solid #ddd';
+        totalRow.innerHTML = `
+            <td colspan="3" style="text-align: right; padding: 18px; font-weight: 700; font-size: 1.05rem; color: #0f2b46;">Total:</td>
+            <td style="text-align: right; padding: 18px; font-weight: 700; font-size: 1.05rem; color: #0f2b46;">₱${((summary && summary.total) || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        `;
+        itemsBody.appendChild(totalRow);
     }
 
     // === Custom Calendar Logic ===
@@ -1826,8 +2756,6 @@ $(document).ready(function() {
         // Validate payment method
         if (!firstErrorElement && !card && !gcash && !maya) {
             console.log('Payment method validation failed - Card:', card, 'GCash:', gcash, 'Maya:', maya);
-            const errorDiv = document.getElementById('payment-method-error');
-            if (errorDiv) errorDiv.style.display = 'block';
             if (!firstErrorElement) {
                 firstErrorElement = document.querySelector('.payment-section');
                 errorMessage = "Please select a payment method.";
@@ -1929,7 +2857,7 @@ $(document).ready(function() {
     // === Confirm Order button - Actually place the order ===
     confirmOrderBtn.addEventListener("click", function () {
         const btn = this;
-        const defaultConfirmLabel = 'Confirm & Place Order';
+        const defaultConfirmLabel = 'Place Order';
         // Get selected payment method
         const card = document.getElementById("card-radio")?.checked || false;
         const gcash = document.getElementById("gcash-radio")?.checked || false;
@@ -1996,6 +2924,33 @@ $(document).ready(function() {
         // Add selected cart IDs
         formData.append('selected_cart_ids', SELECTED_CART_IDS);
         
+        // =========================================
+        // STAGE PAYMENT MODE — use submit_stage_payment instead
+        // =========================================
+        if (IS_STAGE_PAYMENT) {
+            const stageOrderId = document.getElementById('stage-payment-order-id')?.value;
+            const stageName = document.getElementById('stage-payment-stage')?.value;
+            const stageAmount = document.getElementById('stage-payment-amount')?.value;
+
+            if (!selectedPaymentMethod) {
+                showToast('Please select a payment method.', 'warning');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            const stageFormData = new FormData();
+            stageFormData.append('order_id', stageOrderId);
+            stageFormData.append('stage', stageName);
+            stageFormData.append('payment_method', selectedPaymentMethod);
+
+            // Route stage payments through PayMongo
+            initiateStagePayMongoPayment(stageOrderId, stageName, selectedPaymentMethod, stageAmount, btn, defaultConfirmLabel);
+            return; // Skip normal place_order flow
+        }
+        // =========================================
+
         // Disable button and show loading state
         btn.disabled = true;
         btn.textContent = 'Processing...';
@@ -2031,7 +2986,8 @@ $(document).ready(function() {
         fetch(BASE_URL + 'shopcon/place_order', {
             method: 'POST',
             body: formData,
-            signal: controller.signal
+            signal: controller.signal,
+            credentials: 'same-origin' // Required to send session cookies with AJAX requests
         })
         .then(async response => {
             const contentType = response.headers.get('content-type');
@@ -2115,15 +3071,92 @@ $(document).ready(function() {
             
             // STEP 1: Create Payment Intent (Backend)
             console.log('STEP 1: Creating payment intent...');
+            // Collect billing values to send to server so backend persists the exact billing data
+            const sameBillingChecked = document.getElementById('same-billing')?.checked || false;
+
+            // Helper to read shipping input values (used when same-billing is checked)
+            function readShippingField(name) {
+                // saved-address dropdown may override
+                const savedAddressDropdown = document.getElementById('saved-address-dropdown');
+                const useDifferentAddress = document.getElementById('use-different-shipping-address')?.checked || false;
+                if (savedAddressDropdown && savedAddressDropdown.value && !useDifferentAddress) {
+                    const selectedOption = savedAddressDropdown.options[savedAddressDropdown.selectedIndex];
+                    const addressData = JSON.parse(selectedOption.getAttribute('data-address') || '{}');
+                    return addressData[name] || '';
+                }
+                // fall back to form fields
+                return document.querySelector("[name='" + name + "']")?.value || '';
+            }
+
+            const billingPayload = {
+                order_id: orderId,
+                payment_method: paymentMethod,
+                // Shipping fields
+                firstname: (document.querySelector("input[name='firstname']")?.value || '').trim(),
+                middlename: (document.querySelector("input[name='middlename']")?.value || '').trim(),
+                lastname: (document.querySelector("input[name='lastname']")?.value || '').trim(),
+                email: (document.querySelector("input[name='email']")?.value || '').trim(),
+                phone: (document.querySelector("input[name='phone']")?.value || '').trim(),
+                unit_house_number: readShippingField('UnitHouseNumber') || (document.querySelector("input[name='unit_house_number']")?.value || '').trim(),
+                street: readShippingField('Street') || (document.querySelector("input[name='street']")?.value || '').trim(),
+                subdivision: readShippingField('Subdivision') || (document.querySelector("input[name='subdivision']")?.value || '').trim(),
+                barangay: readShippingField('Barangay') || (document.querySelector("input[name='barangay']")?.value || '').trim(),
+                city: readShippingField('City') || (document.querySelector("select[name='city']")?.value || document.querySelector("input[name='city']")?.value || '').trim(),
+                province: readShippingField('Province') || (document.querySelector("select[name='province']")?.value || document.querySelector("input[name='province']")?.value || '').trim(),
+                region: readShippingField('Region') || (document.querySelector("select[name='region']")?.value || document.querySelector("input[name='region']")?.value || '').trim(),
+                zipcode: readShippingField('ZipCode') || (document.querySelector("input[name='zipcode']")?.value || '').trim(),
+                country: readShippingField('Country') || (document.querySelector("select[name='country']")?.value || 'Philippines').trim(),
+                // Billing fields
+                billing_firstname: (document.getElementById('billing_firstname')?.value || '').trim(),
+                billing_middlename: (document.getElementById('billing_middlename')?.value || '').trim(),
+                billing_lastname: (document.getElementById('billing_lastname')?.value || '').trim(),
+                billing_email: (document.getElementById('billing_email')?.value || '').trim(),
+                billing_phone: (document.getElementById('billing_phone')?.value || '').trim(),
+                billing_unit_house_number: (document.getElementById('billing_unit_house_number')?.value || '').trim(),
+                billing_street: (document.getElementById('billing_street')?.value || '').trim(),
+                billing_subdivision: (document.getElementById('billing_subdivision')?.value || '').trim(),
+                billing_barangay: (document.getElementById('billing_barangay')?.value || '').trim(),
+                billing_city: (document.getElementById('billing-city')?.value || '').trim(),
+                billing_province: (document.getElementById('billing-province')?.value || '').trim(),
+                billing_region: (document.getElementById('billing-region')?.value || '').trim(),
+                billing_zipcode: (document.getElementById('billing_zipcode')?.value || '').trim(),
+                billing_country: (document.getElementById('billing-country')?.value || '').trim(),
+                same_billing: sameBillingChecked ? 'true' : 'false'
+            };
+
+            // If "same as shipping" is checked, override empty billing fields with shipping values
+            if (sameBillingChecked) {
+                // map shipping component names to billing keys
+                const map = {
+                    'billing_unit_house_number': 'UnitHouseNumber',
+                    'billing_street': 'Street',
+                    'billing_subdivision': 'Subdivision',
+                    'billing_barangay': 'Barangay',
+                    'billing_city': 'City',
+                    'billing_province': 'Province',
+                    'billing_region': 'Region',
+                    'billing_zipcode': 'ZipCode',
+                    'billing_country': 'Country'
+                };
+                for (const bk in map) {
+                    if (!billingPayload[bk]) {
+                        billingPayload[bk] = readShippingField(map[bk]) || billingPayload[bk];
+                    }
+                }
+                // If billing name/email/phone empty, fallback to main form's fields
+                if (!billingPayload.billing_firstname) billingPayload.billing_firstname = (document.querySelector("input[name='firstname']")?.value || '').trim();
+                if (!billingPayload.billing_lastname) billingPayload.billing_lastname = (document.querySelector("input[name='lastname']")?.value || '').trim();
+                if (!billingPayload.billing_email) billingPayload.billing_email = (document.querySelector("input[name='email']")?.value || '').trim();
+                if (!billingPayload.billing_phone) billingPayload.billing_phone = (document.querySelector("input[name='phone']")?.value || '').trim();
+            }
+
             const createIntentResponse = await fetch(BASE_URL + 'payment/create-payment-intent', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: new URLSearchParams({
-                    order_id: orderId,
-                    payment_method: paymentMethod
-                })
+                body: new URLSearchParams(billingPayload),
+                credentials: 'same-origin'
             });
             
             const intentData = await createIntentResponse.json();
@@ -2134,6 +3167,25 @@ $(document).ready(function() {
             
             const { payment_intent_id, client_key, public_key } = intentData;
             console.log('Payment Intent Created:', payment_intent_id);
+            // Map common country names to ISO codes; fallback to uppercased 2-letter value or 'PH'
+            const countryMap = {
+                'Philippines': 'PH',
+                'United States': 'US',
+                'United Kingdom': 'GB',
+                'United Arab Emirates': 'AE',
+                'Canada': 'CA',
+                'Australia': 'AU'
+            };
+            function toIsoCountry(v) {
+                if (!v) return 'PH';
+                v = v.trim();
+                if (v.length === 2) return v.toUpperCase();
+                if (countryMap[v]) return countryMap[v];
+                // try common variants
+                const normalized = v.replace(/\s+/g, ' ').replace(/&/g, 'and');
+                if (countryMap[normalized]) return countryMap[normalized];
+                return 'PH';
+            }
             
             // STEP 2 & 3: Create Payment Method (Frontend using PayMongo REST API)
             let paymentMethodId;
@@ -2148,6 +3200,51 @@ $(document).ready(function() {
                     throw new Error('Card details collection cancelled');
                 }
                 
+                // Gather billing address from checkout form (if present)
+                const billingName = (document.getElementById('billing_firstname')?.value || '') + ' ' + (document.getElementById('billing_lastname')?.value || '');
+
+                // Map common country names to ISO codes; fallback to uppercased 2-letter value or 'PH'
+                const countryMap = {
+                    'Philippines': 'PH',
+                    'United States': 'US',
+                    'United Kingdom': 'GB',
+                    'United Arab Emirates': 'AE',
+                    'Canada': 'CA',
+                    'Australia': 'AU'
+                };
+                function toIsoCountry(v) {
+                    if (!v) return 'PH';
+                    v = v.trim();
+                    if (v.length === 2) return v.toUpperCase();
+                    if (countryMap[v]) return countryMap[v];
+                    // try common variants
+                    const normalized = v.replace(/\s+/g, ' ').replace(/&/g, 'and');
+                    if (countryMap[normalized]) return countryMap[normalized];
+                    return 'PH';
+                }
+
+                // Compose PayMongo address line1 as: Unit/House Number, Street, Subdivision, Barangay
+                const billingUnit = document.getElementById('billing_unit_house_number')?.value || '';
+                const billingStreet = document.getElementById('billing_street')?.value || '';
+                const billingSubdivision = document.getElementById('billing_subdivision')?.value || '';
+                const billingBarangay = document.getElementById('billing_barangay')?.value || '';
+                const billingLine1Parts = [billingUnit, billingStreet, billingSubdivision, billingBarangay].filter(Boolean);
+                const billingLine1 = billingLine1Parts.join(', ');
+
+                // Prefer explicit billing fields; fall back to shipping inputs or saved address values if billing fields are hidden/empty
+                const billingCity = (document.getElementById('billing-city')?.value || '').trim() || (document.querySelector("input[name='city']")?.value || '').trim();
+                const billingProvince = (document.getElementById('billing-province')?.value || '').trim() || (document.querySelector("input[name='province']")?.value || '').trim() || (document.getElementById('billing-region')?.value || '').trim();
+                const billingPostal = (document.getElementById('billing_zipcode')?.value || '').trim() || (document.querySelector("input[name='zipcode']")?.value || '').trim();
+                const billingCountryIso = toIsoCountry(document.getElementById('billing-country')?.value || document.querySelector("input[name='country']")?.value || '');
+
+                const billingAddress = {
+                    line1: billingLine1,
+                    city: billingCity,
+                    state: billingProvince,
+                    postal_code: billingPostal,
+                    country: billingCountryIso
+                };
+
                 // Create card payment method using PayMongo REST API (frontend)
                 btn.textContent = 'Processing card payment...';
                 
@@ -2168,9 +3265,10 @@ $(document).ready(function() {
                                     cvc: cardDetails.cvc
                                 },
                                 billing: {
-                                    name: cardDetails.customerName || 'Customer',
-                                    email: cardDetails.email || '',
-                                    phone: cardDetails.phone || ''
+                                    name: billingName.trim() || cardDetails.customerName || 'Customer',
+                                    email: document.getElementById('billing_email')?.value || cardDetails.email || '',
+                                    phone: document.getElementById('billing_phone')?.value || cardDetails.phone || '',
+                                    address: billingAddress
                                 }
                             }
                         }
@@ -2194,6 +3292,28 @@ $(document).ready(function() {
                 const ewalletType = paymentMethod === 'maya' ? 'paymaya' : 'gcash';
                 btn.textContent = 'Processing e-wallet payment...';
                 
+                // Gather billing address from checkout form (if present)
+                const ewalletBillingName = (document.getElementById('billing_firstname')?.value || '') + ' ' + (document.getElementById('billing_lastname')?.value || '');
+                const ewalletUnit = document.getElementById('billing_unit_house_number')?.value || '';
+                const ewalletStreet = document.getElementById('billing_street')?.value || '';
+                const ewalletSubdivision = document.getElementById('billing_subdivision')?.value || '';
+                const ewalletBarangay = document.getElementById('billing_barangay')?.value || '';
+                const ewalletLine1Parts = [ewalletUnit, ewalletStreet, ewalletSubdivision, ewalletBarangay].filter(Boolean);
+                const ewalletLine1 = ewalletLine1Parts.join(', ');
+                // Use billing fields if present, otherwise fall back to shipping values
+                const ewalletCity = (document.getElementById('billing-city')?.value || '').trim() || (document.querySelector("input[name='city']")?.value || '').trim();
+                const ewalletProvince = (document.getElementById('billing-province')?.value || '').trim() || (document.querySelector("input[name='province']")?.value || '').trim() || (document.getElementById('billing-region')?.value || '').trim();
+                const ewalletPostal = (document.getElementById('billing_zipcode')?.value || '').trim() || (document.querySelector("input[name='zipcode']")?.value || '').trim();
+                const ewalletCountryIso = toIsoCountry(document.getElementById('billing-country')?.value || document.querySelector("input[name='country']")?.value || '');
+
+                const ewalletBillingAddress = {
+                    line1: ewalletLine1,
+                    city: ewalletCity,
+                    state: ewalletProvince,
+                    postal_code: ewalletPostal,
+                    country: ewalletCountryIso
+                };
+
                 // Create e-wallet payment method using PayMongo REST API (frontend)
                 const paymentMethodResponse = await fetch('https://api.paymongo.com/v1/payment_methods', {
                     method: 'POST',
@@ -2204,7 +3324,13 @@ $(document).ready(function() {
                     body: JSON.stringify({
                         data: {
                             attributes: {
-                                type: ewalletType
+                                type: ewalletType,
+                                billing: {
+                                    name: ewalletBillingName.trim() || '',
+                                    email: document.getElementById('billing_email')?.value || '',
+                                    phone: document.getElementById('billing_phone')?.value || '',
+                                    address: ewalletBillingAddress
+                                }
                             }
                         }
                     })
@@ -2234,7 +3360,8 @@ $(document).ready(function() {
                     payment_intent_id: payment_intent_id,
                     payment_method_id: paymentMethodId,
                     order_id: orderId
-                })
+                }),
+                credentials: 'same-origin'
             });
             
             const attachData = await attachResponse.json();
@@ -2268,6 +3395,156 @@ $(document).ready(function() {
             
         } catch (error) {
             console.error('PayMongo Payment Error:', error);
+            showToast(error.message || 'Payment processing failed. Please try again.', 'error', 5000);
+            btn.disabled = false;
+            btn.textContent = defaultConfirmLabel;
+        }
+    }
+
+    /**
+     * PayMongo Stage Payment Flow
+     * Handles downpayment, fabrication, and installation stage payments via PayMongo
+     */
+    async function initiateStagePayMongoPayment(orderId, stage, paymentMethod, stageAmount, btn, defaultConfirmLabel) {
+        try {
+            btn.disabled = true;
+            btn.textContent = 'Initializing payment...';
+            closeConfirmModal();
+
+            // STEP 1: Create Stage Payment Intent (Backend)
+            console.log('Stage Payment STEP 1: Creating payment intent for', stage, '...');
+            const intentPayload = {
+                order_id: orderId,
+                stage: stage,
+                payment_method: paymentMethod
+            };
+
+            const createIntentResponse = await fetch(BASE_URL + 'payment/create-stage-payment-intent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams(intentPayload),
+                credentials: 'same-origin'
+            });
+
+            const intentData = await createIntentResponse.json();
+
+            if (!intentData.status || intentData.status !== 'success') {
+                throw new Error(intentData.message || 'Failed to initialize stage payment');
+            }
+
+            const { payment_intent_id, client_key, public_key } = intentData;
+            console.log('Stage Payment Intent Created:', payment_intent_id);
+
+            // STEP 2: Create Payment Method (Frontend using PayMongo REST API)
+            let paymentMethodId;
+
+            if (paymentMethod === 'card') {
+                console.log('Stage Payment STEP 2: Collecting card details...');
+                const cardDetails = await collectCardDetails();
+                if (!cardDetails) {
+                    throw new Error('Card details collection cancelled');
+                }
+
+                btn.textContent = 'Processing card payment...';
+
+                const pmResponse = await fetch('https://api.paymongo.com/v1/payment_methods', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic ' + btoa(public_key + ':')
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            attributes: {
+                                type: 'card',
+                                details: {
+                                    card_number: cardDetails.cardNumber,
+                                    exp_month: parseInt(cardDetails.expMonth),
+                                    exp_year: parseInt(cardDetails.expYear),
+                                    cvc: cardDetails.cvc
+                                }
+                            }
+                        }
+                    })
+                });
+
+                const pmData = await pmResponse.json();
+                if (pmResponse.ok && pmData.data && pmData.data.id) {
+                    paymentMethodId = pmData.data.id;
+                } else {
+                    throw new Error(pmData.errors?.[0]?.detail || 'Failed to create payment method');
+                }
+            } else if (paymentMethod === 'gcash' || paymentMethod === 'maya' || paymentMethod === 'ewallet') {
+                console.log('Stage Payment STEP 2: Creating e-wallet payment method...');
+                btn.textContent = 'Processing e-wallet payment...';
+                const ewalletType = paymentMethod === 'maya' ? 'paymaya' : 'gcash';
+
+                const pmResponse = await fetch('https://api.paymongo.com/v1/payment_methods', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic ' + btoa(public_key + ':')
+                    },
+                    body: JSON.stringify({
+                        data: {
+                            attributes: {
+                                type: ewalletType
+                            }
+                        }
+                    })
+                });
+
+                const pmData = await pmResponse.json();
+                if (pmResponse.ok && pmData.data && pmData.data.id) {
+                    paymentMethodId = pmData.data.id;
+                } else {
+                    throw new Error(pmData.errors?.[0]?.detail || 'Failed to create payment method');
+                }
+            } else {
+                throw new Error('Invalid payment method');
+            }
+
+            console.log('Stage Payment Method Created:', paymentMethodId);
+
+            // STEP 3: Attach Payment Method (Backend)
+            console.log('Stage Payment STEP 3: Attaching payment method...');
+            const attachResponse = await fetch(BASE_URL + 'payment/attach-payment-method', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    payment_intent_id: payment_intent_id,
+                    payment_method_id: paymentMethodId,
+                    order_id: orderId,
+                    stage: stage
+                }),
+                credentials: 'same-origin'
+            });
+
+            const attachData = await attachResponse.json();
+
+            if (!attachData.status || attachData.status !== 'success') {
+                throw new Error(attachData.message || 'Failed to process stage payment');
+            }
+
+            // STEP 4: Handle Response
+            if (attachData.payment_status === 'succeeded') {
+                console.log('Stage payment succeeded!');
+                showToast(attachData.message || 'Payment successful! Redirecting...', 'success');
+                setTimeout(() => {
+                    window.location.href = attachData.redirect_url || (BASE_URL + 'order-tracking?order=' + orderId);
+                }, 1500);
+            } else if (attachData.payment_status === 'awaiting_next_action') {
+                console.log('Redirecting to PayMongo for e-wallet stage payment...');
+                showToast('Redirecting to PayMongo payment page...', 'info', 4000);
+                setTimeout(() => {
+                    window.location.href = attachData.redirect_url;
+                }, 500);
+            } else {
+                throw new Error('Stage payment processing failed. Please try again.');
+            }
+
+        } catch (error) {
+            console.error('Stage PayMongo Payment Error:', error);
             showToast(error.message || 'Payment processing failed. Please try again.', 'error', 5000);
             btn.disabled = false;
             btn.textContent = defaultConfirmLabel;
@@ -2379,7 +3656,7 @@ $(document).ready(function() {
                 // Parse expiration date (MM/YY)
                 const expParts = expDate.split('/');
                 if (expParts.length !== 2 || expParts[0].length !== 2 || expParts[1].length !== 2) {
-                    alert('Please enter expiration date in MM/YY format');
+                    showToast('Please enter expiration date in MM/YY format', 'warning');
                     return;
                 }
                 
@@ -2388,7 +3665,7 @@ $(document).ready(function() {
                 
                 // Validate month (1-12)
                 if (expMonth < 1 || expMonth > 12) {
-                    alert('Please enter a valid month (01-12)');
+                    showToast('Please enter a valid month (01-12)', 'warning');
                     return;
                 }
                 
@@ -2406,14 +3683,14 @@ $(document).ready(function() {
                 
                 // Validate year (not in the past)
                 if (expYear < currentYear) {
-                    alert('Please enter a valid expiration year');
+                    showToast('Please enter a valid expiration year', 'warning');
                     return;
                 }
                 
                 // Also check if the card is expired (month and year in the past)
                 const currentMonth = new Date().getMonth() + 1; // getMonth() returns 0-11
                 if (expYear === currentYear && expMonth < currentMonth) {
-                    alert('This card has expired');
+                    showToast('This card has expired', 'error');
                     return;
                 }
                 
@@ -2449,5 +3726,56 @@ $(document).ready(function() {
     }
 
 }); // End of $(document).ready
+
+// Customization breakdown modal handler (same as track order page)
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.view-breakdown-btn');
+    if (!btn) return;
+    e.preventDefault();
+    var breakdownData = btn.getAttribute('data-breakdown');
+    if (!breakdownData) return;
+    
+    var breakdownFields = [];
+    try {
+        breakdownFields = JSON.parse(breakdownData);
+    } catch (err) {
+        console.error('Failed to parse breakdown data:', err);
+        return;
+    }
+    
+    var contentHtml = '<div class="breakdown-list" style="padding:0;">';
+    breakdownFields.forEach(function(field) {
+        var label = field.label || '';
+        var value = field.value || field.val || '';
+        if (!value || value === '' || value === 'None') {
+            contentHtml += '<div style="margin-bottom:16px; padding:12px; background:#f9fafb; border-left:4px solid #d1d5db; border-radius:4px;"><strong style="display:block;color:#1f2937; margin-bottom:6px; font-size:14px;">' + label + '</strong><div style="color:#9ca3af; font-style:italic; font-size:13px;">Not specified</div></div>';
+        } else {
+            contentHtml += '<div style="margin-bottom:16px; padding:12px; background:#f0f9ff; border-left:4px solid #3b82f6; border-radius:4px;"><strong style="display:block;color:#1e40af; margin-bottom:6px; font-size:14px;">' + label + '</strong><div style="color:#1f2937; font-size:14px; font-weight:500;">' + value + '</div></div>';
+        }
+    });
+    contentHtml += '</div>';
+    
+    // Create or update modal
+    var modal = document.getElementById('breakdownModal');
+    if (!modal) {
+        var modalHtml = '<div id="breakdownModal" class="modal-backdrop" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;"><div class="modal-content" style="max-width:720px;width:90%;max-height:85vh;overflow-y:auto;background:#fff;border-radius:12px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.3);"><div class="modal-header" style="background:#1e3a8a;color:#fff;padding:16px 20px;border-radius:12px 12px 0 0;display:flex;justify-content:space-between;align-items:center;"><h3 style="margin:0;font-size:20px;font-weight:700;">2D Customization Breakdown</h3><button class="modal-close" id="breakdownModalClose" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:28px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.3)\';" onmouseout="this.style.background=\'rgba(255,255,255,0.2)\';">×</button></div><div class="modal-body" id="breakdownModalBody" style="padding:24px;background:#fff;border-radius:0 0 12px 12px;"></div></div></div>';
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        modal = document.getElementById('breakdownModal');
+        document.getElementById('breakdownModalClose').addEventListener('click', function() {
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        });
+        modal.addEventListener('click', function(ev) {
+            if (ev.target === modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+            }
+        });
+    }
+    
+    document.getElementById('breakdownModalBody').innerHTML = contentHtml;
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+});
 
 </script>

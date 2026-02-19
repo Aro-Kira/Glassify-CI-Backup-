@@ -51,12 +51,7 @@
     <div class="general-section">
         <span class="section-title">General</span>
         <ul>
-            <li class="<?php echo (isset($active) && $active == 'inventory') ? 'active' : ''; ?>">
-                <a href="<?php echo base_url('sales-inventory'); ?>">
-                    <img src="<?php echo base_url('assets/images/img_admin/inventory.svg'); ?>" alt="Inventory">
-                    <span>Inventory</span>
-                </a>
-            </li>
+            <!-- Inventory removed -->
             <li class="<?php echo (isset($active) && $active == 'product') ? 'active' : ''; ?>">
                 <a href="<?php echo base_url('sales-products'); ?>">
                     <img src="<?php echo base_url('assets/images/img_admin/products.svg'); ?>" alt="Products">

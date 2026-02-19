@@ -1,0 +1,1230 @@
+<link rel="stylesheet" href="<?php echo base_url('assets/css/general-customer/shop/2DModeling_styles.css'); ?>">
+
+<script src="https://unpkg.com/konva@9.3.6/konva.min.js" onerror="console.error('Failed to load Konva.js from CDN');"></script>
+
+<body data-customer-id="<?= $this->session->userdata('customer_id') ?: '' ?>">
+
+    <div id="upload-modal" class="modal-backdrop hidden-step">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>File Upload</h2>
+                <button class="modal-close" id="modal-close-btn">&times;</button>
+            </div>
+
+            <div class="upload-area">
+                <div class="dropzone" id="dropzone">
+                    <div class="dropzone-icon">
+                        <svg viewBox="0 0 24 24" width="60" height="60" fill="none" stroke="#003b4d" stroke-width="1.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <path d="M12 17v-4"></path>
+                            <path d="M10 15l2-2 2 2"></path>
+                        </svg>
+                    </div>
+
+                    <p class="upload-title">Choose a file or drag & drop it here</p>
+                    <p class="upload-support-info">
+                        Supported file types: JPG, PNG, PDF<br>
+                        Maximum size: 25MB
+                    </p>
+
+                    <input type="file" id="file-input" multiple accept=".jpg,.jpeg,.png,.pdf" class="hidden-step">
+
+                    <button class="browse-btn" id="browse-files-btn">Browse Files</button>
+                </div>
+
+                <div class="uploaded-files-list">
+                    <h3 class="uploaded-files-title">Uploaded Files</h3>
+                    <div id="uploaded-files-container">
+                        <p class="placeholder-text">No files uploaded yet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="secondary-btn" id="modal-cancel-btn">Cancel</button>
+                <button class="primary-btn" id="modal-done-btn">Done</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="breadcrumb-strip">
+        <div class="page-title">Products & Services</div>
+        <div class="breadcrumbs" id="breadcrumbs-container">
+            <span>Products</span>
+            <span class="chevron-right"></span>
+            <span class="active" id="crumb-main">Glass Shape</span>
+        </div>
+    </div>
+
+    <main class="container">
+
+        <section class="product-gallery">
+            <div class="main-image-container">
+                <?php if (isset($product) && $product): ?>
+                    <?php 
+                    // Handle ImageUrl - it might be JSON array or single string
+                    $imageUrl = $product->ImageUrl ?? '';
+                    $productImages = [];
+                    $imagePaths = [];
+                    $placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                    
+                    if (!empty($imageUrl)) {
+                        $decoded = json_decode($imageUrl, true);
+                        if (is_array($decoded) && !empty($decoded)) {
+                            $productImages = $decoded;
+                        } else {
+                            $productImages = [$imageUrl];
+                        }
+                    }
+                    
+                    // Build proper image paths
+                    foreach ($productImages as $image) {
+                        $image = trim($image);
+                        
+                        if (empty($image) || strpos($image, 'broken-image-icon') !== false) {
+                            $imagePaths[] = $placeholderSvg;
+                            continue;
+                        }
+                        
+                        $image = ltrim($image, '/');
+                        
+                        if (strpos($image, 'http://') === 0 || strpos($image, 'https://') === 0) {
+                            $imagePaths[] = $image;
+                        } else if (strpos($image, 'assets/') === 0) {
+                            $imagePaths[] = base_url($image);
+                        } else if (strpos($image, 'uploads/') === 0) {
+                            $imagePaths[] = base_url($image);
+                        } else {
+                            $filename = basename($image);
+                            $imagePaths[] = base_url('uploads/products/' . $filename);
+                        }
+                    }
+                    
+                    if (empty($imagePaths)) {
+                        $imagePaths = [$placeholderSvg];
+                    }
+                    
+                    $totalImages = count($imagePaths);
+                    ?>
+                    <div class="product-info" id="product-image-container">
+                        <?php if (!empty($imagePaths)): ?>
+                            <?php foreach ($imagePaths as $index => $imgPath): ?>
+                                <img src="<?= htmlspecialchars($imgPath) ?>"
+                                    alt="<?= htmlspecialchars($product->ProductName ?? 'Product') ?>" 
+                                    class="main-product-image <?= $index === 0 ? 'active' : '' ?>"
+                                    data-image-index="<?= $index ?>"
+                                    style="<?= $index === 0 ? '' : 'display: none;' ?>"
+                                    onerror="this.onerror=null; this.src='<?= $placeholderSvg ?>';">
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php if (empty($productImages)): ?>
+                            <div style="width: 100%; height: 100%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #999;">
+                                No Image Available
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                <?php else: ?>
+                    <div style="width: 100%; height: 100%; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #999;">
+                        No Image Available
+                    </div>
+                <?php endif; ?>
+
+                <?php if (isset($totalImages) && $totalImages > 1): ?>
+                    <div class="gallery-nav">
+                        <button class="nav-arrow" id="prev-image">&lt;</button>
+                        <button class="nav-arrow" id="next-image">&gt;</button>
+                    </div>
+                    <div class="image-counter" id="image-counter">1/<?= $totalImages ?></div>
+                <?php else: ?>
+                    <div class="image-counter" id="image-counter" style="display: none;">1/1</div>
+                <?php endif; ?>
+            </div>
+
+            <div class="diagram-container">
+                <div id="konva-container" class="konva-wrapper"></div>
+                <div class="preview-label" style="cursor: pointer;">2D Preview <span style="font-size: 0.8em;">(Click to enlarge)</span></div>
+            </div>
+            <button class="upload-btn" id="open-modal-btn">
+                Upload a File
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48">
+                    </path>
+                </svg>
+            </button>
+            
+            <!-- External Uploaded Files Display (outside modal) -->
+            <div class="external-uploaded-files-list" id="external-uploaded-files-list" style="display: none; margin-top: 15px;">
+                <h3 class="external-uploaded-files-title" style="font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; color: #02455F;">Uploaded Files</h3>
+                <div id="external-uploaded-files-container" style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; max-height: 120px;">
+                    <p class="placeholder-text" style="font-style: italic; color: #666; text-align: center; padding: 10px;">No files uploaded yet.</p>
+                </div>
+                <div class="external-files-scroll-nav" style="display: flex; gap: 10px; justify-content: center; margin-top: 10px;">
+                    <button class="scroll-arrow left hidden" style="background: #02455F; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: none;">&lt;</button>
+                    <button class="scroll-arrow right hidden" style="background: #02455F; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; display: none;">&gt;</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="product-details" <?php if (isset($product) && $product): ?>data-product-id="<?= $product->Product_ID ?>" data-product-name="<?= htmlspecialchars($product->ProductName) ?>"<?php endif; ?>>
+            <div class="title-row">
+                <div>
+                    <?php if (isset($product) && $product): ?>
+                        <div class="product-title-container" style="display: flex; flex-direction: column; align-items: flex-start;">
+                            <h2><?= htmlspecialchars($product->ProductName) ?></h2>
+                            <!-- Validation warning message container -->
+                            <div id="validation-warning" class="validation-warning" style="display: none; width: 100%; background: #fff5f5; color: #d9534f; padding: 10px 15px; border-radius: 6px; border-left: 4px solid #d9534f; margin-top: 10px; font-weight: 600; font-size: 0.9rem; line-height: 1.4; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"></div>
+                        </div>
+                    <?php endif; ?>
+
+                    <p id="standard-subtitle" class="subtitle hidden-step">Start building today!</p>
+                </div>
+                <button class="wishlist-btn" id="add-to-wishlist-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>" title="Add to Wishlist">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2">
+                        <path
+                            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Removed Customize Build button as per user request -->
+            
+            <div class="price-box" id="price-box">
+    <div class="price-main">
+        <span class="price-label">Estimated Price</span>
+        <span class="price-value" id="total-price">
+            <?php 
+            if (isset($product) && $product) {
+                $priceMin = isset($product->PriceMin) && $product->PriceMin !== null && $product->PriceMin !== '' ? floatval($product->PriceMin) : null;
+                $priceMax = isset($product->PriceMax) && $product->PriceMax !== null && $product->PriceMax !== '' ? floatval($product->PriceMax) : null;
+                
+                if ($priceMin !== null && $priceMax !== null && $priceMin != $priceMax) {
+                    echo '₱' . number_format($priceMin, 2) . ' - ₱' . number_format($priceMax, 2);
+                } elseif ($priceMin !== null) {
+                    echo '₱' . number_format($priceMin, 2);
+                } elseif (isset($product->Price) && $product->Price !== null && $product->Price !== '') {
+                    echo '₱' . number_format(floatval($product->Price), 2);
+                } else {
+                    echo 'Price on Request';
+                }
+            } else {
+                echo 'Price on Request';
+            }
+            ?>
+        </span>
+    </div>
+</div>
+
+            <div id="custom-wrapper">
+                <!-- Default Size Fields (Width & Height) - Width comes first -->
+                <div class="dimensions-container" id="dimensions-container">
+                    <div class="input-group">
+                        <label class="section-label">Width</label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-width" name="width" value="" min="0" step="0.1" placeholder="0.00">
+                            </div>
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-width" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-width">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Lock/Unlock Button -->
+                    <div class="dimension-lock-container">
+                        <button type="button" id="dimension-lock-btn" class="dimension-lock-btn" title="Lock dimensions to keep height and width equal">
+                            <svg id="lock-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                            <svg id="unlock-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="input-group">
+                        <label class="section-label">Height</label>
+                        <div class="unit-wrapper">
+                            <div class="input-wrapper">
+                                <input type="number" id="input-height" name="height" value="" min="0" step="0.1" placeholder="0.00">
+                            </div>
+                            <div class="unit-control">
+                                <button type="button" class="unit-select" id="btn-unit-height" data-current-unit="in">
+                                    Inches <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12l4 4 4-4"></path></svg>
+                                </button>
+                                <div class="unit-dropdown hidden-step" id="dropdown-height">
+                                    <div class="unit-option" data-value="in">Inches</div>
+                                    <div class="unit-option" data-value="cm">Centimeters</div>
+                                    <div class="unit-option" data-value="mm">Millimeters</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dynamic customization fields will be rendered here -->
+                <div id="dynamic-customization-container">
+                    <!-- Fields will be dynamically generated based on product configuration -->
+                </div>
+
+                <div class="action-area">
+                    <div class="action-group left hidden-step" id="back-group">
+                        <button class="nav-btn back-btn" id="back-btn">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            Back
+                        </button>
+                        <p class="footer-note" id="back-note">Glass Shape</p>
+                    </div>
+                    <div class="action-group right">
+                        <button class="nav-btn next-btn" id="next-btn">
+                            Next
+                            <svg viewBox="0 0 24 24">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+                        <p class="footer-note" id="next-note">Glass Type & Thickness</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Standard wrapper removed as per user request to remove standard tab -->
+
+            <div id="summary-wrapper" class="hidden-step">
+                <h2 class="summary-title">Review your order</h2>
+                
+                <!-- Warning Message -->
+                <div class="price-warning" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin: 20px 0; color: #856404;">
+                    <strong style="display: block; margin-bottom: 4px;">ΓÜá∩╕Å Important Notice:</strong>
+                    <span>The estimated price shown is subject to change after the ocular visit. Final pricing will be confirmed following site assessment and verification of specifications.</span>
+                </div>
+
+                <!-- Design Preview Section -->
+                <div class="design-preview-section">
+                    <h3 class="design-preview-title">Your Custom Design</h3>
+                    <div class="design-preview-container">
+                        <img id="design-preview-img" src="" alt="Custom Design Preview">
+                    </div>
+                    <p class="design-preview-note">This design layout will be saved with your order for quotation and invoice purposes.</p>
+                </div>
+
+                <div class="summary-table-container">
+                    <div class="summary-header">
+                        Order Specifications
+                    </div>
+                    <div class="summary-content">
+                        <div class="summary-row">
+                            <span class="spec-label">Shape:</span>
+                            <span class="spec-value">
+                                <span id="sum-shape">Rectangle</span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Dimension:</span>
+                            <span class="spec-value">
+                                <span id="sum-dim">45" x 35"</span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Type:</span>
+                            <span class="spec-value">
+                                <span id="sum-type">Tempered</span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Thickness:</span>
+                            <span class="spec-value">
+                                <span id="sum-thick">5mm</span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Edge Work:</span>
+                            <span class="spec-value">
+                                <span id="sum-edge">Flat Polish</span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Frame Type:</span>
+                            <span class="spec-value">
+                                <span id="sum-frame">Vinyl</span>
+                            </span>
+                        </div>
+                        <div class="summary-row">
+                            <span class="spec-label">Engraving:</span>
+                            <span class="spec-value" id="sum-engrave">None</span>
+                        </div>
+
+                        <div class="summary-row total-row">
+                            <span class="spec-label">Total</span>
+                            <span class="spec-value price-final" id="sum-total">Γé▒0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="summary-actions">
+                    <button class="cart-btn" id="add-to-cart-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <circle cx="9" cy="21" r="1"></circle>
+                            <circle cx="20" cy="21" r="1"></circle>
+                            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        </svg>
+                        Add to Cart
+                    </button>
+
+                    <button class="buy-btn" id="buy-now-btn" data-product-id="<?= isset($product) && $product ? $product->Product_ID : '' ?>">
+                        Buy Now
+                    </button>
+
+                    <button class="edit-order-btn" id="edit-order-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                        </svg>
+                        Edit Configuration
+                    </button>
+                </div>
+
+
+            </div>
+
+            <!-- Preview Modal for enlarged Konva canvas -->
+            <div id="preview-modal" class="modal-backdrop hidden-step">
+                <div class="preview-modal-content">
+                    <button class="preview-close-btn" id="preview-close-btn">&times;</button>
+                    <img id="zoomed-preview-img" src="" alt="Design Preview">
+                    <div class="preview-modal-actions">
+                        <button class="download-design-btn" id="download-design-btn">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            Download Design
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <section id="related-products-section" class="full-width-section dark-bg">
+        <div class="inner-content">
+            <h2 class="section-title-white">You May Also Like</h2>
+            <div class="products-grid">
+                <?php if (isset($recommendations) && !empty($recommendations)): ?>
+                    <?php 
+                    // Limit to exactly 4 cards and randomize
+                    $recommendations_array = is_array($recommendations) ? $recommendations : (array)$recommendations;
+                    
+                    // Shuffle array to randomize
+                    shuffle($recommendations_array);
+                    
+                    // Limit to 4 items, excluding current product
+                    $limited_recommendations = [];
+                    foreach ($recommendations_array as $rec_product) {
+                        // Skip the current product being viewed
+                        if (isset($product) && $rec_product->Product_ID == $product->Product_ID) {
+                            continue;
+                        }
+                        $limited_recommendations[] = $rec_product;
+                        if (count($limited_recommendations) >= 4) {
+                            break;
+                        }
+                    }
+                    
+                    foreach ($limited_recommendations as $rec_product): 
+                    ?>
+                        <div class="product-card">
+                            <div class="p-image">
+                                <?php 
+                                $rec_images = [];
+                                $placeholderSvg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+                                
+                                if (!empty($rec_product->ImageUrl)) {
+                                    $decoded = json_decode($rec_product->ImageUrl, true);
+                                    if (is_array($decoded)) {
+                                        $rec_images = $decoded;
+                                    } else {
+                                        $rec_images = [$rec_product->ImageUrl];
+                                    }
+                                }
+                                
+                                $image_url = $placeholderSvg;
+                                if (!empty($rec_images)) {
+                                    $firstImg = trim($rec_images[0]);
+                                    if (!empty($firstImg) && strpos($firstImg, 'broken-image-icon') === false) {
+                                        $firstImg = ltrim($firstImg, '/');
+                                        if (strpos($firstImg, 'http://') === 0 || strpos($firstImg, 'https://') === 0) {
+                                            $image_url = $firstImg;
+                                        } else if (strpos($firstImg, 'assets/') === 0) {
+                                            $image_url = base_url($firstImg);
+                                        } else if (strpos($firstImg, 'uploads/') === 0) {
+                                            $image_url = base_url($firstImg);
+                                        } else {
+                                            $filename = basename($firstImg);
+                                            $image_url = base_url('uploads/products/' . $filename);
+                                        }
+                                    }
+                                }
+                                ?>
+                                <img src="<?= htmlspecialchars($image_url) ?>" alt="<?= htmlspecialchars($rec_product->ProductName) ?>" onerror="this.onerror=null; this.src='<?= $placeholderSvg ?>';">
+                            </div>
+                            <div class="p-info">
+                                <p><?= htmlspecialchars($rec_product->ProductName) ?></p>
+                                <button class="yellow-btn" onclick="window.location.href='<?= base_url('2DModeling?id=' . $rec_product->Product_ID) ?>'">Build and Buy</button>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <!-- Fallback if no recommendations available -->
+                    <p style="color: #fff; text-align: center; padding: 20px; grid-column: 1 / -1;">No products available at the moment.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </section>
+</body>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    // PHP → JS: Pass selected product data
+    <?php
+    // Get customer role to determine if advanced customization is available
+    $customerRole = null;
+    $debugInfo = [];
+    
+    $debugInfo['is_logged_in'] = $this->session->userdata('is_logged_in');
+    $debugInfo['customer_id'] = $this->session->userdata('customer_id');
+    
+    if ($this->session->userdata('is_logged_in') && $this->session->userdata('customer_id')) {
+        $customerId = $this->session->userdata('customer_id');
+        $this->db->where('Customer_ID', $customerId);
+        $customer = $this->db->get('customer')->row();
+        $customerRole = $customer ? $customer->role : null;
+        
+        $debugInfo['customer_found'] = $customer ? true : false;
+        $debugInfo['customer_role_from_db'] = $customer ? $customer->role : 'no_customer_record';
+    }
+    
+    // For debugging purposes - force beginner role for now
+    $customerRole = 'beginner';
+    $debugInfo['final_role'] = $customerRole;
+    
+    // Get price from database - use Price if available, otherwise PriceMin, otherwise 0
+    $productPrice = 0;
+    if (isset($product) && $product) {
+        if (isset($product->Price) && $product->Price !== null && $product->Price !== '') {
+            $productPrice = floatval($product->Price);
+        } elseif (isset($product->PriceMin) && $product->PriceMin !== null && $product->PriceMin !== '') {
+            $productPrice = floatval($product->PriceMin);
+        }
+    }
+    ?>
+    window.productBasePrice = <?= $productPrice ?>;
+    const productBasePrice = window.productBasePrice;
+    var base_url = '<?= base_url(); ?>';
+    
+    // Customer role for conditional functionality
+    window.customerRole = '<?= $customerRole ?>';
+    window.roleDebugInfo = <?= json_encode($debugInfo) ?>;
+    console.log('=== ROLE DEBUG INFO ===');
+    console.log('Customer Role:', window.customerRole);
+    console.log('Debug Info:', window.roleDebugInfo);
+    
+    // Product images for gallery navigation - always set even if 1 image
+    <?php if (isset($product) && $product && isset($imagePaths)): ?>
+    window.productImages = <?= json_encode($imagePaths ?? []) ?>;
+    window.totalProductImages = <?= isset($totalImages) ? $totalImages : count($imagePaths ?? []) ?>;
+    <?php else: ?>
+    window.productImages = [];
+    window.totalProductImages = 0;
+    <?php endif; ?>
+    
+    console.log('=== IMAGE DEBUG ===');
+    console.log('Product Images Array:', window.productImages);
+    console.log('Total Images Count:', window.totalProductImages);
+</script>
+
+<?php if ($customerRole === 'professional'): ?>
+<!-- Advanced customization scripts for professional users only -->
+<script src="<?= base_url('assets/js/2d-functions/2d_customization.js'); ?>"></script>
+<script src="<?= base_url('assets/js/2d-functions/dynamic_customization.js'); ?>"></script>
+<?php else: ?>
+<!-- Basic functionality for beginners - No customization, only booking -->
+<script>
+    console.log('Beginner mode: Advanced customization disabled');
+    
+    // Store selected product for booking
+    window.selectedProductForBooking = {
+        id: '<?= isset($product) ? $product->Product_ID : "" ?>',
+        name: '<?= isset($product) ? addslashes($product->ProductName) : "" ?>',
+        category: '<?= isset($product) ? addslashes($product->Category ?? "") : "" ?>',
+        subcategory: '<?= isset($product) ? addslashes($product->Subcategory ?? "") : "" ?>'
+    };
+    
+    // Debug product data availability
+    console.log('🔍 PRODUCT DEBUG INFO:');
+    console.log('PHP product available:', <?= isset($product) ? 'true' : 'false' ?>);
+    console.log('Product ID from PHP:', '<?= isset($product) ? $product->Product_ID : "MISSING" ?>');
+    console.log('Product Name from PHP:', '<?= isset($product) ? addslashes($product->ProductName) : "MISSING" ?>');
+    console.log('Final selectedProductForBooking:', window.selectedProductForBooking);
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Beginner mode: Setting up simplified UI');
+        console.log('Selected product for booking:', window.selectedProductForBooking);
+        
+        // Hide the 2D preview diagram for beginners
+        const diagramContainer = document.querySelector('.diagram-container');
+        if (diagramContainer) {
+            diagramContainer.style.display = 'none';
+        }
+        
+        // Hide upload file button for beginners
+        const uploadBtn = document.getElementById('open-modal-btn');
+        if (uploadBtn) {
+            uploadBtn.style.display = 'none';
+        }
+        
+        // Hide entire customization section for beginners
+        const customWrapper = document.getElementById('custom-wrapper');
+        if (customWrapper) {
+            customWrapper.style.display = 'none';
+        }
+        
+        // Hide quantity controls if any
+        const quantityControls = document.querySelectorAll('.quantity-control, .quantity-input, #quantity-wrapper');
+        quantityControls.forEach(el => el.style.display = 'none');
+        
+        // Hide add to cart buttons - beginners cannot add to cart
+        const cartBtns = document.querySelectorAll('.add-to-cart-btn, #add-to-cart-btn, [data-action="add-to-cart"]');
+        cartBtns.forEach(btn => btn.style.display = 'none');
+        
+        // Hide summary wrapper (2D specs)
+        const summaryWrapper = document.getElementById('summary-wrapper');
+        if (summaryWrapper) {
+            summaryWrapper.style.display = 'none';
+        }
+        
+        // Hide external uploaded files
+        const externalUploadedFiles = document.getElementById('external-uploaded-files-list');
+        if (externalUploadedFiles) {
+            externalUploadedFiles.style.display = 'none';
+        }
+        
+        // Modify the product details section for beginners
+        const productDetails = document.querySelector('.product-details');
+        if (productDetails) {
+            // Create beginner-specific UI
+            const beginnerUI = document.createElement('div');
+            beginnerUI.id = 'beginner-booking-ui';
+            beginnerUI.innerHTML = `
+                <div class="beginner-notice" style="background: #e8f4f8; border: 1px solid #bee5eb; color: #0c5460; padding: 15px; border-radius: 8px; margin: 15px 0; font-size: 0.9rem;">
+                    <strong>🛠️ Interested in this product?</strong><br>
+                    Book an ocular visit and our experts will help you with measurements and customization on-site!
+                </div>
+                
+                <div class="beginner-actions" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+                    <button id="beginner-book-ocular-btn" class="primary-action-btn" style="background: #02455F; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                        Book Ocular Visit for This Product
+                    </button>
+                    
+                    <p style="text-align: center; color: #666; font-size: 0.85rem;">or add to wishlist to save for later</p>
+                </div>
+            `;
+            
+            // Insert at the beginning of product details
+            productDetails.insertBefore(beginnerUI, productDetails.firstChild);
+            
+            // Setup booking button click handler
+            const bookBtn = document.getElementById('beginner-book-ocular-btn');
+            if (bookBtn) {
+                bookBtn.addEventListener('click', function() {
+                    console.log('🎯 BOOKING BUTTON CLICKED');
+                    
+                    let productData = window.selectedProductForBooking;
+                    console.log('Initial product data:', productData);
+                    
+                    // Fallback: try to get product data from current page URL or context
+                    if (!productData || !productData.id) {
+                        console.log('⚠️ No product data, trying fallback methods...');
+                        
+                        // Try to get from URL parameters
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const urlProductId = urlParams.get('id') || urlParams.get('product_id');
+                        
+                        if (urlProductId) {
+                            console.log('✅ Found product ID in URL:', urlProductId);
+                            productData = {
+                                id: urlProductId,
+                                name: 'Selected Product',
+                                category: '',
+                                subcategory: ''
+                            };
+                        } else {
+                            // Last resort: check if there's a product ID in the page context
+                            const productSection = document.querySelector('.product-details[data-product-id]');
+                            if (productSection) {
+                                const fallbackId = productSection.getAttribute('data-product-id');
+                                const fallbackName = productSection.getAttribute('data-product-name') || 'Selected Product';
+                                console.log('✅ Found product data in DOM attributes:', fallbackId, fallbackName);
+                                productData = {
+                                    id: fallbackId,
+                                    name: fallbackName,
+                                    category: '',
+                                    subcategory: ''
+                                };
+                            }
+                        }
+                    }
+                    
+                    console.log('Final product data for booking:', productData);
+                    
+                    if (!productData || !productData.id || productData.id === '') {
+                        console.error('❌ Still no valid product ID found');
+                        showToast('Unable to identify the selected product. Please try again or contact support.', 'error');
+                        return;
+                    }
+                    
+                    console.log('✅ Proceeding with booking for product:', productData.id);
+                    
+                    // Store product in session/localStorage for booking page
+                    localStorage.setItem('bookingProduct', JSON.stringify(productData));
+                    localStorage.setItem('beginner_selected_product', JSON.stringify(productData));
+                    localStorage.setItem('beginner_booking_mode', 'true');
+                    
+                    console.log('🚀 Beginner booking initiated:', productData);
+                    console.log('📋 localStorage set for booking detection');
+                    
+                    // Redirect to booking page with product info
+                    const bookingUrl = base_url + 'booking?product_id=' + encodeURIComponent(productData.id) + '&product_name=' + encodeURIComponent(productData.name) + '&source=beginner_booking';
+                    console.log('🔗 Redirecting to:', bookingUrl);
+                    
+                    window.location.href = bookingUrl;
+                });
+            }
+        }
+    });
+</script>
+<?php endif; ?>
+
+<script src="<?= base_url('assets/js/2d-functions/addtocustomization.js'); ?>"></script>
+<script src="<?= base_url('assets/js/2d-functions/addtowishlist.js'); ?>"></script>
+
+<script>
+// Product Image Gallery Navigation - Works for ALL roles
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('=== INITIALIZING IMAGE GALLERY NAVIGATION ===');
+    
+    // Get images directly from DOM as fallback
+    const imageContainer = document.getElementById('product-image-container');
+    const images = imageContainer ? imageContainer.querySelectorAll('.main-product-image') : [];
+    const totalImages = images.length;
+    
+    console.log('DOM Images found:', images.length);
+    console.log('Total images to navigate:', totalImages);
+    
+    const prevBtn = document.getElementById('prev-image');
+    const nextBtn = document.getElementById('next-image');
+    const counter = document.getElementById('image-counter');
+    
+    console.log('Image container:', imageContainer);
+    console.log('Prev button:', prevBtn);
+    console.log('Next button:', nextBtn);
+    console.log('Counter:', counter);
+    
+    if (totalImages > 1) {
+        let currentImageIndex = 0;
+        
+        function showImage(index) {
+            console.log('Showing image index:', index);
+            images.forEach((img, i) => {
+                img.style.display = i === index ? 'block' : 'none';
+                img.classList.toggle('active', i === index);
+            });
+            if (counter) {
+                counter.textContent = `${index + 1}/${totalImages}`;
+            }
+        }
+        
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Prev button clicked');
+                currentImageIndex = (currentImageIndex - 1 + totalImages) % totalImages;
+                showImage(currentImageIndex);
+            });
+            console.log('Prev button event listener attached');
+        } else {
+            console.log('WARNING: Prev button not found!');
+        }
+        
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Next button clicked');
+                currentImageIndex = (currentImageIndex + 1) % totalImages;
+                showImage(currentImageIndex);
+            });
+            console.log('Next button event listener attached');
+        } else {
+            console.log('WARNING: Next button not found!');
+        }
+        
+        // Initialize
+        console.log('Initializing with first image');
+        showImage(0);
+        console.log('Image navigation initialized successfully');
+    } else {
+        console.log('Only 1 or 0 images, navigation not needed');
+        // Hide nav buttons if only one image
+        if (prevBtn) prevBtn.style.display = 'none';
+        if (nextBtn) nextBtn.style.display = 'none';
+        if (counter) counter.style.display = 'none';
+    }
+});
+
+// Testimonial script (inline to avoid nextBtn conflict)
+(function() {
+    const testimonials = document.querySelectorAll('.testimonial-text');
+    const prevBtn = document.querySelector('.testimonial-arrow.left');
+    const testimonialNextBtn = document.querySelector('.testimonial-arrow.right');
+    let currentIndex = 0;
+
+    function showTestimonial(index) {
+        testimonials.forEach((t, i) => {
+            t.classList.toggle('active', i === index);
+        });
+    }
+
+    if (testimonialNextBtn) {
+        testimonialNextBtn.addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % testimonials.length;
+            showTestimonial(currentIndex);
+        });
+    }
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            currentIndex = (currentIndex - 1 + testimonials.length) % testimonials.length;
+            showTestimonial(currentIndex);
+        });
+    }
+})();
+</script>
+
+
+
+<?php if ($product): ?>
+    <script>
+        // Pass Product Info From PHP ΓåÆ JavaScript
+        // Handle ImageUrl - it might be JSON array or single string
+        <?php 
+        $imageUrl = $product->ImageUrl ?? '';
+        $imageSrc = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+        
+        if (!empty($imageUrl)) {
+            $decoded = json_decode($imageUrl, true);
+            $firstImage = '';
+            if (is_array($decoded) && !empty($decoded[0])) {
+                $firstImage = trim($decoded[0]);
+            } else {
+                $firstImage = trim($imageUrl);
+            }
+            
+            if (!empty($firstImage) && strpos($firstImage, 'broken-image-icon') === false) {
+                $firstImage = ltrim($firstImage, '/');
+                if (strpos($firstImage, 'http://') === 0 || strpos($firstImage, 'https://') === 0) {
+                    $imageSrc = $firstImage;
+                } else if (strpos($firstImage, 'assets/') === 0) {
+                    $imageSrc = base_url($firstImage);
+                } else if (strpos($firstImage, 'uploads/') === 0) {
+                    $imageSrc = base_url($firstImage);
+                } else {
+                    $filename = basename($firstImage);
+                    $imageSrc = base_url('uploads/products/' . $filename);
+                }
+            }
+        }
+        ?>
+        
+        <?php
+        // Get price from database - use Price if available, otherwise PriceMin, otherwise 0
+        $productPriceForJS = 0;
+        if (isset($product) && $product) {
+            if (isset($product->Price) && $product->Price !== null && $product->Price !== '') {
+                $productPriceForJS = floatval($product->Price);
+            } elseif (isset($product->PriceMin) && $product->PriceMin !== null && $product->PriceMin !== '') {
+                $productPriceForJS = floatval($product->PriceMin);
+            }
+        }
+        ?>
+        const selectedProduct = {
+            id: "<?= isset($product) && $product ? $product->Product_ID : '' ?>",
+            name: <?= json_encode($product->ProductName ?? '') ?>,
+            price: <?= $productPriceForJS ?>,
+            priceMin: <?= isset($product->PriceMin) && $product->PriceMin !== null && $product->PriceMin !== '' ? floatval($product->PriceMin) : 'null' ?>,
+            priceMax: <?= isset($product->PriceMax) && $product->PriceMax !== null && $product->PriceMax !== '' ? floatval($product->PriceMax) : 'null' ?>,
+            category: <?= json_encode($product->Category ?? '') ?>,
+            subcategory: <?= json_encode($product->Subcategory ?? '') ?>,
+            series: <?= json_encode($product->Series ?? '') ?>,
+            material: <?= json_encode($product->Material ?? '') ?>,
+            image: <?= json_encode($imageSrc) ?>,
+            customizationFieldKey: <?= json_encode($customizationFieldKey ?? null) ?>,
+            tagPrices: <?= json_encode(empty($tagPrices) ? new stdClass() : $tagPrices) ?>,
+            tagImages: <?= json_encode(empty($tagImages) ? new stdClass() : $tagImages) ?>,
+            tagVisualConfigs: <?= json_encode(empty($tagVisualConfigs) ? new stdClass() : $tagVisualConfigs) ?>,
+            standardSeries: <?= json_encode($standardSeries ?? []) ?>,
+            selectedOptions: <?= json_encode($productSelectedOptions ?? []) ?> // Admin-selected tags to filter options
+        };
+
+        console.log("=== PRODUCT DATA DEBUG ===");
+        console.log("Loaded Product From PHP:", selectedProduct);
+        console.log("Product ID:", selectedProduct.id);
+        console.log("Category:", selectedProduct.category);
+        console.log("Subcategory:", selectedProduct.subcategory);
+        console.log("Customization Field Key:", selectedProduct.customizationFieldKey);
+        console.log("Tag Prices:", selectedProduct.tagPrices);
+        console.log("Tag Prices Count:", Object.keys(selectedProduct.tagPrices || {}).length);
+        console.log("=== TAG VISUAL CONFIGS (2D Preview Styles) ===");
+        console.log("Tag Visual Configs:", selectedProduct.tagVisualConfigs);
+        console.log("Tag Visual Configs Count:", Object.keys(selectedProduct.tagVisualConfigs || {}).length);
+        if (selectedProduct.tagVisualConfigs) {
+            Object.keys(selectedProduct.tagVisualConfigs).forEach(fieldId => {
+                console.log(`  Field "${fieldId}":`, selectedProduct.tagVisualConfigs[fieldId]);
+            });
+        }
+        console.log("Standard Series:", selectedProduct.standardSeries);
+        console.log("Standard Series Count:", (selectedProduct.standardSeries || []).length);
+        console.log("Base URL:", base_url);
+
+        // Initialize dynamic customization when DOM is ready
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Set global reference for dynamic_customization.js
+            if (typeof window !== 'undefined') {
+                window.selectedProduct = selectedProduct;
+            }
+
+            // Check if we are editing an existing cart item
+            const urlParams = new URLSearchParams(window.location.search);
+            const editCartId = urlParams.get('cart_id');
+            if (editCartId) {
+                console.log(`[Edit] Detected Edit Mode for Cart ID: ${editCartId}`);
+                try {
+                    const editResponse = await fetch(base_url + 'CartCon/get_item_customization_ajax?cart_id=' + editCartId);
+                    const editResult = await editResponse.json();
+                    if (editResult.status === 'success' && editResult.customization) {
+                        console.log('[Edit] Preloading customization:', editResult.customization);
+                        window.preloadedCustomization = editResult.customization;
+                        
+                        // Set dimensions if available
+                        if (editResult.customization.Dimensions) {
+                            const dims = editResult.customization.Dimensions.toLowerCase().split('x');
+                            if (dims.length === 2) {
+                                const wMatch = dims[0].match(/(\d+\.?\d*)(in|cm|mm)/);
+                                const hMatch = dims[1].match(/(\d+\.?\d*)(in|cm|mm)/);
+                                if (wMatch && hMatch) {
+                                    window.preloadedDimensions = {
+                                        width: { value: wMatch[1], unit: wMatch[2] },
+                                        height: { value: hMatch[1], unit: hMatch[2] }
+                                    };
+                                }
+                            }
+                        }
+                    }
+                } catch(e) {
+                    console.error('[Edit] Error loading item customization:', e);
+                }
+            }
+
+            // Wait a bit for scripts to load and initialize
+            setTimeout(async () => {
+                console.log("=== LOADING CUSTOMIZATION FIELDS ===");
+                
+                // Load customization fields from API (from customization_field_configs table)
+                let customizationFields = [];
+                let stepNamesFromAPI = null;
+                if (selectedProduct.customizationFieldKey) {
+                    const apiUrl = base_url + 'customizationFields/get?fieldKey=' + encodeURIComponent(selectedProduct.customizationFieldKey);
+                    console.log("Fetching from API:", apiUrl);
+                    
+                    try {
+                        const response = await fetch(apiUrl);
+                        console.log("API Response Status:", response.status);
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
+                        const result = await response.json();
+                        console.log("API Response:", result);
+                        console.log("API Response fields:", result.fields);
+                        console.log("API Response fields type:", typeof result.fields);
+                        console.log("API Response fields length:", result.fields ? result.fields.length : 'N/A');
+                        
+                        if (result.status === 'success') {
+                            // Check if fields is an array and has items
+                            if (Array.isArray(result.fields) && result.fields.length > 0) {
+                                customizationFields = result.fields;
+                                
+                                // Extract step names from fields array if they exist
+                                // Step names might be stored as a separate field in the config
+                                const stepNamesKey = selectedProduct.customizationFieldKey + '_stepNames';
+                                if (result[stepNamesKey]) {
+                                    stepNamesFromAPI = result[stepNamesKey];
+                                } else if (result.stepNames) {
+                                    stepNamesFromAPI = result.stepNames;
+                                }
+                                
+                                console.log('Γ£à Loaded customization fields from database:', customizationFields);
+                                console.log('Γ£à Fields count:', customizationFields.length);
+                                if (stepNamesFromAPI) {
+                                    console.log('Γ£à Loaded step names from database:', stepNamesFromAPI);
+                                }
+                            } else {
+                                console.warn('ΓÜá∩╕Å API returned success but fields array is empty or invalid:', result.fields);
+                            }
+                        } else {
+                            console.warn('ΓÜá∩╕Å API returned error status:', result);
+                        }
+                    } catch(e) {
+                        console.error('Γ¥î Error loading customization fields from API:', e);
+                        console.error('Error details:', e.message);
+                    }
+                } else {
+                    console.warn('ΓÜá∩╕Å No customizationFieldKey available');
+                }
+                
+                // If no fields from database, try localStorage (admin might have configured but not saved to DB)
+                if (customizationFields.length === 0) {
+                    try {
+                        const savedFields = localStorage.getItem('glassify_customization_fields');
+                        if (savedFields) {
+                            const allFields = JSON.parse(savedFields);
+                            customizationFields = allFields[selectedProduct.customizationFieldKey] || [];
+                            if (customizationFields.length > 0) {
+                                console.log('Loaded customization fields from localStorage:', customizationFields);
+                            }
+                        }
+                    } catch(e2) {
+                        console.error('Error loading from localStorage:', e2);
+                    }
+                }
+                
+                // If still no fields, use default fields based on category/subcategory
+                if (customizationFields.length === 0 && selectedProduct.category && selectedProduct.subcategory) {
+                    const defaultResult = getDefaultFieldsForSubcategory(selectedProduct.category, selectedProduct.subcategory);
+                    customizationFields = defaultResult.fields || [];
+                    if (!stepNamesFromAPI && defaultResult.stepNames) {
+                        stepNamesFromAPI = defaultResult.stepNames;
+                    }
+                    console.log('Using default fields:', customizationFields);
+                    console.log('Using default step names:', stepNamesFromAPI);
+                }
+                
+                // Store step names globally for navigation
+                if (stepNamesFromAPI) {
+                    window.customizationStepNames = stepNamesFromAPI;
+                }
+
+                // =====================================================
+                // CRITICAL: Load visual configs BEFORE rendering fields
+                // This ensures 2D preview colors sync from admin to customer
+                // =====================================================
+                console.log("=== LOADING VISUAL CONFIGS FOR 2D PREVIEW ===");
+                if (selectedProduct.tagVisualConfigs && Object.keys(selectedProduct.tagVisualConfigs).length > 0) {
+                    if (typeof window.loadDynamicVisualConfigs === 'function') {
+                        window.loadDynamicVisualConfigs(selectedProduct.tagVisualConfigs);
+                        console.log('Γ£à Visual configs loaded from admin settings');
+                    } else {
+                        console.warn('ΓÜá∩╕Å loadDynamicVisualConfigs not available yet, will retry after render');
+                        // Store for later loading
+                        window.pendingVisualConfigs = selectedProduct.tagVisualConfigs;
+                    }
+                } else {
+                    console.log('Γä╣∩╕Å No custom visual configs defined for this product');
+                }
+                
+                // Render customization fields if available
+                console.log("=== RENDERING CUSTOMIZATION FIELDS ===");
+                console.log("Fields to render:", customizationFields);
+                console.log("Fields count:", customizationFields.length);
+                
+                if (customizationFields.length > 0) {
+                    const customContainer = document.getElementById('dynamic-customization-container');
+                    console.log("Custom container found:", !!customContainer);
+                    console.log("renderDynamicCustomizationFields function exists:", typeof renderDynamicCustomizationFields === 'function');
+                    console.log("Selected options for filtering:", selectedProduct.selectedOptions);
+                    
+                    if (customContainer && typeof renderDynamicCustomizationFields === 'function') {
+                        // Use step names from API or default
+                        const stepNamesToUse = window.customizationStepNames || null;
+                        
+                        // Pass selectedOptions to filter which tags are shown to customer
+                        // Only tags selected by admin will be displayed
+                        renderDynamicCustomizationFields(
+                            customizationFields,
+                            selectedProduct.tagPrices,
+                            customContainer,
+                            selectedProduct.tagImages,
+                            stepNamesToUse,
+                            selectedProduct.selectedOptions // Admin-selected tags only
+                        );
+                        console.log('Γ£à Rendered customization fields with selected options filter');
+                    } else {
+                        console.error('Γ¥î Container or function not found');
+                        console.error('Container:', customContainer);
+                        console.error('Function:', typeof renderDynamicCustomizationFields);
+                    }
+                } else {
+                    console.warn('ΓÜá∩╕Å No customization fields to render');
+                    const customContainer = document.getElementById('dynamic-customization-container');
+                    if (customContainer) {
+                        customContainer.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">No customization options available. Please configure fields in admin panel.</p>';
+                    }
+                }
+
+                // Render standard sizes if available - DISABLED as per user request to remove standard tab
+                /*
+                if (selectedProduct.standardSeries && selectedProduct.standardSeries.length > 0) {
+                    const standardContainer = document.getElementById('dynamic-standard-container');
+                    if (standardContainer && typeof renderStandardSizes === 'function') {
+                        renderStandardSizes(selectedProduct.standardSeries, standardContainer);
+                    }
+                }
+                */
+                
+                // =====================================================
+                // FINAL: Retry loading visual configs if they weren't loaded earlier
+                // and ensure the 2D preview is re-rendered with correct colors
+                // =====================================================
+                setTimeout(() => {
+                    // Retry loading visual configs if they were pending
+                    if (window.pendingVisualConfigs && typeof window.loadDynamicVisualConfigs === 'function') {
+                        console.log('≡ƒöä Retrying visual config load...');
+                        window.loadDynamicVisualConfigs(window.pendingVisualConfigs);
+                        delete window.pendingVisualConfigs;
+                    }
+                    
+                    // Force re-render of Konva to apply visual configs
+                    if (typeof window.renderCustomState === 'function') {
+                        console.log('≡ƒöä Re-rendering 2D preview with visual configs...');
+                        window.renderCustomState();
+                    } else if (typeof renderCustomState === 'function') {
+                        renderCustomState();
+                    }
+                    
+                    console.log('Γ£à 2D Preview sync complete - admin visual configs applied');
+                }, 500);
+            }, 200);
+        });
+
+        // Helper function to get default fields (matches admin side structure)
+        function getDefaultFieldsForSubcategory(category, subcategory) {
+            // Map category to prefix (matches admin side)
+            const prefixMap = {
+                'Windows': 'Windows',
+                'Doors': 'Doors',
+                'Glass Partitions & Enclosures': 'Partitions',
+                'Mirrors & Specialty Glass': 'Specialty',
+                'Commercial & Exterior': 'Commercial'
+            };
+            
+            const prefix = prefixMap[category] || '';
+            const fieldKey = prefix ? `${prefix}_${subcategory}` : subcategory;
+            
+            // Default field configurations (matches admin side products.js)
+            // These are comprehensive defaults that match the admin configuration
+            const defaultFields = {
+                'Windows_Sliding': [
+                    { type: 'tags', label: 'Panel', id: 'numberOfPanels', options: ['2 Panels', '4 Panels'], stepNumber: 1 },
+                    { type: 'tags', label: 'Transom Type', id: 'transomType', options: ['None', 'Fixed Transom Head (fixed glass at top)', 'Fixed Transom Sill (fixed glass at bottom)'], stepNumber: 1 },
+                    { type: 'tags', label: 'Track System', id: 'trackSystem', options: ['2 Tracks', '3 Tracks'], stepNumber: 2 },
+                    { type: 'tags', label: 'Screen Option', id: 'screenOption', options: ['With Screen', 'Without Screen'], stepNumber: 2 },
+                    { type: 'tags', label: 'Panel Configuration', id: 'panelConfiguration', options: ['S | S (Sliding | Sliding)', 'F | S (Fixed | Sliding)', 'S | S | S | S (All Sliding)', 'F | S | S | F (Fixed | Sliding | Sliding | Fixed)'], stepNumber: 2 },
+                    { type: 'tags', label: 'Frame Color', id: 'frameColor', options: ['Hanalok', 'White', 'Black', 'Gray', 'Wood Finish'], stepNumber: 3 },
+                    { type: 'tags', label: 'Glass Type (6mm thickness only)', id: 'glassType', options: ['Clear', 'Ultra Clear', 'Bronze', 'Light Green', 'Dark Gray', 'Euro Gray', 'Ford Blue', 'Reflective: Clear', 'Reflective: Gray', 'Reflective: Light Blue', 'Reflective: Dark Blue', 'Reflective: Light Green', 'Reflective: Dark Green', 'Reflective: Light Bronze', 'Tempered: Clear', 'Tempered: Bronze'], stepNumber: 3 },
+                    { type: 'tags', label: 'Glass Thickness', id: 'glassThickness', options: ['6mm'], stepNumber: 3 },
+                    { type: 'tags', label: 'Lock Type', id: 'lockType', options: ['Enter Lock 908', 'Enter Lock 907', 'Flushlock #12', 'New Flushlock', 'Center Lok 904 Big', 'Flushlok #12', 'Durable Flushlok', 'New Auto Flushlock'], stepNumber: 4 },
+                    { type: 'tags', label: 'Roller Type', id: 'rollerType', options: ['Single Roller ORD', 'Single Roller with Bearing', 'Double Roller HD', 'Blue Single Roller', 'Blue Double Roller', 'Single Panel Roller', 'Blue Single Roller', 'Blue Double Roller'], stepNumber: 4 },
+                    { type: 'tags', label: 'Screen', id: 'screen', options: ['With Screen', 'Without Screen'], stepNumber: 4 }
+                ],
+                'Windows_Sliding_stepNames': {
+                    '1': 'WINDOW TYPE',
+                    '2': 'SLIDING SYSTEM & SIZE',
+                    '3': 'FRAME & GLASS',
+                    '4': 'HARDWARE & ACCESSORIES'
+                },
+                'Doors_Sliding': [
+                    { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Tinted', 'Frosted', 'Low-E', 'Tempered', 'Laminated', 'Laminated safety glass'], stepNumber: 1 },
+                    { type: 'tags', label: 'Frame Material/Color', id: 'frameColor', options: ['Aluminum', 'Black', 'White', 'Bronze', 'Brown (wood-look)', 'Silver', 'Custom colors'], stepNumber: 1 },
+                    { type: 'tags', label: 'Panel Count', id: 'panelCount', options: ['2-panel', '3-panel', '4-panel', 'More panels'], stepNumber: 1 },
+                    { type: 'tags', label: 'Operation', id: 'operation', options: ['Sliding (single)', 'Sliding (double)', 'Sliding (multi-track)'], stepNumber: 2 },
+                    { type: 'tags', label: 'Panel Configuration', id: 'panelConfiguration', options: ['Central sliding panels with fixed outer panels', 'All sliding', '2 sliding + 2 fixed', '2 sliding only', '3 sliding', 'Custom'], stepNumber: 2 },
+                    { type: 'tags', label: 'Handle Type', id: 'handleType', options: ['Various pull handles', 'Knob handles', 'Square handles', 'Bar-style', 'Round', 'Square matte black'], stepNumber: 3 },
+                    { type: 'tags', label: 'Hardware Finish', id: 'hardwareFinish', options: ['Chrome/Stainless Steel', 'Polished Chrome/Stainless Steel', 'Black Matte', 'Gold', 'Brushed Nickel', 'Bronze'], stepNumber: 3 },
+                    { type: 'checkbox', label: 'Soft-close', id: 'softClose', stepNumber: 3 }
+                ],
+                'Doors_Sliding_stepNames': {
+                    '1': 'Basic Options',
+                    '2': 'Operation & Configuration',
+                    '3': 'Hardware & Features'
+                },
+                'Partitions_Frameless Glass': [
+                    { type: 'tags', label: 'Layout', id: 'layout', options: ['L-shape', 'Straight', 'U-shape', 'L-type', 'Neo-angle', 'Square', 'Bay', 'Other corner layouts'], stepNumber: 1 },
+                    { type: 'tags', label: 'Glass Type', id: 'glassType', options: ['Clear', 'Frosted', 'Tinted', 'Frosted (full or partial)', 'Clear with frosted sticker', 'Fully frosted'], stepNumber: 1 },
+                    { type: 'tags', label: 'Finish', id: 'finish', options: ['Clear', 'Frosted', 'Patterned'], stepNumber: 1 },
+                    { type: 'tags', label: 'Configuration', id: 'configuration', options: ['Single partition', 'Multiple partitions', '2 fixed panels', '3 fixed panels', 'Custom configurations'], stepNumber: 2 },
+                    { type: 'tags', label: 'Hardware Color', id: 'hardwareColor', options: ['Black', 'Silver', 'Gold', 'White', 'Bronze', 'Chrome/Stainless Steel', 'Black Matte', 'Brushed Nickel', 'Stainless Steel'], stepNumber: 2 },
+                    { type: 'tags', label: 'Mounting Hardware', id: 'mountingHardware', options: ['Stainless Fixed Bracket', 'Gold U-Channel', 'Analok U-Channel (anodized aluminum)', 'Stainless U-Channel', 'Other bracket types', 'Standard mounting'], stepNumber: 2 },
+                    { type: 'number', label: 'Glass Thickness (mm)', id: 'glassThickness', min: 1, step: 0.1, stepNumber: 2 }
+                ],
+                'Partitions_Frameless Glass_stepNames': {
+                    '1': 'Basic Options',
+                    '2': 'Configuration & Hardware'
+                },
+                'Specialty_Mirrors': [
+                    { type: 'tags', label: 'Shape', id: 'shape', options: ['Round', 'Rectangle', 'Oval', 'Circle', 'Square', 'Rectangular with rounded edges', 'Rectangular with arched top', 'Custom shapes'], stepNumber: 1 },
+                    { type: 'tags', label: 'Frame Type', id: 'frameType', options: ['Frameless', 'Framed', 'Gold frame', 'Black frame', 'White frame', 'Framed (thin, metallic)', 'Framed (dark, possibly black, grid frame)', 'Framed (gold frame shown)', 'Framed (thin matching frame possible)'], stepNumber: 1 },
+                    { type: 'tags', label: 'Frame Material/Color', id: 'frameColor', options: ['Gold frame', 'Silver', 'Rose Gold', 'Other metallic finishes', 'Wood', 'Colored frames', 'Black frame', 'Other metallic or matte colors', 'White frame', 'Other colors', 'Metal', 'Silver/Metallic', 'Other options', 'Dark/Black', 'Other frame colors available'], stepNumber: 1 },
+                    { type: 'tags', label: 'Edge Finish', id: 'edgeFinish', options: ['Beveled', 'Polished', 'Raw', 'Beveled edge', 'Flat polished edge', 'Pencil edge', 'Standard polished edge', 'Standard (behind frame)', 'Rounded edges'], stepNumber: 2 },
+                    { type: 'tags', label: 'Tint/Finish', id: 'tintFinish', options: ['Bronze tint/color', 'Grey tint (smoked)', 'Colored glass'], stepNumber: 2 },
+                    { type: 'tags', label: 'Orientation', id: 'orientation', options: ['Vertical', 'Horizontal', 'Vertical/Full-body'], stepNumber: 2 },
+                    { type: 'tags', label: 'Mounting Method', id: 'mountingMethod', options: ['Wall-mounted', 'Stand', 'Adhesive', 'Leaning', 'Wall-mounted (often fixed above vanity)', 'Fixed wall mount', 'Integrated hanger', 'Rope hanger', 'Chain'], stepNumber: 3 },
+                    { type: 'tags', label: 'Size', id: 'size', options: ['Small', 'Medium', 'Large diameter (custom)', 'Custom height and width (oval dimensions)', 'Custom height and width', 'Custom width and height (often for vanity sizes)', 'Very large dimensions for whole-body viewing (customizable)', 'Custom Size (flexible dimensions)', 'Large scale, possibly custom-fit for walls', 'Standard large size', 'Custom sizes', 'Various sizes (tall vertical, wider horizontal)', 'Custom dimensions'], stepNumber: 3 },
+                    { type: 'number', label: 'Corner Radius (in)', id: 'cornerRadius', min: 0, step: 0.1, stepNumber: 3 }
+                ],
+                'Specialty_Mirrors_stepNames': {
+                    '1': 'Basic Shape & Frame',
+                    '2': 'Finish & Details',
+                    '3': 'Mounting & Installation'
+                }
+            };
+            
+            // Return fields and step names
+            const fields = defaultFields[fieldKey] || [];
+            const stepNames = defaultFields[fieldKey + '_stepNames'] || null;
+            
+            return { fields, stepNames };
+        }
+    </script>
+<?php endif; ?>

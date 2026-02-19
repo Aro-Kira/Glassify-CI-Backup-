@@ -1,5 +1,17 @@
 <link rel="stylesheet" href="<?= base_url('assets/css/general-customer/pages/home_style.css'); ?>">
 
+<style>
+.pagination-btn:hover {
+    background-color: #f3f4f6 !important;
+    border-color: #9ca3af !important;
+}
+
+.pagination-btn.active:hover {
+    background-color: #0d3d4d !important;
+    border-color: #0d3d4d !important;
+}
+</style>
+
 <?php
 // Helper function to format time ago
 function time_ago($datetime) {
@@ -113,57 +125,51 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
     <p class="subtle">What would you like to do today?</p>
 
     <div class="hero-cards">
-        <div class="hero-card" id="orderProgressCard">
+        <div class="hero-card order-summary">
             <div class="card-header">
-                <span>Order Progress</span>
-                <span class="arrow">▼</span>
+                <i class="fas fa-shopping-cart card-icon"></i>
+                <span>Active Orders</span>
             </div>
             <div class="card-body">
-                <?php if (isset($orders_in_progress) && $orders_in_progress > 0): ?>
-                    <p><?= $orders_in_progress ?> in progress</p>
-                <?php else: ?>
-                    <p>No orders in progress</p>
-                <?php endif; ?>
+                <div class="card-value">
+                    <?php echo isset($orders_in_progress) ? $orders_in_progress : 0; ?>
+                </div>
+                <div class="card-subtitle">orders in progress</div>
             </div>
         </div>
 
-        <div class="hero-card">
+        <div class="hero-card status-summary">
             <div class="card-header">
-                <span>Recent Activity</span>
-                <span class="arrow">▼</span>
+                <i class="fas fa-clock card-icon"></i>
+                <span>Latest Status</span>
             </div>
             <div class="card-body">
                 <?php if (isset($recent_activity) && $recent_activity): ?>
-                    <?php 
-                    // Format status for display
-                    $status_display = strtolower($recent_activity->Status);
-                    if ($status_display == 'in fabrication') {
-                        $status_display = 'in fabrication';
-                    } elseif ($status_display == 'ready for installation') {
-                        $status_display = 'ready for installation';
-                    } elseif ($status_display == 'approved') {
-                        $status_display = 'approved';
-                    } elseif ($status_display == 'pending') {
-                        $status_display = 'pending approval';
-                    }
-                    ?>
-                    <p>Order <?= htmlspecialchars($recent_activity->OrderNumber ?? 'GI' . str_pad($recent_activity->OrderID, 3, '0', STR_PAD_LEFT)) ?> <?= $status_display ?></p>
+                    <div class="status-badge <?= get_status_class($recent_activity->Status) ?>">
+                        <?= htmlspecialchars($recent_activity->Status) ?>
+                    </div>
+                    <div class="order-ref">Order #<?= htmlspecialchars($recent_activity->OrderNumber ?? 'GI' . str_pad($recent_activity->OrderID, 3, '0', STR_PAD_LEFT)) ?></div>
                 <?php else: ?>
-                    <p>No recent activity</p>
+                    <div class="no-activity">No orders yet</div>
                 <?php endif; ?>
             </div>
         </div>
 
-        <div class="hero-card">
+        <div class="hero-card appointment-summary">
             <div class="card-header">
-                <span>Appointment</span>
-                <span class="arrow">▼</span>
+                <i class="fas fa-calendar card-icon"></i>
+                <span>Next Appointment</span>
             </div>
             <div class="card-body">
                 <?php if (isset($next_appointment) && $next_appointment): ?>
-                    <p><?= date('m/d/Y', strtotime($next_appointment->AppointmentDate)) ?> - <?= date('g:i A', strtotime($next_appointment->AppointmentDate . ' +9 hours')) ?></p>
+                    <div class="appointment-date">
+                        <?= date('M j, Y', strtotime($next_appointment->AppointmentDate)) ?>
+                    </div>
+                    <div class="appointment-time">
+                        <?= date('g:i A', strtotime($next_appointment->AppointmentTime ?? '09:00')) ?>
+                    </div>
                 <?php else: ?>
-                    <p>No upcoming appointments</p>
+                    <div class="no-appointment">No appointments scheduled</div>
                 <?php endif; ?>
             </div>
         </div>
@@ -261,6 +267,45 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
             <?php endif; ?>
         </tbody>
     </table>
+    
+    <?php if (isset($orders) && !empty($orders) && isset($total_order_pages) && $total_order_pages > 1): ?>
+    <!-- Pagination -->
+    <div class="pagination-container" style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding: 15px 0;">
+        <div class="pagination-info" style="color: #6b7280; font-size: 14px;">
+            Showing <?= (($current_order_page - 1) * $orders_per_page) + 1 ?> to <?= min($current_order_page * $orders_per_page, $total_orders) ?> of <?= $total_orders ?> orders
+        </div>
+        <div class="pagination-controls" style="display: flex; gap: 8px;">
+            <?php if ($current_order_page > 1): ?>
+                <a href="<?= base_url('home-login?page=' . ($current_order_page - 1)) ?>" 
+                   class="pagination-btn" 
+                   style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; color: #374151; text-decoration: none; background: #fff; transition: all 0.2s;">
+                    &lsaquo; Prev
+                </a>
+            <?php endif; ?>
+            
+            <?php
+            $start_page = max(1, $current_order_page - 2);
+            $end_page = min($total_order_pages, $current_order_page + 2);
+            
+            for ($i = $start_page; $i <= $end_page; $i++):
+            ?>
+                <a href="<?= base_url('home-login?page=' . $i) ?>" 
+                   class="pagination-btn <?= $i === $current_order_page ? 'active' : '' ?>" 
+                   style="padding: 6px 12px; border: 1px solid <?= $i === $current_order_page ? '#0d3d4d' : '#d1d5db' ?>; border-radius: 6px; color: <?= $i === $current_order_page ? '#fff' : '#374151' ?>; background: <?= $i === $current_order_page ? '#0d3d4d' : '#fff' ?>; text-decoration: none; font-weight: <?= $i === $current_order_page ? '600' : '400' ?>; transition: all 0.2s;">
+                    <?= $i ?>
+                </a>
+            <?php endfor; ?>
+            
+            <?php if ($current_order_page < $total_order_pages): ?>
+                <a href="<?= base_url('home-login?page=' . ($current_order_page + 1)) ?>" 
+                   class="pagination-btn" 
+                   style="padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; color: #374151; text-decoration: none; background: #fff; transition: all 0.2s;">
+                    Next &rsaquo;
+                </a>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 </section>
 
 <!-- Activity Feed -->
@@ -350,60 +395,62 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
             </tr>
         </thead>
         <tbody>
-            <?php if (isset($orders) && !empty($orders)): ?>
+            <?php if (isset($appointments) && !empty($appointments)): ?>
                 <?php 
                 $appointment_count = 0;
-                    $total_appointments = count($orders);
-                // Staff names for display
-                $staff_names = ['Joaquin Santos', 'Engr. Cruz', 'M. Lopez', 'R. Garcia', 'J. Reyes'];
                 
-                foreach ($orders as $order): 
+                foreach ($appointments as $appointment): 
                         $appointment_count++;
-                        // Determine service type based on status
-                        $service = 'Consultation';
-                        $appt_status = 'Pending';
-                        if ($order->Status == 'Ready for Installation') {
-                            $service = 'Installation';
-                            $appt_status = 'Confirmed';
-                        } elseif ($order->Status == 'In Fabrication') {
-                            $service = 'Ocular Visit';
-                            $appt_status = 'Confirmed';
-                        } elseif ($order->Status == 'Approved') {
-                            $service = 'Ocular Visit';
-                            $appt_status = 'Confirmed';
-                        } elseif ($order->Status == 'Completed') {
-                            $service = 'Installation';
-                            $appt_status = 'Completed';
-                        } elseif ($order->Status == 'Cancelled') {
-                            $service = 'Consultation';
-                            $appt_status = 'Cancelled';
+                        
+                        // Get actual appointment data from database
+                        $order_id = htmlspecialchars($appointment->OrderNumber ?? 'GI' . str_pad($appointment->OrderID, 3, '0', STR_PAD_LEFT));
+                        $service = htmlspecialchars($appointment->ServiceType ?? 'Consultation');
+                        $appt_status = htmlspecialchars($appointment->AppointmentStatus ?? 'Pending');
+                        $staff_name = htmlspecialchars($appointment->AssignedStaff ?? 'TBD');
+                        
+                        // Format appointment date and time
+                        $appt_date = isset($appointment->AppointmentDate) ? $appointment->AppointmentDate : 'TBD';
+                        $appt_time = isset($appointment->AppointmentTime) ? $appointment->AppointmentTime : '09:00';
+                        
+                        if ($appt_date !== 'TBD') {
+                            $appointment_date = date('m/d/Y - g:i A', strtotime($appt_date . ' ' . $appt_time));
+                        } else {
+                            $appointment_date = 'TBD';
                         }
                         
-                        // Calculate estimated appointment date
-                        $base_date = strtotime($order->OrderDate);
-                        $appointment_date = date('m/d/Y - g:i A', strtotime('+14 days', $base_date));
-                        
-                        // Get staff name (cycle through for demo)
-                        $staff_name = $staff_names[($appointment_count - 1) % count($staff_names)];
-                        
-                        // Determine status class
-                        $status_class = strtolower($appt_status);
-                        if ($appt_status == 'Confirmed') $status_class = 'confirmed';
-                        elseif ($appt_status == 'Pending') $status_class = 'pending';
-                        elseif ($appt_status == 'Cancelled') $status_class = 'cancelled';
-                        elseif ($appt_status == 'Completed') $status_class = 'completed';
+                        // Determine status class - map database values to CSS classes
+                        $status_class = strtolower(trim($appt_status));
+                        if ($appt_status == 'In Progress') {
+                            $status_class = 'in-progress';
+                            $display_status = 'In Progress';
+                        } elseif ($appt_status == 'Complete') {
+                            $status_class = 'completed';
+                            $display_status = 'Completed';
+                        } elseif ($appt_status == 'Confirmed') {
+                            $status_class = 'confirmed';
+                            $display_status = 'Confirmed';
+                        } elseif ($appt_status == 'Pending') {
+                            $status_class = 'pending';
+                            $display_status = 'Pending';
+                        } elseif ($appt_status == 'Cancelled') {
+                            $status_class = 'cancelled';
+                            $display_status = 'Cancelled';
+                        } else {
+                            $status_class = 'pending';
+                            $display_status = $appt_status;
+                        }
                         
                         // Hide rows beyond 5 initially
                         $hidden_class = ($appointment_count > 5) ? 'hidden-row' : '';
                 ?>
                         <tr data-status="<?= $status_class ?>" class="<?= $hidden_class ?>" data-index="<?= $appointment_count ?>">
-                        <td><?= htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) ?></td>
+                        <td><?= $order_id ?></td>
                         <td><?= $service ?></td>
                         <td><?= $appointment_date ?></td>
                         <td><?= $staff_name ?></td>
                         <td>
                             <!-- Display status for all appointment types, not just cancelled -->
-                            <span class="status <?= $status_class ?>"><?= $appt_status ?></span>
+                            <span class="status <?= $status_class ?>"><?= $display_status ?></span>
                         </td>
                     </tr>
                 <?php 
@@ -422,7 +469,7 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
         </tbody>
     </table>
     </div>
-    <?php if (isset($orders) && count($orders) > 5): ?>
+    <?php if (isset($appointments) && count($appointments) > 5): ?>
     <div class="see-more-container">
         <a href="#" class="see-more-link" id="appointmentSeeMore">See more <span class="arrow">▼</span></a>
     </div>
@@ -449,7 +496,7 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
             
             foreach ($limited_recommendations as $product): 
             ?>
-                <div class="recommendation-card">
+                <div class="recommendation-card" style="text-align: left;">
                     <?php 
                     $image_raw = $product->ImageUrl ?? '';
                     $placeholder_svg = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
@@ -476,7 +523,17 @@ $user_name = isset($user) && $user ? htmlspecialchars($user->First_Name) : 'User
                     }
                     ?>
                     <img src="<?= $image_url ?>" alt="<?= htmlspecialchars($product->ProductName) ?>">
-                    <h3><?= htmlspecialchars($product->ProductName) ?></h3>
+                    <h3 style="font-weight: bold; color: white; text-align: center;"><?= htmlspecialchars($product->ProductName) ?></h3>
+                    <!-- <p style="color: white; text-align: left !important; margin: 4px 0; font-size: 14px;">Type: <span style="font-weight: bold;"><?php 
+                        // Determine order type based on category
+                        $category = strtolower($product->Category ?? '');
+                        if (in_array($category, ['shower enclosure', 'windows', 'railings', 'canopy'])) {
+                            echo 'Site Assessment';
+                        } else {
+                            echo 'Direct Order';
+                        }
+                    ?></span></p> -->
+                    <p style="color: white; text-align: left !important; margin: 4px 0; font-size: 14px;">Price: <span style="font-weight: bold;">₱<?= number_format($product->Price, 2) ?></span></p>
                     <button onclick="window.location.href='<?= base_url('2DModeling?id=' . $product->Product_ID) ?>'">Build and Buy</button>
                 </div>
             <?php endforeach; ?>

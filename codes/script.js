@@ -601,7 +601,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.viewAllNotifications = function() {
-        alert('Viewing all notifications...\nIn a real application, this would navigate to a notifications page.');
+        showToast('Viewing all notifications...', 'info');
     };
 
     // Helper function to handle avatar image errors
@@ -749,13 +749,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (file) {
                 // Validate file type
                 if (!file.type.startsWith('image/')) {
-                    alert('Please select an image file.');
+                    showToast('Please select an image file.', 'warning');
                     return;
                 }
                 
                 // Validate file size (max 5MB)
                 if (file.size > 5 * 1024 * 1024) {
-                    alert('Image size must be less than 5MB.');
+                    showToast('Image size must be less than 5MB.', 'warning');
                     return;
                 }
                 
@@ -792,7 +792,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         showAvatarChangeNotification('Avatar updated successfully!');
                     } else {
                         console.error('Avatar upload failed:', data);
-                        alert('Error: ' + (data.message || 'Failed to upload avatar'));
+                        showToast('Error: ' + (data.message || 'Failed to upload avatar'), 'error');
                         // Reset button
                         const changeBtn = avatarLarge.querySelector('.btn-change-avatar');
                         if (changeBtn) {
@@ -803,7 +803,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(error => {
                     console.error('Error uploading avatar:', error);
-                    alert('Error uploading avatar. Please try again.');
+                    showToast('Error uploading avatar. Please try again.', 'error');
                     // Reset button
                     const changeBtn = avatarLarge.querySelector('.btn-change-avatar');
                     if (changeBtn) {
@@ -949,7 +949,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleDarkMode(theme);
         
         // In a real application, this would save to server
-        alert('Settings saved successfully!\n\nLanguage: ' + language + '\nTheme: ' + theme + '\nDate Format: ' + dateFormat);
+        showToast('Settings saved successfully!', 'success');
         
         closeSettingsModal();
     };
@@ -963,22 +963,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const confirmPass = document.getElementById('confirmPassword').value;
         
         if (!currentPass || !newPass || !confirmPass) {
-            alert('Please fill in all password fields.');
+            showToast('Please fill in all password fields.', 'warning');
             return;
         }
         
         if (newPass !== confirmPass) {
-            alert('New passwords do not match!');
+            showToast('New passwords do not match!', 'error');
             return;
         }
         
         if (newPass.length < 8) {
-            alert('New password must be at least 8 characters long.');
+            showToast('New password must be at least 8 characters long.', 'warning');
             return;
         }
         
         // In a real application, this would validate and update password on server
-        alert('Password updated successfully!');
+        showToast('Password updated successfully!', 'success');
         
         // Clear password fields
         document.getElementById('currentPassword').value = '';
@@ -995,7 +995,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Show loading message
-            alert('Logging out...\nIn a real application, this would end the session and redirect to the login page.');
+            showToast('Logging out...', 'info');
             
             // In a real app, redirect to login page:
             // window.location.href = 'login.php';

@@ -9,13 +9,11 @@ class Product_model extends CI_Model {
         $this->load->database(); // Make sure database is loaded
     }
 public function get_products() {
-    // Only show products that are available (In Stock or Low Stock)
-    // Explicitly select all columns including ImageUrl
+    // Only show products that are available to customers
+    // Treat any of these statuses as available to customers
+    $availableStatuses = ['Available', 'In Stock', 'Low Stock'];
     $this->db->select('*');
-    $this->db->group_start();
-    $this->db->where('Status', 'In Stock');
-    $this->db->or_where('Status', 'Low Stock');
-    $this->db->group_end();
+    $this->db->where_in('Status', $availableStatuses);
     return $this->db->order_by('DateAdded', 'DESC')->get('product')->result();
 }
 
@@ -66,32 +64,40 @@ public function product_name_exists($productName, $excludeId = null) {
  * Prioritizes products that are in stock or low stock
  */
 public function get_recommended_products($limit = 4) {
-    // Get products that are in stock or low stock (available products)
-    $this->db->group_start();
-    $this->db->where('Status', 'In Stock');
-    $this->db->or_where('Status', 'Low Stock');
-    $this->db->group_end();
+    // Get products that are available (for customers)
+    $availableStatuses = ['Available', 'In Stock', 'Low Stock'];
+    $this->db->where_in('Status', $availableStatuses);
     $this->db->order_by('DateAdded', 'DESC');
     $this->db->limit($limit);
     $products = $this->db->get('product')->result();
     
     // If we don't have enough available products, get any products to fill the limit
-    if (count($products) < $limit) {
-        $product_ids = array_column($products, 'Product_ID');
-        $needed = $limit - count($products);
-        
-        if (!empty($product_ids)) {
-            $this->db->where_not_in('Product_ID', $product_ids);
-        }
-        $this->db->order_by('DateAdded', 'DESC');
-        $this->db->limit($needed);
-        $additional_products = $this->db->get('product')->result();
-        
-        // Merge the additional products
-        $products = array_merge($products, $additional_products);
-    }
+    // If fewer than requested available products exist, return what we have
+    // (Do not include unavailable products in customer recommendations)
     
     return $products;
+}
+
+/**
+ * Update only the status field for a product
+ * @param int $id
+ * @param string $status ('Available' or 'Unavailable')
+ * @return bool
+ */
+public function update_product_status($id, $status) {
+    return $this->db->where('Product_ID', $id)->update('product', ['Status' => $status]);
+}
+
+/**
+ * Get only the status for a product
+ * @param int $id
+ * @return string|null
+ */
+public function get_product_status($id) {
+    $this->db->select('Status');
+    $this->db->where('Product_ID', $id);
+    $row = $this->db->get('product')->row();
+    return $row ? $row->Status : null;
 }
 
 }

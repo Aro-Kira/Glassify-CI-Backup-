@@ -6,7 +6,9 @@
   align-items: center;
   background-color: #02455F; /* your blue color */
   padding: 10px 40px;
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 /* Mobile Hamburger Menu Button */
@@ -87,6 +89,27 @@
   filter: invert(100%); /* makes SVG icons white if they're black */
   cursor: pointer;
   transition: 0.3s ease;
+}
+
+/* Specific rules for the notification bell image to match other icons */
+.icons img.notif-icon {
+  /* match tracking/icon sizing and align visually with other icons */
+  max-width: 35px !important;
+  width: 35px !important;
+  height: auto !important;
+  display: block;
+  vertical-align: middle;
+  margin-top: -5px; /* align baseline with tracking icon */
+  /* cancel the global invert if the bell image is already white */
+  filter: none !important;
+  transition: filter 0.18s ease, transform 0.18s ease;
+}
+
+/* Hover / active state: tint the bell to the same golden yellow as other icons */
+.icons .icon-wrapper:hover img.notif-icon,
+.icons .icon-link:hover img.notif-icon,
+.icons a.active img.notif-icon {
+  filter: invert(80%) sepia(80%) saturate(5000%) hue-rotate(1deg) brightness(100%) contrast(100%) !important;
 }
 
 /* Notification bell icon - make it white to match other icons */

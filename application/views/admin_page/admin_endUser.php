@@ -18,6 +18,7 @@
         <tr>
           <th></th>
           <th>Full Name</th>
+          <th>Role</th>
           <th>Email</th>
           <th>Joined Date</th>
           <th>Last Active</th>

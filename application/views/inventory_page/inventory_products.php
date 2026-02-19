@@ -1,7 +1,10 @@
-<link rel="stylesheet" href="<?= base_url('assets/css/admin_css/admin_product.css'); ?>">
-<script src="<?= base_url('assets/js/inventory-js/products.js'); ?>"></script>
+<?php
+// Inventory Products page removed — redirecting to admin dashboard.
+header('Location: ' . base_url('admin-dashboard'));
+exit;
+?>
 
-<!-- Products Section -->
+<!-- Inventory products deprecated -->
 <section class="products-section-main">
   <div class="section-header">
     <h1 class="page-title">Products</h1>

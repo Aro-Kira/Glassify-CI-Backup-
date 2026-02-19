@@ -20,40 +20,30 @@
             <div class="stat-value"><?php echo isset($stats['pending_orders']) ? number_format($stats['pending_orders']) : '0'; ?></div>
             <div class="stat-title">Pending Orders</div>
           </div>
-          <div class="stat-card stat-green">
-            <div class="stat-value">₱<?php echo isset($stats['weekly_sales']) ? number_format($stats['weekly_sales'], 2) : '0.00'; ?></div>
-            <div class="stat-title">Weekly Sales</div>
-          </div>
         </section>
 
-        <!-- INVENTORY -->
-        <section class="inventory-section-full">
+        <!-- ORDER STATUS OVERVIEW -->
+        <section class="order-status-section">
           <div class="dash-tabs">
-            <h2>Inventory</h2>
+            <h2>Order Status Overview</h2>
           </div>
-          <div class="inventory-box">
-            <table>
-              <thead>
-                <tr>
-                  <th>Items</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>6mm Glass Sheets</td>
-                  <td><span class="status-badge out">Out Of Stock</span></td>
-                </tr>
-                <tr>
-                  <td>Aluminum Brackets</td>
-                  <td><span class="status-badge low">Low Stock</span></td>
-                </tr>
-                <tr>
-                  <td>Rubber Gasket</td>
-                  <td><span class="status-badge in">In Stock</span></td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="status-cards">
+            <div class="status-card pending">
+              <div class="status-value"><?php echo isset($stats['pending_orders']) ? number_format($stats['pending_orders']) : '0'; ?></div>
+              <div class="status-title">Pending Orders</div>
+            </div>
+            <div class="status-card in-progress">
+              <div class="status-value"><?php echo isset($stats['in_fabrication']) ? number_format($stats['in_fabrication']) : '0'; ?></div>
+              <div class="status-title">In Fabrication</div>
+            </div>
+            <div class="status-card ready">
+              <div class="status-value"><?php echo isset($stats['ready_for_installation']) ? number_format($stats['ready_for_installation']) : '0'; ?></div>
+              <div class="status-title">Ready for Installation</div>
+            </div>
+            <div class="status-card completed">
+              <div class="status-value"><?php echo isset($stats['completed_orders']) ? number_format($stats['completed_orders']) : '0'; ?></div>
+              <div class="status-title">Completed</div>
+            </div>
           </div>
         </section>
 

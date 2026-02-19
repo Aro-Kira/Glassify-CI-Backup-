@@ -5,7 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const noUnreadMessage = document.getElementById('no-unread-message');
     const unreadCountSpan = document.getElementById('unread-count');
     
-    // Function to filter notifications
+    // Deprecated: sales-notif-filter.js (inventory notifications removed)
+    console.log('Deprecated: sales-notif-filter.js (inventory)');
     function filterNotifications(target) {
         let visibleUnreadCount = 0;
         

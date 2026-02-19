@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GlassWorth BUILDERS - Inventory</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="../assets/js/toast-notification.js"></script>
 </head>
 <body>
     <!-- Top Bar -->
@@ -83,16 +84,6 @@
                         <rect x="14" y="14" width="7" height="7" stroke="currentColor" stroke-width="2"/>
                     </svg>
                     <span>Products</span>
-                </a>
-                <a href="reports.php" class="nav-item">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <line x1="3" y1="21" x2="3" y2="9" stroke="currentColor" stroke-width="2"/>
-                        <line x1="9" y1="21" x2="9" y2="13" stroke="currentColor" stroke-width="2"/>
-                        <line x1="15" y1="21" x2="15" y2="5" stroke="currentColor" stroke-width="2"/>
-                        <line x1="21" y1="21" x2="21" y2="17" stroke="currentColor" stroke-width="2"/>
-                        <line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    <span>Reports</span>
                 </a>
             </nav>
         </aside>
@@ -1363,7 +1354,7 @@
             const isNewItemInput = document.getElementById('isNewItem');
 
             if (!itemNameInput || !itemCategoryInput || !initialStockInput || !itemUnitInput) {
-                alert('Form fields not found!');
+                showToast('Form fields not found!', 'error');
                 return false;
             }
 
@@ -1375,7 +1366,7 @@
 
             // Validate form
             if (!itemName || !itemCategory || !initialStock || !itemUnit) {
-                alert('Please fill in all required fields');
+                showToast('Please fill in all required fields', 'warning');
                 return false;
             }
 
@@ -1417,7 +1408,7 @@
             // Get the items table
             const itemsTable = document.querySelector('.items-table tbody');
             if (!itemsTable) {
-                alert('Table not found!');
+                showToast('Table not found!', 'error');
                 return false;
             }
             
@@ -1490,17 +1481,18 @@
             // Show notification
             if (typeof showNotification === 'function') {
                 showNotification(`New item "${itemName}" added successfully!`, 'success');
-            } else {
-                alert(`New item "${itemName}" added successfully!`);
+            } else if (typeof showToast === 'function') {
+                showToast(`New item "${itemName}" added successfully!`, 'success');
             }
             
             // Close modal
             closeAddItemModal();
                 } else {
                     // Show error message
-                    alert('Error: ' + (data.message || 'Failed to add item'));
                     if (typeof showNotification === 'function') {
                         showNotification('Error: ' + (data.message || 'Failed to add item'), 'error');
+                    } else if (typeof showToast === 'function') {
+                        showToast('Error: ' + (data.message || 'Failed to add item'), 'error');
                     }
                 }
             })
@@ -1512,9 +1504,10 @@
                 }
                 
                 console.error('Error:', error);
-                alert('Error saving item. Please check your database connection.');
                 if (typeof showNotification === 'function') {
                     showNotification('Error saving item. Please check your database connection.', 'error');
+                } else if (typeof showToast === 'function') {
+                    showToast('Error saving item. Please check your database connection.', 'error');
                 }
             });
             
@@ -1670,7 +1663,7 @@
             event.preventDefault();
             
             if (!window.currentEditItemRow) {
-                alert('Row reference not found!');
+                showToast('Row reference not found!', 'error');
                 return false;
             }
             
@@ -1681,7 +1674,7 @@
             const isNewItemInput = document.getElementById('editIsNewItem');
             
             if (!nameInput || !categoryInput || !stockInput || !unitInput) {
-                alert('Form fields not found!');
+                showToast('Form fields not found!', 'error');
                 return false;
             }
             
@@ -1693,7 +1686,7 @@
             
             // Validate form
             if (!newName || !newCategory || !newUnit) {
-                alert('Please fill in all required fields');
+                showToast('Please fill in all required fields', 'warning');
                 return false;
             }
             
@@ -1757,8 +1750,8 @@
             // Show success message
             if (typeof showNotification === 'function') {
                 showNotification(`Item "${window.currentEditItemOriginalName}" updated successfully!`, 'success');
-            } else {
-                alert(`Item "${window.currentEditItemOriginalName}" updated successfully!`);
+            } else if (typeof showToast === 'function') {
+                showToast(`Item "${window.currentEditItemOriginalName}" updated successfully!`, 'success');
             }
             
             console.log(`Item edited: ${window.currentEditItemId} - ${window.currentEditItemOriginalName} → ${newName}`);
@@ -1796,7 +1789,7 @@
 
         window.confirmDeleteItem = function() {
             if (!window.currentDeleteItemRow) {
-                alert('Row reference not found!');
+                showToast('Row reference not found!', 'error');
                 return;
             }
             
@@ -1817,8 +1810,8 @@
                 // Show success notification
                 if (typeof showNotification === 'function') {
                     showNotification(`Item "${itemName}" has been deleted`, 'success');
-                } else {
-                    alert(`Item "${itemName}" has been deleted`);
+                } else if (typeof showToast === 'function') {
+                    showToast(`Item "${itemName}" has been deleted`, 'success');
                 }
                 
                 // Update counts
@@ -1932,8 +1925,8 @@
             if (removeAmount > 0) message += ` (-${removeAmount})`;
             if (typeof showNotification === 'function') {
                 showNotification(message, 'success');
-            } else {
-                alert(message);
+            } else if (typeof showToast === 'function') {
+                showToast(message, 'success');
             }
         };
 

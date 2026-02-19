@@ -108,7 +108,7 @@ $config['charset'] = 'UTF-8';
 | setting this variable to TRUE (boolean).  See the user guide for details.
 |
 */
-$config['enable_hooks'] = FALSE;
+$config['enable_hooks'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -392,10 +392,10 @@ $config['encryption_key'] = '';
 $config['sess_driver'] = 'files';
 $config['sess_cookie_name'] = 'ci_session';
 $config['sess_samesite'] = 'Lax';
-$config['sess_expiration'] = 7200;
-$config['sess_save_path'] = APPPATH . 'writable/session'; // <-- FIXED
+$config['sess_expiration'] = 7200; // 2 hours session lifetime
+$config['sess_save_path'] = APPPATH . 'writable/session';
 $config['sess_match_ip'] = FALSE;
-$config['sess_time_to_update'] = 300;
+$config['sess_time_to_update'] = 3600; // Regenerate session ID every 1 hour (prevents AJAX logout while maintaining security)
 $config['sess_regenerate_destroy'] = FALSE;
 
 

@@ -1,3 +1,5 @@
+// Deprecated: inventory products.js — Inventory Page removed
+// (Kept for backward compatibility but no longer active)
 // =====================================================
 // INVENTORY PRODUCTS.JS - Inventory Officer Role
 // =====================================================

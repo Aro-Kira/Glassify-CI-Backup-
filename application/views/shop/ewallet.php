@@ -6,7 +6,6 @@
 $items_count = isset($pending_summary['items']) ? $pending_summary['items'] : 0;
 $subtotal = isset($pending_summary['subtotal']) ? $pending_summary['subtotal'] : 0;
 $shipping = isset($pending_summary['shipping']) ? $pending_summary['shipping'] : 0;
-$handling = isset($pending_summary['handling']) ? $pending_summary['handling'] : 0;
 $total = isset($pending_summary['total']) ? $pending_summary['total'] : 0;
 
 // Build back URL with selected cart IDs to preserve checkout state
@@ -33,7 +32,6 @@ if (!empty($pending_cart_ids)) {
         document.getElementById('summary-items').textContent = summary.items || 0;
         document.getElementById('summary-subtotal').textContent = summary.subtotal || '0.00';
         document.getElementById('summary-shipping').textContent = summary.shipping || '0.00';
-        document.getElementById('summary-handling').textContent = summary.handling || '0.00';
         document.getElementById('summary-total').textContent = summary.total || '0.00';
     } else if (SELECTED_CART_IDS) {
         // Fetch summary via AJAX using selected cart IDs
@@ -48,7 +46,6 @@ if (!empty($pending_cart_ids)) {
                     document.getElementById('summary-items').textContent = summary.items || 0;
                     document.getElementById('summary-subtotal').textContent = summary.subtotal.toFixed(2);
                     document.getElementById('summary-shipping').textContent = summary.shipping.toFixed(2);
-                    document.getElementById('summary-handling').textContent = summary.handling.toFixed(2);
                     document.getElementById('summary-total').textContent = summary.total.toFixed(2);
                 }
             },
@@ -68,7 +65,7 @@ if (!empty($pending_cart_ids)) {
 <!-- Back + Progress -->
 <div class="payOrder-header">
     <div class="back-btn">
-        <a href="<?php echo $back_url; ?>">
+        <a href="javascript:history.back()">
             <img src="<?php echo base_url('assets/images/img-page/back_button.png'); ?>" alt="Back Icon">
             <span>Back</span>
         </a>
@@ -118,10 +115,7 @@ if (!empty($pending_cart_ids)) {
                     <span class="price">₱<span id="summary-shipping"><?= number_format($shipping, 2) ?></span></span>
                 </div>
 
-                <div class="summary-row">
-                    <span>Handling Fee:</span>
-                    <span class="price">₱<span id="summary-handling"><?= number_format($handling, 2) ?></span></span>
-                </div>
+                <!-- Handling fee removed -->
 
                 <div class="summary-row total">
                     <span>Total:</span>

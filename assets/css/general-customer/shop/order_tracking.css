@@ -172,7 +172,7 @@
 }
 
 .order-products {
-    background: #f3f6f8;
+    background: transparent;
 }
 
 .order-products table {
@@ -255,7 +255,17 @@
 }
 
 .address-box p {
-    padding: 15px 0px 15px 20px;
+    padding: 0px 20px;
+    margin: 0 0 8px 0;
+    line-height: 1.6;
+}
+
+.address-box p:first-of-type {
+    margin-top: 15px;
+}
+
+.address-box p:last-of-type {
+    margin-bottom: 15px;
 }
 
 .summary-box h4,
@@ -283,6 +293,30 @@
 .btn-back:hover {
     background: #1a5a6e;
     transform: translateX(-3px);
+}
+
+/* Back link (image + label) matching payment page */
+.back-btn {
+    display: inline-block;
+    margin-bottom: 20px;
+}
+.back-btn a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    color: #003049;
+    font-size: 16px;
+    font-weight: 600;
+}
+.back-btn img {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+.back-btn a:hover {
+    text-decoration: underline;
+    transform: none;
 }
 
 /* ===== Customization Display Styles ===== */

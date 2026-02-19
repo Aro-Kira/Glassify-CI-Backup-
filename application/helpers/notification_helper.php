@@ -62,6 +62,54 @@ if (!function_exists('send_customer_notification')) {
         if ($CI->db->insert('customer_notifications', $data)) {
             $notification_id = $CI->db->insert_id();
             log_message('info', "Customer notification sent: Customer ID {$customer_id}, Title: {$title}, Notification ID: {$notification_id}");
+
+            // Attempt to send email to customer if we have an email address
+            try {
+                // Get customer email via customer -> user relationship
+                $CI->db->reset_query();
+                $CI->db->select('u.Email');
+                $CI->db->from('customer c');
+                $CI->db->join('user u', 'u.UserID = c.UserID', 'left');
+                $CI->db->where('c.Customer_ID', $customer_id);
+                $user_row = $CI->db->get()->row();
+
+                if ($user_row && !empty($user_row->Email)) {
+                    $email_to = $user_row->Email;
+
+                    // Load email library and send HTML email
+                    $CI->load->library('email');
+                    $CI->email->set_mailtype('html');
+
+                    // From address: use config or default no-reply
+                    $from_email = config_item('smtp_user') ?: 'no-reply@localhost';
+                    $from_name = config_item('site_name') ?: 'Glassify';
+                    $CI->email->from($from_email, $from_name);
+                    $CI->email->to($email_to);
+                    $CI->email->subject($title);
+
+                    // Build basic HTML message with track order link when related_id present
+                    $track_link = '';
+                    if (!empty($related_id)) {
+                        $track_link = '<p><a href="' . site_url('my_purchases') . '">Log in to your account &gt; Track Order</a></p>';
+                    }
+
+                    $html_message = '<div style="font-family: Arial, sans-serif; color: #222;">'
+                                  . '<h2>' . htmlspecialchars($title) . '</h2>'
+                                  . '<div>' . nl2br(htmlspecialchars($message)) . '</div>'
+                                  . $track_link
+                                  . '<p style="color:#6b7280;font-size:0.9em;">This is an automated notification from ' . htmlspecialchars($from_name) . '.</p>'
+                                  . '</div>';
+
+                    $CI->email->message($html_message);
+                    if (!$CI->email->send()) {
+                        log_message('error', 'Failed to send notification email to customer: ' . $email_to . ' | ' . print_r($CI->email->print_debugger(['headers','subject','body']), true));
+                    } else {
+                        log_message('info', 'Notification email sent to customer: ' . $email_to . ' | NotificationID: ' . $notification_id);
+                    }
+                }
+            } catch (Exception $e) {
+                log_message('error', 'Error while attempting to send notification email: ' . $e->getMessage());
+            }
             return $notification_id;
         } else {
             $error = $CI->db->error();

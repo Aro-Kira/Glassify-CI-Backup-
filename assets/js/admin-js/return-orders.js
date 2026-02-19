@@ -280,11 +280,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 populateReturnDetailsModal(data.return_order);
                 returnOrderDetailsModal.classList.add('active');
             } else {
-                alert('Error loading return order details: ' + (data.message || 'Unknown error'));
+                showToast('Error loading return order details: ' + (data.message || 'Unknown error'), 'error');
             }
         } catch (error) {
             console.error("Error loading return order details:", error);
-            alert('Error loading return order details. Please try again.');
+            showToast('Error loading return order details. Please try again.', 'error');
         }
     }
     
@@ -432,7 +432,8 @@ document.addEventListener('DOMContentLoaded', function() {
     async function approveReturn() {
         if (!currentReturnOrder) return;
         
-        if (!confirm('Are you sure you want to approve this return?')) return;
+        const confirmed = await showConfirmationAsync('Are you sure you want to approve this return?');
+        if (!confirmed) return;
         
         try {
             const response = await fetch(approveReturnUrl, {
@@ -445,15 +446,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Return approved successfully');
+                showToast('Return approved successfully', 'success');
                 returnOrderDetailsModal.classList.remove('active');
                 loadReturnOrders();
             } else {
-                alert('Error: ' + (data.message || 'Failed to approve return'));
+                showToast('Error: ' + (data.message || 'Failed to approve return'), 'error');
             }
         } catch (error) {
             console.error('Error approving return:', error);
-            alert('Error approving return');
+            showToast('Error approving return', 'error');
         }
     }
     
@@ -462,7 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const reason = document.getElementById('rejection-reason-textarea')?.value;
         if (!reason || reason.trim() === '') {
-            alert('Please provide a rejection reason');
+            showToast('Please provide a rejection reason', 'warning');
             return;
         }
         
@@ -478,16 +479,16 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Return rejected successfully');
+                showToast('Return rejected successfully', 'success');
                 returnOrderDetailsModal.classList.remove('active');
                 document.getElementById('rejection-reason-group').style.display = 'none';
                 loadReturnOrders();
             } else {
-                alert('Error: ' + (data.message || 'Failed to reject return'));
+                showToast('Error: ' + (data.message || 'Failed to reject return'), 'error');
             }
         } catch (error) {
             console.error('Error rejecting return:', error);
-            alert('Error rejecting return');
+            showToast('Error rejecting return', 'error');
         }
     }
     
@@ -498,16 +499,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const refundMethod = document.getElementById('refund-method-select')?.value;
         
         if (!refundAmount || parseFloat(refundAmount) <= 0) {
-            alert('Please enter a valid refund amount');
+            showToast('Please enter a valid refund amount', 'warning');
             return;
         }
         
         if (!refundMethod) {
-            alert('Please select a refund method');
+            showToast('Please select a refund method', 'warning');
             return;
         }
         
-        if (!confirm(`Are you sure you want to process a refund of ₱${parseFloat(refundAmount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}?`)) return;
+        const confirmed = await showConfirmationAsync(`Are you sure you want to process a refund of ₱${parseFloat(refundAmount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}?`);
+        if (!confirmed) return;
         
         try {
             const response = await fetch(processRefundUrl, {
@@ -522,22 +524,23 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Refund processed successfully');
+                showToast('Refund processed successfully', 'success');
                 returnOrderDetailsModal.classList.remove('active');
                 loadReturnOrders();
             } else {
-                alert('Error: ' + (data.message || 'Failed to process refund'));
+                showToast('Error: ' + (data.message || 'Failed to process refund'), 'error');
             }
         } catch (error) {
             console.error('Error processing refund:', error);
-            alert('Error processing refund');
+            showToast('Error processing refund', 'error');
         }
     }
     
     async function createReplacementOrder() {
         if (!currentReturnOrder) return;
         
-        if (!confirm('Are you sure you want to create a replacement order for this return?')) return;
+        const confirmed = await showConfirmationAsync('Are you sure you want to create a replacement order for this return?');
+        if (!confirmed) return;
         
         try {
             const response = await fetch(createReplacementOrderUrl, {
@@ -550,22 +553,23 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Replacement order created successfully');
+                showToast('Replacement order created successfully', 'success');
                 returnOrderDetailsModal.classList.remove('active');
                 loadReturnOrders();
             } else {
-                alert('Error: ' + (data.message || 'Failed to create replacement order'));
+                showToast('Error: ' + (data.message || 'Failed to create replacement order'), 'error');
             }
         } catch (error) {
             console.error('Error creating replacement order:', error);
-            alert('Error creating replacement order');
+            showToast('Error creating replacement order', 'error');
         }
     }
     
     async function scheduleReplacementAppointment() {
         if (!currentReturnOrder) return;
         
-        if (!confirm('Are you sure you want to schedule a replacement installation appointment?')) return;
+        const confirmed = await showConfirmationAsync('Are you sure you want to schedule a replacement installation appointment?');
+        if (!confirmed) return;
         
         try {
             const response = await fetch(scheduleReplacementUrl, {
@@ -578,15 +582,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Replacement appointment scheduled successfully');
+                showToast('Replacement appointment scheduled successfully', 'success');
                 returnOrderDetailsModal.classList.remove('active');
                 loadReturnOrders();
             } else {
-                alert('Error: ' + (data.message || 'Failed to schedule appointment'));
+                showToast('Error: ' + (data.message || 'Failed to schedule appointment'), 'error');
             }
         } catch (error) {
             console.error('Error scheduling appointment:', error);
-            alert('Error scheduling replacement appointment');
+            showToast('Error scheduling replacement appointment', 'error');
         }
     }
     
@@ -595,7 +599,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const status = document.getElementById('update-status-select')?.value;
         if (!status) {
-            alert('Please select a status');
+            showToast('Please select a status', 'warning');
             return;
         }
         
@@ -611,15 +615,15 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Return status updated successfully');
+                showToast('Return status updated successfully', 'success');
                 returnOrderDetailsModal.classList.remove('active');
                 loadReturnOrders();
             } else {
-                alert('Error: ' + (data.message || 'Failed to update status'));
+                showToast('Error: ' + (data.message || 'Failed to update status'), 'error');
             }
         } catch (error) {
             console.error('Error updating status:', error);
-            alert('Error updating return status');
+            showToast('Error updating return status', 'error');
         }
     }
     
@@ -640,13 +644,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const data = await response.json();
             if (data.success) {
-                alert('Notes saved successfully');
+                showToast('Notes saved successfully', 'success');
             } else {
-                alert('Error: ' + (data.message || 'Failed to save notes'));
+                showToast('Error: ' + (data.message || 'Failed to save notes'), 'error');
             }
         } catch (error) {
             console.error('Error saving notes:', error);
-            alert('Error saving notes');
+            showToast('Error saving notes', 'error');
         }
     }
     

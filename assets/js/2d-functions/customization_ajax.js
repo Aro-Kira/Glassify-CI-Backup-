@@ -436,15 +436,18 @@ function getCurrentDimensions() {
 
 /**
  * Update price display in the UI
+ * DISABLED: Price is now static and shows the product's price range from database
  */
 function updatePriceDisplay(totalPrice, breakdown = null) {
-    const priceElement = document.getElementById('total-price');
-    if (priceElement) {
-        priceElement.textContent = formatPrice(totalPrice);
-    }
+    // Price display is now static - do not update
+    // const priceElement = document.getElementById('total-price');
+    // if (priceElement) {
+    //     priceElement.textContent = formatPrice(totalPrice);
+    // }
 
     if (breakdown != null && typeof breakdown === 'object') {
-        updatePriceBreakdown(breakdown);
+        // Price breakdown removed per user request
+        // updatePriceBreakdown(breakdown);
     }
 }
 
@@ -482,6 +485,10 @@ function formatPrice(price) {
  * Show save status indicator
  */
 function showSaveIndicator(status) {
+    // Do not show save indicator for beginner customers (no customization on page)
+    if (window && window.isBeginner) {
+        return;
+    }
     const indicator = document.getElementById('ajax-status-indicator');
     const textElement = document.getElementById('ajax-status-text');
 

@@ -178,7 +178,8 @@ class Cart_model extends CI_Model
             'DoorOperation' => !empty($data['DoorOperation']) ? $data['DoorOperation'] : null,
             'Configuration' => !empty($data['Configuration']) ? $data['Configuration'] : null,
             'EstimatePrice' => isset($data['EstimatePrice']) ? floatval($data['EstimatePrice']) : 0.00,
-            'PriceBreakdown' => isset($data['PriceBreakdown']) ? (is_string($data['PriceBreakdown']) ? $data['PriceBreakdown'] : json_encode($data['PriceBreakdown'])) : null
+            'PriceBreakdown' => isset($data['PriceBreakdown']) ? (is_string($data['PriceBreakdown']) ? $data['PriceBreakdown'] : json_encode($data['PriceBreakdown'])) : null,
+            'Customization' => !empty($data['Customization']) ? $data['Customization'] : null
         ];
     }
 
@@ -290,7 +291,10 @@ public function get_cart_items_with_details($customer_id)
         c.Quantity,
         p.ProductName,
         p.Category,
+        p.Subcategory,
         p.Price as BasePrice,
+        p.PriceMin,
+        p.PriceMax,
         p.ImageUrl
     ');
     $this->db->from('cart c');
@@ -313,6 +317,7 @@ public function get_cart_items_with_details($customer_id)
         $frame_type = null;
         $engraving = null;
         $design_ref = null;
+        $customization_json = null;
         
         if ($item->CustomizationID) {
             $table_name = $this->get_customization_table($item->Product_ID);
@@ -329,6 +334,7 @@ public function get_cart_items_with_details($customer_id)
                 $frame_type = $customization->FrameType ?? null;
                 $engraving = $customization->Engraving ?? null;
                 $design_ref = $customization->DesignRef ?? null;
+                $customization_json = $customization->Customization ?? null;
             }
         }
         
@@ -339,7 +345,10 @@ public function get_cart_items_with_details($customer_id)
             'Quantity' => $item->Quantity,
             'ProductName' => $item->ProductName,
             'Category' => $item->Category,
+            'Subcategory' => $item->Subcategory ?? null,
             'BasePrice' => $item->BasePrice,
+            'PriceMin' => $item->PriceMin ?? null,
+            'PriceMax' => $item->PriceMax ?? null,
             'ImageUrl' => $item->ImageUrl,
             'EstimatePrice' => $estimate_price,
             'Price' => ($estimate_price > 0) ? $estimate_price : $item->BasePrice,
@@ -350,7 +359,8 @@ public function get_cart_items_with_details($customer_id)
             'EdgeWork' => $edge_work,
             'FrameType' => $frame_type,
             'Engraving' => $engraving,
-            'DesignRef' => $design_ref
+            'DesignRef' => $design_ref,
+            'Customization' => $customization_json ?? null
         ];
     }
     

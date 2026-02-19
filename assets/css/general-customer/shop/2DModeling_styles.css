@@ -919,6 +919,8 @@ h1 {
     display: none !important;
 }
 
+
+
 /* ------------------------------------- */
 /* --- MODAL SPECIFIC STYLES --- */
 /* ------------------------------------- */
@@ -1290,9 +1292,11 @@ h1 {
 
 /* Action Buttons */
 .summary-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
     margin-bottom: 20px;
 }
 
@@ -1319,11 +1323,14 @@ h1 {
     background-color: var(--primary-yellow);
     border: 1px solid #d4a008;
     color: #000;
-    padding: 12px;
+    padding: 12px 40px;
     font-weight: 600;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
+    flex: 1;
+    max-width: 200px;
+    text-align: center;
 }
 
 .buy-btn:hover {
@@ -1331,15 +1338,24 @@ h1 {
 }
 
 .edit-order-btn {
-    background: none;
-    border: none;
-    color: #666;
+    background: white;
+    border: 1px solid #00465c;
+    color: #00465c;
+    padding: 12px 20px;
+    font-weight: 600;
+    border-radius: 4px;
     cursor: pointer;
     display: flex;
+    justify-content: center;
     align-items: center;
-    gap: 5px;
+    gap: 8px;
     font-size: 0.9rem;
-    text-decoration: underline;
+    transition: all 0.2s;
+    flex: 0 0 auto;
+}
+
+.edit-order-btn:hover {
+    background-color: #f0f8ff;
 }
 
 /* ========================================= */
@@ -1461,7 +1477,7 @@ h1 {
     height: 40px; /* Fixed height for alignment */
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
 }
 
 .yellow-btn {
@@ -1822,6 +1838,213 @@ h1 {
     color: #666;
     margin-top: 10px;
     font-style: italic;
+}
+
+/* ========================================= */
+/* QUOTATION PREVIEW SECTION                 */
+/* ========================================= */
+
+.quotation-preview-section {
+    margin-bottom: 25px;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.quotation-preview-title {
+    font-size: 1rem;
+    color: #333;
+    margin-bottom: 15px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.quotation-preview-container {
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 20px;
+}
+
+.quotation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--primary-dark);
+}
+
+.quotation-company {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.quotation-logo {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+}
+
+.quotation-company-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.quotation-company-info strong {
+    font-size: 1.1rem;
+    color: var(--primary-dark);
+}
+
+.quotation-company-info span {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+.quotation-meta {
+    text-align: right;
+}
+
+.quotation-label {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    letter-spacing: 1px;
+}
+
+.quotation-number {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 4px;
+}
+
+.quotation-date {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 2px;
+}
+
+.quotation-customer-info {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f0f0f0;
+    border-radius: 4px;
+}
+
+.quotation-customer-info strong {
+    color: #555;
+}
+
+.quotation-customer-info span {
+    margin-left: 5px;
+    color: #333;
+}
+
+.quotation-product-info {
+    margin-bottom: 15px;
+}
+
+.quotation-product-name {
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.quotation-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    font-size: 0.85rem;
+}
+
+.quotation-table th {
+    background: var(--primary-dark);
+    color: white;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 500;
+}
+
+.quotation-table th.text-right {
+    text-align: right;
+}
+
+.quotation-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.quotation-table td.text-right {
+    text-align: right;
+}
+
+.quotation-table tbody tr:hover {
+    background: #f5f5f5;
+}
+
+.quotation-table tfoot tr {
+    background: #f9f9f9;
+}
+
+.quotation-table .quotation-subtotal td {
+    border-top: 1px solid #ddd;
+    padding-top: 12px;
+}
+
+.quotation-table .quotation-total td {
+    border-top: 2px solid var(--primary-dark);
+    font-size: 1rem;
+    color: var(--primary-dark);
+}
+
+.quotation-notes {
+    margin-top: 15px;
+    padding: 12px;
+    background: #fff9e6;
+    border-left: 3px solid #f0ad4e;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.8rem;
+    color: #666;
+}
+
+.quotation-notes p {
+    margin: 0;
+}
+
+.quotation-validity {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #888;
+    text-align: right;
+}
+
+.download-quotation-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 20px;
+    margin-top: 15px;
+    background: var(--primary-dark);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.download-quotation-btn:hover {
+    background: var(--accent-green);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.download-quotation-btn svg {
+    stroke: currentColor;
 }
 
 /* Price addon in summary */

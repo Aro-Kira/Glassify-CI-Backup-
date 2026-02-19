@@ -361,4 +361,78 @@ class Wishlist_model extends CI_Model
         
         return false; // No matching cart item found
     }
+
+    /**
+     * Check if a wishlist item is already booked (has an order in progress)
+     * @param int $wishlist_id Wishlist ID
+     * @param int $customer_id Customer ID
+     * @return bool True if item is booked, false otherwise
+     */
+    public function is_booked($wishlist_id, $customer_id)
+    {
+        $wishlist_item = $this->get_wishlist_item($wishlist_id);
+        
+        if (!$wishlist_item || $wishlist_item->Customer_ID != $customer_id) {
+            return false;
+        }
+
+        // Check if there's an order for this product and customization that's not completed/cancelled
+        // Check in various order tables (pending_review_orders, awaiting_admin_orders, approved_orders, etc.)
+        
+        // First, check pending_review_orders
+        if ($this->db->table_exists('pending_review_orders')) {
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->where('Product_ID', $wishlist_item->Product_ID);
+            if ($wishlist_item->CustomizationID) {
+                $this->db->where('CustomizationID', $wishlist_item->CustomizationID);
+            }
+            $count = $this->db->count_all_results('pending_review_orders');
+            if ($count > 0) {
+                return true;
+            }
+        }
+
+        // Check awaiting_admin_orders
+        if ($this->db->table_exists('awaiting_admin_orders')) {
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->where('Product_ID', $wishlist_item->Product_ID);
+            if ($wishlist_item->CustomizationID) {
+                $this->db->where('CustomizationID', $wishlist_item->CustomizationID);
+            }
+            $count = $this->db->count_all_results('awaiting_admin_orders');
+            if ($count > 0) {
+                return true;
+            }
+        }
+
+        // Check approved_orders (orders that are approved but not completed)
+        if ($this->db->table_exists('approved_orders')) {
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->where('Product_ID', $wishlist_item->Product_ID);
+            if ($wishlist_item->CustomizationID) {
+                $this->db->where('CustomizationID', $wishlist_item->CustomizationID);
+            }
+            // Check for orders that are not completed
+            $this->db->where_in('Status', ['Pending', 'In Fabrication', 'Ready for Installation', 'Installed']);
+            $count = $this->db->count_all_results('approved_orders');
+            if ($count > 0) {
+                return true;
+            }
+        }
+
+        // Check ready_to_approve_orders
+        if ($this->db->table_exists('ready_to_approve_orders')) {
+            $this->db->where('Customer_ID', $customer_id);
+            $this->db->where('Product_ID', $wishlist_item->Product_ID);
+            if ($wishlist_item->CustomizationID) {
+                $this->db->where('CustomizationID', $wishlist_item->CustomizationID);
+            }
+            $count = $this->db->count_all_results('ready_to_approve_orders');
+            if ($count > 0) {
+                return true;
+            }
+        }
+
+        return false; // Item is not booked
+    }
 }

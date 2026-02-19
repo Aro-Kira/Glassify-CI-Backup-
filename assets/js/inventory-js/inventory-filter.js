@@ -1,4 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
+(function() {
+  // inventory filter logic
+  document.addEventListener('DOMContentLoaded', function() {
   const rowsPerPageSelect = document.getElementById("rowsPerPageSelect");
   const paginationControls = document.querySelector(".pagination-controls");
   const tableBody = document.querySelector("table tbody");
@@ -198,4 +201,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Initial render - show only 5 rows per page by default
   updateTable();
+})();
+console.log('Deprecated: inventory-filter.js (inventory)');
 });

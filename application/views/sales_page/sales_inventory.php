@@ -133,4 +133,5 @@
     // Pass inventory data to JavaScript
     const inventoryData = <?php echo json_encode($inventory_items); ?>;
   </script>
-  <script src="<?php echo base_url(); ?>assets/js/inventory-js/inventory-new-filter.js"></script>
+
+  <!-- Inventory scripts removed (Inventory Page deprecated) -->

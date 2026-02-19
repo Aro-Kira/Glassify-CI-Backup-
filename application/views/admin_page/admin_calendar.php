@@ -38,7 +38,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
       <option value="Ocular Completed">Ocular Completed</option>
       <option value="In Fabrication">In Fabrication</option>
       <option value="Ready for Installation">Ready for Installation</option>
-      <option value="Installed">Installed</option>
+      <option value="Installed">Installation/Delivery</option>
       <option value="Completed">Completed</option>
       <option value="Cancelled">Cancelled</option>
     </select>

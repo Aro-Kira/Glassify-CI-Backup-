@@ -82,13 +82,20 @@ let currentEditingRow = null;
 let rowToDelete = null;
 let originalValues = {}; // Store original values when opening edit popup
 let currentPage = 1;
-const itemsPerPage = 4;
+const itemsPerPage = 10; // Increased from 4 to 10 for better usability
 
 // --- FETCH USERS ---
 function loadUsers() {
+    console.log('Loading users from:', getUsersUrl);
     return fetch(getUsersUrl) // URL from PHP
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        })
         .then(data => {
+            console.log(`Loaded ${data.length} users from database:`, data);
             users = data;
             currentPage = 1; // Reset to first page when loading new data
             renderTable();
@@ -116,7 +123,7 @@ function renderTable() {
     }
     
     if (filteredUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No customers found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">No customers found</td></tr>';
         updatePaginationInfo(0, 0, 0);
         return;
     }
@@ -139,9 +146,11 @@ function renderTable() {
         const tr = document.createElement("tr");
         tr.dataset.id = user.id;
         const fullName = `${user.firstName} ${user.middleInitial ? user.middleInitial + ' ' : ''}${user.lastName}`.trim();
+        const roleDisplay = user.roleDisplay || '';
         tr.innerHTML = `
             <td>${startIndex + index + 1}</td>
             <td>${fullName}</td>
+            <td>${roleDisplay}</td>
             <td>${user.email}</td>
             <td>${user.joinedDate}</td>
             <td>${user.lastActive}</td>
@@ -160,6 +169,119 @@ function renderTable() {
     
     // Update pagination info
     updatePaginationInfo(startIndex + 1, endIndex, totalUsers);
+    
+    // Render pagination controls
+    renderPaginationControls(currentPage, totalPages);
+}
+
+// --- RENDER PAGINATION CONTROLS ---
+function renderPaginationControls(current, total) {
+    const container = document.querySelector(".pagination-controls");
+    if (!container) {
+        console.warn('Pagination controls container not found in DOM');
+        return;
+    }
+    
+    container.innerHTML = '';
+    
+    console.log(`Pagination: page ${current} of ${total} (${users.length} total users, ${itemsPerPage} per page)`);
+    
+    if (total <= 1) {
+        // No pagination needed for single page, but show a message for clarity
+        console.log('Only one page of results - pagination controls hidden');
+        return;
+    }
+    
+    // Create a wrapper for better styling
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.alignItems = 'center';
+    wrapper.style.gap = '8px';
+    
+    // Previous button
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '← Previous';
+    prevBtn.className = 'pagination-btn pagination-prev';
+    prevBtn.disabled = current === 1;
+    prevBtn.onclick = () => changePage(current - 1);
+    if (current === 1) {
+        prevBtn.style.opacity = '0.5';
+        prevBtn.style.cursor = 'not-allowed';
+    }
+    wrapper.appendChild(prevBtn);
+    
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, current - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(total, startPage + maxVisiblePages - 1);
+    
+    // Adjust start if we're near the end
+    if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    // First page + ellipsis
+    if (startPage > 1) {
+        const firstBtn = document.createElement('button');
+        firstBtn.textContent = '1';
+        firstBtn.className = 'pagination-btn';
+        firstBtn.onclick = () => changePage(1);
+        wrapper.appendChild(firstBtn);
+        
+        if (startPage > 2) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.style.padding = '0 8px';
+            ellipsis.style.color = '#666';
+            wrapper.appendChild(ellipsis);
+        }
+    }
+    
+    // Page number buttons
+    for (let i = startPage; i <= endPage; i++) {
+        const pageBtn = document.createElement('button');
+        pageBtn.textContent = i;
+        pageBtn.className = 'pagination-btn';
+        if (i === current) {
+            pageBtn.classList.add('active');
+            pageBtn.style.backgroundColor = '#0f2b46';
+            pageBtn.style.color = 'white';
+        }
+        pageBtn.onclick = () => changePage(i);
+        wrapper.appendChild(pageBtn);
+    }
+    
+    // Ellipsis + last page
+    if (endPage < total) {
+        if (endPage < total - 1) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.style.padding = '0 8px';
+            ellipsis.style.color = '#666';
+            wrapper.appendChild(ellipsis);
+        }
+        
+        const lastBtn = document.createElement('button');
+        lastBtn.textContent = total;
+        lastBtn.className = 'pagination-btn';
+        lastBtn.onclick = () => changePage(total);
+        wrapper.appendChild(lastBtn);
+    }
+    
+    // Next button
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = 'Next →';
+    nextBtn.className = 'pagination-btn pagination-next';
+    nextBtn.disabled = current === total;
+    nextBtn.onclick = () => changePage(current + 1);
+    if (current === total) {
+        nextBtn.style.opacity = '0.5';
+        nextBtn.style.cursor = 'not-allowed';
+    }
+    wrapper.appendChild(nextBtn);
+    
+    // Append wrapper to container
+    container.appendChild(wrapper);
 }
 
 // --- UPDATE PAGINATION INFO ---
@@ -176,6 +298,8 @@ function updatePaginationInfo(start, end, total) {
 
 // --- CHANGE PAGE ---
 function changePage(page) {
+    console.log(`changePage called: requesting page ${page}, current page is ${currentPage}`);
+    
     const searchQuery = document.querySelector(".search-input")?.value.toLowerCase().trim() || '';
     let filteredUsers = users;
     
@@ -187,10 +311,19 @@ function changePage(page) {
     }
     
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    console.log(`Total pages: ${totalPages}, filtered users: ${filteredUsers.length}`);
     
     if (page >= 1 && page <= totalPages) {
         currentPage = page;
         renderTable();
+        
+        // Smooth scroll to top of table
+        const tableContainer = document.querySelector('.table-container');
+        if (tableContainer) {
+            tableContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    } else {
+        console.warn(`Invalid page number: ${page} (valid range: 1-${totalPages})`);
     }
 }
 

@@ -39,7 +39,7 @@
         <div class="info-box">
             <p><strong>Order ID:</strong> <?= isset($order) && $order ? htmlspecialchars($order->OrderNumber ?? 'GI' . str_pad($order->OrderID, 3, '0', STR_PAD_LEFT)) : 'N/A' ?></p>
             <p><strong>Payment Method:</strong> <?= htmlspecialchars($payment_method ?? 'Cash on Delivery') ?></p>
-            <p><strong>Transaction ID:</strong> TXN<?= isset($order) && $order ? date('Ymd', strtotime($order->OrderDate)) . str_pad($order->OrderID, 6, '0', STR_PAD_LEFT) : 'N/A' ?></p>
+            <p><strong>Payment ID:</strong> <?= isset($payment) && !empty($payment->Transaction_ID) ? htmlspecialchars($payment->Transaction_ID) : 'TXN' . (isset($order) && $order ? date('Ymd', strtotime($order->OrderDate)) . str_pad($order->OrderID, 6, '0', STR_PAD_LEFT) : 'N/A') ?></p>
             <p><strong>Order Date:</strong> <?= isset($order) && $order ? date('F d, Y', strtotime($order->OrderDate)) : date('F d, Y') ?></p>
             <p><strong>Status:</strong> <span class="status-badge"><?= isset($order) && $order ? $order->Status : 'Pending' ?></span></p>
         </div>
@@ -161,7 +161,6 @@
             <p><span>Items:</span> <span><?= $summary['items'] ?? 0 ?></span></p>
             <p><span>Subtotal:</span> <span>₱ <?= number_format($summary['subtotal'] ?? 0, 2) ?></span></p>
             <p><span>Shipping Fee:</span> <span>₱ <?= number_format($summary['shipping'] ?? 0, 2) ?></span></p>
-            <p><span>Handling Fee:</span> <span>₱ <?= number_format($summary['handling'] ?? 0, 2) ?></span></p>
             <div class="summary-divider"></div>
             <h3><span>Total:</span> <span>₱ <?= number_format($summary['total'] ?? 0, 2) ?></span></h3>
         </div>
@@ -171,17 +170,42 @@
             <!-- Shipping Address -->
             <div class="address-box">
                 <h4>Shipping Address</h4>
-                <?php if (isset($user) && $user): ?>
-                    <p><b><?= htmlspecialchars($user->First_Name . ' ' . $user->Last_Name) ?></b></p>
-                    <p><?= $user->PhoneNum ? '(+63) ' . htmlspecialchars($user->PhoneNum) : '' ?></p>
-                <?php endif; ?>
-                <?php if (isset($shipping_address) && $shipping_address): ?>
-                    <p><?= htmlspecialchars($shipping_address->AddressLine ?? '') ?></p>
-                    <p><?= htmlspecialchars($shipping_address->City ?? '') ?>, <?= htmlspecialchars($shipping_address->Province ?? '') ?></p>
-                    <p><?= htmlspecialchars($shipping_address->Country ?? '') ?></p>
-                    <p><?= htmlspecialchars($shipping_address->ZipCode ?? '') ?></p>
+                <?php $this->load->helper('address'); ?>
+                <?php
+                    $this->load->helper('address');
+                    $ship_name = isset($user) ? trim(($user->First_Name ?? '') . ' ' . ($user->Last_Name ?? '')) : (isset($order) ? trim(($order->First_Name ?? '') . ' ' . ($order->Last_Name ?? '')) : '');
+                    $ship_phone = isset($user) ? ($user->PhoneNum ?? '') : ($order->PhoneNum ?? '');
+
+                    // Prefer payment billing values if present (reflects Payment page input)
+                    $payment_addr = null;
+                    if (isset($payment) && $payment) {
+                        $hasBilling = !empty($payment->billing_name) || !empty($payment->billing_street) || !empty($payment->billing_city);
+                        if ($hasBilling) {
+                            $payment_addr = [
+                                'UnitHouseNumber' => $payment->billing_unit ?? $payment->billing_unit_house_number ?? '',
+                                'Street' => $payment->billing_street ?? '',
+                                'Subdivision' => $payment->billing_subdivision ?? '',
+                                'Barangay' => $payment->billing_barangay ?? '',
+                                'City' => $payment->billing_city ?? '',
+                                'Province' => $payment->billing_province ?? '',
+                                'Region' => $payment->billing_region ?? '',
+                                'ZipCode' => $payment->billing_postal_code ?? $payment->billing_zipcode ?? '',
+                                'Country' => $payment->billing_country ?? ''
+                            ];
+                            $ship_name = $payment->billing_name ?? $ship_name;
+                            $ship_phone = $payment->billing_phone ?? $ship_phone;
+                        }
+                    }
+                ?>
+                <?php if ($ship_name): ?><p><b><?= htmlspecialchars($ship_name) ?></b></p><?php endif; ?>
+                <?php if ($ship_phone): ?><p><?= format_display_phone($ship_phone) ?></p><?php endif; ?>
+                <?php if (!is_null($payment_addr)): ?>
+                    <p><?= format_address_three_html($payment_addr) ?></p>
+                <?php elseif (isset($shipping_address) && $shipping_address): ?>
+                    <p><?= format_address_three_html($shipping_address) ?></p>
                 <?php elseif (isset($order) && $order && $order->DeliveryAddress): ?>
-                    <p><?= nl2br(htmlspecialchars($order->DeliveryAddress)) ?></p>
+                    <?php $tmpAddr = ['Street' => $order->DeliveryAddress, 'City' => $order->City ?? '', 'Province' => $order->Province ?? '', 'Region' => $order->Region ?? '', 'ZipCode' => $order->ZipCode ?? '']; ?>
+                    <p><?= format_address_three_html($tmpAddr) ?></p>
                 <?php else: ?>
                     <p>No shipping address provided</p>
                 <?php endif; ?>
@@ -190,14 +214,42 @@
             <!-- Billing Address -->
             <div class="address-box">
                 <h4>Billing Address</h4>
-                <?php if (isset($billing_address) && $billing_address && $billing_address->AddressLine): ?>
-                    <p><?= htmlspecialchars($billing_address->AddressLine) ?></p>
-                    <p><?= htmlspecialchars($billing_address->City ?? '') ?>, <?= htmlspecialchars($billing_address->Province ?? '') ?></p>
-                    <p><?= htmlspecialchars($billing_address->Country ?? '') ?></p>
-                    <p><?= htmlspecialchars($billing_address->ZipCode ?? '') ?></p>
-                <?php else: ?>
-                    <p>Same as shipping address</p>
-                <?php endif; ?>
+                <?php
+                    // Prefer persisted payment billing values (reflect exact Payment page input)
+                    $payment_addr = null;
+                    if (isset($payment) && $payment) {
+                        $hasBilling = !empty($payment->billing_name) || !empty($payment->billing_street) || !empty($payment->billing_city);
+                        if ($hasBilling) {
+                            $payment_addr = [
+                                'UnitHouseNumber' => $payment->billing_unit ?? $payment->billing_unit_house_number ?? '',
+                                'Street' => $payment->billing_street ?? '',
+                                'Subdivision' => $payment->billing_subdivision ?? '',
+                                'Barangay' => $payment->billing_barangay ?? '',
+                                'City' => $payment->billing_city ?? '',
+                                'Province' => $payment->billing_province ?? '',
+                                'Region' => $payment->billing_region ?? '',
+                                'ZipCode' => $payment->billing_postal_code ?? $payment->billing_zipcode ?? '',
+                                'Country' => $payment->billing_country ?? ''
+                            ];
+                        }
+                    }
+
+                    if (!is_null($payment_addr)) {
+                        $b_name = $payment->billing_name ?? trim(($payment->billing_firstname ?? '') . ' ' . ($payment->billing_lastname ?? ''));
+                        $b_phone = $payment->billing_phone ?? '';
+                        if ($b_name) echo '<p><b>' . htmlspecialchars($b_name) . '</b></p>';
+                        if ($b_phone) echo '<p>' . format_display_phone($b_phone) . '</p>';
+                        echo '<p>' . format_address_three_html($payment_addr) . '</p>';
+                    } elseif (isset($billing_address) && $billing_address && $billing_address->AddressLine) {
+                        echo '<p>' . format_address_three_html($billing_address) . '</p>';
+                    } else {
+                        if (isset($shipping_address) && $shipping_address) {
+                            echo '<p>' . format_address_three_html($shipping_address) . '</p>';
+                        } else {
+                            echo '<p>No billing address provided</p>';
+                        }
+                    }
+                ?>
             </div>
 
             <!-- Invoice Button -->
@@ -309,7 +361,6 @@ const orderData = {
         items: <?= $summary['items'] ?? 0 ?>,
         subtotal: <?= $summary['subtotal'] ?? 0 ?>,
         shipping: <?= $summary['shipping'] ?? 0 ?>,
-        handling: <?= $summary['handling'] ?? 0 ?>,
         total: <?= $summary['total'] ?? 0 ?>
     }
 };
@@ -503,9 +554,6 @@ document.getElementById('downloadInvoiceBtn').addEventListener('click', async fu
         doc.text('Shipping Fee:', 125, finalY + 18);
         doc.text('PHP' + orderData.summary.shipping.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 18, { align: 'right' });
         
-        doc.text('Handling Fee:', 125, finalY + 26);
-        doc.text('PHP' + orderData.summary.handling.toLocaleString('en-PH', {minimumFractionDigits: 2}), 180, finalY + 26, { align: 'right' });
-        
         doc.setDrawColor(...primaryColor);
         doc.line(125, finalY + 32, 185, finalY + 32);
         
@@ -523,7 +571,7 @@ document.getElementById('downloadInvoiceBtn').addEventListener('click', async fu
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.text('Payment Method: ' + orderData.paymentMethod, 20, paymentY + 8);
-        doc.text('Transaction ID: ' + orderData.transactionId, 20, paymentY + 15);
+        doc.text('Payment ID: ' + orderData.transactionId, 20, paymentY + 15);
         
         // Delivery Address
         doc.setFont('helvetica', 'bold');

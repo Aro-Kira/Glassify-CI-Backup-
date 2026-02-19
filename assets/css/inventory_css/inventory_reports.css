@@ -111,5 +111,8 @@
 .btn-small:hover {
     background: #036a8f;
 }
+/* Inventory CSS deprecated — inventory pages removed */
+/* Minimal placeholder */
+body { background: none; }
 
 

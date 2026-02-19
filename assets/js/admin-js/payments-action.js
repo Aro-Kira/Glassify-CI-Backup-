@@ -320,12 +320,21 @@ document.addEventListener('DOMContentLoaded', function () {
                         console.error('popupPrice element not found');
                     }
                     
-                    // Set payment method (Gcash or Cash) - from database payment table
+                    // Set payment method - from database payment table
                     let methodDisplay = 'Not Selected';
-                    if (paymentData.payment_method === 'E-Wallet') {
-                        methodDisplay = 'Gcash';
-                    } else if (paymentData.payment_method === 'Cash on Delivery') {
+                    const pm = paymentData.payment_method;
+                    if (pm === 'GCash' || pm === 'E-Wallet') {
+                        methodDisplay = 'GCash';
+                    } else if (pm === 'Maya') {
+                        methodDisplay = 'Maya';
+                    } else if (pm === 'Card' || pm === 'Bank Transfer') {
+                        methodDisplay = 'Credit/Debit Card';
+                    } else if (pm === 'Cash' || pm === 'Cash on Delivery') {
                         methodDisplay = 'Cash';
+                    } else if (pm === 'Check') {
+                        methodDisplay = 'Check';
+                    } else if (pm) {
+                        methodDisplay = pm;
                     }
                     
                     const methodFieldEl = document.querySelector(".method-field");

@@ -67,6 +67,29 @@ class Order_model extends CI_Model
             $order_data['PaymentStatus'] = 'Pending';
         }
         
+        // Snapshot customer's role at order creation (if column exists)
+        if ($this->db->field_exists('CustomerRoleAtOrder', 'order')) {
+            $customerRole = null;
+            if (!empty($order_data['Customer_ID'])) {
+                // Try to read from customer table
+                $cust = $this->db->get_where('customer', ['Customer_ID' => $order_data['Customer_ID']])->row();
+                if ($cust && isset($cust->role)) {
+                    $customerRole = $cust->role;
+                } else {
+                    // Fallback: try user table via Customer -> UserID
+                    if ($cust && isset($cust->UserID)) {
+                        $u = $this->db->get_where('user', ['UserID' => $cust->UserID])->row();
+                        if ($u && isset($u->Role)) {
+                            $customerRole = $u->Role;
+                        }
+                    }
+                }
+            }
+            if ($customerRole !== null) {
+                $order_data['CustomerRoleAtOrder'] = $customerRole;
+            }
+        }
+
         // Insert order
         $this->db->insert('order', $order_data);
         $order_id = $this->db->insert_id();
@@ -122,20 +145,32 @@ class Order_model extends CI_Model
      */
     private function generate_order_number()
     {
-        // Get the last order number
-        $this->db->select('OrderNumber');
-        $this->db->from('order');
-        $this->db->order_by('OrderID', 'DESC');
-        $this->db->limit(1);
-        $last_order = $this->db->get()->row();
-        
+        // Generate a sequential OrderNumber in a transaction-safe way.
+        // This method assumes a transaction has been started by the caller.
+        // Use FOR UPDATE to lock the rows and avoid race conditions.
+        $query = $this->db->query("SELECT OrderNumber FROM `order` ORDER BY OrderID DESC LIMIT 1 FOR UPDATE");
+        $last_order = $query->row();
+
         if ($last_order && preg_match('/GI(\d+)/', $last_order->OrderNumber, $matches)) {
             $next_num = intval($matches[1]) + 1;
         } else {
             $next_num = 1;
         }
-        
-        return 'GI' . str_pad($next_num, 3, '0', STR_PAD_LEFT);
+
+        // In the unlikely event of a conflict, loop to find an unused number
+        $attempts = 0;
+        do {
+            $candidate = 'GI' . str_pad($next_num, 3, '0', STR_PAD_LEFT);
+            $exists = $this->db->where('OrderNumber', $candidate)->count_all_results('order');
+            if ($exists == 0) {
+                return $candidate;
+            }
+            $next_num++;
+            $attempts++;
+        } while ($attempts < 1000);
+
+        // Fallback: use timestamp-based unique identifier to avoid duplicates
+        return 'GI' . date('YmdHis');
     }
 
     /**
@@ -391,6 +426,10 @@ class Order_model extends CI_Model
             if ($ocular_apt && $ocular_apt->AppointmentDate) {
                 $order->OcularDate = $ocular_apt->AppointmentDate;
             }
+            // Expose the ocular appointment time if available so views can show "Date - Time"
+            if ($ocular_apt && !empty($ocular_apt->AppointmentTime)) {
+                $order->OcularTime = $ocular_apt->AppointmentTime;
+            }
             
             // Get In Fabrication appointment date
             $fabrication_apt = $this->db->where('OrderID', $order_id)
@@ -491,29 +530,39 @@ class Order_model extends CI_Model
                                        ->where('Service', 'In Fabrication')
                                        ->get('appointments')
                                        ->row();
-            if ($fabrication_apt) {
-                if ($fabrication_apt->Status === 'Complete') {
-                    $steps['in_fabrication'] = 'completed';
-                } elseif ($fabrication_apt->Status === 'In Progress') {
-                    $steps['in_fabrication'] = 'in_progress';
-                } elseif ($fabrication_apt->Status === 'Cancelled') {
-                    // If cancelled, treat as pending
-                    $steps['in_fabrication'] = 'pending';
-                }
-            } else {
+                if ($fabrication_apt) {
+                    if ($fabrication_apt->Status === 'Complete') {
+                        $steps['in_fabrication'] = 'completed';
+                    } elseif ($fabrication_apt->Status === 'In Progress') {
+                        // Only mark fabrication as in-progress if ocular visit has been COMPLETED.
+                        // Do NOT treat an ocular appointment that is merely 'In Progress' as sufficient.
+                        if (isset($ocular_apt) && ($ocular_apt->Status === 'Complete')) {
+                            $steps['in_fabrication'] = 'in_progress';
+                        }
+                    } elseif ($fabrication_apt->Status === 'Cancelled') {
+                        // If cancelled, treat as pending
+                        $steps['in_fabrication'] = 'pending';
+                    }
+                } else {
                 // Check projectschedule table (primary source for fabrication status)
                 if ($this->db->table_exists('projectschedule')) {
                     $fabrication_project = $this->db->where('OrderID', $order_id)
                                                    ->get('projectschedule')
                                                    ->row();
                     if ($fabrication_project) {
-                        if ($fabrication_project->Status === 'Completed') {
+                        $proj_status = strtolower(trim((string)($fabrication_project->Status ?? '')));
+                        if ($proj_status === 'completed') {
                             $steps['in_fabrication'] = 'completed';
-                        } elseif ($fabrication_project->Status === 'In progress') {
-                            $steps['in_fabrication'] = 'in_progress';
-                        } elseif ($fabrication_project->Status === 'Delayed') {
-                            // If delayed, treat as in progress
-                            $steps['in_fabrication'] = 'in_progress';
+                        } elseif ($proj_status === 'in progress' || $proj_status === 'inprogress' || $proj_status === 'in_progress') {
+                            // Only mark in_progress if ocular visit has been COMPLETED
+                            if (isset($ocular_apt) && ($ocular_apt->Status === 'Complete')) {
+                                $steps['in_fabrication'] = 'in_progress';
+                            }
+                        } elseif ($proj_status === 'delayed') {
+                            // Treat delayed as in_progress only when ocular visit has been completed
+                            if (isset($ocular_apt) && ($ocular_apt->Status === 'Complete')) {
+                                $steps['in_fabrication'] = 'in_progress';
+                            }
                         }
                     }
                 }
@@ -571,28 +620,59 @@ class Order_model extends CI_Model
             }
         }
 
-        // Fallback to status-based logic if appointments not checked or not complete
-        // Note: Order status indicates readiness, not completion. Only check appointments for actual completion.
-        if ($steps['completed'] !== 'completed' && $status === 'Completed') {
-            $steps['completed'] = 'completed';
-            $steps['installed'] = 'completed';
-            $steps['in_fabrication'] = 'completed';
-            $steps['ocular_visit'] = 'completed';
-        } elseif ($steps['installed'] === 'pending' && $status === 'Ready for Installation') {
-            // Ready for Installation means fabrication is complete
-            $steps['in_fabrication'] = 'completed';
-            $steps['ocular_visit'] = 'completed';
-            // Don't mark installed as completed - wait for actual installation appointment completion
-        } elseif ($status === 'In Fabrication') {
-            // In Fabrication status means ocular visit is complete and order is ready for fabrication
-            // But fabrication itself is NOT complete yet - only mark ocular visit as complete
-            if ($steps['ocular_visit'] === 'pending') {
+        // Fallback / override: Sync progress steps with the admin-managed order Status field
+        // The order.Status is the primary source of truth set by the admin.
+        $status_lower = strtolower(trim($status));
+
+        // Order statuses flow: Pending Review → Approved/Booking Confirmed → In Fabrication → Ready for Installation → Completed
+        // Map admin status to progress step states so they are always in sync
+            if (in_array($status_lower, ['completed', 'complete', 'delivered'])) {
+                $steps['order_placed'] = 'completed';
                 $steps['ocular_visit'] = 'completed';
+                $steps['in_fabrication'] = 'completed';
+                $steps['installed'] = 'completed';
+                $steps['completed'] = 'completed';
+        } elseif (in_array($status_lower, ['ready for installation', 'installed', 'installation completed'])) {
+            $steps['order_placed'] = 'completed';
+            $steps['ocular_visit'] = 'completed';
+            $steps['in_fabrication'] = 'completed';
+                // installed step: ONLY mark as in_progress when there is an explicit Installed appointment.
+                // This ensures the Installation/Delivery step only activates when:
+                // 1. Order has been moved to "Completed" column in fabrication kanban (Ready for Installation status)
+                // 2. AND the order has been added to the installation page (has Installed appointment)
+                // Without an Installation appointment, the step stays pending even if status is "Ready for Installation"
+                $has_installed_apt = (isset($installed_apt) && $installed_apt);
+                if ($has_installed_apt) {
+                    if ($steps['installed'] !== 'completed') {
+                        $steps['installed'] = 'in_progress';
+                    }
+                } else {
+                    $steps['installed'] = 'pending';
+                }
+        } elseif ($status_lower === 'in fabrication') {
+            $steps['order_placed'] = 'completed';
+            $steps['ocular_visit'] = 'completed';
+            // in_fabrication: completed if already done per appointments, in_progress otherwise
+            if ($steps['in_fabrication'] !== 'completed') {
+                $steps['in_fabrication'] = 'in_progress';
             }
-            // Do NOT mark in_fabrication as completed - wait for actual fabrication appointment completion
-        } elseif ($status === 'Approved' && $steps['ocular_visit'] === 'pending') {
-            // If status is still Approved, ocular visit hasn't been completed yet
-            // This is just a fallback - appointments table should be the source of truth
+            // IMPORTANT: When order is "In Fabrication", the Installation/Delivery step
+            // should NEVER be in_progress, even if an Installed appointment exists.
+            // It only activates when the order has been moved to "Ready for Installation" status
+            // AND has an installation appointment (meaning it's on the installation page).
+            $steps['installed'] = 'pending';
+            $steps['completed'] = 'pending';
+        } elseif (in_array($status_lower, ['approved', 'booking confirmed', 'ocular pending', 'quotation available', 'quotation ready', 'ready for quotation', 'awaiting payment', 'pending payment'])) {
+            $steps['order_placed'] = 'completed';
+            // ocular_visit: completed if done per appointments, in_progress otherwise
+            if ($steps['ocular_visit'] !== 'completed') {
+                $steps['ocular_visit'] = 'in_progress';
+            }
+        } elseif (in_array($status_lower, ['pending review', 'pending booking confirmation', 'awaiting admin', 'ready to approve'])) {
+            // Order just placed, first step is in progress
+            if ($steps['order_placed'] !== 'completed') {
+                $steps['order_placed'] = 'in_progress';
+            }
         }
 
         return $steps;
@@ -606,7 +686,7 @@ class Order_model extends CI_Model
      * @param string $filter Filter type: 'all', 'to_receive', 'completed', 'cancelled'
      * @return array Order items
      */
-    public function get_customer_order_items($customer_id, $filter = 'all')
+    public function get_customer_order_items($customer_id, $filter = 'all', $limit = null, $offset = null)
     {
         $this->db->select('
             oi.OrderItemID,
@@ -615,6 +695,8 @@ class Order_model extends CI_Model
             oi.Quantity,
             oi.EstimatePrice,
             oi.UnitPrice,
+            o.OrderNumber,
+            o.TotalAmount,
             oi.Dimensions,
             oi.GlassShape,
             oi.GlassType,
@@ -623,6 +705,7 @@ class Order_model extends CI_Model
             oi.FrameType,
             oi.Engraving,
             p.ProductName,
+            p.OrderType as ProductOrderType,
             p.ImageUrl,
             p.Category,
             o.OrderDate,
@@ -656,7 +739,35 @@ class Order_model extends CI_Model
         
         $this->db->order_by('o.OrderDate', 'DESC');
         
+        // Add pagination if provided
+        if ($limit !== null) {
+            $this->db->limit($limit, $offset);
+        }
+        
         return $this->db->get()->result();
+    }
+
+    /**
+     * Get count of customer order items for pagination
+     */
+    public function get_customer_order_items_count($customer_id, $filter = 'all')
+    {
+        $this->db->select('COUNT(oi.OrderItemID) as total');
+        $this->db->from('order_items oi');
+        $this->db->join('`order` o', 'o.OrderID = oi.OrderID', 'left');
+        $this->db->where('o.Customer_ID', $customer_id);
+        
+        // Apply same filter as get_customer_order_items
+        if ($filter === 'to_receive') {
+            $this->db->where_not_in('o.Status', ['Completed', 'Cancelled', 'Returned', 'Disapproved']);
+        } elseif ($filter === 'completed') {
+            $this->db->where('o.Status', 'Completed');
+        } elseif ($filter === 'cancelled') {
+            $this->db->where_in('o.Status', ['Cancelled', 'Disapproved', 'Returned']);
+        }
+        
+        $result = $this->db->get()->row();
+        return $result ? (int)$result->total : 0;
     }
 
     /**
@@ -680,12 +791,20 @@ class Order_model extends CI_Model
             oi.FrameType,
             oi.Engraving,
             oi.DesignRef,
+            oi.Customization,
             oi.Created_Date,
             p.ProductName,
-            p.ImageUrl
+            p.Category,
+            p.Subcategory,
+            p.ImageUrl,
+            p.PriceMin,
+            p.PriceMax,
+            p.Price,
+            c.Customization as OldCustomization
         ');
         $this->db->from('order_items oi');
         $this->db->join('product p', 'p.Product_ID = oi.Product_ID', 'left');
+        $this->db->join('customization c', 'c.CustomizationID = oi.CustomizationID', 'left');
         $this->db->where('oi.OrderID', $order_id);
         return $this->db->get()->result();
     }
@@ -812,7 +931,7 @@ class Order_model extends CI_Model
      * Get orders for dashboard display with product names
      * Limits to recent orders for performance
      */
-    public function get_customer_orders_with_products($customer_id, $limit = 50)
+    public function get_customer_orders_with_products($customer_id, $limit = 50, $offset = 0)
     {
         $this->db->select('
             o.OrderID,
@@ -835,9 +954,18 @@ class Order_model extends CI_Model
         // Order by Updated_Date if available, otherwise OrderDate
         $this->db->order_by('COALESCE(o.Updated_Date, o.OrderDate)', 'DESC', FALSE);
         $this->db->group_by('o.OrderID');
-        $this->db->limit($limit);
+        $this->db->limit($limit, $offset);
         
         return $this->db->get()->result();
+    }
+
+    /**
+     * Count total orders for a customer (for pagination)
+     */
+    public function count_customer_orders($customer_id)
+    {
+        $this->db->where('Customer_ID', $customer_id);
+        return $this->db->count_all_results('`order`');
     }
 
     /**
@@ -1120,10 +1248,15 @@ class Order_model extends CI_Model
             return ['success' => false, 'message' => 'Order is not in a status that can be approved. Current status: ' . $order->Status];
         }
 
-        // Update order status to 'Ocular Pending' (after payment is verified and order is approved)
-        // Orders go to Ocular Pending after approval, not directly to fabrication
+        // UNIFIED PROCESS: ALL orders go to Ocular Pending after approval
+        // No more distinction between direct and site-assessed orders
+        // Flow: Approved -> Ocular Visit -> Fabrication -> Installation -> Completed
+        $next_status = 'Ocular Pending';
+
+        log_message('info', "Order_model::admin_approve_order - OrderID={$order_id} using unified process, next_status='{$next_status}'");
+
         $update_data = [
-            'Status' => 'Ocular Pending',
+            'Status' => $next_status,
             'ApprovedBy_Admin_ID' => $admin_id,
             'Approved_Date' => date('Y-m-d H:i:s')
         ];
@@ -1151,7 +1284,7 @@ class Order_model extends CI_Model
         if ($this->db->table_exists('system_activity_log')) {
             $this->db->insert('system_activity_log', [
                 'Action' => 'Order Approved by Admin',
-                'Description' => "Order {$order->OrderNumber} approved by Admin and moved to Ocular Pending. Notes: " . ($admin_notes ?: 'None'),
+                'Description' => "Order {$order->OrderNumber} approved by Admin and moved to {$next_status}. Notes: " . ($admin_notes ?: 'None'),
                 'Role' => 'Admin',
                 'UserID' => $admin_id,
                 'RelatedID' => $order_id,
@@ -1159,9 +1292,8 @@ class Order_model extends CI_Model
                 'Timestamp' => date('Y-m-d H:i:s')
             ]);
         }
-        
-        // Create ocular visit appointment if it doesn't exist
-        // This ensures the order appears in the ocular visit appointments page
+
+        // Create ocular visit appointment for ALL orders (unified process)
         if ($this->db->table_exists('appointments')) {
             $this->db->reset_query();
             $this->db->where('OrderID', $order_id);
@@ -1171,7 +1303,7 @@ class Order_model extends CI_Model
                 $this->db->where('AppointmentType', 'Ocular');
             }
             $existing_appointment = $this->db->get('appointments')->row();
-            
+
             if (!$existing_appointment) {
                 // Get client name
                 $client_name = '';
@@ -1186,7 +1318,43 @@ class Order_model extends CI_Model
                         $client_name = trim(($customer_user->First_Name ?? '') . ' ' . ($customer_user->Middle_Name ?? '') . ' ' . ($customer_user->Last_Name ?? ''));
                     }
                 }
+
+                // Get customer's preferred date from order
+                // Check PreferredInstallationDate field first, then parse from SpecialInstructions JSON
+                $preferred_date = null;
+                $preferred_time = '10:00:00'; // Default time
                 
+                if (!empty($order->PreferredInstallationDate)) {
+                    $preferred_date = date('Y-m-d', strtotime($order->PreferredInstallationDate));
+                } elseif (!empty($order->OcularDate)) {
+                    $preferred_date = date('Y-m-d', strtotime($order->OcularDate));
+                } elseif (!empty($order->SpecialInstructions)) {
+                    // Try to parse from SpecialInstructions JSON
+                    $special_json = json_decode($order->SpecialInstructions, true);
+                    if (json_last_error() === JSON_ERROR_NONE && !empty($special_json['preferred_ocular_date'])) {
+                        $preferred_date = date('Y-m-d', strtotime($special_json['preferred_ocular_date']));
+                    }
+                }
+                
+                // Parse preferred time from SpecialInstructions JSON
+                if (!empty($order->SpecialInstructions)) {
+                    $special_json = json_decode($order->SpecialInstructions, true);
+                    if (json_last_error() === JSON_ERROR_NONE && !empty($special_json['preferred_ocular_time'])) {
+                        // Convert HH:MM to HH:MM:SS format
+                        $time_value = $special_json['preferred_ocular_time'];
+                        if (strlen($time_value) === 5) {
+                            $preferred_time = $time_value . ':00';
+                        } else {
+                            $preferred_time = $time_value;
+                        }
+                    }
+                }
+                
+                // Fallback to 3 days from now if no preferred date
+                if (!$preferred_date) {
+                    $preferred_date = date('Y-m-d', strtotime('+3 days'));
+                }
+
                 $appointment_data = ['OrderID' => $order_id];
                 if ($this->db->field_exists('Customer_ID', 'appointments')) {
                     $appointment_data['Customer_ID'] = $order->Customer_ID ?? null;
@@ -1207,10 +1375,10 @@ class Order_model extends CI_Model
                     $appointment_data['ProductName'] = $order->ProductName ?? null;
                 }
                 if ($this->db->field_exists('AppointmentDate', 'appointments')) {
-                    $appointment_data['AppointmentDate'] = date('Y-m-d');
+                    $appointment_data['AppointmentDate'] = $preferred_date;
                 }
                 if ($this->db->field_exists('AppointmentTime', 'appointments')) {
-                    $appointment_data['AppointmentTime'] = '10:00:00';
+                    $appointment_data['AppointmentTime'] = $preferred_time;
                 }
                 $this->db->reset_query();
                 $this->db->insert('appointments', $appointment_data);
@@ -1973,16 +2141,28 @@ class Order_model extends CI_Model
         }
         
         $valid_transitions = [
-            'Pending Payment' => ['Paid', 'Cancelled'],
-            'Paid' => ['Payment Verified', 'Cancelled'],
+            // UNIFIED ORDER FLOW - All orders follow same path:
+            // Pending Review -> Approved -> Ocular Pending -> In Fabrication -> Ready for Installation -> Completed
+            'Pending Review' => ['Approved', 'Disapproved', 'Cancelled'],
+            'Awaiting Admin' => ['Approved', 'Disapproved', 'Cancelled'],
+            'Approved' => ['Ocular Pending', 'Cancelled'],
+            'Ocular Pending' => ['In Fabrication', 'Cancelled'],
+            'In Fabrication' => ['Ready for Installation', 'Cancelled'],
+            'Ready for Installation' => ['Completed', 'Cancelled'],
+            
+            // Legacy statuses (backward compatibility)
+            'Pending Payment' => ['Paid', 'Approved', 'Cancelled'],
+            'Paid' => ['Payment Verified', 'Approved', 'Cancelled'],
             'Payment Verified' => ['Approved', 'Cancelled'],
-            'Approved' => ['In Fabrication', 'Cancelled'],
-            'In Fabrication' => ['Scheduling', 'Cancelled'],
-            'Scheduling' => ['For Installation / Shipping', 'Cancelled'],
+            'Booking Confirmed' => ['Ocular Pending', 'Cancelled'],
+            'Scheduling' => ['Ready for Installation', 'Cancelled'],
             'For Installation / Shipping' => ['Completed', 'Cancelled'],
-            'Completed' => [], // Terminal state
-            'Cancelled' => [], // Terminal state
-            'Returned' => [] // Terminal state
+            
+            // Terminal states
+            'Completed' => [],
+            'Cancelled' => [],
+            'Disapproved' => [],
+            'Returned' => []
         ];
 
         // Check if transition is valid
@@ -1997,20 +2177,19 @@ class Order_model extends CI_Model
             ];
         }
 
-        // Role-based validation
+        // Role-based validation for UNIFIED flow
         $role_restrictions = [
             'Sales Representative' => [
-                'Pending Payment' => ['Paid'], // Sales rep can mark payment as paid
-                'Paid' => ['Payment Verified'] // Sales rep can verify payment
+                'Pending Payment' => ['Paid'],
+                'Paid' => ['Payment Verified']
             ],
             'Admin' => [
-                'Pending Payment' => ['Paid', 'Cancelled'],
-                'Paid' => ['Payment Verified', 'Cancelled'],
-                'Payment Verified' => ['Approved', 'Cancelled'],
-                'Approved' => ['In Fabrication', 'Cancelled'],
-                'In Fabrication' => ['Scheduling', 'Cancelled'],
-                'Scheduling' => ['For Installation / Shipping', 'Cancelled'],
-                'For Installation / Shipping' => ['Completed', 'Cancelled']
+                'Pending Review' => ['Approved', 'Disapproved', 'Cancelled'],
+                'Awaiting Admin' => ['Approved', 'Disapproved', 'Cancelled'],
+                'Approved' => ['Ocular Pending', 'Cancelled'],
+                'Ocular Pending' => ['In Fabrication', 'Cancelled'],
+                'In Fabrication' => ['Ready for Installation', 'Cancelled'],
+                'Ready for Installation' => ['Completed', 'Cancelled']
             ]
         ];
 

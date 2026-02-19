@@ -28,12 +28,17 @@ $is_customer = $is_logged_in && $user_role === 'Customer';
                 and high-quality service for 27 years and counting
             </p>
             <div class="social-icons">
-                <a href="https://www.facebook.com/glassworthbuilders"><img
-                        src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/facebook.svg" alt="Facebook"></a>
-                <a href="https://www.instagram.com/glassworthbuilders"><img
-                        src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/instagram.svg" alt="Instagram"></a>
-                <a href="https://www.tiktok.com/@glassworthbuilders"><img
-                        src="https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/tiktok.svg" alt="TikTok"></a>
+                <?php
+                $social_links = [
+                    'facebook' => ['url' => 'https://www.facebook.com/glassworthbuilders', 'icon' => 'assets/images/img-page/faq-fb.svg'],
+                    'instagram' => ['url' => 'https://www.instagram.com/glassworthbuilders', 'icon' => 'assets/images/img-page/faq-ig.svg'],
+                    'tiktok' => ['url' => 'https://www.tiktok.com/@glassworthbuilders', 'icon' => 'assets/images/icons/tik-tok.png'],
+                ];
+
+                foreach ($social_links as $name => $data) {
+                    echo '<a href="' . $data['url'] . '"><img src="' . base_url($data['icon']) . '" alt="' . ucfirst($name) . '" style="filter: brightness(0) invert(1);"></a>';
+                }
+                ?>
             </div>
         </div>
 

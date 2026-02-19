@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('sales-orders-main.js: DOMContentLoaded event fired');
+    console.log('sales-orders-main.js: ordersData available:', typeof ordersData !== 'undefined');
+    
     // =============================
     // TOAST NOTIFICATION SYSTEM
     // =============================
@@ -59,23 +62,54 @@ document.addEventListener('DOMContentLoaded', function() {
                     from { transform: translateX(0); opacity: 1; }
                     to { transform: translateX(400px); opacity: 0; }
                 }
-                .toast-notification { transition: all 0.3s ease; }
-                .toast-fade-out { animation: toastFadeOut 0.3s ease forwards; }
-                .toast-icon { font-size: 20px; font-weight: bold; flex-shrink: 0; }
-                .toast-message { flex: 1; font-size: 14px; line-height: 1.4; }
-                .toast-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; opacity: 0.8; transition: opacity 0.2s; flex-shrink: 0; }
-                .toast-close:hover { opacity: 1; }
+                .toast-notification {
+                    font-size: 14px;
+                }
+                .toast-icon {
+                    font-size: 20px;
+                    font-weight: bold;
+                }
+                .toast-message {
+                    flex: 1;
+                }
+                .toast-close {
+                    background: none;
+                    border: none;
+                    color: white;
+                    font-size: 20px;
+                    cursor: pointer;
+                    padding: 0;
+                    width: 20px;
+                    height: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    opacity: 0.8;
+                    transition: opacity 0.2s;
+                }
+                .toast-close:hover {
+                    opacity: 1;
+                }
+                .toast-fade-out {
+                    animation: toastFadeOut 0.3s ease forwards;
+                }
             `;
             document.head.appendChild(style);
         }
         
         document.body.appendChild(toast);
+        
         setTimeout(() => {
             toast.classList.add('toast-fade-out');
             setTimeout(() => toast.remove(), 300);
         }, duration);
-        
-        return toast;
+    }
+    
+    // Check if ordersData is available
+    if (typeof ordersData === 'undefined') {
+        console.error('sales-orders-main.js: ordersData is not defined!');
+        showToast('Error: Order data is not available. Please refresh the page.', 'error');
+        return;
     }
 
     // ===================== DATE PICKER =====================

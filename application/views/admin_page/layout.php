@@ -69,6 +69,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
     <!-- Sidebar toggle JS -->
     <script src="<?= base_url('assets/js/includes/sidebar.js'); ?>"></script>
     
+    <!-- Toast Notification JS -->
+    <script src="<?= base_url('assets/js/toast-notification.js'); ?>"></script>
+    
+    <!-- Confirmation Dialog JS -->
+    <script src="<?= base_url('assets/js/confirmation-dialog.js'); ?>"></script>
+    
     <!-- Notification badge JS -->
     <script>
         window.BASE_URL = '<?= base_url(); ?>';
@@ -77,7 +83,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
     <!-- Page-specific JS -->
     <?php if (isset($page_js)): ?>
-        <script src="<?= base_url('assets/js/' . $page_js); ?>"></script>
+        <?php
+            $js_rel = 'assets/js/' . $page_js;
+            $js_full = FCPATH . $js_rel;
+            $ver = (file_exists($js_full)) ? filemtime($js_full) : time();
+        ?>
+        <script src="<?= base_url($js_rel) . '?v=' . $ver; ?>"></script>
     <?php endif; ?>
 </body>
 

@@ -15,6 +15,11 @@ class Auth extends CI_Controller
     // ===================== REGISTER PAGE =====================
     public function register()
     {
+        // Redirect already logged-in customers to homepage (allow admins/staff to view page)
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            redirect(base_url());
+        }
+        
         $data['title'] = "Glassify - Register";
         $data['force_guest_header'] = true; // Force guest header on login/register pages
         $this->load->view('includes/header', $data);
@@ -87,6 +92,11 @@ class Auth extends CI_Controller
     // ===================== LOGIN PAGES =====================
     public function login()
     {
+        // Redirect already logged-in customers to homepage
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
+            redirect(base_url());
+        }
+        
         // Redirect Sales Representatives to their login page
         $user_role = $this->session->userdata('user_role');
         if ($user_role === 'Sales Representative') {
@@ -108,6 +118,11 @@ class Auth extends CI_Controller
     // ===================== ADMIN LOGIN =====================
     public function admin_login()
     {
+        // Redirect already logged-in admins to admin dashboard
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Admin') {
+            redirect(base_url('admin-dashboard'));
+        }
+        
         // If a customer is logged in, log them out automatically
         if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
             $this->session->sess_destroy();
@@ -134,6 +149,11 @@ class Auth extends CI_Controller
     // ===================== SALES LOGIN =====================
     public function sales_login()
     {
+        // Redirect already logged-in sales reps to sales dashboard
+        if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Sales Representative') {
+            redirect(base_url('sales-dashboard'));
+        }
+        
         // If a customer is logged in, log them out automatically
         if ($this->session->userdata('is_logged_in') && $this->session->userdata('user_role') === 'Customer') {
             $this->session->sess_destroy();
@@ -403,38 +423,73 @@ class Auth extends CI_Controller
         }
 
         // Check if user has the correct role
-        if ($user->Role !== $db_role) {
-            log_message('info', 'Login attempt failed: Wrong role - email=' . $email . ', user_role=' . $user->Role . ', required_role=' . $db_role);
-            
+        // Normalize user role: treat empty/null as Customer
+        $userRole = trim($user->Role ?? '');
+        if ($userRole === '') {
+            log_message('warning', 'Auth: empty Role for UserID=' . ($user->UserID ?? 'unknown') . ' - treating as Customer');
+            $userRole = 'Customer';
+        }
+
+        // Treat certain 'professional' roles as customer-equivalents so they can use the Customer login
+        $customer_equivalents = ['Customer', 'Professional', 'Beginner'];
+
+        $role_ok = false;
+        if ($userRole === $db_role) {
+            $role_ok = true;
+        } elseif ($db_role === 'Customer' && in_array($userRole, $customer_equivalents)) {
+            $role_ok = true;
+        }
+
+        if (!$role_ok) {
+            log_message('info', 'Login attempt failed: Wrong role - email=' . $email . ', user_role=' . $userRole . ', required_role=' . $db_role);
+
             // Provide helpful redirect messages for other roles
-            if ($user->Role === 'Admin') {
+            if ($userRole === 'Admin') {
                 $this->session->set_flashdata('error', 'You are an Admin. Please use the Admin login page.');
                 redirect(base_url('Adlog'));
-            } elseif ($user->Role === 'Customer') {
+            } elseif ($userRole === 'Customer') {
                 $this->session->set_flashdata('error', 'You are a Customer. Please use the regular login page.');
                 redirect(base_url('login'));
             } else {
-                $this->session->set_flashdata('error', "You are not authorized to access the $role login. Your account role is: " . $user->Role);
+                $displayRole = $userRole ?: 'unknown';
+                $this->session->set_flashdata('error', "You are not authorized to access the $role login. Your account role is: " . $displayRole);
                 redirect(base_url($redirect_url));
             }
         }
 
-        // Successful login - Set session
+        // Successful login - Set session. Use normalized role when available.
         $session_data = [
             'user_id' => $user->UserID,
             'user_name' => $user->First_Name . ' ' . $user->Last_Name,
             'user_email' => $user->Email,
-            'user_role' => $user->Role,
+            'user_role' => isset($userRole) && $userRole !== '' ? $userRole : ($user->Role ?? ''),
             'is_logged_in' => true
         ];
 
-        if ($user->Role === 'Customer') {
+        // Handle customer-equivalent roles (Customer, Professional, Beginner)
+        if (in_array($userRole, ['Customer', 'Professional', 'Beginner'])) {
             // Get or create Customer_ID from customer table
             $this->load->model('Customer_model');
             $customer_id = $this->Customer_model->get_customer_id($user->UserID);
             
             if ($customer_id) {
                 $session_data['customer_id'] = $customer_id;
+                
+                // CRITICAL: Ensure customer.role is in sync with user.Role during login
+                // customer.role uses lowercase ENUM('beginner', 'professional')
+                // user.Role uses capitalized values (Professional, Beginner, Customer)
+                if (in_array($userRole, ['Professional', 'Beginner'])) {
+                    $customer_role_lowercase = strtolower($userRole);
+                    
+                    // Check current customer.role to see if sync is needed
+                    $customer_record = $this->db->get_where('customer', ['Customer_ID' => $customer_id])->row();
+                    if ($customer_record && $customer_record->role !== $customer_role_lowercase) {
+                        // Out of sync - update customer.role to match user.Role
+                        $this->db->where('Customer_ID', $customer_id);
+                        $this->db->update('customer', ['role' => $customer_role_lowercase]);
+                        log_message('info', 'Auth:process_role_login - synced customer.role to ' . $customer_role_lowercase . ' for Customer_ID=' . $customer_id . ' (was: ' . ($customer_record->role ?? 'NULL') . ')');
+                    }
+                }
             } else {
                 // Fallback: use UserID if customer record creation failed
                 log_message('warning', 'Failed to get Customer_ID for UserID: ' . $user->UserID . ', using UserID as fallback');
@@ -470,8 +525,20 @@ class Auth extends CI_Controller
 
         log_message('info', 'Login successful: email=' . $email . ', role=' . $user->Role . ', user_id=' . $user->UserID);
 
-        // Redirect based on role
-        switch ($user->Role) {
+        // Check if Customer/Professional/Beginner needs to complete experience setup
+        if (in_array($userRole, ['Customer', 'Professional', 'Beginner'])) {
+            $customer = $this->db->get_where('customer', ['Customer_ID' => $customer_id])->row();
+            
+            // Redirect to setup page if not completed
+            if (!$customer || $customer->setup_status !== 'completed') {
+                redirect(base_url('auth/setup_experience'));
+                return;
+            }
+        }
+
+        // Redirect based on the resolved role (use normalized role if present)
+        $resolvedRole = $session_data['user_role'];
+        switch ($resolvedRole) {
             case 'Admin':
                 redirect(base_url('admin-dashboard'));
                 break;
@@ -479,6 +546,8 @@ class Auth extends CI_Controller
                 redirect(base_url('sales-dashboard'));
                 break;
             case 'Customer':
+            case 'Professional':
+            case 'Beginner':
                 redirect(base_url('home-login'));
                 break;
             default:
@@ -1039,4 +1108,106 @@ class Auth extends CI_Controller
             redirect(base_url());
         }
     }
+
+    // ===================== EXPERIENCE SETUP PAGE =====================
+    public function setup_experience()
+    {
+        // Check if user is logged in
+        if (!$this->session->userdata('customer_id')) {
+            redirect(base_url('login'));
+        }
+
+        // Check if setup already completed
+        $customer_id = $this->session->userdata('customer_id');
+        $customer = $this->db->get_where('customer', ['Customer_ID' => $customer_id])->row();
+        
+        if ($customer && $customer->setup_status === 'completed') {
+            // Already completed, set flash message and redirect
+            $this->session->set_flashdata('info_message', "You've already completed your experience setup. You can update this anytime in Account Settings → Skill Level.");
+            redirect(base_url());
+        }
+
+        $data['title'] = "Setup Your Experience - Glassify";
+        $data['force_guest_header'] = true;
+        $this->load->view('includes/header', $data);
+        $this->load->view('auth/setup_experience', $data);
+        $this->load->view('includes/footer');
+    }
+
+    // ===================== SAVE EXPERIENCE SETUP =====================
+    public function save_experience_setup()
+    {
+        // Check if user is logged in
+        if (!$this->session->userdata('customer_id')) {
+            redirect(base_url('login'));
+        }
+
+        $customer_id = $this->session->userdata('customer_id');
+        $role = $this->input->post('role');
+
+        // Prepare data based on role
+        $experience_data = [];
+
+        // Determine the actual role category (beginner or professional)
+        if ($role === 'beginner') {
+            $experience_data['role'] = 'beginner';
+            $experience_data['experience'] = $this->input->post('beginner_experience');
+            $experience_data['specifications_knowledge'] = $this->input->post('beginner_specifications');
+            $experience_data['customization_handling'] = $this->input->post('beginner_customization_handling');
+            $role_category = 'beginner';
+        } else {
+            // Professional role
+            $role_category = 'professional';
+            $experience_data['role'] = 'professional';
+            
+            // Get profession type from the new field
+            $profession_type = $this->input->post('profession_type');
+            if ($profession_type === 'other') {
+                $experience_data['professional_type'] = $this->input->post('profession_type_other_text');
+            } else {
+                $experience_data['professional_type'] = $profession_type; // architect, engineer, contractor
+            }
+            
+            $experience_data['previous_experience'] = $this->input->post('professional_prev_experience');
+            $experience_data['specification_preparation'] = $this->input->post('professional_spec_prep');
+            $experience_data['2d_tool_comfort'] = $this->input->post('professional_2d_comfort');
+        }
+
+        // Update customer record
+        $update_data = [
+            'role' => $role_category,
+            'setup_status' => 'completed',
+            'experience_data' => json_encode($experience_data)
+        ];
+
+        $this->db->where('Customer_ID', $customer_id);
+        $result = $this->db->update('customer', $update_data);
+
+        if ($result) {
+            // CRITICAL: Also update user.Role to keep both tables in sync
+            // customer.role uses lowercase (beginner/professional)
+            // user.Role uses capitalized (Beginner/Professional)
+            $user_id = $this->session->userdata('user_id');
+            if ($user_id) {
+                $user_role_capitalized = ucfirst($role_category); // 'beginner' -> 'Beginner', 'professional' -> 'Professional'
+                $this->db->where('UserID', $user_id);
+                $this->db->update('user', ['Role' => $user_role_capitalized]);
+                
+                // Update session to reflect the new role
+                $this->session->set_userdata('user_role', $user_role_capitalized);
+                
+                log_message('info', 'Auth::save_experience_setup - Updated user.Role to ' . $user_role_capitalized . ' for UserID=' . $user_id);
+            }
+            
+            // Set success message
+            $this->session->set_flashdata('success', 'Your experience has been set up successfully!');
+        } else {
+            // Set error message
+            $this->session->set_flashdata('error', 'There was an error saving your experience setup. Please try again.');
+        }
+        
+        // Redirect to home or dashboard
+        redirect(base_url());
+    }
 }
+

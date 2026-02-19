@@ -599,3 +599,34 @@ label .required {
   font-size: 22px;
   color: #02455F;
 }
+
+/* Pagination button styles */
+.pagination-btn {
+  background: #046280;
+  color: white;
+  border: 1px solid #046280;
+  border-radius: 5px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #02455F;
+  border-color: #02455F;
+  transform: translateY(-1px);
+}
+
+.pagination-btn.active {
+  background: #0f2b46;
+  border-color: #0f2b46;
+  font-weight: 700;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
